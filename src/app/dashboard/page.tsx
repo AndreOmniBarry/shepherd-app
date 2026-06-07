@@ -1029,19 +1029,31 @@ export default function DashboardPage(){
               </div>
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:500,marginBottom:4}}>Monthly Giving - The Comforters House Global</div>
-                <div style={{fontSize:11,color:'#9CA3AF',marginBottom:12}}>{givingSlice(givingRange).length} months · Tithe, Offering & Special</div>
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={givingSlice(givingRange)} margin={{top:5,right:10,left:10,bottom:0}}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                    <XAxis dataKey="p" tick={{fontSize:9}} interval={Math.floor(givingSlice(givingRange).length/8)}/>
-                    <YAxis tick={{fontSize:10}} tickFormatter={v=>`₦${(v/1000000).toFixed(1)}M`}/>
-                    <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb'}} formatter={(v:number,n:string)=>[fmtNGN(v),n==='t'?'Tithe':n==='o'?'Offering':'Special']}/>
-                    <Legend formatter={(v)=>v==='t'?'Tithe':v==='o'?'Offering':'Special'} wrapperStyle={{fontSize:12}}/>
-                    <Bar dataKey="t" name="Tithe" fill="#534AB7" radius={[2,2,0,0]}/>
-                    <Bar dataKey="o" name="Offering" fill="#1D9E75" radius={[2,2,0,0]}/>
-                    <Bar dataKey="s" name="Special" fill="#BA7517" radius={[2,2,0,0]}/>
-                  </BarChart>
-                </ResponsiveContainer>
+                <div style={{fontSize:11,color:'#9CA3AF',marginBottom:8}}>{givingSlice(givingRange).length} months · Tithe, Offering & Special</div>
+                {/* Legend */}
+                <div style={{display:'flex',gap:14,marginBottom:12,flexWrap:'wrap'}}>
+                  {[{color:'#534AB7',label:'Tithe'},{color:'#1D9E75',label:'Offering'},{color:'#BA7517',label:'Special'}].map(l=>(
+                    <div key={l.label} style={{display:'flex',alignItems:'center',gap:5,fontSize:12}}>
+                      <div style={{width:10,height:10,borderRadius:2,background:l.color,flexShrink:0}}/>
+                      <span style={{color:'#374151'}}>{l.label}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Scrollable chart container on mobile */}
+                <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+                  <div style={{minWidth: givingSlice(givingRange).length > 6 ? Math.max(givingSlice(givingRange).length * 52, 320) : '100%'}}>
+                    <BarChart width={Math.max(givingSlice(givingRange).length * 52, isMobile?320:600)} height={240} data={givingSlice(givingRange)} margin={{top:5,right:10,left:10,bottom:0}}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+                      <XAxis dataKey="p" tick={{fontSize:9}} interval={0} angle={givingSlice(givingRange).length>8?-35:0} textAnchor={givingSlice(givingRange).length>8?'end':'middle'} height={givingSlice(givingRange).length>8?40:20}/>
+                      <YAxis tick={{fontSize:9}} tickFormatter={v=>`₦${(v/1000000).toFixed(1)}M`} width={45}/>
+                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb'}} formatter={(v:number,n:string)=>[fmtNGN(v),n==='t'?'Tithe':n==='o'?'Offering':'Special']}/>
+                      <Bar dataKey="t" name="Tithe" fill="#534AB7" radius={[2,2,0,0]}/>
+                      <Bar dataKey="o" name="Offering" fill="#1D9E75" radius={[2,2,0,0]}/>
+                      <Bar dataKey="s" name="Special" fill="#BA7517" radius={[2,2,0,0]}/>
+                    </BarChart>
+                  </div>
+                </div>
+                <div style={{fontSize:10,color:'#9CA3AF',textAlign:'center',marginTop:4}}>← Swipe to see more →</div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
                 {[{label:'YTD Tithe',value:'₦7.82M'},{label:'YTD Offering',value:'₦5.56M'},{label:'YTD Special',value:'₦613k'},{label:'Per Member (avg)',value:'₦12.2k'},{label:'Best Month',value:'Dec 2025'},{label:'5-Year Growth',value:'+129%'},{label:'Tithe %',value:'75%'},{label:'Dec 25 Peak',value:'₦3.75M'}].map(s=>(
@@ -1341,15 +1353,17 @@ export default function DashboardPage(){
                     </button>
                   ))}
                 </div>
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={cellTrend(selectedCell,cellRange)} margin={{top:5,right:10,left:-20,bottom:0}}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                    <XAxis dataKey="w" tick={{fontSize:9}} interval={Math.floor(cellTrend(selectedCell,cellRange).length/6)}/>
-                    <YAxis tick={{fontSize:10}} domain={[0,'auto']}/>
-                    <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb'}}/>
-                    <Line type="monotone" dataKey="v" name="Attendance" stroke={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'} strokeWidth={2} dot={false}/>
-                  </LineChart>
-                </ResponsiveContainer>
+                <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+                  <ResponsiveContainer width="100%" height={200} minWidth={300}>
+                    <LineChart data={cellTrend(selectedCell,cellRange)} margin={{top:5,right:10,left:-20,bottom:0}}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+                      <XAxis dataKey="w" tick={{fontSize:9}} interval={Math.floor(cellTrend(selectedCell,cellRange).length/6)}/>
+                      <YAxis tick={{fontSize:9}} domain={[0,'auto']} width={32}/>
+                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb'}}/>
+                      <Line type="monotone" dataKey="v" name="Attendance" stroke={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'} strokeWidth={2} dot={false}/>
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
               {(selectedCell.members_list||[]).length>0&&<div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
