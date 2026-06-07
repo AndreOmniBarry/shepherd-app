@@ -1064,20 +1064,30 @@ export default function DashboardPage(){
                 ))}
               </div>
               <div style={card()}>
-                <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Giving Breakdown by Type</div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:16,alignItems:'center'}}>
-                  <ResponsiveContainer width="100%" height={140}>
-                    <PieChart><Pie data={GIVING_PIE} cx="50%" cy="50%" outerRadius={60} dataKey="value" label={({name,value})=>`${value}%`} labelLine={false} style={{fontSize:10}}>{GIVING_PIE.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie></PieChart>
-                  </ResponsiveContainer>
-                  <div>{GIVING_PIE.map(g=>(
-                    <div key={g.name} style={{marginBottom:10}}>
-                      <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:3}}>
-                        <div style={{display:'flex',alignItems:'center',gap:6}}><div style={{width:10,height:10,borderRadius:2,background:g.color}}/><span style={{color:'#374151'}}>{g.name}</span></div>
-                        <span style={{color:'#6B7280',fontWeight:500}}>{g.value}%</span>
+                <div style={{fontSize:13,fontWeight:500,marginBottom:16}}>Giving Breakdown by Type</div>
+                <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:16}}>
+                  <PieChart width={220} height={220}>
+                    <Pie data={GIVING_PIE} cx={105} cy={105} outerRadius={90} innerRadius={40} dataKey="value" stroke="none">
+                      {GIVING_PIE.map((e,i)=><Cell key={i} fill={e.color}/>)}
+                    </Pie>
+                    <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb'}} formatter={(v:number,n:string)=>[`${v}%`,n]}/>
+                  </PieChart>
+                  <div style={{width:'100%'}}>
+                    {GIVING_PIE.map(g=>(
+                      <div key={g.name} style={{marginBottom:12}}>
+                        <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:4}}>
+                          <div style={{display:'flex',alignItems:'center',gap:8}}>
+                            <div style={{width:12,height:12,borderRadius:3,background:g.color,flexShrink:0}}/>
+                            <span style={{color:'#374151',fontWeight:500}}>{g.name}</span>
+                          </div>
+                          <span style={{color:'#374151',fontWeight:600}}>{g.value}%</span>
+                        </div>
+                        <div style={{height:8,background:'#F3F4F6',borderRadius:4,overflow:'hidden'}}>
+                          <div style={{height:'100%',width:`${g.value}%`,background:g.color,borderRadius:4}}/>
+                        </div>
                       </div>
-                      <div style={{height:6,background:'#F3F4F6',borderRadius:3,overflow:'hidden'}}><div style={{height:'100%',width:`${g.value}%`,background:g.color,borderRadius:3}}/></div>
-                    </div>
-                  ))}</div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
