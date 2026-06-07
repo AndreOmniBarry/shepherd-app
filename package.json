@@ -1,0 +1,36 @@
+{
+  "name": "shepherd",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.24.3",
+    "@supabase/auth-helpers-nextjs": "0.8.7",
+    "@supabase/supabase-js": "2.39.3",
+    "clsx": "2.1.0",
+    "date-fns": "3.3.1",
+    "encoding": "^0.1.13",
+    "jose": "5.2.3",
+    "next": "13.5.6",
+    "next-pwa": "5.6.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "recharts": "2.10.3"
+  },
+  "devDependencies": {
+    "@types/node": "20.11.5",
+    "@types/react": "18.2.48",
+    "@types/react-dom": "18.2.18",
+    "autoprefixer": "10.4.17",
+    "eslint": "8.56.0",
+    "eslint-config-next": "13.5.6",
+    "postcss": "8.4.33",
+    "tailwindcss": "3.4.1",
+    "typescript": "5.3.3"
+  }
+}
