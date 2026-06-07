@@ -689,19 +689,33 @@ export default function DashboardPage(){
 
   function logout(){fetch('/api/auth/logout',{method:'POST',credentials:'include'}).catch(()=>{});document.cookie='shepherd_token=; Max-Age=0; path=/';router.push('/login');}
 
-  // Theme
+  // Theme - true black/white
   const t = {
-    bg:     dark?'#0F0D2A':'#F9FAFB',
-    card:   dark?'#1A1740':'#fff',
-    border: dark?'#2D2A5E':'#E5E7EB',
-    text:   dark?'#F9FAFB':'#111827',
-    sub:    dark?'#9CA3AF':'#6B7280',
-    muted:  dark?'#6B7280':'#9CA3AF',
-    nav:    dark?'#12102B':'#fff',
-    navBorder: dark?'#2D2A5E':'#E5E7EB',
-    hover:  dark?'#252260':'#FAFAFA',
-    input:  dark?'#1A1740':'#F9FAFB',
-    tableRow: dark?'#1A1740':'#F9FAFB',
+    bg:        dark?'#0A0A0A':'#F9FAFB',
+    card:      dark?'#141414':'#FFFFFF',
+    border:    dark?'#2A2A2A':'#E5E7EB',
+    text:      dark?'#FFFFFF':'#111827',
+    sub:       dark?'#AAAAAA':'#6B7280',
+    muted:     dark?'#666666':'#9CA3AF',
+    nav:       dark?'#0A0A0A':'#FFFFFF',
+    navBorder: dark?'#2A2A2A':'#E5E7EB',
+    hover:     dark?'#1F1F1F':'#F9FAFB',
+    input:     dark?'#1F1F1F':'#F9FAFB',
+    tableRow:  dark?'#141414':'#F9FAFB',
+    cardInner: dark?'#1F1F1F':'#F9FAFB',
+    purple:    dark?'#A89FFF':'#534AB7',
+    purpleBg:  dark?'#1A1A2E':'#EEEDFE',
+    teal:      dark?'#2DD4AA':'#1D9E75',
+    tealBg:    dark?'#0D2620':'#E1F5EE',
+    amber:     dark?'#FCD34D':'#BA7517',
+    amberBg:   dark?'#1F1A00':'#FAEEDA',
+    coral:     dark?'#F87171':'#D85A30',
+    coralBg:   dark?'#1F0A0A':'#FAECE7',
+    chartGrid: dark?'#2A2A2A':'#F0F0F0',
+    chartAxis: dark?'#666666':'#6B7280',
+    chartTip:  dark?'#141414':'#FFFFFF',
+    chartTipText: dark?'#FFFFFF':'#374151',
+    chartBorder: dark?'#2A2A2A':'#E5E7EB',
   };
   const card=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:10,padding:'16px 20px',...e});
   const bc=(b:string)=>b==='teal'?{bg:'#E1F5EE',c:'#085041'}:b==='amber'?{bg:'#FAEEDA',c:'#633806'}:{bg:'#EEEDFE',c:'#3C3489'};
@@ -740,7 +754,7 @@ export default function DashboardPage(){
         <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
           {navItems.map(n=>(
             <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDept(null);setPage(n.id);}}
-              style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:'9px 16px',fontSize:13,border:'none',cursor:'pointer',textAlign:'left',background:page===n.id?(dark?'#2D2A5E':'#EEEDFE'):'transparent',color:page===n.id?(dark?'#A89FFF':'#3C3489'):(dark?'#9CA3AF':'#6B7280'),fontWeight:page===n.id?500:400,transition:'background 0.1s'}}>
+              style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:'9px 16px',fontSize:13,border:'none',cursor:'pointer',textAlign:'left',background:page===n.id?t.purpleBg:'transparent',color:page===n.id?(dark?'#FFFFFF':'#3C3489'):t.sub,fontWeight:page===n.id?500:400,transition:'background 0.1s'}}>
               {n.label}
             </button>
           ))}
@@ -766,8 +780,8 @@ export default function DashboardPage(){
             </div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:12}}>
-            <button onClick={()=>setDark(v=>!v)} style={{background:dark?'#2D2A5E':'#EEEDFE',border:'none',borderRadius:20,padding:'4px 10px',cursor:'pointer',fontSize:12,color:dark?'#A89FFF':'#534AB7',fontWeight:500}}>
-              {dark?'☀ Light':'◑ Dark'}
+            <button onClick={()=>setDark(v=>!v)} style={{background:t.purpleBg,border:'none',borderRadius:20,padding:'4px 10px',cursor:'pointer',fontSize:12,color:dark?'#A89FFF':'#534AB7',fontWeight:500}}>
+              {dark?'● Light Mode':'○ Dark Mode'}
             </button>
             <div style={{display:'flex',alignItems:'center',gap:5,fontSize:12,color:'#1D9E75'}}>
               <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',display:'inline-block'}}/>Live
@@ -781,7 +795,7 @@ export default function DashboardPage(){
           {/* ══ DASHBOARD ══ */}
           {page==='dashboard'&&(
             <div>
-              <div style={{background:dark?'#0D3320':'#E1F5EE',borderRadius:8,padding:'8px 14px',marginBottom:18,display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#085041'}}>
+              <div style={{background:t.tealBg,borderRadius:8,padding:'8px 14px',marginBottom:18,display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#085041'}}>
                 <span>●</span>
                 <span>Attendance session live &mdash; <strong>{fmt(kpi?.today_present)}</strong> check-ins · <strong>{kpi?.today_cells_reported??'—'}/{kpi?.today_cells_total??'—'}</strong> cells reported</span>
               </div>
@@ -805,11 +819,11 @@ export default function DashboardPage(){
                 <div onClick={()=>setPage('attendance')} style={{...card(),cursor:'pointer'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
                     <span style={{fontSize:13,fontWeight:500,color:t.text}}>Attendance trend (8 Sundays)</span>
-                    <span style={{fontSize:12,color:'#534AB7'}}>View all →</span>
+                    <span style={{fontSize:12,color:t.purple}}>View all →</span>
                   </div>
                   <ResponsiveContainer width="100%" height={100}>
                     <BarChart data={[{w:'W1',s1:378,s2:241},{w:'W2',s1:391,s2:248},{w:'W3',s1:383,s2:243},{w:'W4',s1:402,s2:256},{w:'W5',s1:418,s2:261},{w:'W6',s1:411,s2:258},{w:'W7',s1:445,s2:278},{w:'W8',s1:458,s2:289}]} margin={{top:2,right:0,left:-30,bottom:0}}>
-                      <XAxis dataKey="w" tick={{fontSize:9,fill:dark?'#9CA3AF':'#6B7280'}} tickLine={false} axisLine={false}/>
+                      <XAxis dataKey="w" tick={{fontSize:9,fill:t.chartAxis}} tickLine={false} axisLine={false}/>
                       <YAxis hide/><Tooltip contentStyle={{fontSize:11,borderRadius:6,border:'1px solid #e5e7eb'}}/>
                       <Bar dataKey="s1" name="Svc 1" fill="#534AB7" radius={[2,2,0,0]}/>
                       <Bar dataKey="s2" name="Svc 2" fill="#AFA9EC" radius={[2,2,0,0]}/>
@@ -819,7 +833,7 @@ export default function DashboardPage(){
                 <div style={card()}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
                     <span style={{fontSize:13,fontWeight:500,color:t.text}}>Recent activity</span>
-                    <span style={{fontSize:12,color:'#534AB7',cursor:'pointer'}} onClick={()=>setPage('attendance')}>View log</span>
+                    <span style={{fontSize:12,color:t.purple,cursor:'pointer'}} onClick={()=>setPage('attendance')}>View log</span>
                   </div>
                   {liveFeed.length>0?liveFeed.slice(0,6).map((r,i)=>(
                     <div key={r.id} style={{display:'flex',alignItems:'flex-start',gap:10,padding:'7px 0',borderBottom:i<Math.min(liveFeed.length,6)-1?`0.5px solid ${t.navBorder}`:'none'}}>
@@ -836,7 +850,7 @@ export default function DashboardPage(){
               </div>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr 1fr',gap:14}}>
                 <div onClick={()=>setPage('departments')} style={{...card(),cursor:'pointer'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:12}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Top departments</span><span style={{fontSize:12,color:'#534AB7'}}>View all →</span></div>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:12}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Top departments</span><span style={{fontSize:12,color:t.purple}}>View all →</span></div>
                   {DEPTS.slice(0,5).map(d=>{const b=bc(d.badge);return(
                     <div key={d.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,fontSize:12}}>
                       <span style={{color:dark?'#E5E7EB':'#374151'}}>{d.name}</span>
@@ -845,7 +859,7 @@ export default function DashboardPage(){
                   );})}
                 </div>
                 <div onClick={()=>setPage('giving')} style={{...card(),cursor:'pointer'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Giving breakdown</span><span style={{fontSize:12,color:'#534AB7'}}>Drill down →</span></div>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Giving breakdown</span><span style={{fontSize:12,color:t.purple}}>Drill down →</span></div>
                   <div style={{display:'flex',alignItems:'center',gap:10}}>
                     <ResponsiveContainer width={80} height={80}>
                       <PieChart><Pie data={GIVING_PIE} cx={35} cy={35} innerRadius={20} outerRadius={35} dataKey="value" stroke="none">{GIVING_PIE.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie></PieChart>
@@ -860,7 +874,7 @@ export default function DashboardPage(){
                   </div>
                 </div>
                 <div onClick={()=>setPage('cells')} style={{...card(),cursor:'pointer'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Cell alerts</span><span style={{fontSize:12,color:'#534AB7'}}>View all →</span></div>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Cell alerts</span><span style={{fontSize:12,color:t.purple}}>View all →</span></div>
                   {(dbCells||CELLS_DATA).filter(c=>c.status==='alert'||c.status==='watch').slice(0,3).map(c=>(
                     <div key={c.cell} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
                       <div><div style={{fontSize:12,color:dark?'#E5E7EB':'#374151',fontWeight:500}}>{c.cell}</div><div style={{fontSize:11,color:t.muted}}>{c.fel}</div></div>
@@ -921,7 +935,7 @@ export default function DashboardPage(){
                 <div className="range-btns">
                   {rangeOpts.map(r=>(
                     <button key={r} onClick={()=>setCellRange(r)}
-                      style={{padding:'5px 12px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:12,fontWeight:cellRange===r?500:400,background:cellRange===r?'#534AB7':(dark?'#1A1740':'transparent'),borderColor:cellRange===r?'#534AB7':'#E5E7EB',color:cellRange===r?'#fff':t.sub}}>
+                      style={{padding:'5px 12px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:12,fontWeight:cellRange===r?500:400,background:cellRange===r?'#534AB7':t.cardInner,borderColor:cellRange===r?'#534AB7':'#E5E7EB',color:cellRange===r?'#fff':t.sub}}>
                       {rangeLabel(r)}
                     </button>
                   ))}
@@ -935,9 +949,9 @@ export default function DashboardPage(){
                 <ResponsiveContainer width="100%" height={240}>
                   <LineChart data={cellTrend(CELLS_DATA[3],cellRange)} margin={{top:5,right:10,left:-20,bottom:0}}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                    <XAxis dataKey="w" tick={{fontSize:9,fill:dark?'#9CA3AF':'#6B7280'}} interval={Math.floor(cellTrend(CELLS_DATA[0],cellRange).length/8)}/>
-                    <YAxis tick={{fontSize:10,fill:dark?'#9CA3AF':'#6B7280'}} domain={['auto','auto']}/>
-                    <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:dark?'#1A1740':'#fff',color:dark?'#F9FAFB':'#374151'}}/>
+                    <XAxis dataKey="w" tick={{fontSize:9,fill:t.chartAxis}} interval={Math.floor(cellTrend(CELLS_DATA[0],cellRange).length/8)}/>
+                    <YAxis tick={{fontSize:10,fill:t.chartAxis}} domain={['auto','auto']}/>
+                    <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}}/>
                     <Line type="monotone" dataKey="v" name="Attendance" stroke="#534AB7" strokeWidth={2} dot={false}/>
                   </LineChart>
                 </ResponsiveContainer>
@@ -958,7 +972,7 @@ export default function DashboardPage(){
                       <div style={{marginTop:12,paddingTop:10,borderTop:`0.5px solid ${t.navBorder}`}}>
                         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:8}}>
                           {[{l:'Service 1',v:f.s1},{l:'Service 2',v:f.s2},{l:'Absent',v:f.absent}].map(s=>(
-                            <div key={s.l} style={{background:dark?'#12102B':'#F9FAFB',borderRadius:6,padding:'6px 8px',textAlign:'center'}}>
+                            <div key={s.l} style={{background:t.cardInner,borderRadius:6,padding:'6px 8px',textAlign:'center'}}>
                               <div style={{fontSize:16,fontWeight:500,color:s.l==='Absent'?'#D85A30':'#374151'}}>{s.v}</div>
                               <div style={{fontSize:10,color:t.muted}}>{s.l}</div>
                             </div>
@@ -976,7 +990,7 @@ export default function DashboardPage(){
                   <span style={{fontSize:11,background:'#EEEDFE',color:'#3C3489',padding:'2px 8px',borderRadius:10}}>300 total</span>
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:12,marginBottom:12}}>
-                  <div style={{background:dark?'#2D2A5E':'#EEEDFE',borderRadius:8,padding:'14px'}}>
+                  <div style={{background:t.purpleBg,borderRadius:8,padding:'14px'}}>
                     <div style={{fontSize:11,color:'#534AB7',marginBottom:6,fontWeight:500}}>Children (Ages 0–12)</div>
                     <div style={{fontSize:28,fontWeight:600,color:t.text,color:'#3C3489',marginBottom:4}}>180</div>
                     <div style={{fontSize:11,color:'#7F77DD',marginBottom:8}}>Tracked in demographic profile only</div>
@@ -989,7 +1003,7 @@ export default function DashboardPage(){
                       ))}
                     </div>
                   </div>
-                  <div style={{background:dark?'#0D3320':'#E1F5EE',borderRadius:8,padding:'14px'}}>
+                  <div style={{background:t.tealBg,borderRadius:8,padding:'14px'}}>
                     <div style={{fontSize:11,color:'#0F6E56',marginBottom:6,fontWeight:500}}>Teenagers (Ages 13–17)</div>
                     <div style={{fontSize:28,fontWeight:600,color:t.text,color:'#085041',marginBottom:4}}>120</div>
                     <div style={{fontSize:11,color:'#1D9E75',marginBottom:8}}>Sunday fellowship attendance tracked</div>
@@ -1003,7 +1017,7 @@ export default function DashboardPage(){
                     </div>
                   </div>
                 </div>
-                <div style={{background:dark?'#12102B':'#F9FAFB',borderRadius:8,padding:'10px 12px',fontSize:12,color:t.sub}}>
+                <div style={{background:t.cardInner,borderRadius:8,padding:'10px 12px',fontSize:12,color:t.sub}}>
                   Note: Children are tracked under their parents cell. Teenagers attend the dedicated Sunday Youth Fellowship. Neither group is included in the 1,147 active adult member count.
                 </div>
               </div>
@@ -1037,7 +1051,7 @@ export default function DashboardPage(){
                 <div style={{display:'flex',gap:6}}>
                   {['6m','1y','2y','5y'].map(r=>(
                     <button key={r} onClick={()=>setGivingRange(r)}
-                      style={{padding:'5px 12px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:12,fontWeight:givingRange===r?500:400,background:givingRange===r?'#534AB7':(dark?'#1A1740':'transparent'),borderColor:givingRange===r?'#534AB7':'#E5E7EB',color:givingRange===r?'#fff':t.sub}}>
+                      style={{padding:'5px 12px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:12,fontWeight:givingRange===r?500:400,background:givingRange===r?'#534AB7':t.cardInner,borderColor:givingRange===r?'#534AB7':'#E5E7EB',color:givingRange===r?'#fff':t.sub}}>
                       {r==='6m'?'6 Months':r==='1y'?'1 Year':r==='2y'?'2 Years':'5 Years'}
                     </button>
                   ))}
@@ -1062,9 +1076,9 @@ export default function DashboardPage(){
                   <div style={{minWidth: givingSlice(givingRange).length > 6 ? Math.max(givingSlice(givingRange).length * 52, 320) : '100%'}}>
                     <BarChart width={Math.max(givingSlice(givingRange).length * 52, isMobile?320:600)} height={240} data={givingSlice(givingRange)} margin={{top:5,right:10,left:10,bottom:0}}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                      <XAxis dataKey="p" tick={{fontSize:9,fill:dark?'#9CA3AF':'#6B7280'}} interval={0} angle={givingSlice(givingRange).length>8?-35:0} textAnchor={givingSlice(givingRange).length>8?'end':'middle'} height={givingSlice(givingRange).length>8?40:20}/>
-                      <YAxis tick={{fontSize:9,fill:dark?'#9CA3AF':'#6B7280'}} tickFormatter={v=>`₦${(v/1000000).toFixed(1)}M`} width={45}/>
-                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:dark?'#1A1740':'#fff',color:dark?'#F9FAFB':'#374151'}} formatter={(v:number,n:string)=>[fmtNGN(v),n==='t'?'Tithe':n==='o'?'Offering':'Special']}/>
+                      <XAxis dataKey="p" tick={{fontSize:9,fill:t.chartAxis}} interval={0} angle={givingSlice(givingRange).length>8?-35:0} textAnchor={givingSlice(givingRange).length>8?'end':'middle'} height={givingSlice(givingRange).length>8?40:20}/>
+                      <YAxis tick={{fontSize:9,fill:t.chartAxis}} tickFormatter={v=>`₦${(v/1000000).toFixed(1)}M`} width={45}/>
+                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}} formatter={(v:number,n:string)=>[fmtNGN(v),n==='t'?'Tithe':n==='o'?'Offering':'Special']}/>
                       <Bar dataKey="t" name="Tithe" fill="#534AB7" radius={[2,2,0,0]}/>
                       <Bar dataKey="o" name="Offering" fill="#1D9E75" radius={[2,2,0,0]}/>
                       <Bar dataKey="s" name="Special" fill="#BA7517" radius={[2,2,0,0]}/>
@@ -1088,7 +1102,7 @@ export default function DashboardPage(){
                     <Pie data={GIVING_PIE} cx={105} cy={105} outerRadius={90} innerRadius={40} dataKey="value" stroke="none">
                       {GIVING_PIE.map((e,i)=><Cell key={i} fill={e.color}/>)}
                     </Pie>
-                    <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:dark?'#1A1740':'#fff',color:dark?'#F9FAFB':'#374151'}} formatter={(v:number,n:string)=>[`${v}%`,n]}/>
+                    <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}} formatter={(v:number,n:string)=>[`${v}%`,n]}/>
                   </PieChart>
                   <div style={{width:'100%'}}>
                     {GIVING_PIE.map(g=>(
@@ -1134,8 +1148,8 @@ export default function DashboardPage(){
                   <ResponsiveContainer width="100%" height={160}>
                     <LineChart data={[{m:'Jan',n:1040},{m:'Feb',n:1058},{m:'Mar',n:1075},{m:'Apr',n:1098},{m:'May',n:1124},{m:'Jun',n:1147}]} margin={{top:5,right:10,left:-20,bottom:0}}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                      <XAxis dataKey="m" tick={{fontSize:11,fill:dark?'#9CA3AF':'#6B7280'}}/><YAxis tick={{fontSize:10,fill:dark?'#9CA3AF':'#6B7280'}} domain={[1000,1200]}/>
-                      <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:dark?'#1A1740':'#fff',color:dark?'#F9FAFB':'#374151'}}/>
+                      <XAxis dataKey="m" tick={{fontSize:11,fill:t.chartAxis}}/><YAxis tick={{fontSize:10,fill:t.chartAxis}} domain={[1000,1200]}/>
+                      <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}}/>
                       <Line type="monotone" dataKey="n" name="Members" stroke="#534AB7" strokeWidth={2} dot={{fill:'#534AB7',r:3}}/>
                     </LineChart>
                   </ResponsiveContainer>
@@ -1218,7 +1232,7 @@ export default function DashboardPage(){
                   <input value={memberSearch} onChange={e=>setMemberSearch(e.target.value)} placeholder="Search by name..." style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 10px',fontSize:12,outline:'none',flex:1,minWidth:160,background:t.input,color:t.text}}/>
                   {['all','Youth','Women','Men','Active','Inactive'].map(f=>(
                     <button key={f} onClick={()=>setMemberFilter(f)}
-                      style={{padding:'5px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:memberFilter===f?500:400,background:memberFilter===f?'#534AB7':(dark?'#1A1740':'transparent'),borderColor:memberFilter===f?'#534AB7':'#E5E7EB',color:memberFilter===f?'#fff':'#6B7280'}}>
+                      style={{padding:'5px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:memberFilter===f?500:400,background:memberFilter===f?'#534AB7':t.cardInner,borderColor:memberFilter===f?'#534AB7':'#E5E7EB',color:memberFilter===f?'#fff':'#6B7280'}}>
                       {f==='all'?'All':f}
                     </button>
                   ))}
@@ -1267,7 +1281,7 @@ export default function DashboardPage(){
                 <tbody>
                   {DEPTS.map(d=>{const b=bc(d.badge);return(
                     <tr key={d.name} onClick={()=>setSelectedDept(d)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
-                      onMouseEnter={e=>e.currentTarget.style.background=dark?'#252260':'#FAFAFA'}
+                      onMouseEnter={e=>e.currentTarget.style.background=t.hover}
                       onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                       <td style={{padding:'10px 10px',fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{d.name}</td>
                       <td style={{padding:'10px 10px',color:t.sub}}>{d.cat}</td>
@@ -1289,7 +1303,7 @@ export default function DashboardPage(){
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Category: {selectedDept.cat} · Leader: {selectedDept.leader} · {selectedDept.count} total members · {selectedDept.absent} absent last Sunday</div>
                 <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:10,marginBottom:16}}>
                   {[{label:'Total Members',value:selectedDept.count},{label:'Present Last Sunday',value:selectedDept.count-selectedDept.absent},{label:'Absent',value:selectedDept.absent}].map(s=>(
-                    <div key={s.label} style={{background:dark?'#12102B':'#F9FAFB',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,color:t.sub,marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500,color:t.text}}>{s.value}</div></div>
+                    <div key={s.label} style={{background:t.cardInner,borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,color:t.sub,marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500,color:t.text}}>{s.value}</div></div>
                   ))}
                 </div>
                 <div style={{fontSize:12,fontWeight:500,color:dark?'#E5E7EB':'#374151',marginBottom:8}}>Full Member Roster — {selectedDept.count} members</div>
@@ -1348,7 +1362,7 @@ export default function DashboardPage(){
                     <tbody>
                       {(dbCells||CELLS_DATA).filter(row=>cellFilter==='all'||(row.status===cellFilter)||(row.fel===cellFilter)).map((row,i)=>{const s=ss(row.status);return(
                         <tr key={i} onClick={()=>setSelectedCell(row)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
-                          onMouseEnter={e=>e.currentTarget.style.background=dark?'#252260':'#FAFAFA'}
+                          onMouseEnter={e=>e.currentTarget.style.background=t.hover}
                           onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                           <td style={{padding:'8px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{row.cell}</td>
                           <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{row.fel}</td>
@@ -1372,11 +1386,11 @@ export default function DashboardPage(){
               <div style={card()}>
                 <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:2}}>{selectedCell.cell}</div>
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} Fellowship · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
-                {!selectedCell.members_list&&<div style={{fontSize:12,color:t.muted,marginBottom:12,padding:'8px 12px',background:dark?'#12102B':'#F9FAFB',borderRadius:8}}>Connect live database to see individual member roster for this cell.</div>}
+                {!selectedCell.members_list&&<div style={{fontSize:12,color:t.muted,marginBottom:12,padding:'8px 12px',background:t.cardInner,borderRadius:8}}>Connect live database to see individual member roster for this cell.</div>}
                 <div style={{display:'flex',gap:6,marginBottom:14}}>
                   {rangeOpts.map(r=>(
                     <button key={r} onClick={()=>setCellRange(r)}
-                      style={{padding:'4px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:cellRange===r?500:400,background:cellRange===r?'#534AB7':(dark?'#1A1740':'transparent'),borderColor:cellRange===r?'#534AB7':'#E5E7EB',color:cellRange===r?'#fff':t.sub}}>
+                      style={{padding:'4px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:cellRange===r?500:400,background:cellRange===r?'#534AB7':t.cardInner,borderColor:cellRange===r?'#534AB7':'#E5E7EB',color:cellRange===r?'#fff':t.sub}}>
                       {rangeLabel(r)}
                     </button>
                   ))}
@@ -1385,9 +1399,9 @@ export default function DashboardPage(){
                   <ResponsiveContainer width="100%" height={200} minWidth={300}>
                     <LineChart data={cellTrend(selectedCell,cellRange)} margin={{top:5,right:10,left:-20,bottom:0}}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                      <XAxis dataKey="w" tick={{fontSize:9,fill:dark?'#9CA3AF':'#6B7280'}} interval={Math.floor(cellTrend(selectedCell,cellRange).length/6)}/>
-                      <YAxis tick={{fontSize:9,fill:dark?'#9CA3AF':'#6B7280'}} domain={[0,'auto']} width={32}/>
-                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:dark?'#1A1740':'#fff',color:dark?'#F9FAFB':'#374151'}}/>
+                      <XAxis dataKey="w" tick={{fontSize:9,fill:t.chartAxis}} interval={Math.floor(cellTrend(selectedCell,cellRange).length/6)}/>
+                      <YAxis tick={{fontSize:9,fill:t.chartAxis}} domain={[0,'auto']} width={32}/>
+                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}}/>
                       <Line type="monotone" dataKey="v" name="Attendance" stroke={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'} strokeWidth={2} dot={false}/>
                     </LineChart>
                   </ResponsiveContainer>
@@ -1443,7 +1457,7 @@ export default function DashboardPage(){
           {/* ══ REPORTS ══ */}
           {page==='reports'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{background:dark?'#0D3320':'#E1F5EE',border:dark?'0.5px solid #1D9E75':'0.5px solid #9FE1CB',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#085041'}}>
+              <div style={{background:t.tealBg,border:dark?'0.5px solid #1D9E75':'0.5px solid #9FE1CB',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#085041'}}>
                 <strong>Monthly Summary - June 2026:</strong> Membership at 1,147 (+23 this month). YTD giving ₦13.4M (+12% vs 2025). 3 cells flagged. Youth Fellowship leading growth at +8%.
               </div>
               <div style={card()}>
@@ -1486,7 +1500,7 @@ export default function DashboardPage(){
           <div style={{padding:'7px 12px',borderBottom:`0.5px solid ${t.border}`,display:'flex',gap:4,overflowX:'auto'}}>
             {agentOpts.map(a=>(
               <button key={a.id} onClick={()=>setSelectedAgent(a.id)}
-                style={{whiteSpace:'nowrap',fontSize:11,padding:'3px 8px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontWeight:selectedAgent===a.id?500:400,background:selectedAgent===a.id?'#EEEDFE':'transparent',borderColor:selectedAgent===a.id?'#534AB7':'#E5E7EB',color:selectedAgent===a.id?'#3C3489':'#6B7280'}}>
+                style={{whiteSpace:'nowrap',fontSize:11,padding:'3px 8px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontWeight:selectedAgent===a.id?500:400,background:selectedAgent===a.id?'#EEEDFE':'transparent',borderColor:selectedAgent===a.id?'#534AB7':t.border,color:selectedAgent===a.id?'#3C3489':'#6B7280'}}>
                 {a.label}
               </button>
             ))}
@@ -1496,7 +1510,7 @@ export default function DashboardPage(){
               <div key={i} style={{display:'flex',justifyContent:msg.role==='user'?'flex-end':'flex-start'}}>
                 <div style={{maxWidth:'85%',borderRadius:10,padding:'8px 12px',fontSize:13,background:msg.role==='user'?'#534AB7':(dark?'#1A1740':'#F9FAFB'),color:msg.role==='user'?'#fff':(dark?'#E5E7EB':'#374151'),border:msg.role==='agent'?`0.5px solid ${t.navBorder}`:'none'}}>
                   {msg.role==='agent'&&msg.agent&&<div style={{fontSize:10,fontWeight:500,color:dark?'#A89FFF':'#534AB7',marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>{msg.agent}</div>}
-                  {msg.loading?<div style={{display:'flex',gap:4,padding:'2px 0'}}>{[0,150,300].map(d=><div key={d} style={{width:6,height:6,borderRadius:'50%',background:'#9CA3AF',animation:`bounce 1s infinite ${d}ms`}}/>)}</div>:<p style={{margin:0,lineHeight:1.6,whiteSpace:'pre-wrap'}}>{msg.text}</p>}
+                  {msg.loading?<div style={{display:'flex',gap:4,padding:'2px 0'}}>{[0,150,300].map(d=><div key={d} style={{width:6,height:6,borderRadius:'50%',background:t.sub,animation:`bounce 1s infinite ${d}ms`}}/>)}</div>:<p style={{margin:0,lineHeight:1.6,whiteSpace:'pre-wrap'}}>{msg.text}</p>}
                 </div>
               </div>
             ))}
