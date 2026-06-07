@@ -620,6 +620,7 @@ export default function DashboardPage(){
   const [chatLoading,setChatLoading]=useState(false);
   const chatEndRef=useRef<HTMLDivElement>(null);
   const [goals,setGoals]=useState({q3:1250,dec:1400});
+  const [dark,setDark]=useState(false);
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [isMobile,setIsMobile]=useState(false);
   const [dbCells,setDbCells]=useState<typeof CELLS_DATA|null>(null);
@@ -688,7 +689,21 @@ export default function DashboardPage(){
 
   function logout(){fetch('/api/auth/logout',{method:'POST',credentials:'include'}).catch(()=>{});document.cookie='shepherd_token=; Max-Age=0; path=/';router.push('/login');}
 
-  const card=(e?:React.CSSProperties):React.CSSProperties=>({background:'#fff',border:'0.5px solid #E5E7EB',borderRadius:10,padding:'14px 16px',...e});
+  // Theme
+  const t = {
+    bg:     dark?'#0F0D2A':'#F9FAFB',
+    card:   dark?'#1A1740':'#fff',
+    border: dark?'#2D2A5E':'#E5E7EB',
+    text:   dark?'#F9FAFB':'#111827',
+    sub:    dark?'#9CA3AF':'#6B7280',
+    muted:  dark?'#6B7280':'#9CA3AF',
+    nav:    dark?'#12102B':'#fff',
+    navBorder: dark?'#2D2A5E':'#E5E7EB',
+    hover:  dark?'#252260':'#FAFAFA',
+    input:  dark?'#1A1740':'#F9FAFB',
+    tableRow: dark?'#1A1740':'#F9FAFB',
+  };
+  const card=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:10,padding:'14px 16px',...e});
   const bc=(b:string)=>b==='teal'?{bg:'#E1F5EE',c:'#085041'}:b==='amber'?{bg:'#FAEEDA',c:'#633806'}:{bg:'#EEEDFE',c:'#3C3489'};
   const ss=(s:string)=>s==='rising'?{bg:'#E1F5EE',c:'#085041'}:s==='stable'?{bg:'#F3F4F6',c:'#374151'}:s==='watch'?{bg:'#FAEEDA',c:'#633806'}:{bg:'#FAECE7',c:'#993C1D'};
 
@@ -713,24 +728,24 @@ export default function DashboardPage(){
   const rangeLabel=(r:TimeRange)=>r==='8w'?'8 Weeks':r==='3m'?'3 Months':r==='6m'?'6 Months':r==='1y'?'1 Year':r==='2y'?'2 Years':'5 Years';
 
   return(
-    <div style={{display:'flex',minHeight:'100vh',background:'#F9FAFB',fontFamily:'Inter,system-ui,sans-serif'}}>
+    <div style={{display:'flex',minHeight:'100vh',background:t.bg,fontFamily:'Inter,system-ui,sans-serif'}}>
       {/* Sidebar overlay for mobile */}
       {isMobile&&sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.3)',zIndex:40}}/>}
       {/* Sidebar */}
-      <div style={{width:196,background:'#fff',borderRight:'0.5px solid #E5E7EB',display:'flex',flexDirection:'column',position:isMobile?'fixed':'sticky',top:0,left:isMobile?(sidebarOpen?0:-196):0,height:'100vh',flexShrink:0,zIndex:50,transition:'left 0.25s ease'}}>
-        <div style={{display:'flex',alignItems:'center',gap:10,padding:'16px 16px 14px',borderBottom:'0.5px solid #F3F4F6'}}>
+      <div style={{width:196,background:t.nav,borderRight:`0.5px solid ${t.navBorder}`,display:'flex',flexDirection:'column',position:isMobile?'fixed':'sticky',top:0,left:isMobile?(sidebarOpen?0:-196):0,height:'100vh',flexShrink:0,zIndex:50,transition:'left 0.25s ease'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10,padding:'16px 16px 14px',borderBottom:`0.5px solid ${t.navBorder}`}}>
           <div style={{width:32,height:32,background:'linear-gradient(135deg,#534AB7,#7F77DD)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>&#10013;</div>
-          <div><div style={{fontSize:13,fontWeight:600,color:'#111827'}}>SHEP.HERD</div><div style={{fontSize:10,color:'#9CA3AF',marginTop:1}}>Comforters House Global</div></div>
+          <div><div style={{fontSize:13,fontWeight:600,color:t.text}}>SHEP.HERD</div><div style={{fontSize:10,color:t.muted,marginTop:1}}>Comforters House Global</div></div>
         </div>
         <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
           {navItems.map(n=>(
             <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDept(null);setPage(n.id);}}
-              style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:'9px 16px',fontSize:13,border:'none',cursor:'pointer',textAlign:'left',background:page===n.id?'#EEEDFE':'transparent',color:page===n.id?'#3C3489':'#6B7280',fontWeight:page===n.id?500:400,transition:'background 0.1s'}}>
+              style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:'9px 16px',fontSize:13,border:'none',cursor:'pointer',textAlign:'left',background:page===n.id?(dark?'#2D2A5E':'#EEEDFE'):'transparent',color:page===n.id?(dark?'#A89FFF':'#3C3489'):(dark?'#9CA3AF':'#6B7280'),fontWeight:page===n.id?500:400,transition:'background 0.1s'}}>
               {n.label}
             </button>
           ))}
         </nav>
-        <div style={{padding:12,borderTop:'0.5px solid #F3F4F6'}}>
+        <div style={{padding:12,borderTop:`0.5px solid ${t.navBorder}`}}>
           <button onClick={()=>setChatOpen(v=>!v)} style={{width:'100%',background:chatOpen?'#534AB7':'#EEEDFE',color:chatOpen?'#fff':'#3C3489',border:'none',borderRadius:8,padding:'8px 12px',fontSize:13,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',gap:8}}>
             Ask AI Agents
           </button>
@@ -741,16 +756,19 @@ export default function DashboardPage(){
       {/* Main */}
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
         {/* Topbar */}
-        <div style={{background:'#fff',borderBottom:'0.5px solid #E5E7EB',padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
+        <div style={{background:t.nav,borderBottom:`0.5px solid ${t.navBorder}`,padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             {isMobile&&<button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,color:'#534AB7',padding:'0 4px',lineHeight:1}}>☰</button>}
             <div>
-              <span style={{fontSize:14,fontWeight:500,color:'#111827'}}>{navItems.find(n=>n.id===page)?.label}</span>
+              <span style={{fontSize:14,fontWeight:500,color:t.text}}>{navItems.find(n=>n.id===page)?.label}</span>
               {!isMobile&&<span style={{fontSize:12,color:'#9CA3AF',marginLeft:10}}>{new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>}
               {userName&&userName!=='General'&&<span style={{fontSize:12,color:'#534AB7',marginLeft:isMobile?6:10}}>· {greeting()}, {userName.split(' ')[0]}</span>}
             </div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <button onClick={()=>setDark(v=>!v)} style={{background:dark?'#2D2A5E':'#EEEDFE',border:'none',borderRadius:20,padding:'4px 10px',cursor:'pointer',fontSize:12,color:dark?'#A89FFF':'#534AB7',fontWeight:500}}>
+              {dark?'☀ Light':'◑ Dark'}
+            </button>
             <div style={{display:'flex',alignItems:'center',gap:5,fontSize:12,color:'#1D9E75'}}>
               <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',display:'inline-block'}}/>Live
             </div>
@@ -758,12 +776,12 @@ export default function DashboardPage(){
           </div>
         </div>
 
-        <div style={{flex:1,padding:'16px',overflowY:'auto'}}>
+        <div style={{flex:1,padding:'16px',overflowY:'auto',background:t.bg}}>
 
           {/* ══ DASHBOARD ══ */}
           {page==='dashboard'&&(
             <div>
-              <div style={{background:'#E1F5EE',borderRadius:8,padding:'8px 14px',marginBottom:18,display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#085041'}}>
+              <div style={{background:dark?'#0D3320':'#E1F5EE',borderRadius:8,padding:'8px 14px',marginBottom:18,display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#085041'}}>
                 <span>●</span>
                 <span>Attendance session live &mdash; <strong>{fmt(kpi?.today_present)}</strong> check-ins · <strong>{kpi?.today_cells_reported??'—'}/{kpi?.today_cells_total??'—'}</strong> cells reported</span>
               </div>
@@ -777,8 +795,8 @@ export default function DashboardPage(){
                   <div key={m.label} onClick={()=>setPage(m.page)} style={{...card(),cursor:'pointer'}}
                     onMouseEnter={e=>e.currentTarget.style.boxShadow='0 2px 8px rgba(83,74,183,0.15)'}
                     onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
-                    <div style={{fontSize:11,color:'#6B7280',marginBottom:4}}>{m.label}</div>
-                    <div style={{fontSize:22,fontWeight:500,color:'#111827',lineHeight:1.1}}>{m.value}</div>
+                    <div style={{fontSize:11,color:t.sub,marginBottom:4}}>{m.label}</div>
+                    <div style={{fontSize:22,fontWeight:500,color:t.text,lineHeight:1.1}}>{m.value}</div>
                     <div style={{fontSize:11,color:'#1D9E75',marginTop:3}}>{m.delta}</div>
                   </div>
                 ))}
@@ -807,7 +825,7 @@ export default function DashboardPage(){
                     <div key={r.id} style={{display:'flex',alignItems:'flex-start',gap:10,padding:'7px 0',borderBottom:i<Math.min(liveFeed.length,6)-1?'0.5px solid #F3F4F6':'none'}}>
                       <div style={{width:8,height:8,borderRadius:'50%',background:i===0?'#1D9E75':i%3===1?'#BA7517':'#534AB7',marginTop:4,flexShrink:0}}/>
                       <div>
-                        <div style={{fontSize:12,color:'#111827'}}>{r.cell} &mdash; <strong>{r.present}</strong> present{r.visitors>0?`, ${r.visitors} visitors`:''}</div>
+                        <div style={{fontSize:12,color:t.text}}>{r.cell} &mdash; <strong>{r.present}</strong> present{r.visitors>0?`, ${r.visitors} visitors`:''}</div>
                         <div style={{fontSize:11,color:'#9CA3AF',marginTop:1}}>{r.mins_ago<1?'just now':`${r.mins_ago}m ago`} · {r.fellowship}</div>
                       </div>
                     </div>
@@ -821,7 +839,7 @@ export default function DashboardPage(){
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:12}}><span style={{fontSize:13,fontWeight:500}}>Top departments</span><span style={{fontSize:12,color:'#534AB7'}}>View all →</span></div>
                   {DEPTS.slice(0,5).map(d=>{const b=bc(d.badge);return(
                     <div key={d.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,fontSize:12}}>
-                      <span style={{color:'#374151'}}>{d.name}</span>
+                      <span style={{color:dark?'#E5E7EB':'#374151'}}>{d.name}</span>
                       <span style={{background:b.bg,color:b.c,fontSize:11,padding:'2px 8px',borderRadius:10}}>{d.count} members</span>
                     </div>
                   );})}
@@ -835,7 +853,7 @@ export default function DashboardPage(){
                     <div style={{flex:1}}>{GIVING_PIE.map(g=>(
                       <div key={g.name} style={{display:'flex',alignItems:'center',gap:5,marginBottom:4,fontSize:11}}>
                         <div style={{width:8,height:8,borderRadius:2,background:g.color,flexShrink:0}}/>
-                        <span style={{color:'#374151',flex:1}}>{g.name}</span>
+                        <span style={{color:dark?'#E5E7EB':'#374151',flex:1}}>{g.name}</span>
                         <span style={{color:'#6B7280',fontWeight:500}}>{g.value}%</span>
                       </div>
                     ))}</div>
@@ -845,7 +863,7 @@ export default function DashboardPage(){
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}><span style={{fontSize:13,fontWeight:500}}>Cell alerts</span><span style={{fontSize:12,color:'#534AB7'}}>View all →</span></div>
                   {(dbCells||CELLS_DATA).filter(c=>c.status==='alert'||c.status==='watch').slice(0,3).map(c=>(
                     <div key={c.cell} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                      <div><div style={{fontSize:12,color:'#374151',fontWeight:500}}>{c.cell}</div><div style={{fontSize:11,color:'#9CA3AF'}}>{c.fel}</div></div>
+                      <div><div style={{fontSize:12,color:dark?'#E5E7EB':'#374151',fontWeight:500}}>{c.cell}</div><div style={{fontSize:11,color:'#9CA3AF'}}>{c.fel}</div></div>
                       <span style={{fontSize:11,padding:'2px 8px',borderRadius:10,fontWeight:500,background:ss(c.status).bg,color:ss(c.status).c}}>{c.trend}</span>
                     </div>
                   ))}
@@ -856,7 +874,7 @@ export default function DashboardPage(){
               <div style={{marginTop:14,...card()}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
                   <div>
-                    <div style={{fontSize:13,fontWeight:500,color:'#111827'}}>Membership Growth Goals</div>
+                    <div style={{fontSize:13,fontWeight:500,color:t.text}}>Membership Growth Goals</div>
                     <div style={{fontSize:11,color:'#9CA3AF',marginTop:2}}>Current: 1,147 members</div>
                   </div>
                   <button onClick={()=>setEditGoals(v=>!v)} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'5px 12px',fontSize:12,cursor:'pointer',fontWeight:500}}>
@@ -985,7 +1003,7 @@ export default function DashboardPage(){
                     </div>
                   </div>
                 </div>
-                <div style={{background:'#F9FAFB',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#6B7280'}}>
+                <div style={{background:dark?'#12102B':'#F9FAFB',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#6B7280'}}>
                   Note: Children are tracked under their parents cell. Teenagers attend the dedicated Sunday Youth Fellowship. Neither group is included in the 1,147 active adult member count.
                 </div>
               </div>
@@ -996,11 +1014,11 @@ export default function DashboardPage(){
                     style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export</button>
                 </div>
                 <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                  <thead><tr style={{borderBottom:'0.5px solid #F3F4F6'}}>{['Member','Cell','Fellowship','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
+                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Member','Cell','Fellowship','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
                   <tbody>
                     {[{name:'Bro. Ikenna Obi',cell:'Peace Cell',fel:'Women',inf:'Yes'},{name:'Sis. Chidinma Eze',cell:'Tabernacle Cell',fel:'Women',inf:'No'},{name:'Bro. Uche Nwosu',cell:'Burning Bush Cell',fel:'Youth',inf:'Yes'},{name:'Sis. Ada Okafor',cell:'Graceland Cell',fel:'Women',inf:'No'},{name:'Bro. Emeka Chukwu',cell:'Dominion Cell',fel:'Men',inf:'Yes'}].map(r=>(
-                      <tr key={r.name} style={{borderBottom:'0.5px solid #F9FAFB'}}>
-                        <td style={{padding:'8px 8px',fontWeight:500,color:'#374151'}}>{r.name}</td>
+                      <tr key={r.name} style={{borderBottom:`0.5px solid ${t.border}`}}>
+                        <td style={{padding:'8px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{r.name}</td>
                         <td style={{padding:'8px 8px',color:'#6B7280'}}>{r.cell}</td>
                         <td style={{padding:'8px 8px',color:'#6B7280'}}>{r.fel}</td>
                         <td style={{padding:'8px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:r.inf==='Yes'?'#E1F5EE':'#FAECE7',color:r.inf==='Yes'?'#085041':'#993C1D'}}>{r.inf}</span></td>
@@ -1035,7 +1053,7 @@ export default function DashboardPage(){
                   {[{color:'#534AB7',label:'Tithe'},{color:'#1D9E75',label:'Offering'},{color:'#BA7517',label:'Special'}].map(l=>(
                     <div key={l.label} style={{display:'flex',alignItems:'center',gap:5,fontSize:12}}>
                       <div style={{width:10,height:10,borderRadius:2,background:l.color,flexShrink:0}}/>
-                      <span style={{color:'#374151'}}>{l.label}</span>
+                      <span style={{color:dark?'#E5E7EB':'#374151'}}>{l.label}</span>
                     </div>
                   ))}
                 </div>
@@ -1059,7 +1077,7 @@ export default function DashboardPage(){
                 {[{label:'YTD Tithe',value:'₦7.82M'},{label:'YTD Offering',value:'₦5.56M'},{label:'YTD Special',value:'₦613k'},{label:'Per Member (avg)',value:'₦12.2k'},{label:'Best Month',value:'Dec 2025'},{label:'5-Year Growth',value:'+129%'},{label:'Tithe %',value:'75%'},{label:'Dec 25 Peak',value:'₦3.75M'}].map(s=>(
                   <div key={s.label} style={card({padding:'10px 12px'})}>
                     <div style={{fontSize:10,color:'#6B7280',marginBottom:3}}>{s.label}</div>
-                    <div style={{fontSize:16,fontWeight:600,color:'#111827'}}>{s.value}</div>
+                    <div style={{fontSize:16,fontWeight:600,color:t.text}}>{s.value}</div>
                   </div>
                 ))}
               </div>
@@ -1078,9 +1096,9 @@ export default function DashboardPage(){
                         <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:4}}>
                           <div style={{display:'flex',alignItems:'center',gap:8}}>
                             <div style={{width:12,height:12,borderRadius:3,background:g.color,flexShrink:0}}/>
-                            <span style={{color:'#374151',fontWeight:500}}>{g.name}</span>
+                            <span style={{color:dark?'#E5E7EB':'#374151',fontWeight:500}}>{g.name}</span>
                           </div>
-                          <span style={{color:'#374151',fontWeight:600}}>{g.value}%</span>
+                          <span style={{color:dark?'#E5E7EB':'#374151',fontWeight:600}}>{g.value}%</span>
                         </div>
                         <div style={{height:8,background:'#F3F4F6',borderRadius:4,overflow:'hidden'}}>
                           <div style={{height:'100%',width:`${g.value}%`,background:g.color,borderRadius:4}}/>
@@ -1127,7 +1145,7 @@ export default function DashboardPage(){
                   {[{src:'Cell outreach',n:312,p:27},{src:'Walk-in',n:298,p:26},{src:'Referral',n:241,p:21},{src:'Crusade',n:195,p:17},{src:'Online',n:101,p:9}].map(s=>(
                     <div key={s.src} style={{marginBottom:8}}>
                       <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:3}}>
-                        <span style={{color:'#374151'}}>{s.src}</span><span style={{color:'#6B7280'}}>{s.n} ({s.p}%)</span>
+                        <span style={{color:dark?'#E5E7EB':'#374151'}}>{s.src}</span><span style={{color:'#6B7280'}}>{s.n} ({s.p}%)</span>
                       </div>
                       <div style={{height:6,background:'#F3F4F6',borderRadius:3,overflow:'hidden'}}><div style={{height:'100%',width:`${s.p}%`,background:'#534AB7',borderRadius:3}}/></div>
                     </div>
@@ -1145,8 +1163,8 @@ export default function DashboardPage(){
                       {[{label:'Male (18+)',value:'551 members',p:'48%',c:'#534AB7'},{label:'Female (18+)',value:'596 members',p:'52%',c:'#1D9E75'},{label:'Children (0–12)',value:'180',p:'',c:'#BA7517'},{label:'Teenagers (13–17)',value:'120',p:'',c:'#D85A30'}].map(g=>(
                         <div key={g.label} style={{display:'flex',alignItems:'center',gap:8,marginBottom:7,fontSize:12}}>
                           <div style={{width:10,height:10,borderRadius:2,background:g.c,flexShrink:0}}/>
-                          <span style={{color:'#374151',flex:1}}>{g.label}</span>
-                          <span style={{fontWeight:500,color:'#374151'}}>{g.value} {g.p&&<span style={{color:'#9CA3AF',fontWeight:400}}>({g.p})</span>}</span>
+                          <span style={{color:dark?'#E5E7EB':'#374151',flex:1}}>{g.label}</span>
+                          <span style={{fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{g.value} {g.p&&<span style={{color:'#9CA3AF',fontWeight:400}}>({g.p})</span>}</span>
                         </div>
                       ))}
                     </div>
@@ -1157,7 +1175,7 @@ export default function DashboardPage(){
                   {[{band:'18–25',n:355,p:31},{band:'26–35',n:321,p:28},{band:'36–50',n:275,p:24},{band:'51+',n:195,p:17}].map(a=>(
                     <div key={a.band} style={{marginBottom:10}}>
                       <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:3}}>
-                        <span style={{color:'#374151'}}>{a.band} years</span><span style={{color:'#6B7280'}}>{a.n} members ({a.p}%)</span>
+                        <span style={{color:dark?'#E5E7EB':'#374151'}}>{a.band} years</span><span style={{color:'#6B7280'}}>{a.n} members ({a.p}%)</span>
                       </div>
                       <div style={{height:8,background:'#F3F4F6',borderRadius:4,overflow:'hidden'}}><div style={{height:'100%',width:`${a.p}%`,background:'linear-gradient(90deg,#534AB7,#7F77DD)',borderRadius:4}}/></div>
                     </div>
@@ -1171,16 +1189,16 @@ export default function DashboardPage(){
                 </div>
                 <div style={{overflowX:'auto'}}>
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                    <thead><tr style={{borderBottom:'0.5px solid #F3F4F6'}}>{['Name','Phone','Date Joined','Cell','Fellowship','Care Personnel','Status','How They Came'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Phone','Date Joined','Cell','Fellowship','Care Personnel','Status','How They Came'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
                       {NEW_MEMBERS.map(m=>(
-                        <tr key={m.name} style={{borderBottom:'0.5px solid #F9FAFB'}}>
-                          <td style={{padding:'8px 8px',fontWeight:500,color:'#374151',whiteSpace:'nowrap'}}>{m.name}</td>
+                        <tr key={m.name} style={{borderBottom:`0.5px solid ${t.border}`}}>
+                          <td style={{padding:'8px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.name}</td>
                           <td style={{padding:'8px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.phone}</td>
                           <td style={{padding:'8px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.date}</td>
                           <td style={{padding:'8px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.cell}</td>
                           <td style={{padding:'8px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.fellowship}</td>
-                          <td style={{padding:'8px 8px',color:'#374151',whiteSpace:'nowrap'}}>{m.care}</td>
+                          <td style={{padding:'8px 8px',color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.care}</td>
                           <td style={{padding:'8px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.status==='Staying'?'#E1F5EE':'#FAEEDA',color:m.status==='Staying'?'#085041':'#633806',whiteSpace:'nowrap'}}>{m.status}</span></td>
                           <td style={{padding:'8px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.invited}</td>
                         </tr>
@@ -1197,7 +1215,7 @@ export default function DashboardPage(){
                   <button onClick={()=>exportCSV(ALL_MEMBERS,'full_member_database')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export All</button>
                 </div>
                 <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
-                  <input value={memberSearch} onChange={e=>setMemberSearch(e.target.value)} placeholder="Search by name..." style={{border:'0.5px solid #E5E7EB',borderRadius:8,padding:'6px 10px',fontSize:12,outline:'none',flex:1,minWidth:160}}/>
+                  <input value={memberSearch} onChange={e=>setMemberSearch(e.target.value)} placeholder="Search by name..." style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 10px',fontSize:12,outline:'none',flex:1,minWidth:160,background:t.input,color:t.text}}/>
                   {['all','Youth','Women','Men','Active','Inactive'].map(f=>(
                     <button key={f} onClick={()=>setMemberFilter(f)}
                       style={{padding:'5px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:memberFilter===f?500:400,background:memberFilter===f?'#534AB7':'transparent',borderColor:memberFilter===f?'#534AB7':'#E5E7EB',color:memberFilter===f?'#fff':'#6B7280'}}>
@@ -1208,7 +1226,7 @@ export default function DashboardPage(){
                 <div style={{overflowX:'auto',maxHeight:400,overflowY:'auto'}}>
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
                     <thead style={{position:'sticky',top:0,background:'#fff'}}>
-                      <tr style={{borderBottom:'0.5px solid #F3F4F6'}}>
+                      <tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>
                         {['Name','Phone','Cell','Fellowship','Joined','Status','Gender','Age'].map(h=>(
                           <th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap',background:'#fff'}}>{h}</th>
                         ))}
@@ -1219,8 +1237,8 @@ export default function DashboardPage(){
                         .filter(m=>memberSearch?m.name.toLowerCase().includes(memberSearch.toLowerCase()):true)
                         .filter(m=>memberFilter==='all'?true:m.fellowship===memberFilter||m.status===memberFilter)
                         .map((m,i)=>(
-                        <tr key={i} style={{borderBottom:'0.5px solid #F9FAFB'}}>
-                          <td style={{padding:'7px 8px',fontWeight:500,color:'#374151',whiteSpace:'nowrap'}}>{m.name}</td>
+                        <tr key={i} style={{borderBottom:`0.5px solid ${t.border}`}}>
+                          <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.name}</td>
                           <td style={{padding:'7px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.phone}</td>
                           <td style={{padding:'7px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.cell}</td>
                           <td style={{padding:'7px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.fellowship}</td>
@@ -1245,16 +1263,16 @@ export default function DashboardPage(){
             <div style={card()}>
               <div style={{fontSize:13,fontWeight:500,marginBottom:14}}>All Departments - click any to expand</div>
               <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                <thead><tr style={{borderBottom:'0.5px solid #F3F4F6'}}>{['Department','Category','Leader','Members','Absences','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 10px',fontSize:11,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
+                <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Department','Category','Leader','Members','Absences','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 10px',fontSize:11,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
                 <tbody>
                   {DEPTS.map(d=>{const b=bc(d.badge);return(
-                    <tr key={d.name} onClick={()=>setSelectedDept(d)} style={{borderBottom:'0.5px solid #F9FAFB',cursor:'pointer'}}
+                    <tr key={d.name} onClick={()=>setSelectedDept(d)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
                       onMouseEnter={e=>e.currentTarget.style.background='#FAFAFA'}
                       onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                      <td style={{padding:'10px 10px',fontWeight:500,color:'#374151'}}>{d.name}</td>
+                      <td style={{padding:'10px 10px',fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{d.name}</td>
                       <td style={{padding:'10px 10px',color:'#6B7280'}}>{d.cat}</td>
-                      <td style={{padding:'10px 10px',color:'#374151'}}>{d.leader}</td>
-                      <td style={{padding:'10px 10px',color:'#374151'}}>{d.count}</td>
+                      <td style={{padding:'10px 10px',color:dark?'#E5E7EB':'#374151'}}>{d.leader}</td>
+                      <td style={{padding:'10px 10px',color:dark?'#E5E7EB':'#374151'}}>{d.count}</td>
                       <td style={{padding:'10px 10px'}}>{d.absent>0?<span style={{background:'#FAECE7',color:'#993C1D',fontSize:11,padding:'2px 8px',borderRadius:10}}>{d.absent} absent</span>:<span style={{background:'#E1F5EE',color:'#085041',fontSize:11,padding:'2px 8px',borderRadius:10}}>Full attendance</span>}</td>
                       <td style={{padding:'10px 10px'}}><span style={{background:b.bg,color:b.c,fontSize:11,padding:'2px 8px',borderRadius:10}}>Active</span></td>
                     </tr>
@@ -1267,23 +1285,23 @@ export default function DashboardPage(){
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <button onClick={()=>setSelectedDept(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to Departments</button>
               <div style={card()}>
-                <div style={{fontSize:15,fontWeight:600,color:'#111827',marginBottom:2}}>{selectedDept.name}</div>
+                <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:2}}>{selectedDept.name}</div>
                 <div style={{fontSize:12,color:'#6B7280',marginBottom:14}}>Category: {selectedDept.cat} · Leader: {selectedDept.leader} · {selectedDept.count} total members · {selectedDept.absent} absent last Sunday</div>
                 <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:10,marginBottom:16}}>
                   {[{label:'Total Members',value:selectedDept.count},{label:'Present Last Sunday',value:selectedDept.count-selectedDept.absent},{label:'Absent',value:selectedDept.absent}].map(s=>(
-                    <div key={s.label} style={{background:'#F9FAFB',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,color:'#6B7280',marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500}}>{s.value}</div></div>
+                    <div key={s.label} style={{background:dark?'#12102B':'#F9FAFB',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,color:'#6B7280',marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500}}>{s.value}</div></div>
                   ))}
                 </div>
-                <div style={{fontSize:12,fontWeight:500,color:'#374151',marginBottom:8}}>Full Member Roster — {selectedDept.count} members</div>
+                <div style={{fontSize:12,fontWeight:500,color:dark?'#E5E7EB':'#374151',marginBottom:8}}>Full Member Roster — {selectedDept.count} members</div>
                 <div style={{overflowX:'auto'}}>
                 <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                  <thead><tr style={{borderBottom:'0.5px solid #F3F4F6'}}>{['Name','Role','Phone','Last Sunday','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Role','Phone','Last Sunday','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                   <tbody>
                     {selectedDept.members.map((m:Record<string,unknown>,i:number)=>{
                       const absent=!m.present;
                       return(
-                        <tr key={i} style={{borderBottom:'0.5px solid #F9FAFB'}}>
-                          <td style={{padding:'7px 8px',fontWeight:500,color:'#374151',whiteSpace:'nowrap'}}>{String(m.name)}</td>
+                        <tr key={i} style={{borderBottom:`0.5px solid ${t.border}`}}>
+                          <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{String(m.name)}</td>
                           <td style={{padding:'7px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{String(m.role)}</td>
                           <td style={{padding:'7px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{String(m.phone)}</td>
                           <td style={{padding:'7px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:absent?'#FAECE7':'#E1F5EE',color:absent?'#993C1D':'#085041'}}>{absent?'Absent':'Present'}</span></td>
@@ -1326,17 +1344,17 @@ export default function DashboardPage(){
                 </div>
                 <div className="table-wrap">
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse',minWidth:600}}>
-                    <thead><tr style={{borderBottom:'0.5px solid #F3F4F6'}}>{['Cell','Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Cell','Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
                       {(dbCells||CELLS_DATA).filter(row=>cellFilter==='all'||(row.status===cellFilter)||(row.fel===cellFilter)).map((row,i)=>{const s=ss(row.status);return(
-                        <tr key={i} onClick={()=>setSelectedCell(row)} style={{borderBottom:'0.5px solid #F9FAFB',cursor:'pointer'}}
+                        <tr key={i} onClick={()=>setSelectedCell(row)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
                           onMouseEnter={e=>e.currentTarget.style.background='#FAFAFA'}
                           onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                          <td style={{padding:'8px 8px',fontWeight:500,color:'#374151',whiteSpace:'nowrap'}}>{row.cell}</td>
+                          <td style={{padding:'8px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{row.cell}</td>
                           <td style={{padding:'8px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{row.fel}</td>
-                          <td style={{padding:'8px 8px',color:'#374151',whiteSpace:'nowrap'}}>{row.leader}</td>
-                          <td style={{padding:'8px 8px',color:'#374151'}}>{row.members}</td>
-                          <td style={{padding:'8px 8px',color:'#374151'}}>{row.avg}</td>
+                          <td style={{padding:'8px 8px',color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{row.leader}</td>
+                          <td style={{padding:'8px 8px',color:dark?'#E5E7EB':'#374151'}}>{row.members}</td>
+                          <td style={{padding:'8px 8px',color:dark?'#E5E7EB':'#374151'}}>{row.avg}</td>
                           <td style={{padding:'8px 8px',color:row.rate>=100?'#1D9E75':'#D85A30',fontWeight:500}}>{row.rate}%</td>
                           <td style={{padding:'8px 8px',fontWeight:500,color:row.trend.startsWith('+')?'#1D9E75':'#D85A30'}}>{row.trend}</td>
                           <td style={{padding:'8px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,fontWeight:500,background:s.bg,color:s.c,whiteSpace:'nowrap'}}>{row.status==='alert'?'Intervention':row.status.charAt(0).toUpperCase()+row.status.slice(1)}</span></td>
@@ -1352,9 +1370,9 @@ export default function DashboardPage(){
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <button onClick={()=>setSelectedCell(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to Cells</button>
               <div style={card()}>
-                <div style={{fontSize:15,fontWeight:600,color:'#111827',marginBottom:2}}>{selectedCell.cell}</div>
+                <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:2}}>{selectedCell.cell}</div>
                 <div style={{fontSize:12,color:'#6B7280',marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} Fellowship · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
-                {!selectedCell.members_list&&<div style={{fontSize:12,color:'#9CA3AF',marginBottom:12,padding:'8px 12px',background:'#F9FAFB',borderRadius:8}}>Connect live database to see individual member roster for this cell.</div>}
+                {!selectedCell.members_list&&<div style={{fontSize:12,color:'#9CA3AF',marginBottom:12,padding:'8px 12px',background:dark?'#12102B':'#F9FAFB',borderRadius:8}}>Connect live database to see individual member roster for this cell.</div>}
                 <div style={{display:'flex',gap:6,marginBottom:14}}>
                   {rangeOpts.map(r=>(
                     <button key={r} onClick={()=>setCellRange(r)}
@@ -1382,7 +1400,7 @@ export default function DashboardPage(){
                     style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export</button>
                 </div>
                 <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                  <thead><tr style={{borderBottom:'0.5px solid #F3F4F6'}}>{['Name','Last Sunday','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
+                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Last Sunday','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
                   <tbody>
                     {(selectedCell.members_list||[]).map((name,i)=>{
                       const total=(selectedCell.members_list||[]).length;
@@ -1409,8 +1427,8 @@ export default function DashboardPage(){
                       }
                       const informed = i%3===0?'Yes':i%3===1?'No':'Yes';
                       return(
-                        <tr key={i} style={{borderBottom:'0.5px solid #F9FAFB'}}>
-                          <td style={{padding:'7px 8px',fontWeight:500,color:'#374151'}}>{name}</td>
+                        <tr key={i} style={{borderBottom:`0.5px solid ${t.border}`}}>
+                          <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{name}</td>
                           <td style={{padding:'7px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:present?'#E1F5EE':'#FAECE7',color:present?'#085041':'#993C1D'}}>{present?'Present':'Absent'}</span></td>
                           <td style={{padding:'7px 8px'}}>{!present?<span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:informed==='Yes'?'#E1F5EE':'#FAECE7',color:informed==='Yes'?'#085041':'#993C1D'}}>{informed}</span>:<span style={{fontSize:11,color:'#9CA3AF'}}>N/A</span>}</td>
                         </tr>
@@ -1458,14 +1476,14 @@ export default function DashboardPage(){
       {/* ══ AI Chatbox ══ */}
       {chatOpen&&(
         <div style={{position:'fixed',bottom:isMobile?0:16,right:isMobile?0:16,width:isMobile?'100%':380,height:isMobile?'85vh':520,background:'#fff',borderRadius:isMobile?'14px 14px 0 0':14,border:'0.5px solid #E5E7EB',boxShadow:'0 8px 32px rgba(0,0,0,0.12)',display:'flex',flexDirection:'column',zIndex:50}}>
-          <div style={{padding:'12px 16px',borderBottom:'0.5px solid #F3F4F6',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{padding:'12px 16px',borderBottom:`0.5px solid ${t.navBorder}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div style={{width:28,height:28,borderRadius:'50%',background:'#534AB7',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>[AI]</div>
-              <div><div style={{fontSize:13,fontWeight:500,color:'#111827'}}>Church Intelligence</div><div style={{fontSize:10,color:'#9CA3AF'}}>4 agents · Select below</div></div>
+              <div><div style={{fontSize:13,fontWeight:500,color:t.text}}>Church Intelligence</div><div style={{fontSize:10,color:'#9CA3AF'}}>4 agents · Select below</div></div>
             </div>
             <button onClick={()=>setChatOpen(false)} style={{background:'none',border:'none',fontSize:18,color:'#9CA3AF',cursor:'pointer',lineHeight:1}}>×</button>
           </div>
-          <div style={{padding:'7px 12px',borderBottom:'0.5px solid #F9FAFB',display:'flex',gap:4,overflowX:'auto'}}>
+          <div style={{padding:'7px 12px',borderBottom:`0.5px solid ${t.border}`,display:'flex',gap:4,overflowX:'auto'}}>
             {agentOpts.map(a=>(
               <button key={a.id} onClick={()=>setSelectedAgent(a.id)}
                 style={{whiteSpace:'nowrap',fontSize:11,padding:'3px 8px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontWeight:selectedAgent===a.id?500:400,background:selectedAgent===a.id?'#EEEDFE':'transparent',borderColor:selectedAgent===a.id?'#534AB7':'#E5E7EB',color:selectedAgent===a.id?'#3C3489':'#6B7280'}}>
@@ -1476,7 +1494,7 @@ export default function DashboardPage(){
           <div style={{flex:1,overflowY:'auto',padding:'12px 14px',display:'flex',flexDirection:'column',gap:10}}>
             {messages.map((msg,i)=>(
               <div key={i} style={{display:'flex',justifyContent:msg.role==='user'?'flex-end':'flex-start'}}>
-                <div style={{maxWidth:'85%',borderRadius:10,padding:'8px 12px',fontSize:13,background:msg.role==='user'?'#534AB7':'#F9FAFB',color:msg.role==='user'?'#fff':'#374151',border:msg.role==='agent'?'0.5px solid #F3F4F6':'none'}}>
+                <div style={{maxWidth:'85%',borderRadius:10,padding:'8px 12px',fontSize:13,background:msg.role==='user'?'#534AB7':(dark?'#1A1740':'#F9FAFB'),color:msg.role==='user'?'#fff':(dark?'#E5E7EB':'#374151'),border:msg.role==='agent'?'0.5px solid #F3F4F6':'none'}}>
                   {msg.role==='agent'&&msg.agent&&<div style={{fontSize:10,fontWeight:500,color:'#534AB7',marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>{msg.agent}</div>}
                   {msg.loading?<div style={{display:'flex',gap:4,padding:'2px 0'}}>{[0,150,300].map(d=><div key={d} style={{width:6,height:6,borderRadius:'50%',background:'#9CA3AF',animation:`bounce 1s infinite ${d}ms`}}/>)}</div>:<p style={{margin:0,lineHeight:1.6,whiteSpace:'pre-wrap'}}>{msg.text}</p>}
                 </div>
@@ -1495,7 +1513,7 @@ export default function DashboardPage(){
           <div style={{padding:'10px 12px',borderTop:'0.5px solid #F3F4F6',display:'flex',gap:8}}>
             <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!e.shiftKey&&sendChat()}
               placeholder={`Ask ${agentOpts.find(a=>a.id===selectedAgent)?.label}...`} disabled={chatLoading}
-              style={{flex:1,border:'0.5px solid #E5E7EB',borderRadius:8,padding:'7px 12px',fontSize:13,outline:'none',background:'#F9FAFB'}}/>
+              style={{flex:1,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'7px 12px',fontSize:13,outline:'none',background:t.input,color:t.text}}/>
             <button onClick={sendChat} disabled={chatLoading||!chatInput.trim()}
               style={{background:'#534AB7',color:'#fff',border:'none',borderRadius:8,padding:'7px 14px',fontSize:13,cursor:'pointer',fontWeight:500,opacity:chatLoading||!chatInput.trim()?0.5:1}}>→</button>
           </div>
