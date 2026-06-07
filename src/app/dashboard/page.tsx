@@ -703,7 +703,7 @@ export default function DashboardPage(){
     input:  dark?'#1A1740':'#F9FAFB',
     tableRow: dark?'#1A1740':'#F9FAFB',
   };
-  const card=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:10,padding:'14px 16px',...e});
+  const card=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:10,padding:'16px 20px',...e});
   const bc=(b:string)=>b==='teal'?{bg:'#E1F5EE',c:'#085041'}:b==='amber'?{bg:'#FAEEDA',c:'#633806'}:{bg:'#EEEDFE',c:'#3C3489'};
   const ss=(s:string)=>s==='rising'?{bg:'#E1F5EE',c:'#085041'}:s==='stable'?{bg:'#F3F4F6',c:'#374151'}:s==='watch'?{bg:'#FAEEDA',c:'#633806'}:{bg:'#FAECE7',c:'#993C1D'};
 
@@ -732,7 +732,7 @@ export default function DashboardPage(){
       {/* Sidebar overlay for mobile */}
       {isMobile&&sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.3)',zIndex:40}}/>}
       {/* Sidebar */}
-      <div style={{width:196,background:t.nav,borderRight:`0.5px solid ${t.navBorder}`,display:'flex',flexDirection:'column',position:isMobile?'fixed':'sticky',top:0,left:isMobile?(sidebarOpen?0:-196):0,height:'100vh',flexShrink:0,zIndex:50,transition:'left 0.25s ease'}}>
+      <div style={{width:220,background:t.nav,borderRight:`0.5px solid ${t.navBorder}`,display:'flex',flexDirection:'column',position:isMobile?'fixed':'sticky',top:0,left:isMobile?(sidebarOpen?0:-196):0,height:'100vh',flexShrink:0,zIndex:50,transition:'left 0.25s ease'}}>
         <div style={{display:'flex',alignItems:'center',gap:10,padding:'16px 16px 14px',borderBottom:`0.5px solid ${t.navBorder}`}}>
           <div style={{width:32,height:32,background:'linear-gradient(135deg,#534AB7,#7F77DD)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>&#10013;</div>
           <div><div style={{fontSize:13,fontWeight:600,color:t.text}}>SHEP.HERD</div><div style={{fontSize:10,color:t.muted,marginTop:1}}>Comforters House Global</div></div>
@@ -756,7 +756,7 @@ export default function DashboardPage(){
       {/* Main */}
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
         {/* Topbar */}
-        <div style={{background:t.nav,borderBottom:`0.5px solid ${t.navBorder}`,padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
+        <div style={{background:t.nav,borderBottom:`0.5px solid ${t.navBorder}`,padding:'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             {isMobile&&<button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,color:'#534AB7',padding:'0 4px',lineHeight:1}}>☰</button>}
             <div>
@@ -776,7 +776,7 @@ export default function DashboardPage(){
           </div>
         </div>
 
-        <div style={{flex:1,padding:'16px',overflowY:'auto',background:t.bg}}>
+        <div style={{flex:1,padding:'20px',overflowY:'auto',background:t.bg,maxWidth:'100%'}}>
 
           {/* ══ DASHBOARD ══ */}
           {page==='dashboard'&&(
@@ -796,7 +796,7 @@ export default function DashboardPage(){
                     onMouseEnter={e=>e.currentTarget.style.boxShadow='0 2px 8px rgba(83,74,183,0.15)'}
                     onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
                     <div style={{fontSize:11,color:t.sub,marginBottom:4}}>{m.label}</div>
-                    <div style={{fontSize:22,fontWeight:500,color:t.text,lineHeight:1.1}}>{m.value}</div>
+                    <div style={{fontSize:26,fontWeight:600,color:t.text,lineHeight:1.1}}>{m.value}</div>
                     <div style={{fontSize:11,color:'#1D9E75',marginTop:3}}>{m.delta}</div>
                   </div>
                 ))}
@@ -809,7 +809,7 @@ export default function DashboardPage(){
                   </div>
                   <ResponsiveContainer width="100%" height={100}>
                     <BarChart data={[{w:'W1',s1:378,s2:241},{w:'W2',s1:391,s2:248},{w:'W3',s1:383,s2:243},{w:'W4',s1:402,s2:256},{w:'W5',s1:418,s2:261},{w:'W6',s1:411,s2:258},{w:'W7',s1:445,s2:278},{w:'W8',s1:458,s2:289}]} margin={{top:2,right:0,left:-30,bottom:0}}>
-                      <XAxis dataKey="w" tick={{fontSize:9}} tickLine={false} axisLine={false}/>
+                      <XAxis dataKey="w" tick={{fontSize:9,fill:dark?'#9CA3AF':'#6B7280'}} tickLine={false} axisLine={false}/>
                       <YAxis hide/><Tooltip contentStyle={{fontSize:11,borderRadius:6,border:'1px solid #e5e7eb'}}/>
                       <Bar dataKey="s1" name="Svc 1" fill="#534AB7" radius={[2,2,0,0]}/>
                       <Bar dataKey="s2" name="Svc 2" fill="#AFA9EC" radius={[2,2,0,0]}/>
@@ -935,8 +935,8 @@ export default function DashboardPage(){
                 <ResponsiveContainer width="100%" height={240}>
                   <LineChart data={cellTrend(CELLS_DATA[3],cellRange)} margin={{top:5,right:10,left:-20,bottom:0}}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                    <XAxis dataKey="w" tick={{fontSize:9}} interval={Math.floor(cellTrend(CELLS_DATA[0],cellRange).length/8)}/>
-                    <YAxis tick={{fontSize:10}} domain={['auto','auto']}/>
+                    <XAxis dataKey="w" tick={{fontSize:9,fill:dark?'#9CA3AF':'#6B7280'}} interval={Math.floor(cellTrend(CELLS_DATA[0],cellRange).length/8)}/>
+                    <YAxis tick={{fontSize:10,fill:dark?'#9CA3AF':'#6B7280'}} domain={['auto','auto']}/>
                     <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:dark?'#1A1740':'#fff',color:dark?'#F9FAFB':'#374151'}}/>
                     <Line type="monotone" dataKey="v" name="Attendance" stroke="#534AB7" strokeWidth={2} dot={false}/>
                   </LineChart>
@@ -1062,8 +1062,8 @@ export default function DashboardPage(){
                   <div style={{minWidth: givingSlice(givingRange).length > 6 ? Math.max(givingSlice(givingRange).length * 52, 320) : '100%'}}>
                     <BarChart width={Math.max(givingSlice(givingRange).length * 52, isMobile?320:600)} height={240} data={givingSlice(givingRange)} margin={{top:5,right:10,left:10,bottom:0}}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                      <XAxis dataKey="p" tick={{fontSize:9}} interval={0} angle={givingSlice(givingRange).length>8?-35:0} textAnchor={givingSlice(givingRange).length>8?'end':'middle'} height={givingSlice(givingRange).length>8?40:20}/>
-                      <YAxis tick={{fontSize:9}} tickFormatter={v=>`₦${(v/1000000).toFixed(1)}M`} width={45}/>
+                      <XAxis dataKey="p" tick={{fontSize:9,fill:dark?'#9CA3AF':'#6B7280'}} interval={0} angle={givingSlice(givingRange).length>8?-35:0} textAnchor={givingSlice(givingRange).length>8?'end':'middle'} height={givingSlice(givingRange).length>8?40:20}/>
+                      <YAxis tick={{fontSize:9,fill:dark?'#9CA3AF':'#6B7280'}} tickFormatter={v=>`₦${(v/1000000).toFixed(1)}M`} width={45}/>
                       <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:dark?'#1A1740':'#fff',color:dark?'#F9FAFB':'#374151'}} formatter={(v:number,n:string)=>[fmtNGN(v),n==='t'?'Tithe':n==='o'?'Offering':'Special']}/>
                       <Bar dataKey="t" name="Tithe" fill="#534AB7" radius={[2,2,0,0]}/>
                       <Bar dataKey="o" name="Offering" fill="#1D9E75" radius={[2,2,0,0]}/>
@@ -1134,7 +1134,7 @@ export default function DashboardPage(){
                   <ResponsiveContainer width="100%" height={160}>
                     <LineChart data={[{m:'Jan',n:1040},{m:'Feb',n:1058},{m:'Mar',n:1075},{m:'Apr',n:1098},{m:'May',n:1124},{m:'Jun',n:1147}]} margin={{top:5,right:10,left:-20,bottom:0}}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                      <XAxis dataKey="m" tick={{fontSize:11}}/><YAxis tick={{fontSize:10}} domain={[1000,1200]}/>
+                      <XAxis dataKey="m" tick={{fontSize:11,fill:dark?'#9CA3AF':'#6B7280'}}/><YAxis tick={{fontSize:10,fill:dark?'#9CA3AF':'#6B7280'}} domain={[1000,1200]}/>
                       <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:dark?'#1A1740':'#fff',color:dark?'#F9FAFB':'#374151'}}/>
                       <Line type="monotone" dataKey="n" name="Members" stroke="#534AB7" strokeWidth={2} dot={{fill:'#534AB7',r:3}}/>
                     </LineChart>
@@ -1385,8 +1385,8 @@ export default function DashboardPage(){
                   <ResponsiveContainer width="100%" height={200} minWidth={300}>
                     <LineChart data={cellTrend(selectedCell,cellRange)} margin={{top:5,right:10,left:-20,bottom:0}}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                      <XAxis dataKey="w" tick={{fontSize:9}} interval={Math.floor(cellTrend(selectedCell,cellRange).length/6)}/>
-                      <YAxis tick={{fontSize:9}} domain={[0,'auto']} width={32}/>
+                      <XAxis dataKey="w" tick={{fontSize:9,fill:dark?'#9CA3AF':'#6B7280'}} interval={Math.floor(cellTrend(selectedCell,cellRange).length/6)}/>
+                      <YAxis tick={{fontSize:9,fill:dark?'#9CA3AF':'#6B7280'}} domain={[0,'auto']} width={32}/>
                       <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:dark?'#1A1740':'#fff',color:dark?'#F9FAFB':'#374151'}}/>
                       <Line type="monotone" dataKey="v" name="Attendance" stroke={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'} strokeWidth={2} dot={false}/>
                     </LineChart>
@@ -1559,6 +1559,11 @@ export default function DashboardPage(){
     .dept-stats{grid-template-columns:1fr;}
     .range-btns button{padding:4px 8px!important;font-size:11px!important;}
     .filter-btns button{padding:3px 7px!important;font-size:10px!important;}
+  }
+  @media(min-width:1400px){
+    .grid-4{gap:16px;}
+    .grid-3{gap:16px;}
+    .grid-2{gap:16px;}
   }
 `}</style>
     </div>
