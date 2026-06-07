@@ -758,7 +758,7 @@ export default function DashboardPage(){
           </div>
         </div>
 
-        <div style={{flex:1,padding:isMobile?12:24,overflowY:'auto'}}>
+        <div style={{flex:1,padding:'16px',overflowY:'auto'}}>
 
           {/* ══ DASHBOARD ══ */}
           {page==='dashboard'&&(
@@ -900,7 +900,7 @@ export default function DashboardPage(){
           {page==='attendance'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <div style={{display:'flex',gap:6}}>
+                <div className="range-btns">
                   {rangeOpts.map(r=>(
                     <button key={r} onClick={()=>setCellRange(r)}
                       style={{padding:'5px 12px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:12,fontWeight:cellRange===r?500:400,background:cellRange===r?'#534AB7':'transparent',borderColor:cellRange===r?'#534AB7':'#E5E7EB',color:cellRange===r?'#fff':'#6B7280'}}>
@@ -1302,8 +1302,8 @@ export default function DashboardPage(){
                     </button>
                   ))}
                 </div>
-                <div style={{overflowX:'auto'}}>
-                  <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
+                <div className="table-wrap">
+                  <table style={{width:'100%',fontSize:12,borderCollapse:'collapse',minWidth:600}}>
                     <thead><tr style={{borderBottom:'0.5px solid #F3F4F6'}}>{['Cell','Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
                       {(dbCells||CELLS_DATA).filter(row=>cellFilter==='all'||(row.status===cellFilter)||(row.fel===cellFilter)).map((row,i)=>{const s=ss(row.status);return(
@@ -1477,7 +1477,48 @@ export default function DashboardPage(){
           </div>
         </div>
       )}
-      <style>{`@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
+      <style>{`
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  *{box-sizing:border-box;}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid-2s{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .grid-chart{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+  .grid-goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .cells-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .dept-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+  .giving-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .range-btns{display:flex;gap:6px;flex-wrap:wrap;}
+  .filter-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+  @media(max-width:1024px){
+    .grid-4{grid-template-columns:repeat(2,1fr);}
+    .grid-3{grid-template-columns:repeat(2,1fr);}
+    .giving-stats{grid-template-columns:repeat(2,1fr);}
+    .cells-stats{grid-template-columns:repeat(2,1fr);}
+  }
+  @media(max-width:768px){
+    .grid-4{grid-template-columns:repeat(2,1fr);gap:8px;}
+    .grid-3{grid-template-columns:1fr;}
+    .grid-2{grid-template-columns:1fr;}
+    .grid-2s{grid-template-columns:1fr;}
+    .grid-chart{grid-template-columns:1fr;}
+    .grid-goals{grid-template-columns:1fr;}
+    .cells-stats{grid-template-columns:repeat(2,1fr);}
+    .dept-stats{grid-template-columns:repeat(2,1fr);}
+    .giving-stats{grid-template-columns:repeat(2,1fr);}
+  }
+  @media(max-width:480px){
+    .grid-4{grid-template-columns:repeat(2,1fr);gap:6px;}
+    .cells-stats{grid-template-columns:repeat(2,1fr);}
+    .giving-stats{grid-template-columns:repeat(2,1fr);}
+    .dept-stats{grid-template-columns:1fr;}
+    .range-btns button{padding:4px 8px!important;font-size:11px!important;}
+    .filter-btns button{padding:3px 7px!important;font-size:10px!important;}
+  }
+`}</style>
     </div>
   );
 }
