@@ -749,7 +749,7 @@ export default function DashboardPage(){
           <button onClick={()=>setChatOpen(v=>!v)} style={{width:'100%',background:chatOpen?'#534AB7':'#EEEDFE',color:chatOpen?'#fff':'#3C3489',border:'none',borderRadius:8,padding:'8px 12px',fontSize:13,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',gap:8}}>
             Ask AI Agents
           </button>
-          <button onClick={logout} style={{width:'100%',background:'transparent',color:'#9CA3AF',border:'none',borderRadius:8,padding:'6px 12px',fontSize:12,cursor:'pointer',marginTop:4}}>Sign out</button>
+          <button onClick={logout} style={{width:'100%',background:'transparent',color:t.muted,border:'none',borderRadius:8,padding:'6px 12px',fontSize:12,cursor:'pointer',marginTop:4}}>Sign out</button>
         </div>
       </div>
 
@@ -761,7 +761,7 @@ export default function DashboardPage(){
             {isMobile&&<button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,color:'#534AB7',padding:'0 4px',lineHeight:1}}>☰</button>}
             <div>
               <span style={{fontSize:14,fontWeight:500,color:t.text}}>{navItems.find(n=>n.id===page)?.label}</span>
-              {!isMobile&&<span style={{fontSize:12,color:'#9CA3AF',marginLeft:10}}>{new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>}
+              {!isMobile&&<span style={{fontSize:12,color:t.muted,marginLeft:10}}>{new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>}
               {userName&&userName!=='General'&&<span style={{fontSize:12,color:'#534AB7',marginLeft:isMobile?6:10}}>· {greeting()}, {userName.split(' ')[0]}</span>}
             </div>
           </div>
@@ -804,7 +804,7 @@ export default function DashboardPage(){
               <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:14,marginBottom:14}}>
                 <div onClick={()=>setPage('attendance')} style={{...card(),cursor:'pointer'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
-                    <span style={{fontSize:13,fontWeight:500}}>Attendance trend (8 Sundays)</span>
+                    <span style={{fontSize:13,fontWeight:500,color:t.text}}>Attendance trend (8 Sundays)</span>
                     <span style={{fontSize:12,color:'#534AB7'}}>View all →</span>
                   </div>
                   <ResponsiveContainer width="100%" height={100}>
@@ -818,25 +818,25 @@ export default function DashboardPage(){
                 </div>
                 <div style={card()}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
-                    <span style={{fontSize:13,fontWeight:500}}>Recent activity</span>
+                    <span style={{fontSize:13,fontWeight:500,color:t.text}}>Recent activity</span>
                     <span style={{fontSize:12,color:'#534AB7',cursor:'pointer'}} onClick={()=>setPage('attendance')}>View log</span>
                   </div>
                   {liveFeed.length>0?liveFeed.slice(0,6).map((r,i)=>(
-                    <div key={r.id} style={{display:'flex',alignItems:'flex-start',gap:10,padding:'7px 0',borderBottom:i<Math.min(liveFeed.length,6)-1?'0.5px solid #F3F4F6':'none'}}>
+                    <div key={r.id} style={{display:'flex',alignItems:'flex-start',gap:10,padding:'7px 0',borderBottom:i<Math.min(liveFeed.length,6)-1?`0.5px solid ${t.navBorder}`:'none'}}>
                       <div style={{width:8,height:8,borderRadius:'50%',background:i===0?'#1D9E75':i%3===1?'#BA7517':'#534AB7',marginTop:4,flexShrink:0}}/>
                       <div>
                         <div style={{fontSize:12,color:t.text}}>{r.cell} &mdash; <strong>{r.present}</strong> present{r.visitors>0?`, ${r.visitors} visitors`:''}</div>
-                        <div style={{fontSize:11,color:'#9CA3AF',marginTop:1}}>{r.mins_ago<1?'just now':`${r.mins_ago}m ago`} · {r.fellowship}</div>
+                        <div style={{fontSize:11,color:t.muted,marginTop:1}}>{r.mins_ago<1?'just now':r.mins_ago<60?`${r.mins_ago}m ago`:`${Math.floor(r.mins_ago/60)}h ago`} · {r.fellowship}</div>
                       </div>
                     </div>
                   )):(
-                    <div style={{fontSize:12,color:'#9CA3AF',padding:'12px 0',textAlign:'center'}}>No submissions yet today</div>
+                    <div style={{fontSize:12,color:t.muted,padding:'12px 0',textAlign:'center'}}>No submissions yet today</div>
                   )}
                 </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr 1fr',gap:14}}>
                 <div onClick={()=>setPage('departments')} style={{...card(),cursor:'pointer'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:12}}><span style={{fontSize:13,fontWeight:500}}>Top departments</span><span style={{fontSize:12,color:'#534AB7'}}>View all →</span></div>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:12}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Top departments</span><span style={{fontSize:12,color:'#534AB7'}}>View all →</span></div>
                   {DEPTS.slice(0,5).map(d=>{const b=bc(d.badge);return(
                     <div key={d.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,fontSize:12}}>
                       <span style={{color:dark?'#E5E7EB':'#374151'}}>{d.name}</span>
@@ -845,7 +845,7 @@ export default function DashboardPage(){
                   );})}
                 </div>
                 <div onClick={()=>setPage('giving')} style={{...card(),cursor:'pointer'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:13,fontWeight:500}}>Giving breakdown</span><span style={{fontSize:12,color:'#534AB7'}}>Drill down →</span></div>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Giving breakdown</span><span style={{fontSize:12,color:'#534AB7'}}>Drill down →</span></div>
                   <div style={{display:'flex',alignItems:'center',gap:10}}>
                     <ResponsiveContainer width={80} height={80}>
                       <PieChart><Pie data={GIVING_PIE} cx={35} cy={35} innerRadius={20} outerRadius={35} dataKey="value" stroke="none">{GIVING_PIE.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie></PieChart>
@@ -854,16 +854,16 @@ export default function DashboardPage(){
                       <div key={g.name} style={{display:'flex',alignItems:'center',gap:5,marginBottom:4,fontSize:11}}>
                         <div style={{width:8,height:8,borderRadius:2,background:g.color,flexShrink:0}}/>
                         <span style={{color:dark?'#E5E7EB':'#374151',flex:1}}>{g.name}</span>
-                        <span style={{color:'#6B7280',fontWeight:500}}>{g.value}%</span>
+                        <span style={{color:t.sub,fontWeight:500}}>{g.value}%</span>
                       </div>
                     ))}</div>
                   </div>
                 </div>
                 <div onClick={()=>setPage('cells')} style={{...card(),cursor:'pointer'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}><span style={{fontSize:13,fontWeight:500}}>Cell alerts</span><span style={{fontSize:12,color:'#534AB7'}}>View all →</span></div>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Cell alerts</span><span style={{fontSize:12,color:'#534AB7'}}>View all →</span></div>
                   {(dbCells||CELLS_DATA).filter(c=>c.status==='alert'||c.status==='watch').slice(0,3).map(c=>(
                     <div key={c.cell} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                      <div><div style={{fontSize:12,color:dark?'#E5E7EB':'#374151',fontWeight:500}}>{c.cell}</div><div style={{fontSize:11,color:'#9CA3AF'}}>{c.fel}</div></div>
+                      <div><div style={{fontSize:12,color:dark?'#E5E7EB':'#374151',fontWeight:500}}>{c.cell}</div><div style={{fontSize:11,color:t.muted}}>{c.fel}</div></div>
                       <span style={{fontSize:11,padding:'2px 8px',borderRadius:10,fontWeight:500,background:ss(c.status).bg,color:ss(c.status).c}}>{c.trend}</span>
                     </div>
                   ))}
@@ -875,7 +875,7 @@ export default function DashboardPage(){
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
                   <div>
                     <div style={{fontSize:13,fontWeight:500,color:t.text}}>Membership Growth Goals</div>
-                    <div style={{fontSize:11,color:'#9CA3AF',marginTop:2}}>Current: 1,147 members</div>
+                    <div style={{fontSize:11,color:t.muted,marginTop:2}}>Current: 1,147 members</div>
                   </div>
                   <button onClick={()=>setEditGoals(v=>!v)} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'5px 12px',fontSize:12,cursor:'pointer',fontWeight:500}}>
                     {editGoals?'Save':'Set Goals'}
@@ -921,7 +921,7 @@ export default function DashboardPage(){
                 <div className="range-btns">
                   {rangeOpts.map(r=>(
                     <button key={r} onClick={()=>setCellRange(r)}
-                      style={{padding:'5px 12px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:12,fontWeight:cellRange===r?500:400,background:cellRange===r?'#534AB7':'transparent',borderColor:cellRange===r?'#534AB7':'#E5E7EB',color:cellRange===r?'#fff':'#6B7280'}}>
+                      style={{padding:'5px 12px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:12,fontWeight:cellRange===r?500:400,background:cellRange===r?'#534AB7':(dark?'#1A1740':'transparent'),borderColor:cellRange===r?'#534AB7':'#E5E7EB',color:cellRange===r?'#fff':t.sub}}>
                       {rangeLabel(r)}
                     </button>
                   ))}
@@ -931,40 +931,40 @@ export default function DashboardPage(){
               </div>
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:500,marginBottom:4}}>Overall Attendance Trend</div>
-                <div style={{fontSize:11,color:'#9CA3AF',marginBottom:12}}>All fellowships combined · {rangeLabel(cellRange as TimeRange)}</div>
+                <div style={{fontSize:11,color:t.muted,marginBottom:12}}>All fellowships combined · {rangeLabel(cellRange as TimeRange)}</div>
                 <ResponsiveContainer width="100%" height={240}>
                   <LineChart data={cellTrend(CELLS_DATA[3],cellRange)} margin={{top:5,right:10,left:-20,bottom:0}}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
                     <XAxis dataKey="w" tick={{fontSize:9}} interval={Math.floor(cellTrend(CELLS_DATA[0],cellRange).length/8)}/>
                     <YAxis tick={{fontSize:10}} domain={['auto','auto']}/>
-                    <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb'}}/>
+                    <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:dark?'#1A1740':'#fff',color:dark?'#F9FAFB':'#374151'}}/>
                     <Line type="monotone" dataKey="v" name="Attendance" stroke="#534AB7" strokeWidth={2} dot={false}/>
                   </LineChart>
                 </ResponsiveContainer>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:12}}>
                 {[{name:'Youth Fellowship',cells:12,avg:347,trend:'+8%',s1:198,s2:124,absent:25},{name:'Women Fellowship',cells:15,avg:289,trend:'+5%',s1:164,s2:103,absent:22},{name:'Men Fellowship',cells:8,avg:198,trend:'+11%',s1:112,s2:71,absent:15}].map(f=>(
-                  <div key={f.name} onClick={()=>setAttDrill(attDrill===f.name?null:f.name)} style={{...card(),cursor:'pointer',border:attDrill===f.name?'0.5px solid #534AB7':'0.5px solid #E5E7EB'}}>
+                  <div key={f.name} onClick={()=>setAttDrill(attDrill===f.name?null:f.name)} style={{...card(),cursor:'pointer',border:attDrill===f.name?'0.5px solid #534AB7':`0.5px solid ${t.border}`}}>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                      <div style={{fontSize:11,color:'#6B7280',marginBottom:4}}>{f.name}</div>
+                      <div style={{fontSize:11,color:t.sub,marginBottom:4}}>{f.name}</div>
                       <span style={{fontSize:10,color:'#534AB7'}}>{attDrill===f.name?'▲':'▼'} drill</span>
                     </div>
-                    <div style={{fontSize:22,fontWeight:500}}>{f.avg}</div>
+                    <div style={{fontSize:22,fontWeight:500,color:t.text}}>{f.avg}</div>
                     <div style={{display:'flex',justifyContent:'space-between',marginTop:4}}>
-                      <span style={{fontSize:11,color:'#9CA3AF'}}>{f.cells} cells</span>
+                      <span style={{fontSize:11,color:t.muted}}>{f.cells} cells</span>
                       <span style={{fontSize:11,color:'#1D9E75',fontWeight:500}}>{f.trend}</span>
                     </div>
                     {attDrill===f.name&&(
-                      <div style={{marginTop:12,paddingTop:10,borderTop:'0.5px solid #F3F4F6'}}>
+                      <div style={{marginTop:12,paddingTop:10,borderTop:`0.5px solid ${t.navBorder}`}}>
                         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:8}}>
                           {[{l:'Service 1',v:f.s1},{l:'Service 2',v:f.s2},{l:'Absent',v:f.absent}].map(s=>(
-                            <div key={s.l} style={{background:'#F9FAFB',borderRadius:6,padding:'6px 8px',textAlign:'center'}}>
+                            <div key={s.l} style={{background:dark?'#12102B':'#F9FAFB',borderRadius:6,padding:'6px 8px',textAlign:'center'}}>
                               <div style={{fontSize:16,fontWeight:500,color:s.l==='Absent'?'#D85A30':'#374151'}}>{s.v}</div>
-                              <div style={{fontSize:10,color:'#9CA3AF'}}>{s.l}</div>
+                              <div style={{fontSize:10,color:t.muted}}>{s.l}</div>
                             </div>
                           ))}
                         </div>
-                        <div style={{fontSize:11,color:'#6B7280'}}>Click Cell Ministry tab to see per-cell breakdown</div>
+                        <div style={{fontSize:11,color:t.sub}}>Click Cell Ministry tab to see per-cell breakdown</div>
                       </div>
                     )}
                   </div>
@@ -972,13 +972,13 @@ export default function DashboardPage(){
               </div>
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                  <div style={{fontSize:13,fontWeight:500}}>CYDF - Children & Youth Development Fellowship</div>
+                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>CYDF - Children & Youth Development Fellowship</div>
                   <span style={{fontSize:11,background:'#EEEDFE',color:'#3C3489',padding:'2px 8px',borderRadius:10}}>300 total</span>
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:12,marginBottom:12}}>
-                  <div style={{background:'#EEEDFE',borderRadius:8,padding:'14px'}}>
+                  <div style={{background:dark?'#2D2A5E':'#EEEDFE',borderRadius:8,padding:'14px'}}>
                     <div style={{fontSize:11,color:'#534AB7',marginBottom:6,fontWeight:500}}>Children (Ages 0–12)</div>
-                    <div style={{fontSize:28,fontWeight:600,color:'#3C3489',marginBottom:4}}>180</div>
+                    <div style={{fontSize:28,fontWeight:600,color:t.text,color:'#3C3489',marginBottom:4}}>180</div>
                     <div style={{fontSize:11,color:'#7F77DD',marginBottom:8}}>Tracked in demographic profile only</div>
                     <div style={{display:'flex',flexDirection:'column',gap:4}}>
                       {[{label:'Boys',value:94},{label:'Girls',value:86},{label:'Under 5',value:42},{label:'Ages 6–12',value:138}].map(s=>(
@@ -989,9 +989,9 @@ export default function DashboardPage(){
                       ))}
                     </div>
                   </div>
-                  <div style={{background:'#E1F5EE',borderRadius:8,padding:'14px'}}>
+                  <div style={{background:dark?'#0D3320':'#E1F5EE',borderRadius:8,padding:'14px'}}>
                     <div style={{fontSize:11,color:'#0F6E56',marginBottom:6,fontWeight:500}}>Teenagers (Ages 13–17)</div>
-                    <div style={{fontSize:28,fontWeight:600,color:'#085041',marginBottom:4}}>120</div>
+                    <div style={{fontSize:28,fontWeight:600,color:t.text,color:'#085041',marginBottom:4}}>120</div>
                     <div style={{fontSize:11,color:'#1D9E75',marginBottom:8}}>Sunday fellowship attendance tracked</div>
                     <div style={{display:'flex',flexDirection:'column',gap:4}}>
                       {[{label:'Male',value:61},{label:'Female',value:59},{label:'Last Sunday',value:98},{label:'Avg Attendance',value:'82%'}].map(s=>(
@@ -1003,24 +1003,24 @@ export default function DashboardPage(){
                     </div>
                   </div>
                 </div>
-                <div style={{background:dark?'#12102B':'#F9FAFB',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#6B7280'}}>
+                <div style={{background:dark?'#12102B':'#F9FAFB',borderRadius:8,padding:'10px 12px',fontSize:12,color:t.sub}}>
                   Note: Children are tracked under their parents cell. Teenagers attend the dedicated Sunday Youth Fellowship. Neither group is included in the 1,147 active adult member count.
                 </div>
               </div>
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                  <div style={{fontSize:13,fontWeight:500}}>Absentee Report - Last Sunday</div>
+                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>Absentee Report - Last Sunday</div>
                   <button onClick={()=>exportCSV([{Member:'Bro. Ikenna Obi',Cell:'Peace Cell',Fellowship:'Women',LeaderInformed:'Yes'},{Member:'Sis. Chidinma Eze',Cell:'Tabernacle Cell',Fellowship:'Women',LeaderInformed:'No'}],'absentees_export')}
                     style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export</button>
                 </div>
                 <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Member','Cell','Fellowship','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
+                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Member','Cell','Fellowship','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
                   <tbody>
                     {[{name:'Bro. Ikenna Obi',cell:'Peace Cell',fel:'Women',inf:'Yes'},{name:'Sis. Chidinma Eze',cell:'Tabernacle Cell',fel:'Women',inf:'No'},{name:'Bro. Uche Nwosu',cell:'Burning Bush Cell',fel:'Youth',inf:'Yes'},{name:'Sis. Ada Okafor',cell:'Graceland Cell',fel:'Women',inf:'No'},{name:'Bro. Emeka Chukwu',cell:'Dominion Cell',fel:'Men',inf:'Yes'}].map(r=>(
                       <tr key={r.name} style={{borderBottom:`0.5px solid ${t.border}`}}>
                         <td style={{padding:'8px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{r.name}</td>
-                        <td style={{padding:'8px 8px',color:'#6B7280'}}>{r.cell}</td>
-                        <td style={{padding:'8px 8px',color:'#6B7280'}}>{r.fel}</td>
+                        <td style={{padding:'8px 8px',color:t.sub}}>{r.cell}</td>
+                        <td style={{padding:'8px 8px',color:t.sub}}>{r.fel}</td>
                         <td style={{padding:'8px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:r.inf==='Yes'?'#E1F5EE':'#FAECE7',color:r.inf==='Yes'?'#085041':'#993C1D'}}>{r.inf}</span></td>
                       </tr>
                     ))}
@@ -1037,7 +1037,7 @@ export default function DashboardPage(){
                 <div style={{display:'flex',gap:6}}>
                   {['6m','1y','2y','5y'].map(r=>(
                     <button key={r} onClick={()=>setGivingRange(r)}
-                      style={{padding:'5px 12px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:12,fontWeight:givingRange===r?500:400,background:givingRange===r?'#534AB7':'transparent',borderColor:givingRange===r?'#534AB7':'#E5E7EB',color:givingRange===r?'#fff':'#6B7280'}}>
+                      style={{padding:'5px 12px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:12,fontWeight:givingRange===r?500:400,background:givingRange===r?'#534AB7':(dark?'#1A1740':'transparent'),borderColor:givingRange===r?'#534AB7':'#E5E7EB',color:givingRange===r?'#fff':t.sub}}>
                       {r==='6m'?'6 Months':r==='1y'?'1 Year':r==='2y'?'2 Years':'5 Years'}
                     </button>
                   ))}
@@ -1047,7 +1047,7 @@ export default function DashboardPage(){
               </div>
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:500,marginBottom:4}}>Monthly Giving - The Comforters House Global</div>
-                <div style={{fontSize:11,color:'#9CA3AF',marginBottom:8}}>{givingSlice(givingRange).length} months · Tithe, Offering & Special</div>
+                <div style={{fontSize:11,color:t.muted,marginBottom:8}}>{givingSlice(givingRange).length} months · Tithe, Offering & Special</div>
                 {/* Legend */}
                 <div style={{display:'flex',gap:14,marginBottom:12,flexWrap:'wrap'}}>
                   {[{color:'#534AB7',label:'Tithe'},{color:'#1D9E75',label:'Offering'},{color:'#BA7517',label:'Special'}].map(l=>(
@@ -1058,25 +1058,25 @@ export default function DashboardPage(){
                   ))}
                 </div>
                 {/* Scrollable chart container on mobile */}
-                <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+                <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch',background:t.card}}>
                   <div style={{minWidth: givingSlice(givingRange).length > 6 ? Math.max(givingSlice(givingRange).length * 52, 320) : '100%'}}>
                     <BarChart width={Math.max(givingSlice(givingRange).length * 52, isMobile?320:600)} height={240} data={givingSlice(givingRange)} margin={{top:5,right:10,left:10,bottom:0}}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
                       <XAxis dataKey="p" tick={{fontSize:9}} interval={0} angle={givingSlice(givingRange).length>8?-35:0} textAnchor={givingSlice(givingRange).length>8?'end':'middle'} height={givingSlice(givingRange).length>8?40:20}/>
                       <YAxis tick={{fontSize:9}} tickFormatter={v=>`₦${(v/1000000).toFixed(1)}M`} width={45}/>
-                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb'}} formatter={(v:number,n:string)=>[fmtNGN(v),n==='t'?'Tithe':n==='o'?'Offering':'Special']}/>
+                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:dark?'#1A1740':'#fff',color:dark?'#F9FAFB':'#374151'}} formatter={(v:number,n:string)=>[fmtNGN(v),n==='t'?'Tithe':n==='o'?'Offering':'Special']}/>
                       <Bar dataKey="t" name="Tithe" fill="#534AB7" radius={[2,2,0,0]}/>
                       <Bar dataKey="o" name="Offering" fill="#1D9E75" radius={[2,2,0,0]}/>
                       <Bar dataKey="s" name="Special" fill="#BA7517" radius={[2,2,0,0]}/>
                     </BarChart>
                   </div>
                 </div>
-                <div style={{fontSize:10,color:'#9CA3AF',textAlign:'center',marginTop:4}}>← Swipe to see more →</div>
+                <div style={{fontSize:10,color:t.muted,textAlign:'center',marginTop:4}}>← Swipe to see more →</div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
                 {[{label:'YTD Tithe',value:'₦7.82M'},{label:'YTD Offering',value:'₦5.56M'},{label:'YTD Special',value:'₦613k'},{label:'Per Member (avg)',value:'₦12.2k'},{label:'Best Month',value:'Dec 2025'},{label:'5-Year Growth',value:'+129%'},{label:'Tithe %',value:'75%'},{label:'Dec 25 Peak',value:'₦3.75M'}].map(s=>(
                   <div key={s.label} style={card({padding:'10px 12px'})}>
-                    <div style={{fontSize:10,color:'#6B7280',marginBottom:3}}>{s.label}</div>
+                    <div style={{fontSize:10,color:t.sub,marginBottom:3}}>{s.label}</div>
                     <div style={{fontSize:16,fontWeight:600,color:t.text}}>{s.value}</div>
                   </div>
                 ))}
@@ -1088,7 +1088,7 @@ export default function DashboardPage(){
                     <Pie data={GIVING_PIE} cx={105} cy={105} outerRadius={90} innerRadius={40} dataKey="value" stroke="none">
                       {GIVING_PIE.map((e,i)=><Cell key={i} fill={e.color}/>)}
                     </Pie>
-                    <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb'}} formatter={(v:number,n:string)=>[`${v}%`,n]}/>
+                    <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:dark?'#1A1740':'#fff',color:dark?'#F9FAFB':'#374151'}} formatter={(v:number,n:string)=>[`${v}%`,n]}/>
                   </PieChart>
                   <div style={{width:'100%'}}>
                     {GIVING_PIE.map(g=>(
@@ -1100,7 +1100,7 @@ export default function DashboardPage(){
                           </div>
                           <span style={{color:dark?'#E5E7EB':'#374151',fontWeight:600}}>{g.value}%</span>
                         </div>
-                        <div style={{height:8,background:'#F3F4F6',borderRadius:4,overflow:'hidden'}}>
+                        <div style={{height:8,background:dark?'#1A1740':'#F3F4F6',borderRadius:4,overflow:'hidden'}}>
                           <div style={{height:'100%',width:`${g.value}%`,background:g.color,borderRadius:4}}/>
                         </div>
                       </div>
@@ -1122,9 +1122,9 @@ export default function DashboardPage(){
                   {label:'CYDF Combined',value:'300',sub:'180 children · 120 teens'},
                 ].map(s=>(
                   <div key={s.label} style={card()}>
-                    <div style={{fontSize:11,color:'#6B7280',marginBottom:4}}>{s.label}</div>
-                    <div style={{fontSize:22,fontWeight:500}}>{s.value}</div>
-                    <div style={{fontSize:11,color:'#9CA3AF',marginTop:2}}>{s.sub}</div>
+                    <div style={{fontSize:11,color:t.sub,marginBottom:4}}>{s.label}</div>
+                    <div style={{fontSize:22,fontWeight:500,color:t.text}}>{s.value}</div>
+                    <div style={{fontSize:11,color:t.muted,marginTop:2}}>{s.sub}</div>
                   </div>
                 ))}
               </div>
@@ -1135,7 +1135,7 @@ export default function DashboardPage(){
                     <LineChart data={[{m:'Jan',n:1040},{m:'Feb',n:1058},{m:'Mar',n:1075},{m:'Apr',n:1098},{m:'May',n:1124},{m:'Jun',n:1147}]} margin={{top:5,right:10,left:-20,bottom:0}}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
                       <XAxis dataKey="m" tick={{fontSize:11}}/><YAxis tick={{fontSize:10}} domain={[1000,1200]}/>
-                      <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb'}}/>
+                      <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:dark?'#1A1740':'#fff',color:dark?'#F9FAFB':'#374151'}}/>
                       <Line type="monotone" dataKey="n" name="Members" stroke="#534AB7" strokeWidth={2} dot={{fill:'#534AB7',r:3}}/>
                     </LineChart>
                   </ResponsiveContainer>
@@ -1145,9 +1145,9 @@ export default function DashboardPage(){
                   {[{src:'Cell outreach',n:312,p:27},{src:'Walk-in',n:298,p:26},{src:'Referral',n:241,p:21},{src:'Crusade',n:195,p:17},{src:'Online',n:101,p:9}].map(s=>(
                     <div key={s.src} style={{marginBottom:8}}>
                       <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:3}}>
-                        <span style={{color:dark?'#E5E7EB':'#374151'}}>{s.src}</span><span style={{color:'#6B7280'}}>{s.n} ({s.p}%)</span>
+                        <span style={{color:dark?'#E5E7EB':'#374151'}}>{s.src}</span><span style={{color:t.sub}}>{s.n} ({s.p}%)</span>
                       </div>
-                      <div style={{height:6,background:'#F3F4F6',borderRadius:3,overflow:'hidden'}}><div style={{height:'100%',width:`${s.p}%`,background:'#534AB7',borderRadius:3}}/></div>
+                      <div style={{height:6,background:dark?'#1A1740':'#F3F4F6',borderRadius:3,overflow:'hidden'}}><div style={{height:'100%',width:`${s.p}%`,background:'#534AB7',borderRadius:3}}/></div>
                     </div>
                   ))}
                 </div>
@@ -1164,7 +1164,7 @@ export default function DashboardPage(){
                         <div key={g.label} style={{display:'flex',alignItems:'center',gap:8,marginBottom:7,fontSize:12}}>
                           <div style={{width:10,height:10,borderRadius:2,background:g.c,flexShrink:0}}/>
                           <span style={{color:dark?'#E5E7EB':'#374151',flex:1}}>{g.label}</span>
-                          <span style={{fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{g.value} {g.p&&<span style={{color:'#9CA3AF',fontWeight:400}}>({g.p})</span>}</span>
+                          <span style={{fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{g.value} {g.p&&<span style={{color:t.muted,fontWeight:400}}>({g.p})</span>}</span>
                         </div>
                       ))}
                     </div>
@@ -1175,32 +1175,32 @@ export default function DashboardPage(){
                   {[{band:'18–25',n:355,p:31},{band:'26–35',n:321,p:28},{band:'36–50',n:275,p:24},{band:'51+',n:195,p:17}].map(a=>(
                     <div key={a.band} style={{marginBottom:10}}>
                       <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:3}}>
-                        <span style={{color:dark?'#E5E7EB':'#374151'}}>{a.band} years</span><span style={{color:'#6B7280'}}>{a.n} members ({a.p}%)</span>
+                        <span style={{color:dark?'#E5E7EB':'#374151'}}>{a.band} years</span><span style={{color:t.sub}}>{a.n} members ({a.p}%)</span>
                       </div>
-                      <div style={{height:8,background:'#F3F4F6',borderRadius:4,overflow:'hidden'}}><div style={{height:'100%',width:`${a.p}%`,background:'linear-gradient(90deg,#534AB7,#7F77DD)',borderRadius:4}}/></div>
+                      <div style={{height:8,background:dark?'#1A1740':'#F3F4F6',borderRadius:4,overflow:'hidden'}}><div style={{height:'100%',width:`${a.p}%`,background:'linear-gradient(90deg,#534AB7,#7F77DD)',borderRadius:4}}/></div>
                     </div>
                   ))}
                 </div>
               </div>
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                  <div style={{fontSize:13,fontWeight:500}}>Recent Additions</div>
+                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>Recent Additions</div>
                   <button onClick={()=>exportCSV(NEW_MEMBERS,'new_members_export')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export CSV</button>
                 </div>
                 <div style={{overflowX:'auto'}}>
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Phone','Date Joined','Cell','Fellowship','Care Personnel','Status','How They Came'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Phone','Date Joined','Cell','Fellowship','Care Personnel','Status','How They Came'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
                       {NEW_MEMBERS.map(m=>(
                         <tr key={m.name} style={{borderBottom:`0.5px solid ${t.border}`}}>
                           <td style={{padding:'8px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.name}</td>
-                          <td style={{padding:'8px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.phone}</td>
-                          <td style={{padding:'8px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.date}</td>
-                          <td style={{padding:'8px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.cell}</td>
-                          <td style={{padding:'8px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.fellowship}</td>
+                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone}</td>
+                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.date}</td>
+                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.cell}</td>
+                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.fellowship}</td>
                           <td style={{padding:'8px 8px',color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.care}</td>
                           <td style={{padding:'8px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.status==='Staying'?'#E1F5EE':'#FAEEDA',color:m.status==='Staying'?'#085041':'#633806',whiteSpace:'nowrap'}}>{m.status}</span></td>
-                          <td style={{padding:'8px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.invited}</td>
+                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.invited}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1211,24 +1211,24 @@ export default function DashboardPage(){
               {/* Full Member Database */}
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                  <div style={{fontSize:13,fontWeight:500}}>Full Member Database — 1,147 members</div>
+                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>Full Member Database — 1,147 members</div>
                   <button onClick={()=>exportCSV(ALL_MEMBERS,'full_member_database')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export All</button>
                 </div>
                 <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
                   <input value={memberSearch} onChange={e=>setMemberSearch(e.target.value)} placeholder="Search by name..." style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 10px',fontSize:12,outline:'none',flex:1,minWidth:160,background:t.input,color:t.text}}/>
                   {['all','Youth','Women','Men','Active','Inactive'].map(f=>(
                     <button key={f} onClick={()=>setMemberFilter(f)}
-                      style={{padding:'5px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:memberFilter===f?500:400,background:memberFilter===f?'#534AB7':'transparent',borderColor:memberFilter===f?'#534AB7':'#E5E7EB',color:memberFilter===f?'#fff':'#6B7280'}}>
+                      style={{padding:'5px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:memberFilter===f?500:400,background:memberFilter===f?'#534AB7':(dark?'#1A1740':'transparent'),borderColor:memberFilter===f?'#534AB7':'#E5E7EB',color:memberFilter===f?'#fff':'#6B7280'}}>
                       {f==='all'?'All':f}
                     </button>
                   ))}
                 </div>
                 <div style={{overflowX:'auto',maxHeight:400,overflowY:'auto'}}>
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                    <thead style={{position:'sticky',top:0,background:'#fff'}}>
+                    <thead style={{position:'sticky',top:0,background:t.card}}>
                       <tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>
                         {['Name','Phone','Cell','Fellowship','Joined','Status','Gender','Age'].map(h=>(
-                          <th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap',background:'#fff'}}>{h}</th>
+                          <th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap',background:t.card}}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1239,18 +1239,18 @@ export default function DashboardPage(){
                         .map((m,i)=>(
                         <tr key={i} style={{borderBottom:`0.5px solid ${t.border}`}}>
                           <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.name}</td>
-                          <td style={{padding:'7px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.phone}</td>
-                          <td style={{padding:'7px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.cell}</td>
-                          <td style={{padding:'7px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.fellowship}</td>
-                          <td style={{padding:'7px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{m.joined}</td>
+                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone}</td>
+                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.cell}</td>
+                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.fellowship}</td>
+                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.joined}</td>
                           <td style={{padding:'7px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.status==='Active'?'#E1F5EE':'#FAECE7',color:m.status==='Active'?'#085041':'#993C1D'}}>{m.status}</span></td>
-                          <td style={{padding:'7px 8px',color:'#6B7280'}}>{m.gender}</td>
-                          <td style={{padding:'7px 8px',color:'#6B7280'}}>{m.age}</td>
+                          <td style={{padding:'7px 8px',color:t.sub}}>{m.gender}</td>
+                          <td style={{padding:'7px 8px',color:t.sub}}>{m.age}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  <div style={{fontSize:11,color:'#9CA3AF',padding:'8px',textAlign:'center'}}>
+                  <div style={{fontSize:11,color:t.muted,padding:'8px',textAlign:'center'}}>
                     Showing {ALL_MEMBERS.filter(m=>memberSearch?m.name.toLowerCase().includes(memberSearch.toLowerCase()):true).filter(m=>memberFilter==='all'?true:m.fellowship===memberFilter||m.status===memberFilter).length} of 1,147 members — connect live database for full roster
                   </div>
                 </div>
@@ -1263,14 +1263,14 @@ export default function DashboardPage(){
             <div style={card()}>
               <div style={{fontSize:13,fontWeight:500,marginBottom:14}}>All Departments - click any to expand</div>
               <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Department','Category','Leader','Members','Absences','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 10px',fontSize:11,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
+                <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Department','Category','Leader','Members','Absences','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 10px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
                 <tbody>
                   {DEPTS.map(d=>{const b=bc(d.badge);return(
                     <tr key={d.name} onClick={()=>setSelectedDept(d)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
-                      onMouseEnter={e=>e.currentTarget.style.background='#FAFAFA'}
+                      onMouseEnter={e=>e.currentTarget.style.background=dark?'#252260':'#FAFAFA'}
                       onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                       <td style={{padding:'10px 10px',fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{d.name}</td>
-                      <td style={{padding:'10px 10px',color:'#6B7280'}}>{d.cat}</td>
+                      <td style={{padding:'10px 10px',color:t.sub}}>{d.cat}</td>
                       <td style={{padding:'10px 10px',color:dark?'#E5E7EB':'#374151'}}>{d.leader}</td>
                       <td style={{padding:'10px 10px',color:dark?'#E5E7EB':'#374151'}}>{d.count}</td>
                       <td style={{padding:'10px 10px'}}>{d.absent>0?<span style={{background:'#FAECE7',color:'#993C1D',fontSize:11,padding:'2px 8px',borderRadius:10}}>{d.absent} absent</span>:<span style={{background:'#E1F5EE',color:'#085041',fontSize:11,padding:'2px 8px',borderRadius:10}}>Full attendance</span>}</td>
@@ -1286,26 +1286,26 @@ export default function DashboardPage(){
               <button onClick={()=>setSelectedDept(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to Departments</button>
               <div style={card()}>
                 <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:2}}>{selectedDept.name}</div>
-                <div style={{fontSize:12,color:'#6B7280',marginBottom:14}}>Category: {selectedDept.cat} · Leader: {selectedDept.leader} · {selectedDept.count} total members · {selectedDept.absent} absent last Sunday</div>
+                <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Category: {selectedDept.cat} · Leader: {selectedDept.leader} · {selectedDept.count} total members · {selectedDept.absent} absent last Sunday</div>
                 <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:10,marginBottom:16}}>
                   {[{label:'Total Members',value:selectedDept.count},{label:'Present Last Sunday',value:selectedDept.count-selectedDept.absent},{label:'Absent',value:selectedDept.absent}].map(s=>(
-                    <div key={s.label} style={{background:dark?'#12102B':'#F9FAFB',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,color:'#6B7280',marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500}}>{s.value}</div></div>
+                    <div key={s.label} style={{background:dark?'#12102B':'#F9FAFB',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,color:t.sub,marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500,color:t.text}}>{s.value}</div></div>
                   ))}
                 </div>
                 <div style={{fontSize:12,fontWeight:500,color:dark?'#E5E7EB':'#374151',marginBottom:8}}>Full Member Roster — {selectedDept.count} members</div>
                 <div style={{overflowX:'auto'}}>
                 <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Role','Phone','Last Sunday','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Role','Phone','Last Sunday','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                   <tbody>
                     {selectedDept.members.map((m:Record<string,unknown>,i:number)=>{
                       const absent=!m.present;
                       return(
                         <tr key={i} style={{borderBottom:`0.5px solid ${t.border}`}}>
                           <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{String(m.name)}</td>
-                          <td style={{padding:'7px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{String(m.role)}</td>
-                          <td style={{padding:'7px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{String(m.phone)}</td>
+                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{String(m.role)}</td>
+                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{String(m.phone)}</td>
                           <td style={{padding:'7px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:absent?'#FAECE7':'#E1F5EE',color:absent?'#993C1D':'#085041'}}>{absent?'Absent':'Present'}</span></td>
-                          <td style={{padding:'7px 8px'}}>{absent?<span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.informed==='Yes'?'#E1F5EE':'#FAECE7',color:m.informed==='Yes'?'#085041':'#993C1D'}}>{String(m.informed||'No')}</span>:<span style={{fontSize:11,color:'#9CA3AF'}}>N/A</span>}</td>
+                          <td style={{padding:'7px 8px'}}>{absent?<span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.informed==='Yes'?'#E1F5EE':'#FAECE7',color:m.informed==='Yes'?'#085041':'#993C1D'}}>{String(m.informed||'No')}</span>:<span style={{fontSize:11,color:t.muted}}>N/A</span>}</td>
                         </tr>
                       );
                     })}
@@ -1321,12 +1321,12 @@ export default function DashboardPage(){
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
                 {[{label:'Total Active Cells',value:String((dbCells||CELLS_DATA).length)},{label:'Rising',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='rising').length)},{label:'Need Attention',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='alert'||c.status==='watch').length)},{label:'Avg Attendance Rate',value:'78%'}].map(s=>(
-                  <div key={s.label} style={card({padding:'10px 12px'})}><div style={{fontSize:11,color:'#6B7280',marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500}}>{s.value}</div></div>
+                  <div key={s.label} style={card({padding:'10px 12px'})}><div style={{fontSize:11,color:t.sub,marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500,color:t.text}}>{s.value}</div></div>
                 ))}
               </div>
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-                  <div style={{fontSize:13,fontWeight:500}}>All 35 Cells - click any cell to drill down</div>
+                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>All 35 Cells - click any cell to drill down</div>
                   <button onClick={()=>exportCSV((dbCells||CELLS_DATA).map(c=>({Cell:c.cell,Fellowship:c.fel,Leader:c.leader,Members:c.members,AvgAttendance:c.avg,Rate:`${c.rate}%`,Trend:c.trend,Status:c.status})),'cells_export')}
                     style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'5px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export CSV</button>
                 </div>
@@ -1344,14 +1344,14 @@ export default function DashboardPage(){
                 </div>
                 <div className="table-wrap">
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse',minWidth:600}}>
-                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Cell','Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Cell','Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
                       {(dbCells||CELLS_DATA).filter(row=>cellFilter==='all'||(row.status===cellFilter)||(row.fel===cellFilter)).map((row,i)=>{const s=ss(row.status);return(
                         <tr key={i} onClick={()=>setSelectedCell(row)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
-                          onMouseEnter={e=>e.currentTarget.style.background='#FAFAFA'}
+                          onMouseEnter={e=>e.currentTarget.style.background=dark?'#252260':'#FAFAFA'}
                           onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                           <td style={{padding:'8px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{row.cell}</td>
-                          <td style={{padding:'8px 8px',color:'#6B7280',whiteSpace:'nowrap'}}>{row.fel}</td>
+                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{row.fel}</td>
                           <td style={{padding:'8px 8px',color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{row.leader}</td>
                           <td style={{padding:'8px 8px',color:dark?'#E5E7EB':'#374151'}}>{row.members}</td>
                           <td style={{padding:'8px 8px',color:dark?'#E5E7EB':'#374151'}}>{row.avg}</td>
@@ -1371,23 +1371,23 @@ export default function DashboardPage(){
               <button onClick={()=>setSelectedCell(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to Cells</button>
               <div style={card()}>
                 <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:2}}>{selectedCell.cell}</div>
-                <div style={{fontSize:12,color:'#6B7280',marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} Fellowship · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
-                {!selectedCell.members_list&&<div style={{fontSize:12,color:'#9CA3AF',marginBottom:12,padding:'8px 12px',background:dark?'#12102B':'#F9FAFB',borderRadius:8}}>Connect live database to see individual member roster for this cell.</div>}
+                <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} Fellowship · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
+                {!selectedCell.members_list&&<div style={{fontSize:12,color:t.muted,marginBottom:12,padding:'8px 12px',background:dark?'#12102B':'#F9FAFB',borderRadius:8}}>Connect live database to see individual member roster for this cell.</div>}
                 <div style={{display:'flex',gap:6,marginBottom:14}}>
                   {rangeOpts.map(r=>(
                     <button key={r} onClick={()=>setCellRange(r)}
-                      style={{padding:'4px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:cellRange===r?500:400,background:cellRange===r?'#534AB7':'transparent',borderColor:cellRange===r?'#534AB7':'#E5E7EB',color:cellRange===r?'#fff':'#6B7280'}}>
+                      style={{padding:'4px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:cellRange===r?500:400,background:cellRange===r?'#534AB7':(dark?'#1A1740':'transparent'),borderColor:cellRange===r?'#534AB7':'#E5E7EB',color:cellRange===r?'#fff':t.sub}}>
                       {rangeLabel(r)}
                     </button>
                   ))}
                 </div>
-                <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+                <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch',background:t.card}}>
                   <ResponsiveContainer width="100%" height={200} minWidth={300}>
                     <LineChart data={cellTrend(selectedCell,cellRange)} margin={{top:5,right:10,left:-20,bottom:0}}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
                       <XAxis dataKey="w" tick={{fontSize:9}} interval={Math.floor(cellTrend(selectedCell,cellRange).length/6)}/>
                       <YAxis tick={{fontSize:9}} domain={[0,'auto']} width={32}/>
-                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb'}}/>
+                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:dark?'#1A1740':'#fff',color:dark?'#F9FAFB':'#374151'}}/>
                       <Line type="monotone" dataKey="v" name="Attendance" stroke={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'} strokeWidth={2} dot={false}/>
                     </LineChart>
                   </ResponsiveContainer>
@@ -1395,12 +1395,12 @@ export default function DashboardPage(){
               </div>
               {(selectedCell.members_list||[]).length>0&&<div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                  <div style={{fontSize:13,fontWeight:500}}>Cell Members - Last Sunday Attendance</div>
+                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>Cell Members - Last Sunday Attendance</div>
                   <button onClick={()=>exportCSV((selectedCell.members_list||[]).map((n,i)=>({Name:n,Status:i<selectedCell.avg?'Present':'Absent',LeaderInformed:i>=selectedCell.avg?(i%2===0?'Yes':'No'):'N/A'})),`${selectedCell.cell.replace(/ /g,'_')}_members`)}
                     style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export</button>
                 </div>
                 <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Last Sunday','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:'#6B7280',textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
+                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Last Sunday','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
                   <tbody>
                     {(selectedCell.members_list||[]).map((name,i)=>{
                       const total=(selectedCell.members_list||[]).length;
@@ -1430,7 +1430,7 @@ export default function DashboardPage(){
                         <tr key={i} style={{borderBottom:`0.5px solid ${t.border}`}}>
                           <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{name}</td>
                           <td style={{padding:'7px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:present?'#E1F5EE':'#FAECE7',color:present?'#085041':'#993C1D'}}>{present?'Present':'Absent'}</span></td>
-                          <td style={{padding:'7px 8px'}}>{!present?<span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:informed==='Yes'?'#E1F5EE':'#FAECE7',color:informed==='Yes'?'#085041':'#993C1D'}}>{informed}</span>:<span style={{fontSize:11,color:'#9CA3AF'}}>N/A</span>}</td>
+                          <td style={{padding:'7px 8px'}}>{!present?<span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:informed==='Yes'?'#E1F5EE':'#FAECE7',color:informed==='Yes'?'#085041':'#993C1D'}}>{informed}</span>:<span style={{fontSize:11,color:t.muted}}>N/A</span>}</td>
                         </tr>
                       );
                     })}
@@ -1443,12 +1443,12 @@ export default function DashboardPage(){
           {/* ══ REPORTS ══ */}
           {page==='reports'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{background:'#E1F5EE',border:'0.5px solid #9FE1CB',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#085041'}}>
+              <div style={{background:dark?'#0D3320':'#E1F5EE',border:dark?'0.5px solid #1D9E75':'0.5px solid #9FE1CB',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#085041'}}>
                 <strong>Monthly Summary - June 2026:</strong> Membership at 1,147 (+23 this month). YTD giving ₦13.4M (+12% vs 2025). 3 cells flagged. Youth Fellowship leading growth at +8%.
               </div>
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:500,marginBottom:4}}>AI-Powered Reports</div>
-                <div style={{fontSize:12,color:'#6B7280',marginBottom:14}}>Select a prompt to generate a narrative report via Moshe. Add credits at console.anthropic.com if needed.</div>
+                <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Select a prompt to generate a narrative report via Moshe. Add credits at console.anthropic.com if needed.</div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
                   {['Monthly attendance report for June 2026','YTD giving analysis and projections','Cell performance review with intervention recommendations','Membership growth analysis and conversion trends','Plan a realistic membership budget for all 35 cells based on current trends','Which 3 cells need immediate pastoral intervention and why?'].map(q=>(
                     <button key={q} onClick={()=>{setChatOpen(true);setChatInput(q);}}
@@ -1463,7 +1463,7 @@ export default function DashboardPage(){
                   <button key={e.label} onClick={()=>exportCSV(e.data,e.file)}
                     style={{...card(),border:'0.5px solid #534AB7',cursor:'pointer',textAlign:'left'}}>
                     <div style={{fontSize:13,fontWeight:500,color:'#3C3489',marginBottom:2}}>⬇ {e.label}</div>
-                    <div style={{fontSize:11,color:'#9CA3AF'}}>Export as CSV</div>
+                    <div style={{fontSize:11,color:t.muted}}>Export as CSV</div>
                   </button>
                 ))}
               </div>
@@ -1475,13 +1475,13 @@ export default function DashboardPage(){
 
       {/* ══ AI Chatbox ══ */}
       {chatOpen&&(
-        <div style={{position:'fixed',bottom:isMobile?0:16,right:isMobile?0:16,width:isMobile?'100%':380,height:isMobile?'85vh':520,background:'#fff',borderRadius:isMobile?'14px 14px 0 0':14,border:'0.5px solid #E5E7EB',boxShadow:'0 8px 32px rgba(0,0,0,0.12)',display:'flex',flexDirection:'column',zIndex:50}}>
+        <div style={{position:'fixed',bottom:isMobile?0:16,right:isMobile?0:16,width:isMobile?'100%':380,height:isMobile?'85vh':520,background:t.card,borderRadius:isMobile?'14px 14px 0 0':14,border:`0.5px solid ${t.border}`,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',display:'flex',flexDirection:'column',zIndex:50}}>
           <div style={{padding:'12px 16px',borderBottom:`0.5px solid ${t.navBorder}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div style={{width:28,height:28,borderRadius:'50%',background:'#534AB7',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>[AI]</div>
-              <div><div style={{fontSize:13,fontWeight:500,color:t.text}}>Church Intelligence</div><div style={{fontSize:10,color:'#9CA3AF'}}>4 agents · Select below</div></div>
+              <div><div style={{fontSize:13,fontWeight:500,color:t.text}}>Church Intelligence</div><div style={{fontSize:10,color:t.muted}}>4 agents · Select below</div></div>
             </div>
-            <button onClick={()=>setChatOpen(false)} style={{background:'none',border:'none',fontSize:18,color:'#9CA3AF',cursor:'pointer',lineHeight:1}}>×</button>
+            <button onClick={()=>setChatOpen(false)} style={{background:'none',border:'none',fontSize:18,color:t.muted,cursor:'pointer',lineHeight:1}}>×</button>
           </div>
           <div style={{padding:'7px 12px',borderBottom:`0.5px solid ${t.border}`,display:'flex',gap:4,overflowX:'auto'}}>
             {agentOpts.map(a=>(
@@ -1494,23 +1494,23 @@ export default function DashboardPage(){
           <div style={{flex:1,overflowY:'auto',padding:'12px 14px',display:'flex',flexDirection:'column',gap:10}}>
             {messages.map((msg,i)=>(
               <div key={i} style={{display:'flex',justifyContent:msg.role==='user'?'flex-end':'flex-start'}}>
-                <div style={{maxWidth:'85%',borderRadius:10,padding:'8px 12px',fontSize:13,background:msg.role==='user'?'#534AB7':(dark?'#1A1740':'#F9FAFB'),color:msg.role==='user'?'#fff':(dark?'#E5E7EB':'#374151'),border:msg.role==='agent'?'0.5px solid #F3F4F6':'none'}}>
-                  {msg.role==='agent'&&msg.agent&&<div style={{fontSize:10,fontWeight:500,color:'#534AB7',marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>{msg.agent}</div>}
+                <div style={{maxWidth:'85%',borderRadius:10,padding:'8px 12px',fontSize:13,background:msg.role==='user'?'#534AB7':(dark?'#1A1740':'#F9FAFB'),color:msg.role==='user'?'#fff':(dark?'#E5E7EB':'#374151'),border:msg.role==='agent'?`0.5px solid ${t.navBorder}`:'none'}}>
+                  {msg.role==='agent'&&msg.agent&&<div style={{fontSize:10,fontWeight:500,color:dark?'#A89FFF':'#534AB7',marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>{msg.agent}</div>}
                   {msg.loading?<div style={{display:'flex',gap:4,padding:'2px 0'}}>{[0,150,300].map(d=><div key={d} style={{width:6,height:6,borderRadius:'50%',background:'#9CA3AF',animation:`bounce 1s infinite ${d}ms`}}/>)}</div>:<p style={{margin:0,lineHeight:1.6,whiteSpace:'pre-wrap'}}>{msg.text}</p>}
                 </div>
               </div>
             ))}
             <div ref={chatEndRef}/>
           </div>
-          <div style={{padding:'6px 12px',borderTop:'0.5px solid #F9FAFB',display:'flex',gap:6,overflowX:'auto'}}>
+          <div style={{padding:'6px 12px',borderTop:`0.5px solid ${t.border}`,display:'flex',gap:6,overflowX:'auto'}}>
             {['How are you?','Top 3 cells this month','Plan cell budgets','YTD giving summary','Which cells need help?'].map(q=>(
               <button key={q} onClick={()=>setChatInput(q)}
-                style={{whiteSpace:'nowrap',fontSize:11,padding:'3px 8px',borderRadius:20,border:'0.5px solid #E5E7EB',background:'transparent',color:'#6B7280',cursor:'pointer',flexShrink:0}}>
+                style={{whiteSpace:'nowrap',fontSize:11,padding:'3px 8px',borderRadius:20,border:`0.5px solid ${t.border}`,background:'transparent',color:t.sub,cursor:'pointer',flexShrink:0}}>
                 {q}
               </button>
             ))}
           </div>
-          <div style={{padding:'10px 12px',borderTop:'0.5px solid #F3F4F6',display:'flex',gap:8}}>
+          <div style={{padding:'10px 12px',borderTop:`0.5px solid ${t.navBorder}`,display:'flex',gap:8}}>
             <input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!e.shiftKey&&sendChat()}
               placeholder={`Ask ${agentOpts.find(a=>a.id===selectedAgent)?.label}...`} disabled={chatLoading}
               style={{flex:1,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'7px 12px',fontSize:13,outline:'none',background:t.input,color:t.text}}/>
