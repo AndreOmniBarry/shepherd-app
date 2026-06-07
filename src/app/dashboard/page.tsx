@@ -620,11 +620,20 @@ export default function DashboardPage(){
   const [chatLoading,setChatLoading]=useState(false);
   const chatEndRef=useRef<HTMLDivElement>(null);
   const [goals,setGoals]=useState({q3:1250,dec:1400});
+  const [sidebarOpen,setSidebarOpen]=useState(false);
+  const [isMobile,setIsMobile]=useState(false);
   const [dbCells,setDbCells]=useState<typeof CELLS_DATA|null>(null);
   const [editGoals,setEditGoals]=useState(false);
   const [liveFeed,setLiveFeed]=useState<{id:string;cell:string;fellowship:string;present:number;absent:number;visitors:number;mins_ago:number}[]>([]);
   const [livePresent,setLivePresent]=useState<number|null>(null);
   const [liveCellsReported,setLiveCellsReported]=useState<number|null>(null);
+
+  useEffect(()=>{
+    const checkMobile=()=>setIsMobile(window.innerWidth<768);
+    checkMobile();
+    window.addEventListener('resize',checkMobile);
+    return()=>window.removeEventListener('resize',checkMobile);
+  },[]);
 
   useEffect(()=>{
     fetch('/api/auth/me',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
@@ -705,8 +714,10 @@ export default function DashboardPage(){
 
   return(
     <div style={{display:'flex',minHeight:'100vh',background:'#F9FAFB',fontFamily:'Inter,system-ui,sans-serif'}}>
+      {/* Sidebar overlay for mobile */}
+      {isMobile&&sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.3)',zIndex:40}}/>}
       {/* Sidebar */}
-      <div style={{width:196,background:'#fff',borderRight:'0.5px solid #E5E7EB',display:'flex',flexDirection:'column',position:'sticky',top:0,height:'100vh',flexShrink:0}}>
+      <div style={{width:196,background:'#fff',borderRight:'0.5px solid #E5E7EB',display:'flex',flexDirection:'column',position:isMobile?'fixed':'sticky',top:0,left:isMobile?(sidebarOpen?0:-196):0,height:'100vh',flexShrink:0,zIndex:50,transition:'left 0.25s ease'}}>
         <div style={{display:'flex',alignItems:'center',gap:10,padding:'16px 16px 14px',borderBottom:'0.5px solid #F3F4F6'}}>
           <div style={{width:32,height:32,background:'linear-gradient(135deg,#534AB7,#7F77DD)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>&#10013;</div>
           <div><div style={{fontSize:13,fontWeight:600,color:'#111827'}}>SHEP.HERD</div><div style={{fontSize:10,color:'#9CA3AF',marginTop:1}}>Comforters House Global</div></div>
@@ -730,11 +741,14 @@ export default function DashboardPage(){
       {/* Main */}
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
         {/* Topbar */}
-        <div style={{background:'#fff',borderBottom:'0.5px solid #E5E7EB',padding:'12px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
-          <div>
-            <span style={{fontSize:14,fontWeight:500,color:'#111827'}}>{navItems.find(n=>n.id===page)?.label}</span>
-            <span style={{fontSize:12,color:'#9CA3AF',marginLeft:10}}>{new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>
-            {userName&&userName!=='General'&&<span style={{fontSize:12,color:'#534AB7',marginLeft:10}}>· {greeting()}, {userName.split(' ')[0]}</span>}
+        <div style={{background:'#fff',borderBottom:'0.5px solid #E5E7EB',padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            {isMobile&&<button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,color:'#534AB7',padding:'0 4px',lineHeight:1}}>☰</button>}
+            <div>
+              <span style={{fontSize:14,fontWeight:500,color:'#111827'}}>{navItems.find(n=>n.id===page)?.label}</span>
+              {!isMobile&&<span style={{fontSize:12,color:'#9CA3AF',marginLeft:10}}>{new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>}
+              {userName&&userName!=='General'&&<span style={{fontSize:12,color:'#534AB7',marginLeft:isMobile?6:10}}>· {greeting()}, {userName.split(' ')[0]}</span>}
+            </div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:12}}>
             <div style={{display:'flex',alignItems:'center',gap:5,fontSize:12,color:'#1D9E75'}}>
@@ -744,7 +758,7 @@ export default function DashboardPage(){
           </div>
         </div>
 
-        <div style={{flex:1,padding:24,overflowY:'auto'}}>
+        <div style={{flex:1,padding:isMobile?12:24,overflowY:'auto'}}>
 
           {/* ══ DASHBOARD ══ */}
           {page==='dashboard'&&(
@@ -753,7 +767,7 @@ export default function DashboardPage(){
                 <span>●</span>
                 <span>Attendance session live &mdash; <strong>{fmt(kpi?.today_present)}</strong> check-ins · <strong>{kpi?.today_cells_reported??'—'}/{kpi?.today_cells_total??'—'}</strong> cells reported</span>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10,marginBottom:18}}>
                 {[
                   {label:'Total members',value:'1,147',delta:'+23 this month',page:'members' as NavPage},
                   {label:"Today's check-ins",value:fmt(kpi?.today_present),delta:`${kpi?.today_cells_reported??'—'}/${kpi?.today_cells_total??'—'} cells in`,page:'attendance' as NavPage},
@@ -769,7 +783,7 @@ export default function DashboardPage(){
                   </div>
                 ))}
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:14}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:14,marginBottom:14}}>
                 <div onClick={()=>setPage('attendance')} style={{...card(),cursor:'pointer'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
                     <span style={{fontSize:13,fontWeight:500}}>Attendance trend (8 Sundays)</span>
@@ -802,7 +816,7 @@ export default function DashboardPage(){
                   )}
                 </div>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr 1fr',gap:14}}>
                 <div onClick={()=>setPage('departments')} style={{...card(),cursor:'pointer'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:12}}><span style={{fontSize:13,fontWeight:500}}>Top departments</span><span style={{fontSize:12,color:'#534AB7'}}>View all →</span></div>
                   {DEPTS.slice(0,5).map(d=>{const b=bc(d.badge);return(
@@ -849,7 +863,7 @@ export default function DashboardPage(){
                     {editGoals?'Save':'Set Goals'}
                   </button>
                 </div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+                <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:14}}>
                   {[
                     {label:'Q3 Target (Sep 2026)',key:'q3' as const,color:'#534AB7',bg:'#EEEDFE'},
                     {label:'Year-End Target (Dec 2026)',key:'dec' as const,color:'#1D9E75',bg:'#E1F5EE'},
@@ -910,7 +924,7 @@ export default function DashboardPage(){
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:12}}>
                 {[{name:'Youth Fellowship',cells:12,avg:347,trend:'+8%',s1:198,s2:124,absent:25},{name:'Women Fellowship',cells:15,avg:289,trend:'+5%',s1:164,s2:103,absent:22},{name:'Men Fellowship',cells:8,avg:198,trend:'+11%',s1:112,s2:71,absent:15}].map(f=>(
                   <div key={f.name} onClick={()=>setAttDrill(attDrill===f.name?null:f.name)} style={{...card(),cursor:'pointer',border:attDrill===f.name?'0.5px solid #534AB7':'0.5px solid #E5E7EB'}}>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
@@ -943,7 +957,7 @@ export default function DashboardPage(){
                   <div style={{fontSize:13,fontWeight:500}}>CYDF - Children & Youth Development Fellowship</div>
                   <span style={{fontSize:11,background:'#EEEDFE',color:'#3C3489',padding:'2px 8px',borderRadius:10}}>300 total</span>
                 </div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
+                <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:12,marginBottom:12}}>
                   <div style={{background:'#EEEDFE',borderRadius:8,padding:'14px'}}>
                     <div style={{fontSize:11,color:'#534AB7',marginBottom:6,fontWeight:500}}>Children (Ages 0–12)</div>
                     <div style={{fontSize:28,fontWeight:600,color:'#3C3489',marginBottom:4}}>180</div>
@@ -1029,7 +1043,7 @@ export default function DashboardPage(){
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
                 {[{label:'YTD Tithe',value:'₦7.82M'},{label:'YTD Offering',value:'₦5.56M'},{label:'YTD Special',value:'₦613k'},{label:'Per Member (avg)',value:'₦12.2k'},{label:'Best Month',value:'Dec 2025'},{label:'5-Year Growth',value:'+129%'},{label:'Tithe %',value:'75%'},{label:'Dec 25 Peak',value:'₦3.75M'}].map(s=>(
                   <div key={s.label} style={card({padding:'10px 12px'})}>
                     <div style={{fontSize:10,color:'#6B7280',marginBottom:3}}>{s.label}</div>
@@ -1060,7 +1074,7 @@ export default function DashboardPage(){
           {/* ══ MEMBERS ══ */}
           {page==='members'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
                 {[
                   {label:'Total Members',value:'1,147',sub:'All statuses'},
                   {label:'Active Members',value:'1,089',sub:'Regularly attending'},
@@ -1074,7 +1088,7 @@ export default function DashboardPage(){
                   </div>
                 ))}
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:14}}>
                 <div style={card()}>
                   <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Member Growth - 2026</div>
                   <ResponsiveContainer width="100%" height={160}>
@@ -1098,7 +1112,7 @@ export default function DashboardPage(){
                   ))}
                 </div>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:14}}>
                 <div style={card()}>
                   <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Gender Distribution</div>
                   <div style={{display:'flex',alignItems:'center',gap:16}}>
@@ -1233,7 +1247,7 @@ export default function DashboardPage(){
               <div style={card()}>
                 <div style={{fontSize:15,fontWeight:600,color:'#111827',marginBottom:2}}>{selectedDept.name}</div>
                 <div style={{fontSize:12,color:'#6B7280',marginBottom:14}}>Category: {selectedDept.cat} · Leader: {selectedDept.leader} · {selectedDept.count} total members · {selectedDept.absent} absent last Sunday</div>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:16}}>
+                <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:10,marginBottom:16}}>
                   {[{label:'Total Members',value:selectedDept.count},{label:'Present Last Sunday',value:selectedDept.count-selectedDept.absent},{label:'Absent',value:selectedDept.absent}].map(s=>(
                     <div key={s.label} style={{background:'#F9FAFB',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,color:'#6B7280',marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500}}>{s.value}</div></div>
                   ))}
@@ -1265,7 +1279,7 @@ export default function DashboardPage(){
           {/* ══ CELLS ══ */}
           {page==='cells'&&!selectedCell&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
                 {[{label:'Total Active Cells',value:String((dbCells||CELLS_DATA).length)},{label:'Rising',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='rising').length)},{label:'Need Attention',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='alert'||c.status==='watch').length)},{label:'Avg Attendance Rate',value:'78%'}].map(s=>(
                   <div key={s.label} style={card({padding:'10px 12px'})}><div style={{fontSize:11,color:'#6B7280',marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500}}>{s.value}</div></div>
                 ))}
@@ -1419,7 +1433,7 @@ export default function DashboardPage(){
 
       {/* ══ AI Chatbox ══ */}
       {chatOpen&&(
-        <div style={{position:'fixed',bottom:16,right:16,width:380,height:520,background:'#fff',borderRadius:14,border:'0.5px solid #E5E7EB',boxShadow:'0 8px 32px rgba(0,0,0,0.12)',display:'flex',flexDirection:'column',zIndex:50}}>
+        <div style={{position:'fixed',bottom:isMobile?0:16,right:isMobile?0:16,width:isMobile?'100%':380,height:isMobile?'85vh':520,background:'#fff',borderRadius:isMobile?'14px 14px 0 0':14,border:'0.5px solid #E5E7EB',boxShadow:'0 8px 32px rgba(0,0,0,0.12)',display:'flex',flexDirection:'column',zIndex:50}}>
           <div style={{padding:'12px 16px',borderBottom:'0.5px solid #F3F4F6',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div style={{width:28,height:28,borderRadius:'50%',background:'#534AB7',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>[AI]</div>
