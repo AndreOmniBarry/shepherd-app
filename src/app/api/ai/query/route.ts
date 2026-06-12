@@ -80,7 +80,7 @@ JOIN KEYS:
 - department_members.department_id -> departments.id
 
 Dates always come from services.service_date. Join through services for time-filtered attendance or giving queries.
-sub_group in members may contain leadership role — query it when asked about leaders or roles.
+sub_group in members only contains "children" or "teenagers" for age classification. Leader data is NOT stored in the database. If asked about a cell leader, state clearly: "Leader information is not currently stored in the database."
 CYDF: Children (0-12) and Teenagers (13-17) always shown as separate figures.
 
 ## SQL TOOL
@@ -232,7 +232,7 @@ export async function POST(req: Request) {
           emitMeta({ agent: agentName, status: 'thinking' });
 
           const firstResponse = await anthropic.messages.create({
-            model: 'claude-sonnet-4-6',
+            model: 'claude-haiku-4-5',
             max_tokens: 1024,
             system: systemPrompt,
             tools: [DB_TOOL],
