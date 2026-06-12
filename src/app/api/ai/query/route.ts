@@ -217,7 +217,9 @@ export async function POST(req: Request) {
           ];
 
           let iterations = 0;
-          const MAX_ITERATIONS = 5;
+          const MAX_ITERATIONS = 3;git add src/app/api/ai/query/route.ts
+git commit -m "fix: break query loop on database error"
+git push
 
           while (iterations < MAX_ITERATIONS) {
             iterations++;
@@ -241,7 +243,28 @@ export async function POST(req: Request) {
               if (!toolBlock || toolBlock.type !== 'tool_use') break;
 
               emitMeta({ status: 'querying_database' });
-              const result = await executeSQL((toolBlock.input as { sql: string }).sql);
+const result = await executeSQL((toolBlock.input as { sql: string }).sql);
+
+// Break loop if database keeps failing
+const parsed = JSON.parse(result);
+if (parsed.error) {
+  messages.push({ role: 'assistant', content: response.content });
+  messages.push({
+    role: 'user',
+    content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: result }],
+  });
+  // Force one final response then stop
+  const finalResponse = await anthropic.messages.create({
+    model: 'claude-haiku-4-5',
+    max_tokens: 200,
+    system: systemPrompt,
+    messages,
+  });
+  for (const block of finalResponse.content) {
+    if (block.type === 'text') emit(block.text);
+  }
+  break;
+}
 
               messages.push({ role: 'assistant', content: response.content });
               messages.push({
