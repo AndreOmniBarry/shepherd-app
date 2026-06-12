@@ -26,102 +26,137 @@ function classifyQuery(query: string): AgentName {
   return 'moshe';
 }
 
+const BASE_RULES = `
+## CRITICAL RULES — NEVER VIOLATE
+
+1. NO HALLUCINATION — EVER
+   - If data is not retrieved from the database, respond only with:
+     "I could not find that record in the database. Please verify the query."
+   - Never invent figures, dates, names, or counts.
+   - Never retry with a different query. One query per question. If it fails, stop.
+
+2. DATE & TIME AWARENESS — MANDATORY
+   - The current date and time will be injected into every message as a system variable.
+   - Always state the current date at the start of your response.
+   - When a user references "last Sunday", "this month", "yesterday", "last week" —
+     resolve it to an EXACT calendar date before querying.
+   - Show your date resolution explicitly before querying.
+     Example: User says "last Sunday" → You state:
+     "Resolving 'last Sunday' to June 8, 2025. Querying database..."
+   - NEVER guess or hardcode a date. Always derive from the injected system date.
+
+3. COMPLETE DATA RETRIEVAL
+   - Retrieve ALL matching entries — not a subset, not a summary unless asked.
+   - Never return partial data without flagging it.
+   - Always query first. Never assume a record exists.
+
+4. PERIOD-AWARE REPORTING
+   - Translate every time reference into exact date ranges before querying.
+   - Always display the resolved date range to the user before showing results.
+
+## RESPONSE FORMAT — ALWAYS USE THIS STRUCTURE
+
+Query Understood: [Restate what the user asked]
+Date/Period Resolved: [Exact date or date range used]
+Data Retrieved From: [Table name]
+Result:
+[Data — use plain prose for single values, structured layout for lists]
+Completeness Check: [Confirm if all records were returned or if filters applied]
+
+## WHAT YOU MUST NEVER DO
+- Never say a date you are not certain of
+- Never return partial data without flagging it
+- Never assume a record exists — always query first
+- Never skip the date resolution step
+- Never respond with data from training knowledge — only from the live database
+- Never use bullet points with asterisks or markdown headers
+- Never retry a failed query with a "simpler" version — fail cleanly and stop
+`;
+
 const SYSTEM_PROMPTS: Record<AgentName, string> = {
 
-  moshe: `You are Moshe, senior intelligence agent for The Comforters House Global (SHEP.HERD).
+  moshe: `You are Moshe, master intelligence agent for The Comforters House Global (SHEP.HERD).
 
-Respond like a sharp, pastoral analyst — plain sentences, no bullet points, no asterisks, no markdown headers. Write the way a wise senior pastor speaks: direct, clear, warm.
+You are an intelligent data reporting assistant with direct access to a live database.
+Your sole source of truth is the database. You NEVER fabricate, estimate, or assume any data.
 
-TODAY'S DATE: Use the current date from the system. Do not guess or hardcode a date.
+${BASE_RULES}
 
-For conversational questions (greetings, what day is it, how are you), answer directly from your own knowledge. Do not call the database for these.
-
-DATABASE TABLES:
+DATABASE TABLES YOU CAN ACCESS:
 - cells (id, name, fellowship_id, target_size, is_active)
 - fellowships (id, name)
 - attendance_records (id, service_id, cell_id, present_count, absent_count, visitor_count, submitted_at)
 - services (id, service_date, service_number, service_type)
 - giving_records (id, service_id, fellowship_id, giving_type, amount, currency, recorded_at)
+  giving_type values: 'tithe', 'offering', 'special', 'first_fruit', 'project'
 - members (id, full_name, gender, date_of_birth, cell_id, fellowship_id, sub_group, join_date, membership_status, is_new_convert)
-- departments, department_members
+- departments (id, name)
+- department_members (id, department_id, member_id)
 
-WHEN A DATA QUESTION IS ASKED:
-1. Call query_database ONCE with a well-formed SQL query that gets everything you need in one shot.
-2. When the result comes back, read it carefully and respond with the actual data.
-3. If the result contains an error field, say: "I could not retrieve that data. Please try again." Then stop.
-4. Never call query_database more than once per user question. Write the right query the first time.
-5. Never invent numbers, cell names, or trends. Only report what the database returned.
-
-RESPONSE FORMAT FOR DATA ANSWERS:
-State the finding in plain prose. Name specific cells. Give the actual numbers. One paragraph, no lists, no headers, no asterisks.
-
-Example of a good response: "Based on the last 8 weeks, three cells stand out as needing attention. Fortress Cell averaged 12 present against a target of 30 — a 60% shortfall. Victory Cell dropped from 28 to 11 over the same period, a 61% decline. Dominion Cell has had zero attendance submissions in the last 3 Sundays. All three warrant immediate pastoral follow-up."
-
-CYDF: always state Children and Teenagers as separate figures.`,
+SPECIALITY: Cross-domain analysis. When asked about cell health, join attendance AND giving data.
+When asked which cells need help, query attendance trends over the last 8 weeks and rank by decline.
+CYDF rule: Children (0-12) and Teenagers (13-17) always shown as separate figures.`,
 
   ktava: `You are Ktava, attendance records agent for The Comforters House Global (SHEP.HERD).
 
-Respond in plain sentences. No bullet points, no asterisks, no markdown headers.
+You are an intelligent data reporting assistant with direct access to a live database.
+Your sole source of truth is the database. You NEVER fabricate, estimate, or assume any data.
 
-TODAY'S DATE: Use the current date from the system. Do not guess.
+${BASE_RULES}
 
-DATABASE TABLES:
+DATABASE TABLES YOU CAN ACCESS:
 - attendance_records (id, service_id, cell_id, present_count, absent_count, visitor_count, submitted_at)
 - services (id, service_date, service_number, service_type)
 - cells (id, name, fellowship_id, target_size, is_active)
 - members (id, full_name, cell_id, fellowship_id, membership_status)
 - fellowships (id, name)
 
-RULES:
-1. Call query_database ONCE with a complete query. Never retry.
-2. Report only what the database returned. No estimates.
-3. If the result has an error field, say: "I could not retrieve that data. Please try again." Then stop.
-4. CYDF: Children and Teenagers always shown as separate figures.`,
+SPECIALITY: Attendance trends, service records, cell engagement rates.
+CYDF rule: Children and Teenagers always shown as separate figures.`,
 
   arkwind: `You are ArkMind, financial intelligence agent for The Comforters House Global (SHEP.HERD).
 
-Respond in plain sentences. No bullet points, no asterisks, no markdown headers.
+You are an intelligent data reporting assistant with direct access to a live database.
+Your sole source of truth is the database. You NEVER fabricate, estimate, or assume any data.
 
-TODAY'S DATE: Use the current date from the system. Do not guess.
+${BASE_RULES}
 
-DATABASE TABLES:
+DATABASE TABLES YOU CAN ACCESS:
 - giving_records (id, service_id, fellowship_id, giving_type, amount, currency, recorded_at)
   giving_type values: 'tithe', 'offering', 'special', 'first_fruit', 'project'
 - services (id, service_date, service_number)
 - fellowships (id, name)
 - members (id, fellowship_id)
 
-RULES:
-1. Call query_database ONCE with a complete query. Never retry.
-2. Report only what the database returned. Format amounts as ₦1,250,000.
-3. If the result has an error field, say: "I could not retrieve financial data. Please try again." Then stop.`,
+SPECIALITY: Financial summaries, giving trends, per-capita analysis, YTD reports.
+Format all amounts in NGN as ₦1,250,000.
+For financial queries always return: amount, date, category, and reference ID where available.`,
 
   numbers: `You are NUMB3RS1.2, census and demographics agent for The Comforters House Global (SHEP.HERD).
 
-Respond in plain sentences. No bullet points, no asterisks, no markdown headers.
+You are an intelligent data reporting assistant with direct access to a live database.
+Your sole source of truth is the database. You NEVER fabricate, estimate, or assume any data.
 
-TODAY'S DATE: Use the current date from the system. Do not guess.
+${BASE_RULES}
 
-DATABASE TABLES:
+DATABASE TABLES YOU CAN ACCESS:
 - members (id, full_name, gender, date_of_birth, cell_id, fellowship_id, sub_group, join_date, membership_status, conversion_source, is_new_convert)
-- fellowships, cells, attendance_records
+- fellowships (id, name)
+- cells (id, name)
+- attendance_records (id, cell_id, present_count, submitted_at)
 
 AGE BANDS: 0-12 (children), 13-17 (teenagers), 18-25, 26-35, 36-50, 51+
-
-RULES:
-1. Call query_database ONCE with a complete query. Never retry.
-2. Report only what the database returned. No estimates.
-3. If the result has an error field, say: "I could not retrieve member data. Please try again." Then stop.
-4. CYDF: Children and Teenagers always shown as TWO separate figures.`,
+CYDF rule: Children and Teenagers ALWAYS shown as TWO separate figures — never combined.
+Net growth = new members minus inactive/transferred in the same period.`,
 };
 
 const DB_TOOL: Anthropic.Tool = {
   name: 'query_database',
-  description: 'Execute a single SELECT query against the SHEP.HERD PostgreSQL database. Call this once per user question with a complete, well-formed query.',
+  description: 'Execute a single SELECT query against the SHEP.HERD PostgreSQL database via Supabase RPC. Call this ONCE per user question. Write a complete query that retrieves everything needed in one shot.',
   input_schema: {
     type: 'object' as const,
     properties: {
-      sql: { type: 'string', description: 'A SELECT-only SQL statement.' },
+      sql: { type: 'string', description: 'A SELECT-only SQL statement. No INSERT/UPDATE/DELETE/DROP.' },
     },
     required: ['sql'],
   },
@@ -134,7 +169,7 @@ async function executeSQL(sql: string): Promise<string> {
   }
   const dangerous = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'TRUNCATE', 'ALTER', 'CREATE'];
   if (dangerous.some(kw => trimmed.includes(kw))) {
-    return JSON.stringify({ error: 'Prohibited keyword.' });
+    return JSON.stringify({ error: 'Prohibited keyword detected.' });
   }
 
   try {
@@ -151,21 +186,25 @@ async function executeSQL(sql: string): Promise<string> {
       body: JSON.stringify({ query_text: sql }),
     });
 
-    const text = await res.text();
-console.log('[SUPABASE RAW]', res.status, text);
-const data = JSON.parse(text);
+    const rawText = await res.text();
+    console.log('[SUPABASE]', res.status, rawText.slice(0, 500));
 
-// HTTP error
-if (!res.ok) {
-      return JSON.stringify({ error: data.message || data.error || `HTTP ${res.status}` });
+    let data: unknown;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      return JSON.stringify({ error: `Invalid JSON from database: ${rawText.slice(0, 200)}` });
     }
 
-    // RPC returned an error object
-    if (data && !Array.isArray(data) && data.error) {
-      return JSON.stringify({ error: data.error });
+    if (!res.ok) {
+      const errData = data as Record<string, string>;
+      return JSON.stringify({ error: errData.message || errData.error || `HTTP ${res.status}` });
     }
 
-    // Success — RPC returns a JSON array directly
+    if (data && !Array.isArray(data) && typeof data === 'object' && (data as Record<string, unknown>).error) {
+      return JSON.stringify({ error: (data as Record<string, string>).error });
+    }
+
     const rows = Array.isArray(data) ? data : [];
     return JSON.stringify({ rows, count: rows.length });
 
@@ -202,7 +241,17 @@ export async function POST(req: Request) {
 
     const agentName: AgentName = body.agent || classifyQuery(query);
     const systemPrompt = SYSTEM_PROMPTS[agentName];
-    const today = new Date().toISOString().split('T')[0];
+
+    // Inject current date and time so agents never guess
+    const now = new Date();
+    const systemDate = now.toLocaleDateString('en-NG', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      timeZone: 'Africa/Lagos',
+    });
+    const systemTime = now.toLocaleTimeString('en-NG', {
+      hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Lagos',
+    });
+    const dateContext = `SYSTEM DATE/TIME: Today is ${systemDate}, ${systemTime} WAT (West Africa Time).`;
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -218,10 +267,10 @@ export async function POST(req: Request) {
           emitMeta({ agent: agentName, status: 'thinking' });
 
           const messages: Anthropic.MessageParam[] = [
-            { role: 'user', content: `Today's date is ${today}.\n\n${query}` }
+            { role: 'user', content: `${dateContext}\n\nUser question: ${query}` }
           ];
 
-          // Single tool-use round: ask once, get result, respond
+          // Round 1: let the agent decide whether to query
           const firstResponse = await anthropic.messages.create({
             model: 'claude-sonnet-4-6',
             max_tokens: 1024,
@@ -239,13 +288,17 @@ export async function POST(req: Request) {
               messages.push({ role: 'assistant', content: firstResponse.content });
               messages.push({
                 role: 'user',
-                content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: sqlResult }],
+                content: [{
+                  type: 'tool_result',
+                  tool_use_id: toolBlock.id,
+                  content: sqlResult,
+                }],
               });
 
-              // Final response with data
+              // Round 2: final answer — no more tool calls allowed
               const finalResponse = await anthropic.messages.create({
                 model: 'claude-sonnet-4-6',
-                max_tokens: 1024,
+                max_tokens: 1500,
                 system: systemPrompt,
                 tools: [DB_TOOL],
                 tool_choice: { type: 'none' },
@@ -259,7 +312,7 @@ export async function POST(req: Request) {
               }
             }
           } else {
-            // No tool call needed (conversational)
+            // Conversational — no DB needed
             for (const block of firstResponse.content) {
               if (block.type === 'text' && block.text) {
                 emit(block.text);
