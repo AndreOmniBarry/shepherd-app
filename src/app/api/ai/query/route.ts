@@ -217,9 +217,7 @@ export async function POST(req: Request) {
           ];
 
           let iterations = 0;
-          const MAX_ITERATIONS = 3;git add src/app/api/ai/query/route.ts
-git commit -m "fix: break query loop on database error"
-git push
+          const MAX_ITERATIONS = 3;
 
           while (iterations < MAX_ITERATIONS) {
             iterations++;
