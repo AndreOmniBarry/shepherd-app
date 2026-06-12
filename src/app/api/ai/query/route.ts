@@ -151,10 +151,12 @@ async function executeSQL(sql: string): Promise<string> {
       body: JSON.stringify({ query_text: sql }),
     });
 
-    const data = await res.json();
+    const text = await res.text();
+console.log('[SUPABASE RAW]', res.status, text);
+const data = JSON.parse(text);
 
-    // HTTP error
-    if (!res.ok) {
+// HTTP error
+if (!res.ok) {
       return JSON.stringify({ error: data.message || data.error || `HTTP ${res.status}` });
     }
 
