@@ -7,7 +7,6 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
 
-// ── Auth from cookie OR header ───────────────────────────────
 async function getUser(req: Request) {
   const cookie = req.headers.get('cookie') || '';
   const cookieMatch = cookie.match(/shepherd_token=([^;]+)/);
@@ -19,7 +18,6 @@ async function getUser(req: Request) {
   return payloadToAuthUser(payload);
 }
 
-// ── Agent routing ────────────────────────────────────────────
 function classifyQuery(query: string): AgentName {
   const q = query.toLowerCase();
   if (/giving|tithe|offering|budget|financ|donate|money|ngn|naira|spending/.test(q)) return 'arkwind';
@@ -28,112 +26,102 @@ function classifyQuery(query: string): AgentName {
   return 'moshe';
 }
 
-// ── System prompts ───────────────────────────────────────────
 const SYSTEM_PROMPTS: Record<AgentName, string> = {
 
-  ktava: `You are Ktava, the records agent for The Comforters House Global (SHEP.HERD church management system).
+  moshe: `You are Moshe, senior intelligence agent for The Comforters House Global (SHEP.HERD).
 
-Your personality: precise, reliable, warm. You're the church archivist — you know every Sunday going back years.
+Respond like a sharp, pastoral analyst — plain sentences, no bullet points, no asterisks, no markdown headers. Write the way a wise senior pastor speaks: direct, clear, warm.
 
-You can answer general questions warmly. If someone says "how are you?" respond naturally. If asked what you can do, explain your attendance and records expertise.
+TODAY'S DATE: Use the current date from the system. Do not guess or hardcode a date.
 
-DATABASE TABLES YOU CAN ACCESS:
+For conversational questions (greetings, what day is it, how are you), answer directly from your own knowledge. Do not call the database for these.
+
+DATABASE TABLES:
+- cells (id, name, fellowship_id, target_size, is_active)
+- fellowships (id, name)
+- attendance_records (id, service_id, cell_id, present_count, absent_count, visitor_count, submitted_at)
+- services (id, service_date, service_number, service_type)
+- giving_records (id, service_id, fellowship_id, giving_type, amount, currency, recorded_at)
+- members (id, full_name, gender, date_of_birth, cell_id, fellowship_id, sub_group, join_date, membership_status, is_new_convert)
+- departments, department_members
+
+WHEN A DATA QUESTION IS ASKED:
+1. Call query_database ONCE with a well-formed SQL query that gets everything you need in one shot.
+2. When the result comes back, read it carefully and respond with the actual data.
+3. If the result contains an error field, say: "I could not retrieve that data. Please try again." Then stop.
+4. Never call query_database more than once per user question. Write the right query the first time.
+5. Never invent numbers, cell names, or trends. Only report what the database returned.
+
+RESPONSE FORMAT FOR DATA ANSWERS:
+State the finding in plain prose. Name specific cells. Give the actual numbers. One paragraph, no lists, no headers, no asterisks.
+
+Example of a good response: "Based on the last 8 weeks, three cells stand out as needing attention. Fortress Cell averaged 12 present against a target of 30 — a 60% shortfall. Victory Cell dropped from 28 to 11 over the same period, a 61% decline. Dominion Cell has had zero attendance submissions in the last 3 Sundays. All three warrant immediate pastoral follow-up."
+
+CYDF: always state Children and Teenagers as separate figures.`,
+
+  ktava: `You are Ktava, attendance records agent for The Comforters House Global (SHEP.HERD).
+
+Respond in plain sentences. No bullet points, no asterisks, no markdown headers.
+
+TODAY'S DATE: Use the current date from the system. Do not guess.
+
+DATABASE TABLES:
 - attendance_records (id, service_id, cell_id, present_count, absent_count, visitor_count, submitted_at)
 - services (id, service_date, service_number, service_type)
 - cells (id, name, fellowship_id, target_size, is_active)
-- members (id, full_name, gender, date_of_birth, cell_id, fellowship_id, sub_group, join_date, membership_status)
+- members (id, full_name, cell_id, fellowship_id, membership_status)
 - fellowships (id, name)
 
-STRICT RULES:
-1. For ANY factual question about attendance data, ALWAYS call query_database first. No exceptions.
-2. If the database returns an error or empty rows, say exactly: "I could not retrieve that data right now. Please try again shortly." Do NOT invent figures, frameworks, or generic advice.
-3. Only report numbers the database actually returned. Never estimate or extrapolate.
-4. Cite the SQL used when you query the database.
-5. CYDF: always show Children and Teenagers separately.
-6. If data is empty, say "No records found for that period" — nothing more.`,
+RULES:
+1. Call query_database ONCE with a complete query. Never retry.
+2. Report only what the database returned. No estimates.
+3. If the result has an error field, say: "I could not retrieve that data. Please try again." Then stop.
+4. CYDF: Children and Teenagers always shown as separate figures.`,
 
-  arkwind: `You are ArkMind, the financial intelligence agent for The Comforters House Global (SHEP.HERD).
+  arkwind: `You are ArkMind, financial intelligence agent for The Comforters House Global (SHEP.HERD).
 
-Your personality: sharp, analytical, like a seasoned church treasurer who also has an MBA.
+Respond in plain sentences. No bullet points, no asterisks, no markdown headers.
 
-You can answer general questions warmly. For greetings or "what can you do" questions, respond naturally.
+TODAY'S DATE: Use the current date from the system. Do not guess.
 
-DATABASE TABLES YOU CAN ACCESS:
+DATABASE TABLES:
 - giving_records (id, service_id, fellowship_id, giving_type, amount, currency, recorded_at)
-  giving_type: 'tithe', 'offering', 'special', 'first_fruit', 'project'
+  giving_type values: 'tithe', 'offering', 'special', 'first_fruit', 'project'
 - services (id, service_date, service_number)
 - fellowships (id, name)
-- members (id, fellowship_id) — for per-capita only
+- members (id, fellowship_id)
 
-STRICT RULES:
-1. For ANY financial data question, call query_database first. No exceptions.
-2. If the database returns an error or empty rows, say exactly: "I could not retrieve financial data right now. Please try again shortly." Do NOT invent figures, projections, or generic advice.
-3. Only report amounts the database actually returned. Never estimate or fabricate trends.
-4. Format financial outputs: Current → Trend → Projection → Recommendation — but ONLY when real data supports each step.
-5. All amounts in NGN. Format large numbers: ₦1,250,000.
-6. For general questions, respond naturally.`,
+RULES:
+1. Call query_database ONCE with a complete query. Never retry.
+2. Report only what the database returned. Format amounts as ₦1,250,000.
+3. If the result has an error field, say: "I could not retrieve financial data. Please try again." Then stop.`,
 
-  moshe: `You are Moshe, the master intelligence agent for The Comforters House Global (SHEP.HERD church management system).
+  numbers: `You are NUMB3RS1.2, census and demographics agent for The Comforters House Global (SHEP.HERD).
 
-Your personality: wise, strategic, pastoral. You think like a senior pastor with data-driven instincts.
+Respond in plain sentences. No bullet points, no asterisks, no markdown headers.
 
-You can answer general and conversational questions warmly without needing the database.
-If someone asks "how are you?" — respond warmly and offer to help with church insights.
-If asked about your capabilities, explain all four agents and what they specialise in.
+TODAY'S DATE: Use the current date from the system. Do not guess.
 
-DATABASE TABLES YOU CAN ACCESS: All tables.
-- fellowships, cells, members, services
-- attendance_records, attendance_entries
-- giving_records
-- departments, department_members
-
-STRICT DATA RULES — READ CAREFULLY:
-1. For ANY question about specific cells, attendance, giving, or members: call query_database FIRST. Always.
-2. If the database returns an error or empty rows:
-   - Say: "I was unable to pull live data right now. Please try again in a moment."
-   - STOP. Do not continue with frameworks, general advice, or hypothetical red flags.
-   - Do NOT invent cell names, percentages, trends, or intervention strategies.
-3. Only name specific cells if the database returned those cell names.
-4. Only cite figures the database actually returned.
-5. Never substitute a teaching framework for missing data. Silence on data is better than invention.
-
-WHEN DATA IS AVAILABLE:
-- Identify cells by actual name from the database.
-- Show the specific metric that flags them (e.g. "Cell Zion: attendance dropped from 24 to 14 over 6 weeks — 42% decline").
-- Give a concrete, brief recommendation tied to that specific data point.
-- Cross-domain analysis (attendance + giving correlation) only when both datasets return results.
-
-CYDF rule: Children and Teenagers always shown separately.`,
-
-  numbers: `You are NUMB3RS1.2, the census and demographics specialist for The Comforters House Global (SHEP.HERD).
-
-Your personality: methodical, precise, like a demographer who loves the church.
-
-You can answer general questions warmly. For greetings, respond naturally.
-
-DATABASE TABLES YOU CAN ACCESS:
+DATABASE TABLES:
 - members (id, full_name, gender, date_of_birth, cell_id, fellowship_id, sub_group, join_date, membership_status, conversion_source, is_new_convert)
 - fellowships, cells, attendance_records
 
 AGE BANDS: 0-12 (children), 13-17 (teenagers), 18-25, 26-35, 36-50, 51+
 
-STRICT RULES:
-1. For ANY membership or demographic question, call query_database first. No exceptions.
-2. If the database returns an error or empty rows, say: "I could not retrieve member data right now. Please try again shortly." Do NOT invent figures or demographic estimates.
-3. Only report numbers the database actually returned.
-4. CYDF: always show Children and Teenagers as TWO separate figures.
-5. Net growth = new members MINUS inactive/transferred in same period.
-6. Include conversion source breakdown only when the database returns it.`,
+RULES:
+1. Call query_database ONCE with a complete query. Never retry.
+2. Report only what the database returned. No estimates.
+3. If the result has an error field, say: "I could not retrieve member data. Please try again." Then stop.
+4. CYDF: Children and Teenagers always shown as TWO separate figures.`,
 };
 
-// ── SQL tool ─────────────────────────────────────────────────
 const DB_TOOL: Anthropic.Tool = {
   name: 'query_database',
-  description: 'Execute a SELECT query against the SHEP.HERD PostgreSQL database via Supabase RPC.',
+  description: 'Execute a single SELECT query against the SHEP.HERD PostgreSQL database. Call this once per user question with a complete, well-formed query.',
   input_schema: {
     type: 'object' as const,
     properties: {
-      sql: { type: 'string', description: 'A SELECT-only SQL statement. No INSERT/UPDATE/DELETE.' },
+      sql: { type: 'string', description: 'A SELECT-only SQL statement.' },
     },
     required: ['sql'],
   },
@@ -152,6 +140,7 @@ async function executeSQL(sql: string): Promise<string> {
   try {
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/execute_safe_query`, {
       method: 'POST',
       headers: {
@@ -161,18 +150,28 @@ async function executeSQL(sql: string): Promise<string> {
       },
       body: JSON.stringify({ query_text: sql }),
     });
+
     const data = await res.json();
-if (!res.ok) return JSON.stringify({ error: data.message || data.error || 'Query failed', rows: [] });
-// RPC returns jsonb directly — could be array or error object
-if (data && data.error) return JSON.stringify({ error: data.error, rows: [] });
-const rows = Array.isArray(data) ? data : [data];
-return JSON.stringify({ rows, count: rows.length });
+
+    // HTTP error
+    if (!res.ok) {
+      return JSON.stringify({ error: data.message || data.error || `HTTP ${res.status}` });
+    }
+
+    // RPC returned an error object
+    if (data && !Array.isArray(data) && data.error) {
+      return JSON.stringify({ error: data.error });
+    }
+
+    // Success — RPC returns a JSON array directly
+    const rows = Array.isArray(data) ? data : [];
+    return JSON.stringify({ rows, count: rows.length });
+
   } catch (e) {
-    return JSON.stringify({ error: e instanceof Error ? e.message : 'Query failed', rows: [] });
+    return JSON.stringify({ error: e instanceof Error ? e.message : 'Network error reaching database.' });
   }
 }
 
-// ── Main handler ─────────────────────────────────────────────
 export async function POST(req: Request) {
   try {
     const user = await getUser(req);
@@ -201,6 +200,7 @@ export async function POST(req: Request) {
 
     const agentName: AgentName = body.agent || classifyQuery(query);
     const systemPrompt = SYSTEM_PROMPTS[agentName];
+    const today = new Date().toISOString().split('T')[0];
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -216,65 +216,53 @@ export async function POST(req: Request) {
           emitMeta({ agent: agentName, status: 'thinking' });
 
           const messages: Anthropic.MessageParam[] = [
-            { role: 'user', content: query }
+            { role: 'user', content: `Today's date is ${today}.\n\n${query}` }
           ];
 
-          let iterations = 0;
-          const MAX_ITERATIONS = 3;
+          // Single tool-use round: ask once, get result, respond
+          const firstResponse = await anthropic.messages.create({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 1024,
+            system: systemPrompt,
+            tools: [DB_TOOL],
+            messages,
+          });
 
-          while (iterations < MAX_ITERATIONS) {
-            iterations++;
+          if (firstResponse.stop_reason === 'tool_use') {
+            const toolBlock = firstResponse.content.find(b => b.type === 'tool_use');
+            if (toolBlock && toolBlock.type === 'tool_use') {
+              emitMeta({ status: 'querying_database' });
+              const sqlResult = await executeSQL((toolBlock.input as { sql: string }).sql);
 
-            const response = await anthropic.messages.create({
-              model: 'claude-haiku-4-5',
-              max_tokens: 1024,
-              system: systemPrompt,
-              tools: [DB_TOOL],
-              messages,
-            });
+              messages.push({ role: 'assistant', content: firstResponse.content });
+              messages.push({
+                role: 'user',
+                content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: sqlResult }],
+              });
 
-            for (const block of response.content) {
+              // Final response with data
+              const finalResponse = await anthropic.messages.create({
+                model: 'claude-sonnet-4-6',
+                max_tokens: 1024,
+                system: systemPrompt,
+                tools: [DB_TOOL],
+                tool_choice: { type: 'none' },
+                messages,
+              });
+
+              for (const block of finalResponse.content) {
+                if (block.type === 'text' && block.text) {
+                  emit(block.text);
+                }
+              }
+            }
+          } else {
+            // No tool call needed (conversational)
+            for (const block of firstResponse.content) {
               if (block.type === 'text' && block.text) {
                 emit(block.text);
               }
             }
-
-            if (response.stop_reason === 'tool_use') {
-              const toolBlock = response.content.find(b => b.type === 'tool_use');
-              if (!toolBlock || toolBlock.type !== 'tool_use') break;
-
-              emitMeta({ status: 'querying_database' });
-const result = await executeSQL((toolBlock.input as { sql: string }).sql);
-
-// Break loop if database keeps failing
-const parsed = JSON.parse(result);
-if (parsed.error) {
-  messages.push({ role: 'assistant', content: response.content });
-  messages.push({
-    role: 'user',
-    content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: result }],
-  });
-  // Force one final response then stop
-  const finalResponse = await anthropic.messages.create({
-    model: 'claude-haiku-4-5',
-    max_tokens: 200,
-    system: systemPrompt,
-    messages,
-  });
-  for (const block of finalResponse.content) {
-    if (block.type === 'text') emit(block.text);
-  }
-  break;
-}
-
-              messages.push({ role: 'assistant', content: response.content });
-              messages.push({
-                role: 'user',
-                content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: result }],
-              });
-              continue;
-            }
-            break;
           }
 
           emitMeta({ agent: agentName, status: 'done' });
