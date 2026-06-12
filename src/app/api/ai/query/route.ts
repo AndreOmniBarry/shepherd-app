@@ -162,8 +162,11 @@ async function executeSQL(sql: string): Promise<string> {
       body: JSON.stringify({ query_text: sql }),
     });
     const data = await res.json();
-    if (!res.ok) return JSON.stringify({ error: data.message || 'Query failed', rows: [] });
-    return JSON.stringify({ rows: Array.isArray(data) ? data : [data], count: Array.isArray(data) ? data.length : 1 });
+if (!res.ok) return JSON.stringify({ error: data.message || data.error || 'Query failed', rows: [] });
+// RPC returns jsonb directly — could be array or error object
+if (data && data.error) return JSON.stringify({ error: data.error, rows: [] });
+const rows = Array.isArray(data) ? data : [data];
+return JSON.stringify({ rows, count: rows.length });
   } catch (e) {
     return JSON.stringify({ error: e instanceof Error ? e.message : 'Query failed', rows: [] });
   }
