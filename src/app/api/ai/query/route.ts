@@ -197,8 +197,12 @@ const DB_TOOL: Anthropic.Tool = {
 };
 
 async function executeSQL(sql: string): Promise<string> {
+  // Strip markdown fences and leading whitespace the model sometimes adds
+  sql = sql.replace(/```sql/gi, '').replace(/```/g, '').trim();
+  console.log('[SQL RECEIVED]', JSON.stringify(sql.slice(0, 300)));
   const trimmed = sql.trim().toUpperCase();
   if (!trimmed.startsWith('SELECT') && !trimmed.startsWith('WITH')) {
+    console.log('[SQL REJECTED] does not start with SELECT/WITH. First chars:', JSON.stringify(sql.slice(0, 50)));
     return JSON.stringify({ error: 'Only SELECT queries permitted.' });
   }
   const dangerous = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'TRUNCATE', 'ALTER', 'CREATE'];
