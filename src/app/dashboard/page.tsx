@@ -11,7 +11,7 @@ import {
 type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; };
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
 type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
-type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports';
+type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation';
 type TimeRange = '8w'|'3m'|'6m'|'1y'|'2y'|'5y';
 
 // ── Unique cell data with realistic, differentiated trends ─────
@@ -731,6 +731,8 @@ export default function DashboardPage(){
     {id:'giving' as NavPage,icon:'',label:'Giving'},
     {id:'cells' as NavPage,icon:'',label:'Cell Ministry'},
     {id:'reports' as NavPage,icon:'',label:'Reports'},
+    {id:'recognition' as NavPage,icon:'',label:'Recognition'},
+    {id:'commendation' as NavPage,icon:'',label:'Commend Leaders'},
   ];
 
   const agentOpts=[
@@ -785,7 +787,6 @@ export default function DashboardPage(){
             {!isMobile&&!dark&&(<div style={{display:'flex',background:t.cardInner,border:`0.5px solid ${t.border}`,borderRadius:20,padding:2,gap:2}}><button onClick={()=>setSidebarStyle('light')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='light'?'#534AB7':'transparent',color:sidebarStyle==='light'?'#fff':t.muted,fontFamily:'inherit'}}>Light sidebar</button><button onClick={()=>setSidebarStyle('dark')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='dark'?'#534AB7':'transparent',color:sidebarStyle==='dark'?'#fff':t.muted,fontFamily:'inherit'}}>Dark sidebar</button></div>)}
             <button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Search</button>
             <button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:'none',background:'#534AB7',color:'#fff',fontSize:11,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>Add member</button>
-            <div style={{width:32,height:32,borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:t.sub}}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
             <NotificationBell dark={dark} /><div onClick={()=>setDark(v=>!v)} style={{width:32,height:32,borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:t.sub}}>{dark?<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}</div>
             <div style={{display:'flex',alignItems:'center',gap:5,fontSize:12,color:'#1D9E75'}}>
               <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',display:'inline-block'}}/>Live
@@ -1483,6 +1484,208 @@ export default function DashboardPage(){
                     <div style={{fontSize:13,fontWeight:500,color:'#3C3489',marginBottom:2}}>⬇ {e.label}</div>
                     <div style={{fontSize:11,color:t.muted}}>Export as CSV</div>
                   </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {page==='recognition'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              {/* Header */}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:15,fontWeight:700,color:t.text}}>Recognition Centre</div>
+                  <div style={{fontSize:12,color:t.muted,marginTop:2}}>SLA performance, badges and leaderboards — updated every Monday</div>
+                </div>
+                <button style={{background:'#FAECE7',color:'#993C1D',border:'0.5px solid rgba(216,90,48,0.2)',borderRadius:8,padding:'7px 14px',fontSize:12,cursor:'pointer',fontWeight:500}}>
+                  Needs Attention
+                </button>
+              </div>
+
+              {/* Performance tiers legend */}
+              <div style={{...card(),padding:'12px 16px'}}>
+                <div style={{fontSize:11,fontWeight:600,color:t.muted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:10}}>Performance tiers</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                  {[
+                    {tier:'Crown of Excellence',range:'95–100%',bg:'#FAEEDA',c:'#633806'},
+                    {tier:'Elite Shepherd',range:'90–94%',bg:'#EEEDFE',c:'#3C3489'},
+                    {tier:'Faithful Steward',range:'75–89%',bg:'#E1F5EE',c:'#085041'},
+                    {tier:'Consistent Servant',range:'60–74%',bg:'#F3F4F6',c:'#374151'},
+                    {tier:'Needs Improvement',range:'45–59%',bg:'#FAEEDA',c:'#993C1D'},
+                    {tier:'Requires Pastoral Review',range:'Below 45%',bg:'#FAECE7',c:'#993C1D'},
+                  ].map(t2=>(
+                    <div key={t2.tier} style={{background:t2.bg,borderRadius:8,padding:'6px 12px',fontSize:11}}>
+                      <span style={{color:t2.c,fontWeight:600}}>{t2.tier}</span>
+                      <span style={{color:t2.c,opacity:0.7,marginLeft:6}}>{t2.range}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Top Cell Leaders */}
+              <div style={card()}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Top Cell Leaders</div>
+                <div style={{overflowX:'auto'}}>
+                  <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                    <thead>
+                      <tr style={{borderBottom:`0.5px solid ${t.border}`}}>
+                        {['Rank','Leader','Cell','Fellowship','SLA Score','Attendance','Growth','Accuracy','Overall','Tier','Badges'].map(h=>(
+                          <th key={h} style={{textAlign:'left',padding:'8px 10px',fontSize:10,color:t.muted,fontWeight:500,textTransform:'uppercase',letterSpacing:'0.4px',whiteSpace:'nowrap'}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {CELLS_DATA.slice(0,5).map((c,i)=>{
+                        const slaScore=c.status==='rising'?92:c.status==='stable'?78:c.status==='watch'?61:45;
+                        const tier=slaScore>=95?'Crown of Excellence':slaScore>=90?'Elite Shepherd':slaScore>=75?'Faithful Steward':slaScore>=60?'Consistent Servant':'Needs Improvement';
+                        const tierColor=slaScore>=90?{bg:'#EEEDFE',c:'#3C3489'}:slaScore>=75?{bg:'#E1F5EE',c:'#085041'}:slaScore>=60?{bg:'#F3F4F6',c:'#374151'}:{bg:'#FAEEDA',c:'#993C1D'};
+                        return(
+                          <tr key={c.cell} style={{borderBottom:`0.5px solid ${t.border}`}}>
+                            <td style={{padding:'10px 10px',fontWeight:700,color:i===0?'#BA7517':i===1?t.muted:t.sub}}>{i+1}</td>
+                            <td style={{padding:'10px 10px',fontWeight:500,color:t.text,whiteSpace:'nowrap'}}>{c.leader}</td>
+                            <td style={{padding:'10px 10px',color:t.sub,whiteSpace:'nowrap'}}>{c.cell}</td>
+                            <td style={{padding:'10px 10px',color:t.sub}}>{c.fel}</td>
+                            <td style={{padding:'10px 10px',fontWeight:600,color:slaScore>=75?t.teal:t.coral}}>{slaScore}%</td>
+                            <td style={{padding:'10px 10px',color:t.text}}>{c.rate}%</td>
+                            <td style={{padding:'10px 10px',color:c.trend.startsWith('+')?t.teal:t.coral,fontWeight:500}}>{c.trend}</td>
+                            <td style={{padding:'10px 10px',color:t.teal}}>98%</td>
+                            <td style={{padding:'10px 10px',fontWeight:700,color:slaScore>=75?t.teal:t.coral}}>{Math.round((slaScore*0.4)+(c.rate*0.3)+(80*0.2)+(98*0.1))}%</td>
+                            <td style={{padding:'10px 10px'}}><span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:tierColor.bg,color:tierColor.c,fontWeight:500,whiteSpace:'nowrap'}}>{tier}</span></td>
+                            <td style={{padding:'10px 10px'}}>
+                              <div style={{display:'flex',gap:4}}>
+                                {slaScore>=90&&<span title="Unbroken — 12 consecutive on-time" style={{fontSize:14}}>🏆</span>}
+                                {c.rate>=85&&<span title="Fellowship Excellence" style={{fontSize:14}}>⭐</span>}
+                                {c.trend.startsWith('+')&&parseInt(c.trend)>=10&&<span title="Soul Winner" style={{fontSize:14}}>🌱</span>}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Top Fellowship Heads */}
+              <div style={card()}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Fellowship Heads</div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
+                  {[
+                    {name:'Youth Fellowship',score:88,attendance:82,growth:'+12%',sla:'A',tier:'Faithful Steward',tierBg:'#E1F5EE',tierC:'#085041'},
+                    {name:'Women Fellowship',score:79,attendance:76,growth:'+7%',sla:'A+',tier:'Faithful Steward',tierBg:'#E1F5EE',tierC:'#085041'},
+                    {name:'Men Fellowship',score:71,attendance:74,growth:'+5%',sla:'B',tier:'Consistent Servant',tierBg:'#F3F4F6',tierC:'#374151'},
+                  ].map(f=>(
+                    <div key={f.name} style={{background:t.cardInner,borderRadius:10,padding:'14px 16px',border:`0.5px solid ${t.border}`}}>
+                      <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:8}}>{f.name}</div>
+                      <div style={{fontSize:26,fontWeight:700,color:f.score>=80?t.teal:t.amber,marginBottom:4}}>{f.score}%</div>
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:8}}>
+                        <span style={{color:t.muted}}>Attendance: {f.attendance}%</span>
+                        <span style={{color:t.teal,fontWeight:500}}>{f.growth}</span>
+                      </div>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                        <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:f.tierBg,color:f.tierC,fontWeight:500}}>{f.tier}</span>
+                        <span style={{fontSize:12,fontWeight:700,color:f.score>=80?t.teal:t.amber}}>SLA: {f.sla}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Badge showcase */}
+              <div style={card()}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Badge System</div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
+                  {[
+                    {icon:'⏰',name:'On Time',desc:'4 consecutive on-time submissions',cat:'Promptness'},
+                    {icon:'🕐',name:'Clockwork',desc:'8 consecutive on-time submissions',cat:'Promptness'},
+                    {icon:'⚡',name:'Unbroken',desc:'12 consecutive on-time — full quarter',cat:'Promptness'},
+                    {icon:'🏆',name:'Legendary',desc:'52 consecutive on-time — full year',cat:'Promptness'},
+                    {icon:'👁',name:'Sharp Eye',desc:'Zero disputed submissions in a month',cat:'Accuracy'},
+                    {icon:'💎',name:'Crystal Clear',desc:'Zero disputes for a full quarter',cat:'Accuracy'},
+                    {icon:'🛡',name:'Ironclad',desc:'Zero disputes pilot to year end',cat:'Accuracy'},
+                    {icon:'🌱',name:'First Harvest',desc:'First new convert in your cell',cat:'Growth'},
+                    {icon:'⭐',name:'Soul Winner',desc:'5 new converts retained',cat:'Growth'},
+                    {icon:'🚀',name:'Multiplier',desc:'Cell membership doubled',cat:'Growth'},
+                    {icon:'❤',name:'Restorer',desc:'5 members restored after absence',cat:'Care'},
+                    {icon:'👑',name:'Crown Carrier',desc:'Crown of Excellence for full quarter',cat:'Leadership'},
+                  ].map(b=>(
+                    <div key={b.name} style={{background:t.cardInner,borderRadius:8,padding:'10px 12px',border:`0.5px solid ${t.border}`}}>
+                      <div style={{fontSize:22,marginBottom:6}}>{b.icon}</div>
+                      <div style={{fontSize:11,fontWeight:600,color:t.text,marginBottom:2}}>{b.name}</div>
+                      <div style={{fontSize:10,color:t.muted,lineHeight:1.4,marginBottom:4}}>{b.desc}</div>
+                      <div style={{fontSize:9,color:t.purple,fontWeight:500,textTransform:'uppercase',letterSpacing:'0.4px'}}>{b.cat}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {page==='commendation'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              <div>
+                <div style={{fontSize:15,fontWeight:700,color:t.text}}>Commend a Leader</div>
+                <div style={{fontSize:12,color:t.muted,marginTop:2}}>Send a personalised notification to any leader. Delivered instantly to their portal.</div>
+              </div>
+
+              <div style={card()}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Select message type</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
+                  {[
+                    {type:'commendation',icon:'⭐',title:'Pastor Commends You',desc:'Celebrate a leader for outstanding performance'},
+                    {type:'meeting',icon:'📅',title:'Meeting Request',desc:'Request a one-on-one meeting with a leader'},
+                    {type:'encouragement',icon:'💛',title:'Pastoral Encouragement',desc:'Send a warm message to a leader who needs support'},
+                    {type:'announcement',icon:'📣',title:'Announcement',desc:'Broadcast to all leaders of a fellowship or department'},
+                  ].map(m=>(
+                    <div key={m.type} style={{background:t.cardInner,borderRadius:10,padding:'14px',border:`0.5px solid ${t.border}`,cursor:'pointer'}}
+                      onMouseEnter={e=>e.currentTarget.style.border=`0.5px solid #534AB7`}
+                      onMouseLeave={e=>e.currentTarget.style.border=`0.5px solid ${t.border}`}>
+                      <div style={{fontSize:22,marginBottom:8}}>{m.icon}</div>
+                      <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:4}}>{m.title}</div>
+                      <div style={{fontSize:11,color:t.muted,lineHeight:1.4}}>{m.desc}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                  <div>
+                    <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Send to</div>
+                    <select style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
+                      <option value="">Select a leader...</option>
+                      {CELLS_DATA.slice(0,10).map(c=>(
+                        <option key={c.cell} value={c.leader}>{c.leader} — {c.cell}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Message</div>
+                    <textarea rows={4} placeholder="Write your message here... The leader will receive this as an in-app notification."
+                      style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none',resize:'none',fontFamily:'inherit'}}/>
+                  </div>
+                  <button style={{background:'#534AB7',color:'#fff',border:'none',borderRadius:10,padding:'12px',fontSize:13,fontWeight:600,cursor:'pointer'}}>
+                    Send notification
+                  </button>
+                </div>
+              </div>
+
+              {/* Recent commendations */}
+              <div style={card()}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:12}}>Recent messages sent</div>
+                {[
+                  {to:'Bro. Emeka Okafor',type:'commendation',msg:'Excellent submission consistency this month. Keep it up!',time:'2 days ago'},
+                  {to:'Sis. Chioma Uzoma',type:'encouragement',msg:'We see your commitment. The church appreciates your dedication.',time:'5 days ago'},
+                  {to:'All Youth Leaders',type:'announcement',msg:'Reminder: Leadership review meeting this Friday at 4pm.',time:'1 week ago'},
+                ].map((r,i)=>(
+                  <div key={i} style={{display:'flex',gap:10,padding:'10px 0',borderBottom:i<2?`0.5px solid ${t.border}`:'none'}}>
+                    <div style={{width:32,height:32,borderRadius:8,background:'#EEEDFE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>
+                      {r.type==='commendation'?'⭐':r.type==='encouragement'?'💛':'📣'}
+                    </div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:12,fontWeight:500,color:t.text}}>{r.to}</div>
+                      <div style={{fontSize:11,color:t.sub,marginTop:2,lineHeight:1.4}}>{r.msg}</div>
+                      <div style={{fontSize:10,color:t.muted,marginTop:3}}>{r.time}</div>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
