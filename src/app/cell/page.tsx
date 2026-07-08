@@ -1,4 +1,5 @@
 'use client';
+import NotificationBell from "@/components/NotificationBell";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -246,7 +247,7 @@ export default function CellPage() {
             style={{ width: 30, height: 30, borderRadius: 8, border: `0.5px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.muted, fontSize: 14 }}>
             {dark ? '☀' : '◑'}
           </div>
-          <button onClick={logout} style={{ background: 'transparent', color: t.muted, border: 'none', fontSize: 12, cursor: 'pointer' }}>Sign out</button>
+          <NotificationBell dark={dark} /><button onClick={logout} style={{ background: "transparent", color: t.muted, border: "none", fontSize: 12, cursor: "pointer" }}>Sign out</button>
         </div>
       </div>
 
