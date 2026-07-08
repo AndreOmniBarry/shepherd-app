@@ -1,13 +1,15 @@
 // ============================================================
-// SHEP.HERD — Middleware
-// Runs on every request before the page or API route loads.
-// Handles:
-//   - JWT verification
-//   - Role-based routing (cell_leader → /cell, overseer → /dashboard)
-//   - Unauthenticated redirect to /login
-//   - API route auth guard (returns 401 JSON, not redirect)
+// SHEP.HERD — Middleware v2
+// Role-based routing for all portals
+// Roles:
+//   overseer        → /dashboard
+//   pa              → /dashboard (same view as overseer)
+//   lead_tech       → /dashboard (same view as overseer)
+//   fellowship_head → /fellowship
+//   department_head → /department
+//   cell_leader     → /cell
+//   care_team       → /care
 // ============================================================
-
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
@@ -16,7 +18,6 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'shepherd-dev-secret-change-in-production-minimum-32-chars'
 );
 
-// Routes that don't need auth
 const PUBLIC_PATHS = [
   '/login',
   '/register',
@@ -34,40 +35,76 @@ function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some(p => pathname.startsWith(p));
 }
 
+// Map role to its home portal
+function rolePortal(role: string): string {
+  switch (role) {
+    case 'overseer':
+    case 'pa':
+    case 'lead_tech':
+      return '/dashboard';
+    case 'fellowship_head':
+      return '/fellowship';
+    case 'department_head':
+      return '/department';
+    case 'cell_leader':
+      return '/cell';
+    case 'care_team':
+      return '/care';
+    default:
+      return '/cell';
+  }
+}
+
+// Portal prefixes each role is allowed to access
+function allowedPrefixes(role: string): string[] {
+  switch (role) {
+    case 'overseer':
+    case 'pa':
+    case 'lead_tech':
+      // Full access — can view all portals for troubleshooting
+      return ['/dashboard', '/fellowship', '/department', '/cell', '/care', '/api'];
+    case 'fellowship_head':
+      return ['/fellowship', '/api'];
+    case 'department_head':
+      return ['/department', '/api'];
+    case 'cell_leader':
+      return ['/cell', '/api'];
+    case 'care_team':
+      return ['/care', '/api'];
+    default:
+      return ['/cell', '/api'];
+  }
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Always allow public paths through
   if (isPublic(pathname)) return NextResponse.next();
 
-  // Get token from cookie (web) or Authorization header (API)
   const tokenFromCookie = req.cookies.get('shepherd_token')?.value;
   const tokenFromHeader = req.headers.get('Authorization')?.replace('Bearer ', '');
   const token = tokenFromCookie || tokenFromHeader;
 
-  // ── No token ─────────────────────────────────────────────
+  // No token
   if (!token) {
-    // API routes return 401 JSON
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { data: null, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } },
         { status: 401 }
       );
     }
-    // Pages redirect to login
     const loginUrl = req.nextUrl.clone();
     loginUrl.pathname = '/login';
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // ── Verify token ─────────────────────────────────────────
+  // Verify token
   let payload: { role?: string; cell_id?: string; sub?: string };
   try {
     const { payload: p } = await jwtVerify(token, JWT_SECRET);
     payload = p as typeof payload;
   } catch {
-    // Invalid or expired — clear cookie and redirect
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { data: null, error: { message: 'Token expired or invalid', code: 'UNAUTHORIZED' } },
@@ -82,41 +119,34 @@ export async function middleware(req: NextRequest) {
   }
 
   const { role, cell_id } = payload;
+  const portal = rolePortal(role || '');
+  const allowed = allowedPrefixes(role || '');
 
-  // ── Role-based route enforcement ─────────────────────────
-  // Cell leaders must stay within /cell/*
-  if (role === 'cell_leader' && pathname.startsWith('/dashboard')) {
-    const cellUrl = req.nextUrl.clone();
-    cellUrl.pathname = '/cell';
-    return NextResponse.redirect(cellUrl);
-  }
-
-  // Overseer must stay within /dashboard/*
-  if (role === 'overseer' && pathname.startsWith('/cell')) {
-    const dashUrl = req.nextUrl.clone();
-    dashUrl.pathname = '/dashboard';
-    return NextResponse.redirect(dashUrl);
-  }
-
-  // Root redirect: logged-in users hit / → their portal
+  // Root redirect → role portal
   if (pathname === '/') {
     const dest = req.nextUrl.clone();
-    dest.pathname = role === 'overseer' ? '/dashboard' : '/cell';
+    dest.pathname = portal;
     return NextResponse.redirect(dest);
   }
 
-  // ── Forward user context in headers for API routes ───────
-  const requestHeaders = new Headers(req.headers);
-  requestHeaders.set('x-user-id',      payload.sub    || '');
-  requestHeaders.set('x-user-role',    role            || '');
-  requestHeaders.set('x-user-cell-id', cell_id         || '');
+  // Enforce role boundaries for page routes (not API)
+  if (!pathname.startsWith('/api/')) {
+    const hasAccess = allowed.some(prefix => pathname.startsWith(prefix));
+    if (!hasAccess) {
+      const dest = req.nextUrl.clone();
+      dest.pathname = portal;
+      return NextResponse.redirect(dest);
+    }
+  }
 
+  // Forward user context to API routes
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set('x-user-id',      payload.sub || '');
+  requestHeaders.set('x-user-role',    role || '');
+  requestHeaders.set('x-user-cell-id', cell_id || '');
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {
-  matcher: [
-    // Match all routes except Next.js internals and static files
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
