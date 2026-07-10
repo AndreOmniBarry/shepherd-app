@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SHEP.HERD — Billing Calculator</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:#08051A;color:#E8E5FF;min-height:100vh;padding:32px 16px}
+.wrap{max-width:920px;margin:0 auto}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.cross{width:28px;height:28px;position:relative;display:flex;align-items:center;justify-content:center}
+.cross::before{content:'';position:absolute;width:4px;height:20px;background:#A89FFF;border-radius:2px}
+.cross::after{content:'';position:absolute;width:15px;height:4px;background:#A89FFF;border-radius:2px}
+.logo-text{font-size:16px;font-weight:700;color:#fff;letter-spacing:1.5px}
+.logo-sub{font-size:10px;color:rgba(168,159,255,0.45);margin-top:1px}
+h1{font-size:20px;font-weight:700;color:#fff;margin-bottom:4px}
+.sub{font-size:12px;color:rgba(232,229,255,0.4);margin-bottom:24px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+@media(max-width:620px){.grid{grid-template-columns:1fr}}
+.card{background:rgba(255,255,255,0.04);border:0.5px solid rgba(168,159,255,0.12);border-radius:14px;padding:18px}
+.card-title{font-size:10px;font-weight:600;color:rgba(168,159,255,0.55);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px}
+.field{margin-bottom:13px}
+.label{font-size:10px;color:rgba(232,229,255,0.38);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.4px}
+.range-row{display:flex;align-items:center;gap:10px}
+input[type=range]{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;background:rgba(168,159,255,0.15);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:#534AB7;cursor:pointer}
+.rval{font-size:13px;font-weight:600;color:#A89FFF;min-width:36px;text-align:right}
+.tog-row{display:flex;flex-wrap:wrap;gap:6px}
+.tog{padding:4px 11px;border-radius:20px;border:0.5px solid rgba(168,159,255,0.15);background:transparent;color:rgba(232,229,255,0.4);font-size:11px;cursor:pointer;font-family:inherit;transition:all 0.15s}
+.tog.on{background:#534AB7;border-color:#534AB7;color:#fff;font-weight:500}
+select,input[type=number]{width:100%;background:rgba(255,255,255,0.06);border:0.5px solid rgba(168,159,255,0.15);border-radius:9px;padding:9px 12px;font-size:12px;color:#E8E5FF;outline:none;font-family:inherit}
+select option{background:#13102A;color:#E8E5FF}
+.result{background:linear-gradient(135deg,rgba(83,74,183,0.14) 0%,rgba(29,158,117,0.07) 100%);border:0.5px solid rgba(168,159,255,0.18);border-radius:14px;padding:22px;margin-bottom:16px}
+.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+@media(max-width:500px){.plan-grid{grid-template-columns:1fr}}
+.plan{background:rgba(255,255,255,0.03);border:0.5px solid rgba(168,159,255,0.1);border-radius:11px;padding:14px;transition:border-color 0.15s}
+.plan.active{border-color:#534AB7;background:rgba(83,74,183,0.09)}
+.plan-rec{font-size:9px;color:#534AB7;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px}
+.plan-name{font-size:12px;font-weight:700;color:#E8E5FF;margin-bottom:4px}
+.plan-price{font-size:20px;font-weight:800;color:#A89FFF}
+.plan-price span{font-size:10px;font-weight:400;color:rgba(168,159,255,0.45)}
+.plan-ngn{font-size:10px;color:rgba(168,159,255,0.4);margin-bottom:10px}
+.plan-feat{list-style:none;display:flex;flex-direction:column;gap:4px}
+.plan-feat li{font-size:10px;color:rgba(232,229,255,0.5);display:flex;align-items:flex-start;gap:4px}
+.plan-feat li::before{content:'✓';color:#1D9E75;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px}
+.plan-feat li.no::before{content:'✕';color:rgba(216,90,48,0.5)}
+.plan-feat li.no{color:rgba(232,229,255,0.2)}
+.divider{height:0.5px;background:rgba(168,159,255,0.08);margin:16px 0}
+.sec-title{font-size:12px;font-weight:600;color:#E8E5FF;margin-bottom:12px}
+.breakdown-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+@media(max-width:500px){.breakdown-grid{grid-template-columns:1fr}}
+.bitem{background:rgba(255,255,255,0.03);border-radius:8px;padding:11px}
+.bitem-label{font-size:9px;color:rgba(232,229,255,0.35);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px}
+.bitem-val{font-size:15px;font-weight:600;color:#E8E5FF}
+.bitem-sub{font-size:9px;color:rgba(232,229,255,0.28);margin-top:2px}
+.bitem.hi{background:rgba(83,74,183,0.09);border:0.5px solid rgba(168,159,255,0.18)}
+.price-box{background:rgba(168,159,255,0.06);border:0.5px solid rgba(168,159,255,0.14);border-radius:10px;padding:14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px}
+.price-monthly{font-size:26px;font-weight:800;color:#A89FFF}
+.price-sub{font-size:11px;color:rgba(168,159,255,0.5)}
+.price-ngn{font-size:12px;color:rgba(168,159,255,0.6);margin-top:2px}
+.price-annual-val{font-size:20px;font-weight:700;color:#E8E5FF}
+.profit-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.profit-box{background:rgba(29,158,117,0.1);border:0.5px solid rgba(29,158,117,0.18);border-radius:9px;padding:12px}
+.profit-label{font-size:9px;color:rgba(45,212,170,0.55);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px}
+.profit-val{font-size:17px;font-weight:700}
+.profit-sub{font-size:9px;color:rgba(45,212,170,0.4);margin-top:2px}
+.alert{background:rgba(216,90,48,0.1);border:0.5px solid rgba(216,90,48,0.2);border-radius:9px;padding:11px;font-size:11px;color:rgba(248,113,113,0.8);line-height:1.5;margin-top:8px}
+.insight{font-size:11px;color:rgba(232,229,255,0.45);line-height:1.6;margin-top:12px;padding:11px;background:rgba(255,255,255,0.03);border-radius:8px;border-left:2px solid #534AB7}
+.footer{text-align:center;font-size:10px;color:rgba(232,229,255,0.18);margin-top:24px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <div class="cross"></div>
+    <div>
+      <div class="logo-text">SHEP.HERD</div>
+      <div class="logo-sub">Internal Billing Calculator — Confidential</div>
+    </div>
+  </div>
+
+  <h1>Church Billing Calculator</h1>
+  <p class="sub">Enter church details to get a plan recommendation, pricing in USD and NGN, infrastructure cost breakdown, and profit margin.</p>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">Church Profile</div>
+
+      <div class="field">
+        <label class="label">Total adult members</label>
+        <div class="range-row">
+          <input type="range" id="members" min="50" max="5000" step="50" value="300" oninput="v('members','mv');calc()">
+          <span class="rval" id="mv">300</span>
+        </div>
+      </div>
+      <div class="field">
+        <label class="label">Branches / campuses</label>
+        <div class="range-row">
+          <input type="range" id="branches" min="1" max="20" step="1" value="1" oninput="v('branches','bv');calc()">
+          <span class="rval" id="bv">1</span>
+        </div>
+      </div>
+      <div class="field">
+        <label class="label">Cell groups</label>
+        <div class="range-row">
+          <input type="range" id="cells" min="0" max="150" step="5" value="20" oninput="v('cells','cv');calc()">
+          <span class="rval" id="cv">20</span>
+        </div>
+      </div>
+      <div class="field">
+        <label class="label">Departments</label>
+        <div class="range-row">
+          <input type="range" id="depts" min="0" max="20" step="1" value="5" oninput="v('depts','dv');calc()">
+          <span class="rval" id="dv">5</span>
+        </div>
+      </div>
+      <div class="field">
+        <label class="label">Leadership team size</label>
+        <div class="range-row">
+          <input type="range" id="leaders" min="5" max="200" step="5" value="30" oninput="v('leaders','lv');calc()">
+          <span class="rval" id="lv">30</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Features &amp; Billing</div>
+
+      <div class="field">
+        <label class="label">Church structure</label>
+        <select id="structure" onchange="calc()">
+          <option value="cell">Cell-based (cells under fellowships)</option>
+          <option value="zone">Zone / district-based</option>
+          <option value="ministry">Ministry team-based</option>
+          <option value="hybrid">Hybrid (cells + departments)</option>
+          <option value="simple">Simple (no formal cells)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="label">Features required</label>
+        <div class="tog-row">
+          <button class="tog on" id="f-attendance" onclick="tf('attendance')">Attendance</button>
+          <button class="tog on" id="f-giving" onclick="tf('giving')">Giving</button>
+          <button class="tog on" id="f-ai" onclick="tf('ai')">AI agents</button>
+          <button class="tog" id="f-sms" onclick="tf('sms')">SMS alerts</button>
+          <button class="tog" id="f-multibranch" onclick="tf('multibranch')">Multi-branch</button>
+          <button class="tog" id="f-sla" onclick="tf('sla')">SLA tracking</button>
+          <button class="tog" id="f-recognition" onclick="tf('recognition')">Recognition</button>
+          <button class="tog" id="f-whitelabel" onclick="tf('whitelabel')">White-label</button>
+          <button class="tog" id="f-api" onclick="tf('api')">API access</button>
+          <button class="tog" id="f-paystack" onclick="tf('paystack')">Paystack giving</button>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:12px">
+        <label class="label">Billing cycle</label>
+        <select id="billing" onchange="calc()">
+          <option value="monthly">Monthly</option>
+          <option value="annual">Annual (2 months free)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="label">Exchange rate (₦ per $1)</label>
+        <input type="number" id="rate" value="1580" oninput="calc()">
+      </div>
+    </div>
+  </div>
+
+  <div class="result">
+    <div class="sec-title">Recommended plan</div>
+    <div class="plan-grid" id="planGrid"></div>
+
+    <div class="divider"></div>
+    <div class="sec-title">Infrastructure cost — per church</div>
+    <div class="breakdown-grid" id="breakdown"></div>
+
+    <div class="sec-title">What to charge this church</div>
+    <div id="pricing"></div>
+
+    <div id="profit"></div>
+    <div id="insights"></div>
+  </div>
+
+  <div class="footer">
+    SHEP.HERD · Internal use only · Andre Courage Aganmwonyi-Barry<br>
+    Verify exchange rate daily before quoting. Claude API costs estimated with 70% cache savings.
+  </div>
+</div>
+
+<script>
+const feats={attendance:true,giving:true,ai:true,sms:false,multibranch:false,sla:false,recognition:false,whitelabel:false,api:false,paystack:false};
+function v(id,out){document.getElementById(out).textContent=document.getElementById(id).value}
+function tf(f){feats[f]=!feats[f];document.getElementById('f-'+f).classList.toggle('on',feats[f]);calc()}
+function N(n){return n>=1e6?'$'+(n/1e6).toFixed(1)+'M':n>=1000?'$'+(n/1000).toFixed(0)+'k':'$'+n.toFixed(2)}
+function NN(n,r){const ngn=n*r;return ngn>=1e6?'₦'+(ngn/1e6).toFixed(1)+'M':ngn>=1000?'₦'+(ngn/1000).toFixed(0)+'k':'₦'+Math.round(ngn)}
+
+function calc(){
+  const members=+document.getElementById('members').value;
+  const branches=+document.getElementById('branches').value;
+  const cells=+document.getElementById('cells').value;
+  const depts=+document.getElementById('depts').value;
+  const leaders=+document.getElementById('leaders').value;
+  const billing=document.getElementById('billing').value;
+  const rate=+document.getElementById('rate').value||1580;
+
+  // Determine plan
+  let plan='starter',reasons=[];
+  if(members>1000){plan='enterprise';reasons.push('Over 1,000 members')}
+  if(branches>1){plan='enterprise';reasons.push('Multi-branch')}
+  if(feats.whitelabel){plan='enterprise';reasons.push('White-label')}
+  if(feats.api){plan='enterprise';reasons.push('API access')}
+  if(plan!=='enterprise'){
+    if(members>200){plan='growth';reasons.push('Over 200 members')}
+    if(feats.sms){plan='growth';reasons.push('SMS automation')}
+    if(feats.paystack){plan='growth';reasons.push('Paystack giving')}
+    if(feats.recognition){plan='growth';reasons.push('Recognition centre')}
+    if(cells>30){plan='growth';reasons.push('More than 30 cells')}
+    if(depts>8){plan='growth';reasons.push('More than 8 departments')}
+  }
+
+  const prices={starter:15,growth:35,enterprise:75};
+  const queries={starter:80,growth:350,enterprise:800};
+  let monthlyPrice=prices[plan];
+  if(billing==='annual') monthlyPrice=prices[plan]*10/12;
+
+  // Infra costs per church
+  const supabase=25/20;
+  const vercel=20/20;
+  const aiCost=(queries[plan]*5000/1e6)*3.0*0.3;
+  const smsCost=feats.sms?(leaders*0.04):0;
+  const totalInfra=supabase+vercel+aiCost+smsCost;
+  const profit=monthlyPrice-totalInfra;
+  const margin=(profit/monthlyPrice)*100;
+  const annualPrice=billing==='annual'?prices[plan]*10:monthlyPrice*12;
+  const annualProfit=annualPrice-(totalInfra*12);
+
+  // Plan cards
+  const planDefs=[
+    {id:'starter',name:'Starter',price:15,feats:['Up to 200 members','Single branch','Up to 30 cells','100 AI queries/mo','Attendance & giving','SLA tracking',{t:'SMS automation',no:true},{t:'Multi-branch',no:true},{t:'Paystack giving',no:true}]},
+    {id:'growth',name:'Growth',price:35,feats:['Up to 1,000 members','Up to 3 branches','Unlimited cells','500 AI queries/mo','SMS & WhatsApp alerts','SLA + recognition','Paystack giving','Full portal suite',{t:'White-label',no:true},{t:'API access',no:true}]},
+    {id:'enterprise',name:'Enterprise',price:75,feats:['Unlimited members','Unlimited branches','Unlimited cells','Unlimited AI queries','All Growth features','White-label option','API access','Custom onboarding','Priority support']},
+  ];
+
+  document.getElementById('planGrid').innerHTML=planDefs.map(p=>{
+    const isActive=p.id===plan;
+    const bp=billing==='annual'?(p.price*10/12).toFixed(2):p.price;
+    return`<div class="plan ${isActive?'active':''}">
+      ${isActive?'<div class="plan-rec">★ Recommended</div>':''}
+      <div class="plan-name">${p.name}</div>
+      <div class="plan-price">$${bp}<span>/mo</span></div>
+      <div class="plan-ngn">${NN(parseFloat(bp),rate)}/mo${billing==='annual'?' · billed annually':''}</div>
+      <ul class="plan-feat">${p.feats.map(f=>typeof f==='string'?`<li>${f}</li>`:`<li class="no">${f.t}</li>`).join('')}</ul>
+    </div>`;
+  }).join('');
+
+  // Breakdown
+  document.getElementById('breakdown').innerHTML=`
+    <div class="bitem"><div class="bitem-label">Supabase (per church)</div><div class="bitem-val">${N(supabase)}</div><div class="bitem-sub">${NN(supabase,rate)} · shared instance</div></div>
+    <div class="bitem"><div class="bitem-label">Vercel (per church)</div><div class="bitem-val">${N(vercel)}</div><div class="bitem-sub">${NN(vercel,rate)} · shared deployment</div></div>
+    <div class="bitem"><div class="bitem-label">Claude API (est.)</div><div class="bitem-val">${N(aiCost)}</div><div class="bitem-sub">${NN(aiCost,rate)} · ~${queries[plan]} queries + caching</div></div>
+    <div class="bitem"><div class="bitem-label">SMS / WhatsApp</div><div class="bitem-val">${N(smsCost)}</div><div class="bitem-sub">${NN(smsCost,rate)} · ${feats.sms?leaders+' leaders':'not enabled'}</div></div>
+    <div class="bitem hi"><div class="bitem-label">Total infra cost</div><div class="bitem-val" style="color:#A89FFF">${N(totalInfra)}</div><div class="bitem-sub">${NN(totalInfra,rate)}/mo</div></div>
+    <div class="bitem hi"><div class="bitem-label">AI queries/month</div><div class="bitem-val" style="color:#A89FFF">${queries[plan]}</div><div class="bitem-sub">Estimated usage on ${plan}</div></div>
+  `;
+
+  // Pricing
+  document.getElementById('pricing').innerHTML=`
+    <div class="price-box">
+      <div>
+        <div style="font-size:10px;color:rgba(232,229,255,0.35);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Charge per month</div>
+        <div class="price-monthly">$${monthlyPrice.toFixed(2)}<span style="font-size:12px;font-weight:400;color:rgba(168,159,255,0.45)">/mo</span></div>
+        <div class="price-ngn">${NN(monthlyPrice,rate)} per month</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:rgba(232,229,255,0.35);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Annual total</div>
+        <div class="price-annual-val">$${annualPrice.toFixed(0)}</div>
+        <div class="price-ngn">${NN(annualPrice,rate)}</div>
+        ${billing==='annual'?'<div style="font-size:9px;color:#1D9E75;margin-top:3px">2 months free applied</div>':''}
+      </div>
+    </div>
+  `;
+
+  // Profit
+  const mc=margin>=70?'#2DD4AA':margin>=50?'#FCD34D':'#F87171';
+  document.getElementById('profit').innerHTML=`
+    <div class="profit-grid">
+      <div class="profit-box">
+        <div class="profit-label">Monthly profit</div>
+        <div class="profit-val" style="color:${mc}">${N(profit)}</div>
+        <div class="profit-sub">${NN(profit,rate)}</div>
+      </div>
+      <div class="profit-box">
+        <div class="profit-label">Gross margin</div>
+        <div class="profit-val" style="color:${mc}">${margin.toFixed(0)}%</div>
+        <div class="profit-sub">Annual profit: ${N(annualProfit)}</div>
+      </div>
+    </div>
+    ${margin<40?`<div class="alert">⚠ Margin below 40% — consider increasing price or reducing AI query limits for this tier.</div>`:''}
+  `;
+
+  // Insights
+  const ins=[];
+  if(reasons.length) ins.push(`Recommended ${plan.charAt(0).toUpperCase()+plan.slice(1)} because: ${reasons.join(', ')}.`);
+  if(billing==='annual') ins.push('Annual billing gives you upfront cash — use it to cover 6 months of infrastructure costs in advance.');
+  if(feats.sms&&plan==='starter') ins.push('SMS automation is a Growth feature — this church would need to upgrade to use it.');
+  if(branches>3&&plan!=='enterprise') ins.push('3+ branches typically require Enterprise for proper data isolation and branch-level reporting.');
+  if(margin>75) ins.push(`Strong margin at ${margin.toFixed(0)}%. This church is highly profitable for SHEP.HERD.`);
+  if(members>500&&plan==='starter') ins.push('This church is large for Starter — consider nudging them to Growth.');
+  document.getElementById('insights').innerHTML=ins.length?`<div class="insight">${ins.map(i=>`<div style="margin-bottom:5px">→ ${i}</div>`).join('')}</div>`:'';
+}
+
+calc();
+</script>
+</body>
+</html>
