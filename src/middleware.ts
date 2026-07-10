@@ -26,6 +26,7 @@ const PUBLIC_PATHS = [
   '/_next',
   '/favicon.ico',
   '/manifest.json',
+  '/billing-calculator.html',
   '/sw.js',
   '/workbox-',
   '/icons/',
