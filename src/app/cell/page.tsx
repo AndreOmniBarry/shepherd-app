@@ -1,6 +1,6 @@
 'use client';
 import NotificationBell from "@/components/NotificationBell";
-import PortalOverview from '@/components/PortalOverview';
+import CellOverview from '@/components/CellOverview';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -271,21 +271,7 @@ export default function CellPage() {
         </div>
 
         {tab === 'overview' && (
-          <PortalOverview
-            role="cell_leader"
-            name={leaderName}
-            dark={dark}
-            t={t}
-            stats={{
-              slaGrade: history[0]?.sla_grade,
-              lastSubmission: history[0]?.submitted_at,
-              attendanceRate: history[0] ? Math.round((history[0].present_count / Math.max(1, history[0].present_count + history[0].absent_count)) * 100) : undefined,
-              totalMembers: members.length,
-              insight: history[0]
-                ? `Your last submission was ${new Date(history[0].submitted_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })} with SLA grade ${history[0].sla_grade || 'A'}. Keep submitting on time to maintain your standing.`
-                : `Welcome! Submit your first attendance report to start building your SLA record.`,
-            }}
-          />
+          <CellOverview dark={dark} t={t} />
         )}
         {tab === 'submit' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
