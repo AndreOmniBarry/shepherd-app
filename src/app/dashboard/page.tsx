@@ -1,5 +1,7 @@
 'use client';
+import React from 'react';
 import NotificationBell from "@/components/NotificationBell";
+import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -11,7 +13,7 @@ import {
 type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; };
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
 type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
-type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation';
+type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer';
 type TimeRange = '8w'|'3m'|'6m'|'1y'|'2y'|'5y';
 
 // ── Unique cell data with realistic, differentiated trends ─────
@@ -601,6 +603,73 @@ function exportCSV(data:Record<string,unknown>[], filename:string){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename+'.csv';a.click();
 }
 
+function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean}){
+  const [requests,setRequests]=React.useState<{id:string;request:string;requester_name:string;category:string;status:string;submitted_by_role:string;created_at:string}[]>([]);
+  const [filter,setFilter]=React.useState('open');
+  React.useEffect(()=>{
+    fetch(`/api/prayer-requests?status=${filter}`,{credentials:'include'})
+      .then(r=>r.json()).then(({data})=>{if(data?.requests)setRequests(data.requests);}).catch(()=>{});
+  },[filter]);
+  async function markPrayed(id:string){
+    await fetch('/api/prayer-requests',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id,status:'prayed'})});
+    setRequests(prev=>prev.map(r=>r.id===id?{...r,status:'prayed'}:r));
+  }
+  const STATUS_CFG:{[k:string]:{bg:string;text:string;label:string}}={
+    open:{bg:'#EEEDFE',text:'#3C3489',label:'Open'},
+    prayed:{bg:'#E1F5EE',text:'#085041',label:'Prayed'},
+    closed:{bg:'#F3F4F6',text:'#6B7280',label:'Closed'},
+  };
+  const CATS:{[k:string]:string}={general:'General',healing:'Healing',family:'Family',finance:'Finance',guidance:'Guidance',thanksgiving:'Thanksgiving',other:'Other'};
+  return(
+    <div style={{display:'flex',flexDirection:'column',gap:10}}>
+      <div style={{display:'flex',gap:8,marginBottom:4}}>
+        {['open','prayed','all'].map(f=>(
+          <button key={f} onClick={()=>setFilter(f)}
+            style={{padding:'5px 14px',borderRadius:20,border:'none',background:filter===f?'#534AB7':t.input,color:filter===f?'#fff':t.sub,fontSize:11,cursor:'pointer',fontWeight:filter===f?600:400,fontFamily:'inherit'}}>
+            {f.charAt(0).toUpperCase()+f.slice(1)}
+          </button>
+        ))}
+        <span style={{marginLeft:'auto',fontSize:11,color:t.muted,alignSelf:'center'}}>{requests.length} request{requests.length!==1?'s':''}</span>
+      </div>
+      {requests.length===0?(
+        <div style={{background:t.card,borderRadius:12,border:`0.5px solid ${t.border}`,padding:40,textAlign:'center'}}>
+          <div style={{fontSize:24,marginBottom:8}}>🙏</div>
+          <div style={{fontSize:13,color:t.sub}}>No {filter==='all'?'':filter} prayer requests</div>
+        </div>
+      ):(
+        <div style={{background:t.card,borderRadius:12,border:`0.5px solid ${t.border}`,overflow:'hidden'}}>
+          {requests.map((r,i)=>{
+            const cfg=STATUS_CFG[r.status]||STATUS_CFG.open;
+            const daysAgo=Math.floor((Date.now()-new Date(r.created_at).getTime())/86400000);
+            return(
+              <div key={r.id} style={{padding:'13px 16px',borderBottom:i<requests.length-1?`0.5px solid ${t.border}`:'none'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
+                  <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                    <span style={{fontSize:12,fontWeight:600,color:t.text}}>{r.requester_name||'Anonymous'}</span>
+                    <span style={{fontSize:9,padding:'2px 7px',borderRadius:10,background:t.purpleBg,color:t.purple,fontWeight:500}}>{r.submitted_by_role?.replace('_',' ')}</span>
+                    <span style={{fontSize:9,padding:'2px 7px',borderRadius:10,background:t.input,color:t.sub}}>{CATS[r.category]||r.category}</span>
+                  </div>
+                  <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
+                    <span style={{fontSize:9,padding:'2px 7px',borderRadius:10,background:cfg.bg,color:cfg.text,fontWeight:500}}>{cfg.label}</span>
+                    {r.status==='open'&&(
+                      <button onClick={()=>markPrayed(r.id)}
+                        style={{fontSize:10,padding:'3px 9px',borderRadius:8,background:t.tealBg,color:t.teal,border:'none',cursor:'pointer',fontWeight:500,fontFamily:'inherit'}}>
+                        Mark prayed
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div style={{fontSize:12,color:t.sub,lineHeight:1.5,marginBottom:4}}>{r.request}</div>
+                <div style={{fontSize:10,color:t.muted}}>{daysAgo===0?'Today':daysAgo===1?'Yesterday':`${daysAgo} days ago`}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardPage(){
   const router=useRouter();
   const [page,setPage]=useState<NavPage>('dashboard');
@@ -733,6 +802,7 @@ export default function DashboardPage(){
     {id:'reports' as NavPage,icon:'',label:'Reports'},
     {id:'recognition' as NavPage,icon:'',label:'Recognition'},
     {id:'commendation' as NavPage,icon:'',label:'Commend Leaders'},
+    {id:'prayer' as NavPage,icon:'',label:'Prayer Requests'},
   ];
 
   const agentOpts=[
@@ -1688,6 +1758,22 @@ export default function DashboardPage(){
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {page==='prayer'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:15,fontWeight:700,color:t.text}}>Prayer Requests</div>
+                  <div style={{fontSize:12,color:t.muted,marginTop:2}}>All prayer requests submitted by cell leaders, fellowship heads, and the care team.</div>
+                </div>
+                <div style={{display:'flex',gap:8}}>
+                  <span style={{fontSize:11,padding:'4px 12px',borderRadius:20,background:t.tealBg,color:t.teal,fontWeight:500,cursor:'pointer'}}>Open</span>
+                  <span style={{fontSize:11,padding:'4px 12px',borderRadius:20,background:t.purpleBg,color:t.purple,fontWeight:500,cursor:'pointer'}}>All</span>
+                </div>
+              </div>
+              <PrayerRequestDashboard t={t} dark={dark} />
             </div>
           )}
 
