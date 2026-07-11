@@ -1,5 +1,6 @@
 'use client';
 import NotificationBell from "@/components/NotificationBell";
+import BirthdayPanel from '@/components/BirthdayPanel';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -29,7 +30,7 @@ type FirstTimer = {
   notes?: string;
 };
 
-type NavTab = 'queue' | 'first_timers' | 'history';
+type NavTab = 'queue' | 'first_timers' | 'history' | 'birthdays';
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
   new:          { bg: '#EEEDFE', text: '#3C3489', label: 'New' },
@@ -218,6 +219,7 @@ export default function CareTeamPage() {
     { id: 'queue' as NavTab, label: `Absence queue${activeLeads.length > 0 ? ` (${activeLeads.length})` : ''}` },
     { id: 'first_timers' as NavTab, label: `First timers${newTimers.length > 0 ? ` (${newTimers.length})` : ''}` },
     { id: 'history' as NavTab, label: 'History' },
+    { id: 'birthdays' as NavTab, label: '🎂 Birthdays' },
   ];
 
   return (
@@ -492,6 +494,12 @@ export default function CareTeamPage() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {tab === 'birthdays' && (
+          <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 0' }}>
+            <BirthdayPanel dark={dark} t={t} scope="all" showFellowship={true} />
           </div>
         )}
 

@@ -1,5 +1,6 @@
 'use client';
 import NotificationBell from "@/components/NotificationBell";
+import BirthdayPanel from '@/components/BirthdayPanel';
 import CellOverview from '@/components/CellOverview';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import { useState, useEffect } from 'react';
@@ -31,7 +32,7 @@ const SLA_COLORS: Record<string, { bg: string; text: string }> = {
 
 export default function CellPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'prayer'>('overview');
+  const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'prayer' | 'birthdays'>('overview');
   const [members, setMembers] = useState<Member[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState('');
@@ -262,6 +263,7 @@ export default function CellPage() {
             { id: 'submit', label: 'Attendance' },
             { id: 'history', label: 'History' },
             { id: 'prayer', label: 'Prayer' },
+            { id: 'birthdays', label: '🎂 Birthdays' },
           ] as const).map(tabDef => (
             <button key={tabDef.id} onClick={() => setTab(tabDef.id)}
               style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: tab === tabDef.id ? 600 : 400, background: tab === tabDef.id ? t.card : 'transparent', color: tab === tabDef.id ? t.purple : t.sub, boxShadow: tab === tabDef.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.15s' }}>
@@ -386,6 +388,9 @@ export default function CellPage() {
 
         {tab === 'prayer' && (
           <PrayerRequestPanel dark={dark} t={t} />
+        )}
+        {tab === 'birthdays' && (
+          <BirthdayPanel dark={dark} t={t} scope="cell" showFellowship={false} />
         )}
         {tab === 'history' && (
           <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>

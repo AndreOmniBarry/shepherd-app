@@ -1,5 +1,6 @@
 'use client';
 import NotificationBell from "@/components/NotificationBell";
+import BirthdayPanel from '@/components/BirthdayPanel';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -50,7 +51,7 @@ type Dispute = {
   submitted_at: string;
 };
 
-type NavTab = 'overview' | 'cells' | 'members' | 'giving' | 'disputes';
+type NavTab = 'overview' | 'cells' | 'members' | 'giving' | 'disputes' | 'birthdays';
 
 const DISPUTE_REASONS = [
   { value: 'wrong_count', label: 'Wrong attendance count' },
@@ -228,7 +229,8 @@ export default function FellowshipHeadPage() {
     { id: 'cells', label: 'Cells' },
     { id: 'members', label: 'Members' },
     { id: 'giving', label: 'Giving' },
-    { id: 'disputes', label: `Disputes${disputes.filter(d => d.status === 'pending').length > 0 ? ` (${disputes.filter(d => d.status === 'pending').length})` : ''}` },
+    { id: 'birthdays', label: '🎂 Birthdays' },
+      { id: 'disputes', label: `Disputes${disputes.filter(d => d.status === 'pending').length > 0 ? ` (${disputes.filter(d => d.status === 'pending').length})` : ''}` },
   ];
 
   return (
@@ -568,6 +570,10 @@ export default function FellowshipHeadPage() {
               )}
             </div>
           </div>
+        )}
+
+        {tab === 'birthdays' && (
+          <BirthdayPanel dark={dark} t={t} scope="fellowship" showFellowship={true} />
         )}
 
         {/* ── DISPUTES ── */}
