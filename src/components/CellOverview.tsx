@@ -84,6 +84,7 @@ export default function CellOverview({ dark = false, t }: CellOverviewProps) {
   );
 
   const { cell, stats, trend, memberProfiles, slaHistory, actions, birthdayToday, upcomingBirthdays } = overview;
+  if (!stats || !cell) return (<div style={{ textAlign: "center", padding: 40, color: t.muted, fontSize: 13 }}>Loading cell intelligence...</div>);
   const slaColor = SLA_CFG[stats.currentSLA || ''] || { bg: t.purpleBg, text: t.purple };
 
   const filteredMembers = memberProfiles.filter(m =>
