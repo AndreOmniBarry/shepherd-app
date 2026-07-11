@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 
     // Get fellowship_id from members table
     const memberRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/members?id=eq.${user.id}&select=fellowship_id&limit=1`,
+      `${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`,
       { headers: hdrs }
     );
     const memberData = await memberRes.json();

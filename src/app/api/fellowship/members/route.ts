@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     const hdrs = { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` };
 
     const memberRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/members?id=eq.${user.id}&select=fellowship_id&limit=1`,
+      `${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`,
       { headers: hdrs }
     );
     const memberData = await memberRes.json();

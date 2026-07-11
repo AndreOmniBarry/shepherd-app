@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     if (!payload) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     const user = payloadToAuthUser(payload);
 
-    const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs() });
+    const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs() });
     const memberData = await memberRes.json();
     const fellowship_id = memberData?.[0]?.fellowship_id;
     if (!fellowship_id) return NextResponse.json({ data: { disputes: [] }, error: null });
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
     if (hoursSince > 48) return NextResponse.json({ data: null, error: { message: 'Dispute window has closed. You have 48 hours from submission to raise a dispute.' } }, { status: 403 });
 
     // Get fellowship_id
-    const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs() });
+    const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs() });
     const memberData = await memberRes.json();
     const fellowship_id = memberData?.[0]?.fellowship_id;
 
