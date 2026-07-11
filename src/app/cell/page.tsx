@@ -1,5 +1,7 @@
 'use client';
 import NotificationBell from "@/components/NotificationBell";
+import PortalOverview from '@/components/PortalOverview';
+import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -29,7 +31,7 @@ const SLA_COLORS: Record<string, { bg: string; text: string }> = {
 
 export default function CellPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'submit' | 'history'>('submit');
+  const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'prayer'>('overview');
   const [members, setMembers] = useState<Member[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState('');
@@ -255,14 +257,36 @@ export default function CellPage() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', background: t.input, borderRadius: 10, padding: 4, marginBottom: 20, border: `0.5px solid ${t.border}` }}>
-          {(['submit', 'history'] as const).map(tabId => (
-            <button key={tabId} onClick={() => setTab(tabId)}
-              style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: tab === tabId ? 600 : 400, background: tab === tabId ? t.card : 'transparent', color: tab === tabId ? t.purple : t.sub, boxShadow: tab === tabId ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.15s' }}>
-              {tabId === 'submit' ? 'Submit Attendance' : 'History'}
+          {([
+            { id: 'overview', label: 'Overview' },
+            { id: 'submit', label: 'Attendance' },
+            { id: 'history', label: 'History' },
+            { id: 'prayer', label: 'Prayer' },
+          ] as const).map(tabDef => (
+            <button key={tabDef.id} onClick={() => setTab(tabDef.id)}
+              style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: tab === tabDef.id ? 600 : 400, background: tab === tabDef.id ? t.card : 'transparent', color: tab === tabDef.id ? t.purple : t.sub, boxShadow: tab === tabDef.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.15s' }}>
+              {tabDef.label}
             </button>
           ))}
         </div>
 
+        {tab === 'overview' && (
+          <PortalOverview
+            role="cell_leader"
+            name={leaderName}
+            dark={dark}
+            t={t}
+            stats={{
+              slaGrade: history[0]?.sla_grade,
+              lastSubmission: history[0]?.submitted_at,
+              attendanceRate: history[0] ? Math.round((history[0].present_count / Math.max(1, history[0].present_count + history[0].absent_count)) * 100) : undefined,
+              totalMembers: members.length,
+              insight: history[0]
+                ? `Your last submission was ${new Date(history[0].submitted_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })} with SLA grade ${history[0].sla_grade || 'A'}. Keep submitting on time to maintain your standing.`
+                : `Welcome! Submit your first attendance report to start building your SLA record.`,
+            }}
+          />
+        )}
         {tab === 'submit' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
@@ -374,6 +398,9 @@ export default function CellPage() {
           </div>
         )}
 
+        {tab === 'prayer' && (
+          <PrayerRequestPanel dark={dark} t={t} />
+        )}
         {tab === 'history' && (
           <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 14 }}>Last 12 Weeks</div>
