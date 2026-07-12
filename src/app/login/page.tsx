@@ -123,7 +123,8 @@ function LoginForm() {
         flex: 1, display: 'flex', flexDirection: 'column',
         justifyContent: 'center', padding: '60px 80px',
         position: 'relative', zIndex: 1,
-      }}>
+      }}
+      className="login-left">
         {/* Logo mark */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 48 }}>
           <div style={{
@@ -196,7 +197,8 @@ function LoginForm() {
         borderLeft: '0.5px solid rgba(168,159,255,0.06)',
         background: 'rgba(255,255,255,0.02)',
         backdropFilter: 'blur(20px)',
-      }}>
+      }}
+      className="login-right">
         <div style={{ width: '100%', maxWidth: 340 }}>
           <div style={{ marginBottom: 32 }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: '#E8E5FF', marginBottom: 6 }}>Welcome back</div>
@@ -344,7 +346,17 @@ function LoginForm() {
         * { box-sizing: border-box; }
         @media (max-width: 768px) {
           .login-left { display: none !important; }
-          .login-right { width: 100% !important; border-left: none !important; }
+          .login-right { 
+            width: 100% !important; 
+            border-left: none !important;
+            padding: 32px 20px !important;
+            min-height: 100vh;
+            overflow-y: auto;
+          }
+          .login-right > div {
+            max-width: 100% !important;
+            width: 100% !important;
+          }
         }
       `}</style>
     </div>

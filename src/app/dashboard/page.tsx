@@ -689,7 +689,15 @@ export default function DashboardPage(){
   const [messages,setMessages]=useState<ChatMessage[]>([{role:'agent',agent:'Moshe',text:'Good day, Pastor. I am Moshe — your church intelligence assistant. Ask me about attendance, giving, members, cell performance, or budget planning. I can also answer general questions.'}]);
   const [chatLoading,setChatLoading]=useState(false);
   const chatEndRef=useRef<HTMLDivElement>(null);
-  const [goals,setGoals]=useState({q3:1250,dec:1400});
+  const [goals,setGoals]=useState(()=>{
+    if(typeof window !== 'undefined'){
+      try{
+        const saved=localStorage.getItem('shepherd_goals');
+        if(saved) return JSON.parse(saved);
+      }catch{}
+    }
+    return {q3:1250,dec:1400};
+  });
   const [dark,setDark]=useState(false);
   const [sidebarStyle,setSidebarStyle]=useState<'light'|'dark'>('light');
   const [sidebarOpen,setSidebarOpen]=useState(false);
