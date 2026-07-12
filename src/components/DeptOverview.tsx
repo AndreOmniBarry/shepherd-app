@@ -1,0 +1,247 @@
+'use client';
+import { useState, useEffect } from 'react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+type MemberProfile = {
+  id: string;
+  full_name: string;
+  role: string;
+  present: number;
+  absent: number;
+  total: number;
+  rate: number | null;
+  consecutiveAbsences: number;
+  health: string;
+  birthdayStatus?: string | null;
+};
+
+type Action = { priority: 'high' | 'medium' | 'low'; message: string };
+
+type Overview = {
+  dept: { id: string; name: string; totalMembers: number };
+  stats: { avgRate: number | null; currentSLA: string | null; totalSubmissions: number; criticalCount: number };
+  trend: { week: string; present: number; absent: number; rate: number; sla: string; date: string }[];
+  memberProfiles: MemberProfile[];
+  slaHistory: { date: string; grade: string }[];
+  actions: Action[];
+  birthdayToday: MemberProfile[];
+};
+
+const HEALTH_CFG: Record<string, { bg: string; text: string; label: string }> = {
+  healthy:  { bg: '#E1F5EE', text: '#085041', label: 'Healthy' },
+  fair:     { bg: '#EEEDFE', text: '#3C3489', label: 'Fair' },
+  low:      { bg: '#FAEEDA', text: '#633806', label: 'Low' },
+  watch:    { bg: '#FAEEDA', text: '#633806', label: 'Watch' },
+  warning:  { bg: '#FAECE7', text: '#993C1D', label: 'Warning' },
+  critical: { bg: '#FCEBEB', text: '#A32D2D', label: 'Critical' },
+  new:      { bg: '#F3F4F6', text: '#6B7280', label: 'New' },
+};
+
+const SLA_CFG: Record<string, { bg: string; text: string }> = {
+  'A+': { bg: '#E1F5EE', text: '#085041' },
+  'A':  { bg: '#E1F5EE', text: '#085041' },
+  'B':  { bg: '#EEEDFE', text: '#3C3489' },
+  'C':  { bg: '#FAEEDA', text: '#633806' },
+  'D':  { bg: '#FAECE7', text: '#993C1D' },
+  'F':  { bg: '#FCEBEB', text: '#A32D2D' },
+  'F-': { bg: '#FCEBEB', text: '#A32D2D' },
+};
+
+const ACTION_CFG = {
+  high:   { bg: '#FCEBEB', text: '#A32D2D', border: 'rgba(198,40,40,0.2)', icon: '⚠' },
+  medium: { bg: '#FAEEDA', text: '#633806', border: 'rgba(186,117,23,0.2)', icon: '●' },
+  low:    { bg: '#EEEDFE', text: '#3C3489', border: 'rgba(83,74,183,0.2)',  icon: '○' },
+};
+
+interface DeptOverviewProps {
+  dark?: boolean;
+  t: Record<string, string>;
+}
+
+export default function DeptOverview({ dark = false, t }: DeptOverviewProps) {
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [memberView, setMemberView] = useState<'all' | 'critical' | 'healthy'>('all');
+
+  useEffect(() => {
+    fetch('/api/department/overview', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => { if (data) setOverview(data); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: t.muted, fontSize: 13 }}>Loading department intelligence...</div>;
+  if (!overview || !overview.dept) return (
+    <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: 32, textAlign: 'center' }}>
+      <div style={{ fontSize: 13, color: t.sub }}>No department assigned. Contact your administrator.</div>
+    </div>
+  );
+
+  const { dept, stats, trend, memberProfiles, slaHistory, actions, birthdayToday } = overview;
+  const slaColor = SLA_CFG[stats.currentSLA || ''] || { bg: t.purpleBg, text: t.purple };
+
+  const filteredMembers = memberProfiles.filter(m =>
+    memberView === 'all' ? true
+    : memberView === 'critical' ? ['critical', 'warning'].includes(m.health)
+    : ['healthy', 'fair'].includes(m.health)
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Action items */}
+      {actions.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {actions.map((a, i) => {
+            const cfg = ACTION_CFG[a.priority];
+            return (
+              <div key={i} style={{ background: cfg.bg, border: `0.5px solid ${cfg.border}`, borderRadius: 9, padding: '10px 13px', fontSize: 12, color: cfg.text, display: 'flex', gap: 8, lineHeight: 1.5 }}>
+                <span style={{ flexShrink: 0, fontWeight: 700 }}>{cfg.icon}</span>
+                {a.message}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* KPI row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+        {[
+          { label: 'Dept members', value: dept.totalMembers, sub: dept.name, accent: '#534AB7' },
+          { label: 'Avg attendance', value: stats.avgRate !== null ? `${stats.avgRate}%` : '—', sub: 'Last 8 Sundays', accent: '#1D9E75' },
+          { label: 'Current SLA', value: stats.currentSLA || '—', sub: 'This week', accent: slaColor.text },
+          { label: 'Members at risk', value: stats.criticalCount, sub: 'Need follow-up', accent: stats.criticalCount > 0 ? '#D85A30' : '#1D9E75' },
+        ].map(k => (
+          <div key={k.label} style={{ background: t.card, borderRadius: 11, border: `0.5px solid ${t.border}`, padding: '12px 14px', borderTop: `2.5px solid ${k.accent}` }}>
+            <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>{k.label}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: t.text, lineHeight: 1 }}>{k.value}</div>
+            <div style={{ fontSize: 10, color: t.muted, marginTop: 4 }}>{k.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 12 }}>Attendance trend</div>
+          {trend.length > 0 ? (
+            <ResponsiveContainer width="100%" height={130}>
+              <AreaChart data={trend} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="dGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#534AB7" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#534AB7" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={dark ? '#2A2A2A' : '#F0F0F0'} />
+                <XAxis dataKey="week" tick={{ fontSize: 9, fill: dark ? '#888' : '#6B7280' }} />
+                <YAxis tick={{ fontSize: 9, fill: dark ? '#888' : '#6B7280' }} unit="%" domain={[0, 100]} />
+                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: t.card, color: t.text }} formatter={(v: number) => [`${v}%`, 'Rate']} />
+                <Area type="monotone" dataKey="rate" stroke="#534AB7" strokeWidth={2} fill="url(#dGrad)" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ height: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.muted, fontSize: 12 }}>No data yet</div>
+          )}
+        </div>
+
+        <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 12 }}>SLA history</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {slaHistory.length === 0 ? (
+              <div style={{ color: t.muted, fontSize: 12, padding: '20px 0', textAlign: 'center' }}>No submissions yet</div>
+            ) : (
+              slaHistory.slice(0, 6).map((s, i) => {
+                const sc = SLA_CFG[s.grade] || { bg: t.purpleBg, text: t.purple };
+                return (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < 5 ? `0.5px solid ${t.border}` : 'none' }}>
+                    <div style={{ fontSize: 11, color: t.sub }}>{s.date ? new Date(s.date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}</div>
+                    <span style={{ fontSize: 11, padding: '2px 9px', borderRadius: 10, background: sc.bg, color: sc.text, fontWeight: 600 }}>{s.grade || '—'}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Member health table */}
+      <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, overflow: 'hidden' }}>
+        <div style={{ padding: '14px 16px', borderBottom: `0.5px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Member attendance health</div>
+            <div style={{ fontSize: 10, color: t.muted, marginTop: 2 }}>Consistency and risk status per department member</div>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[{ id: 'all', label: 'All' }, { id: 'critical', label: `At risk (${stats.criticalCount})` }, { id: 'healthy', label: 'Healthy' }].map(v => (
+              <button key={v.id} onClick={() => setMemberView(v.id as typeof memberView)}
+                style={{ padding: '4px 10px', borderRadius: 20, border: 'none', background: memberView === v.id ? '#534AB7' : t.input, color: memberView === v.id ? '#fff' : t.sub, fontSize: 10, cursor: 'pointer', fontFamily: 'inherit', fontWeight: memberView === v.id ? 600 : 400 }}>
+                {v.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {filteredMembers.length === 0 ? (
+          <div style={{ padding: 24, textAlign: 'center', color: t.muted, fontSize: 12 }}>No members in this category</div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
+                {['Member', 'Role', 'Attendance rate', 'Present', 'Absent', 'Consecutive absences', 'Status'].map(h => (
+                  <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px', background: t.card, whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredMembers.map((m, i) => {
+                const hcfg = HEALTH_CFG[m.health] || HEALTH_CFG.new;
+                return (
+                  <tr key={m.id} style={{ borderBottom: i < filteredMembers.length - 1 ? `0.5px solid ${t.border}` : 'none' }}>
+                    <td style={{ padding: '10px 12px', fontWeight: 500, color: t.text, whiteSpace: 'nowrap' }}>
+                      {m.full_name}
+                      {m.birthdayStatus === 'today' && <span style={{ marginLeft: 6 }}>🎂</span>}
+                    </td>
+                    <td style={{ padding: '10px 12px', color: t.muted, fontSize: 11 }}>{m.role}</td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ width: 50, height: 4, background: dark ? '#2A2A2A' : '#F0F0F0', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ width: `${m.rate || 0}%`, height: '100%', background: m.rate && m.rate >= 80 ? '#1D9E75' : m.rate && m.rate >= 60 ? '#BA7517' : '#D85A30', borderRadius: 2 }} />
+                        </div>
+                        <span style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{m.rate !== null ? `${m.rate}%` : '—'}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '10px 12px', color: '#1D9E75', fontWeight: 500 }}>{m.present}</td>
+                    <td style={{ padding: '10px 12px', color: m.absent > 0 ? '#D85A30' : t.muted }}>{m.absent}</td>
+                    <td style={{ padding: '10px 12px', color: m.consecutiveAbsences >= 2 ? '#D85A30' : t.muted, fontWeight: m.consecutiveAbsences >= 2 ? 600 : 400 }}>
+                      {m.consecutiveAbsences > 0 ? `${m.consecutiveAbsences} in a row` : '—'}
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: hcfg.bg, color: hcfg.text, fontWeight: 500 }}>{hcfg.label}</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Birthdays */}
+      {birthdayToday.length > 0 && (
+        <div style={{ background: '#FAEEDA', borderRadius: 10, padding: '12px 14px', border: '0.5px solid rgba(186,117,23,0.2)' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#633806', marginBottom: 6 }}>🎂 Birthday today</div>
+          {birthdayToday.map(m => (
+            <div key={m.id} style={{ fontSize: 12, color: '#BA7517' }}>{m.full_name} — {m.role}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Summary */}
+      <div style={{ background: t.purpleBg, borderRadius: 10, padding: '12px 14px', border: `0.5px solid rgba(83,74,183,0.15)`, fontSize: 11, color: t.purple, lineHeight: 1.6 }}>
+        <strong>{dept.name}</strong> · {dept.totalMembers} members · {stats.totalSubmissions} submissions · Average attendance {stats.avgRate !== null ? `${stats.avgRate}%` : 'not yet calculated'}{stats.currentSLA ? ` · Current SLA: ${stats.currentSLA}` : ''}
+      </div>
+    </div>
+  );
+}

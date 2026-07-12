@@ -28,6 +28,8 @@ const PUBLIC_PATHS = [
   '/manifest.json',
   '/billing-calculator.html',
   '/update',
+  '/accounts',
+  '/partnership',
   '/sw.js',
   '/workbox-',
   '/icons/',

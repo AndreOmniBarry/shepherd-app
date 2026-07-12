@@ -1,5 +1,6 @@
 'use client';
 import NotificationBell from "@/components/NotificationBell";
+import DeptOverview from '@/components/DeptOverview';
 import BirthdayPanel from '@/components/BirthdayPanel';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -46,7 +47,7 @@ const SLA_COLORS: Record<string, { bg: string; text: string }> = {
 
 export default function DepartmentHeadPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'submit' | 'history' | 'roster' | 'birthdays'>('submit');
+  const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'roster' | 'birthdays'>('overview');
   const [dark, setDark] = useState(false);
   const [deptName, setDeptName] = useState('');
   const [leaderName, setLeaderName] = useState('');
@@ -233,7 +234,7 @@ export default function DepartmentHeadPage() {
 
       {/* Sub-nav */}
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', display: 'flex' }}>
-        {[{ id: 'submit', label: 'Submit Attendance' }, { id: 'history', label: 'History' }, { id: 'roster', label: 'Roster' },
+        {[{ id: 'overview', label: 'Overview' }, { id: 'submit', label: 'Submit Attendance' }, { id: 'history', label: 'History' }, { id: 'roster', label: 'Roster' },
         { id: 'birthdays', label: '🎂 Birthdays' }].map(n => (
           <button key={n.id} onClick={() => setTab(n.id as typeof tab)}
             style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', marginBottom: -0.5 }}>
@@ -243,6 +244,10 @@ export default function DepartmentHeadPage() {
       </div>
 
       <div style={{ maxWidth: 540, margin: '0 auto', padding: '20px 16px' }}>
+
+        {tab === 'overview' && (
+          <DeptOverview dark={dark} t={t} />
+        )}
 
         {/* SUBMIT */}
         {tab === 'submit' && (

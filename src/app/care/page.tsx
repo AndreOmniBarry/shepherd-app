@@ -1,5 +1,6 @@
 'use client';
 import NotificationBell from "@/components/NotificationBell";
+import CareOverview from '@/components/CareOverview';
 import BirthdayPanel from '@/components/BirthdayPanel';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -216,6 +217,7 @@ export default function CareTeamPage() {
   const newTimers = firstTimers.filter(f => f.status === 'new');
 
   const navItems = [
+    { id: 'overview' as NavTab, label: 'Overview' },
     { id: 'queue' as NavTab, label: `Absence queue${activeLeads.length > 0 ? ` (${activeLeads.length})` : ''}` },
     { id: 'first_timers' as NavTab, label: `First timers${newTimers.length > 0 ? ` (${newTimers.length})` : ''}` },
     { id: 'history' as NavTab, label: 'History' },
@@ -267,6 +269,10 @@ export default function CareTeamPage() {
           <div style={{ background: t.tealBg, border: `0.5px solid rgba(29,158,117,0.2)`, borderRadius: 9, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: t.teal, fontWeight: 500 }}>
             {success}
           </div>
+        )}
+
+        {tab === 'overview' && (
+          <CareOverview dark={dark} t={t} />
         )}
 
         {/* ── ABSENCE QUEUE ── */}
