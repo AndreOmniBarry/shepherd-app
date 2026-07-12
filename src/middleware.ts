@@ -54,6 +54,10 @@ function rolePortal(role: string): string {
       return '/department';
     case 'cell_leader':
       return '/cell';
+    case 'accounts':
+      return ['/accounts', '/api'];
+    case 'partnership':
+      return ['/partnership', '/api'];
     case 'care_team':
       return '/care';
     default:
@@ -75,6 +79,10 @@ function allowedPrefixes(role: string): string[] {
       return ['/department', '/api'];
     case 'cell_leader':
       return ['/cell', '/api'];
+    case 'accounts':
+      return ['/accounts', '/api'];
+    case 'partnership':
+      return ['/partnership', '/api'];
     case 'care_team':
       return ['/care', '/api'];
     default:
