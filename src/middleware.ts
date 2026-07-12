@@ -55,9 +55,9 @@ function rolePortal(role: string): string {
     case 'cell_leader':
       return '/cell';
     case 'accounts':
-      return ['/accounts', '/api'];
+      return '/accounts';
     case 'partnership':
-      return ['/partnership', '/api'];
+      return '/partnership';
     case 'care_team':
       return '/care';
     default:
