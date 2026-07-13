@@ -2,6 +2,7 @@
 import NotificationBell from "@/components/NotificationBell";
 import BirthdayPanel from '@/components/BirthdayPanel';
 import CellOverview from '@/components/CellOverview';
+import CellFollowup from '@/components/CellFollowup';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -32,7 +33,7 @@ const SLA_COLORS: Record<string, { bg: string; text: string }> = {
 
 export default function CellPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'prayer' | 'birthdays'>('overview');
+  const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'prayer' | 'birthdays' | 'followup'>('overview');
   const [members, setMembers] = useState<Member[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState('');
@@ -263,6 +264,7 @@ export default function CellPage() {
             { id: 'submit', label: 'Attendance' },
             { id: 'history', label: 'History' },
             { id: 'prayer', label: 'Prayer' },
+            { id: 'followup', label: 'Follow-up' },
             { id: 'birthdays', label: '🎂 Birthdays' },
           ] as const).map(tabDef => (
             <button key={tabDef.id} onClick={() => setTab(tabDef.id)}
@@ -386,6 +388,9 @@ export default function CellPage() {
           </div>
         )}
 
+        {tab === 'followup' && (
+          <CellFollowup dark={dark} t={t} />
+        )}
         {tab === 'prayer' && (
           <PrayerRequestPanel dark={dark} t={t} />
         )}
