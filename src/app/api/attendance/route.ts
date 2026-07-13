@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     // Skip window check for virtual services (auto-created)
     if (!service_id.startsWith('virtual-')) {
       const svcRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/services?id=eq.${service_id}&select=id,service_date&limit=1`,
+        `${SUPABASE_URL}/rest/v1/services?id=eq.${service_id}&select=id,service_date,service_type&limit=1`,
         { headers: hdrs() }
       );
       const svcData = await svcRes.json();
@@ -61,24 +61,36 @@ export async function POST(req: Request) {
     // ── SLA timestamp calculation ──────────────────────────────
     const now = new Date();
     const submittedAt = now.toISOString();
-
-    // Determine SLA grade based on submission time relative to service
-    // We calculate this based on day of week: Sunday=0, Monday=1, etc.
     const dayOfWeek = now.getDay();
     const hour = now.getHours();
     let sla_grade = 'F';
-    if (dayOfWeek === 0) {
-      sla_grade = hour <= 23 ? 'A+' : 'A+'; // Sunday = A+
-    } else if (dayOfWeek === 1) {
-      sla_grade = hour < 6 ? 'A' : 'B'; // Monday before 6am = A, after = B
-    } else if (dayOfWeek === 2) {
-      sla_grade = 'C'; // Tuesday = C
-    } else if (dayOfWeek === 3) {
-      sla_grade = 'D'; // Wednesday = D
-    } else if (dayOfWeek === 4 || dayOfWeek === 5) {
-      sla_grade = 'F'; // Thursday/Friday = F
-    } else if (dayOfWeek === 6) {
-      sla_grade = 'F-'; // Saturday = highest negative
+    // Fetch service type for correct SLA window
+    let serviceType = 'sunday';
+    if (!service_id.startsWith('virtual-')) {
+      const svcTypeRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/services?id=eq.${service_id}&select=service_type&limit=1`,
+        { headers: hdrs() }
+      );
+      const svcTypeData = await svcTypeRes.json();
+      serviceType = svcTypeData?.[0]?.service_type || 'sunday';
+    }
+    if (serviceType === 'midweek') {
+      if (dayOfWeek === 3) { sla_grade = 'A+'; }
+      else if (dayOfWeek === 4 && hour < 6) { sla_grade = 'A'; }
+      else if (dayOfWeek === 4) { sla_grade = 'B'; }
+      else if (dayOfWeek === 5) { sla_grade = 'C'; }
+      else if (dayOfWeek === 6) { sla_grade = 'D'; }
+      else if (dayOfWeek === 0) { sla_grade = 'F'; }
+      else { sla_grade = 'F-'; }
+    } else {
+      if (dayOfWeek === 0) { sla_grade = 'A+'; }
+      else if (dayOfWeek === 1 && hour < 6) { sla_grade = 'A'; }
+      else if (dayOfWeek === 1) { sla_grade = 'B'; }
+      else if (dayOfWeek === 2) { sla_grade = 'C'; }
+      else if (dayOfWeek === 3) { sla_grade = 'D'; }
+      else if (dayOfWeek === 4 || dayOfWeek === 5) { sla_grade = 'F'; }
+      else { sla_grade = 'F-'; }
+    }
     }
 
     // ── Check for duplicate submission ─────────────────────────
