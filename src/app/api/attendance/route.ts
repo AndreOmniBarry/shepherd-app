@@ -182,6 +182,20 @@ export async function POST(req: Request) {
       });
     }
 
+
+    // ── Fire to all responsible parties ─────────────────────────
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://shepherd-app-beta.vercel.app'}/api/notify/dispatch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': 'shepherd-internal-2026' },
+      body: JSON.stringify({
+        event: 'attendance_submitted',
+        actor_name: user.id,
+        actor_role: user.role,
+        cell_name: cell_id,
+        fellowship_id: null,
+        detail: `${present_count} present · ${absent_count} absent · SLA ${sla_grade}`,
+      }),
+    }).catch(() => {});
     return NextResponse.json({
       data: {
         record_id: record.id,
