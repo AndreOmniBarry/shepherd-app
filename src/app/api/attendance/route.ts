@@ -91,7 +91,6 @@ export async function POST(req: Request) {
       else if (dayOfWeek === 4 || dayOfWeek === 5) { sla_grade = 'F'; }
       else { sla_grade = 'F-'; }
     }
-    }
 
     // ── Check for duplicate submission ─────────────────────────
     let existingRecordId: string | null = null;
