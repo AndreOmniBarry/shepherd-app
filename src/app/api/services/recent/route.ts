@@ -10,31 +10,26 @@ export async function GET(req: Request) {
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const headers = { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' };
 
-    // Rolling 7-day window — only allow submission for services within last 7 days
     const now = new Date();
     const cutoff = new Date();
     cutoff.setDate(now.getDate() - 7);
 
-    // Fetch services within window
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/services?service_date=gte.${cutoff.toISOString().split('T')[0]}&service_date=lte.${now.toISOString().split('T')[0]}&order=service_date.desc,service_number.asc&limit=8&select=id,service_date,service_number`,
+      `${SUPABASE_URL}/rest/v1/services?service_date=gte.${cutoff.toISOString().split('T')[0]}&service_date=lte.${now.toISOString().split('T')[0]}&order=service_date.desc,service_number.asc&limit=10&select=id,service_date,service_number,service_type`,
       { headers }
     );
     let services = await res.json();
 
-    // If no services found in DB, auto-create the most recent Sunday
     if (!Array.isArray(services) || services.length === 0) {
-      // Find most recent Sunday
       const today = new Date();
-      const dayOfWeek = today.getDay(); // 0=Sun
+      const dayOfWeek = today.getDay();
       const daysSinceSunday = dayOfWeek === 0 ? 0 : dayOfWeek;
       const lastSunday = new Date(today);
       lastSunday.setDate(today.getDate() - daysSinceSunday);
       const sundayStr = lastSunday.toISOString().split('T')[0];
 
-      // Check if this Sunday already exists
       const checkRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/services?service_date=eq.${sundayStr}&service_number=eq.1&select=id,service_date,service_number&limit=1`,
+        `${SUPABASE_URL}/rest/v1/services?service_date=eq.${sundayStr}&service_number=eq.1&select=id,service_date,service_number,service_type&limit=1`,
         { headers }
       );
       const existing = await checkRes.json();
@@ -42,39 +37,35 @@ export async function GET(req: Request) {
       if (existing?.[0]) {
         services = existing;
       } else {
-        // Auto-insert this Sunday as Service 1
         const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/services`, {
           method: 'POST',
           headers: { ...headers, 'Prefer': 'return=representation' },
-          body: JSON.stringify({
-            service_date: sundayStr,
-            service_number: 1,
-            service_type: 'Sunday Service',
-            notes: 'Auto-created by SHEP.HERD',
-          }),
+          body: JSON.stringify({ service_date: sundayStr, service_number: 1, service_type: 'sunday', notes: 'Auto-created by SHEP.HERD' }),
         });
         const inserted = await insertRes.json();
-        if (Array.isArray(inserted) && inserted[0]) {
-          services = inserted;
-        } else {
-          // Fallback — return a virtual service so UI does not break
-          services = [{
-            id: `virtual-${sundayStr}-1`,
-            service_date: sundayStr,
-            service_number: 1,
-          }];
-        }
+        services = Array.isArray(inserted) && inserted[0] ? inserted : [{ id: `virtual-${sundayStr}-1`, service_date: sundayStr, service_number: 1, service_type: 'sunday' }];
       }
     }
 
-    return NextResponse.json({ data: { services }, error: null });
+    // Add display label to each service
+    const labelled = services.map((s: Record<string, string>) => {
+      const date = new Date(s.service_date + 'T12:00:00');
+      const dateStr = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const isMidweek = s.service_type === 'midweek';
+      return {
+        ...s,
+        label: isMidweek ? `${dateStr} — Midweek Service` : `${dateStr} — Sunday Service`,
+        is_midweek: isMidweek,
+      };
+    });
+
+    return NextResponse.json({ data: { services: labelled }, error: null });
   } catch (err) {
     console.error('[GET /api/services/recent]', err);
     return NextResponse.json({ data: null, error: { message: 'Failed to load services' } }, { status: 500 });
   }
 }
 
-// POST — create a new service (Pastor/Admin only)
 export async function POST(req: Request) {
   try {
     const cookie = req.headers.get('cookie') || '';
@@ -95,7 +86,7 @@ export async function POST(req: Request) {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/services`, {
       method: 'POST',
       headers: { ...headers, 'Prefer': 'return=representation' },
-      body: JSON.stringify({ service_date, service_number, service_type: service_type || 'Sunday Service', notes: notes || null }),
+      body: JSON.stringify({ service_date, service_number, service_type: service_type || 'sunday', notes: notes || null }),
     });
     const data = await res.json();
     const service = Array.isArray(data) ? data[0] : data;

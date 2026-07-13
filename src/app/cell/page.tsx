@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 type Member = { id: string; full_name: string; membership_status: string; };
-type Service = { id: string; service_date: string; service_number: number; };
+type Service = { id: string; service_date: string; service_number: number; service_type?: string; label?: string; is_midweek?: boolean; };
 type HistoryRecord = { id: string; service_date: string; service_number: number; present_count: number; absent_count: number; visitor_count: number; submitted_at: string; sla_grade?: string; };
 
 const ABSENCE_REASONS = [
@@ -288,7 +288,7 @@ export default function CellPage() {
                   style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 13, outline: 'none', background: t.input, color: t.text, cursor: 'pointer' }}>
                   {services.map(s => (
                     <option key={s.id} value={s.id}>
-                      {new Date(s.service_date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} — Service {s.service_number}
+                      {s.label || (new Date(s.service_date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + (s.service_type === 'midweek' ? ' — Midweek Service' : ' — Sunday Service'))}
                     </option>
                   ))}
                 </select>
