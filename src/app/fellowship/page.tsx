@@ -51,7 +51,7 @@ type Dispute = {
   submitted_at: string;
 };
 
-type NavTab = 'overview' | 'cells' | 'members' | 'giving' | 'disputes' | 'birthdays';
+type NavTab = 'overview' | 'cells' | 'members' | 'giving' | 'disputes' | 'birthdays' | 'cydf';
 
 const DISPUTE_REASONS = [
   { value: 'wrong_count', label: 'Wrong attendance count' },
@@ -86,6 +86,13 @@ export default function FellowshipHeadPage() {
   const [loading, setLoading] = useState(true);
   const [givingForm, setGivingForm] = useState({ tithe: '', offering: '', special: '', project: '' });
   const [givingSubmitting, setGivingSubmitting] = useState(false);
+  // CYDF headcount state
+  const [isCYDF, setIsCYDF] = useState(false);
+  const [cydfForm, setCydfForm] = useState({ service_id: '', children_count: '', teenagers_count: '', notes: '' });
+  const [cydfServices, setCydfServices] = useState<{id:string;service_date:string}[]>([]);
+  const [cydfHistory, setCydfHistory] = useState<{id:string;children_count:number;teenagers_count:number;submitted_at:string;sla_grade:string;services:{service_date:string}}[]>([]);
+  const [cydfSubmitting, setCydfSubmitting] = useState(false);
+  const [cydfSuccess, setCydfSuccess] = useState(false);
   const [givingSuccess, setGivingSuccess] = useState(false);
   const [disputeForm, setDisputeForm] = useState<{ record_id: string; reason: string } | null>(null);
 
@@ -131,6 +138,21 @@ export default function FellowshipHeadPage() {
       .catch(() => router.push('/login'));
 
     // Load cells in fellowship
+    // Check if this is CYDF fellowship
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => {
+        if (data?.fellowship_id === 'cb72d6c2-a206-45b9-895c-a26d705d2367') {
+          setIsCYDF(true);
+          fetch('/api/fellowship/cydf-headcount', { credentials: 'include' })
+            .then(r => r.json())
+            .then(({ data }) => {
+              if (data?.history) setCydfHistory(data.history);
+              if (data?.services) { setCydfServices(data.services); if(data.services[0]) setCydfForm(p=>({...p,service_id:data.services[0].id})); }
+            }).catch(()=>{});
+        }
+      }).catch(()=>{});
+
     fetch('/api/fellowship/cells', { credentials: 'include' })
       .then(r => r.json())
       .then(({ data }) => {
@@ -174,6 +196,25 @@ export default function FellowshipHeadPage() {
     : 0;
 
   const ytdGiving = givingHistory.reduce((a, g) => a + g.tithe + g.offering + g.special + g.project, 0);
+
+  async function submitCYDF() {
+    if (!cydfForm.service_id) return;
+    setCydfSubmitting(true);
+    try {
+      const res = await fetch('/api/fellowship/cydf-headcount', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify(cydfForm),
+      });
+      if (res.ok) {
+        setCydfSuccess(true);
+        setTimeout(() => setCydfSuccess(false), 4000);
+        fetch('/api/fellowship/cydf-headcount', { credentials: 'include' })
+          .then(r => r.json())
+          .then(({ data }) => { if (data?.history) setCydfHistory(data.history); });
+      }
+    } catch {}
+    setCydfSubmitting(false);
+  }
 
   async function submitGiving() {
     const { tithe, offering, special, project } = givingForm;
@@ -230,6 +271,7 @@ export default function FellowshipHeadPage() {
     { id: 'members', label: 'Members' },
     { id: 'giving', label: 'Giving' },
     { id: 'birthdays', label: '🎂 Birthdays' },
+      { id: 'cydf', label: 'CYDF Headcount' },
       { id: 'disputes', label: `Disputes${disputes.filter(d => d.status === 'pending').length > 0 ? ` (${disputes.filter(d => d.status === 'pending').length})` : ''}` },
   ];
 
@@ -574,6 +616,79 @@ export default function FellowshipHeadPage() {
 
         {tab === 'birthdays' && (
           <BirthdayPanel dark={dark} t={t} scope="fellowship" showFellowship={true} />
+        )}
+
+        {/* ── CYDF HEADCOUNT ── */}
+        {tab === 'cydf' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4 }}>CYDF Headcount</div>
+              <div style={{ fontSize: 12, color: t.sub, lineHeight: 1.6 }}>Submit the headcount for Children (0–12) and Teenagers (13–19) separately each Sunday.</div>
+            </div>
+
+            {cydfSuccess && (
+              <div style={{ background: t.tealBg, borderRadius: 9, border: `0.5px solid rgba(29,158,117,0.2)`, padding: '10px 14px', fontSize: 12, color: t.teal, fontWeight: 500 }}>
+                CYDF headcount submitted successfully.
+              </div>
+            )}
+
+            <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '16px 18px' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 14 }}>Submit this Sunday</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Service *</div>
+                  <select value={cydfForm.service_id} onChange={e => setCydfForm(p => ({ ...p, service_id: e.target.value }))}
+                    style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
+                    {cydfServices.map(s => (
+                      <option key={s.id} value={s.id}>{new Date(s.service_date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Children present (0–12) *</div>
+                    <input type="number" min="0" value={cydfForm.children_count} onChange={e => setCydfForm(p => ({ ...p, children_count: e.target.value }))}
+                      placeholder="0" style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 13, fontWeight: 600, background: t.input, color: t.teal, outline: 'none', fontFamily: 'inherit' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Teenagers present (13–19) *</div>
+                    <input type="number" min="0" value={cydfForm.teenagers_count} onChange={e => setCydfForm(p => ({ ...p, teenagers_count: e.target.value }))}
+                      placeholder="0" style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 13, fontWeight: 600, background: t.input, color: t.purple, outline: 'none', fontFamily: 'inherit' }} />
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Notes (optional)</div>
+                  <input value={cydfForm.notes} onChange={e => setCydfForm(p => ({ ...p, notes: e.target.value }))}
+                    placeholder="e.g. special programme, low attendance reason..."
+                    style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
+                </div>
+                <button onClick={submitCYDF} disabled={cydfSubmitting || !cydfForm.service_id}
+                  style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 9, padding: '11px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: cydfSubmitting ? 0.7 : 1 }}>
+                  {cydfSubmitting ? 'Submitting...' : `Submit — ${cydfForm.children_count || 0} children · ${cydfForm.teenagers_count || 0} teenagers`}
+                </button>
+              </div>
+            </div>
+
+            {/* History */}
+            {cydfHistory.length > 0 && (
+              <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, overflow: 'hidden' }}>
+                <div style={{ padding: '12px 16px', borderBottom: `0.5px solid ${t.border}`, fontSize: 12, fontWeight: 600, color: t.text }}>Submission history</div>
+                {cydfHistory.map((h, i) => {
+                  const total = h.children_count + h.teenagers_count;
+                  const slaColors: Record<string,string> = { 'A+': t.teal, 'A': t.teal, 'B': t.purple, 'C': t.amber, 'D': t.coral, 'F': t.coral, 'F-': t.coral };
+                  return (
+                    <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 16px', borderBottom: i < cydfHistory.length - 1 ? `0.5px solid ${t.border}` : 'none' }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{(h.services as Record<string,string>)?.service_date ? new Date((h.services as Record<string,string>).service_date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</div>
+                        <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>Children: {h.children_count} · Teenagers: {h.teenagers_count} · Total: {total}</div>
+                      </div>
+                      <span style={{ fontSize: 11, padding: '2px 9px', borderRadius: 10, background: t.purpleBg, color: slaColors[h.sla_grade] || t.purple, fontWeight: 600 }}>{h.sla_grade}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
 
         {/* ── DISPUTES ── */}
