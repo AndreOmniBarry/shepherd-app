@@ -11,11 +11,15 @@ export async function GET(req: Request) {
     const headers = { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' };
 
     const now = new Date();
-    const cutoff = new Date();
-    cutoff.setDate(now.getDate() - 7);
+    // Use Lagos time (UTC+1) to avoid date drift
+    const lagosOffset = 60; // minutes
+    const lagosNow = new Date(now.getTime() + lagosOffset * 60000);
+    const todayStr = lagosNow.toISOString().split('T')[0];
+    const cutoffDate = new Date(lagosNow.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const cutoffStr = cutoffDate.toISOString().split('T')[0];
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/services?service_date=gte.${cutoff.toISOString().split('T')[0]}&service_date=lte.${now.toISOString().split('T')[0]}&order=service_date.desc,service_number.asc&limit=10&select=id,service_date,service_number,service_type`,
+      `${SUPABASE_URL}/rest/v1/services?service_date=gte.${cutoffStr}&service_date=lte.${todayStr}&order=service_date.desc,service_number.asc&limit=10&select=id,service_date,service_number,service_type`,
       { headers }
     );
     let services = await res.json();

@@ -991,7 +991,7 @@ export default function DashboardPage(){
                         <div style={{fontSize:11,color:g.color,fontWeight:500,marginBottom:6}}>{g.label}</div>
                         {editGoals?(
                           <input type="number" value={goals[g.key]}
-                            onChange={e=>setGoals(v=>({...v,[g.key]:parseInt(e.target.value)||0}))}
+                            onChange={e=>{const updated={...goals,[g.key]:parseInt(e.target.value)||0};setGoals(updated);if(typeof window!=='undefined'){try{localStorage.setItem('shepherd_goals',JSON.stringify(updated));}catch{}}}}
                             style={{fontSize:20,fontWeight:600,color:g.color,background:'transparent',border:'none',borderBottom:`1px solid ${g.color}`,outline:'none',width:'100%',marginBottom:8}}/>
                         ):(
                           <div style={{fontSize:24,fontWeight:600,color:g.color,marginBottom:6}}>{goals[g.key].toLocaleString()}</div>
