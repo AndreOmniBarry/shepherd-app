@@ -74,19 +74,19 @@ function allowedPrefixes(role: string): string[] {
       // Full access — can view all portals for troubleshooting
       return ['/dashboard', '/fellowship', '/department', '/cell', '/care', '/api'];
     case 'fellowship_head':
-      return ['/fellowship', '/api'];
+      return ['/fellowship', '/update', '/api'];
     case 'department_head':
-      return ['/department', '/api'];
+      return ['/department', '/update', '/api'];
     case 'cell_leader':
-      return ['/cell', '/api'];
+      return ['/cell', '/update', '/api'];
     case 'accounts':
-      return ['/accounts', '/api'];
+      return ['/accounts', '/update', '/api'];
     case 'partnership':
-      return ['/partnership', '/api'];
+      return ['/partnership', '/update', '/api'];
     case 'care_team':
-      return ['/care', '/api'];
+      return ['/care', '/update', '/api'];
     default:
-      return ['/cell', '/api'];
+      return ['/cell', '/update', '/api'];
   }
 }
 
