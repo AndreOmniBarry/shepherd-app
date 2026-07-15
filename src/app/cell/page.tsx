@@ -290,7 +290,7 @@ export default function CellPage() {
                   style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 13, outline: 'none', background: t.input, color: t.text, cursor: 'pointer' }}>
                   {services.map(s => (
                     <option key={s.id} value={s.id}>
-                      {s.label || (new Date(s.service_date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + (s.service_type === 'midweek' ? ' — Midweek Service' : ' — Sunday Service'))}
+                      {s.label || (() => { const [yr,mo,dy] = s.service_date.split('-').map(Number); return new Date(yr, mo-1, dy).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + (s.service_type === 'midweek' ? ' — Midweek Service' : ' — Sunday Service'); })()}
                     </option>
                   ))}
                 </select>
@@ -411,7 +411,7 @@ export default function CellPage() {
                     <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: i < history.length - 1 ? `0.5px solid ${t.border}` : 'none' }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 500, color: t.text }}>
-                          {r.service_date ? new Date(r.service_date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Unknown'} · Svc {r.service_number}
+                          {r.service_date ? (() => { const [yr,mo,dy] = r.service_date.split('-').map(Number); return new Date(yr,mo-1,dy).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); })() : 'Unknown'} · Svc {r.service_number}
                         </div>
                         <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{r.absent_count} absent · {r.visitor_count} visitors</div>
                       </div>
