@@ -2,7 +2,6 @@
 import React from 'react';
 import NotificationBell from "@/components/NotificationBell";
 import PastorAttendance from '@/components/PastorAttendance';
-import PastorAttendance from '@/components/PastorAttendance';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
