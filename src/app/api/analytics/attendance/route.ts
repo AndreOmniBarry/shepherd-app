@@ -55,7 +55,7 @@ export async function GET(req: Request) {
 
     // ── 5. All cells and fellowships ──────────────────────────
     const cellsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/cells?select=id,name,fellowship_id,fellowships(name)&order=name.asc`,
+      `${SUPABASE_URL}/rest/v1/cells?select=id,name,fellowship_id,fellowships(id,name)&order=name.asc`,
       { headers: hdrs() }
     );
     const allCells = await cellsRes.json();
@@ -147,7 +147,10 @@ export async function GET(req: Request) {
 
     // ── 10. Fellowship summary ─────────────────────────────────
     const fellowshipSummary = Array.isArray(fellowships) ? fellowships.map((fel: Record<string, string>) => {
-      const felCells = Array.isArray(allCells) ? allCells.filter((c: Record<string, string>) => c.fellowship_id === fel.id) : [];
+      const felCells = Array.isArray(allCells) ? allCells.filter((c: Record<string, unknown>) => {
+        const felObj = c.fellowships as Record<string, string> | null;
+        return felObj?.id === fel.id || c.fellowship_id === fel.id;
+      }) : [];
       const submitted = felCells.filter((c: Record<string, string>) => {
         return Array.isArray(cellRecords) && cellRecords.some((r: Record<string, string>) =>
           r.cell_id === c.id && r.service_id === latestSunday?.id
