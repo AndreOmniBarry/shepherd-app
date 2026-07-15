@@ -71,10 +71,13 @@ export default function PastorAttendance({ dark, t }: PastorAttendanceProps) {
   const latestService = view === 'sunday' ? data.latest_sunday : data.latest_midweek;
   const cellsSubmitted = view === 'sunday' ? data.cells_submitted_sunday : data.cells_submitted_midweek;
 
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '—';
     const [yr, mo, dy] = dateStr.split('-').map(Number);
-    return new Date(yr, mo - 1, dy).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const date = new Date(yr, mo - 1, dy);
+    return `${DAYS[date.getDay()]}, ${dy} ${MONTH_NAMES[mo-1]} ${yr}`;
   };
 
   const fellowships = [...new Set(data.cell_submission_status.map(c => c.fellowship_name))].filter(f => f !== '—');
@@ -113,7 +116,7 @@ export default function PastorAttendance({ dark, t }: PastorAttendanceProps) {
         {[
           { label: 'Cells submitted', value: `${cellsSubmitted}/${data.total_cells}`, sub: `${Math.round((cellsSubmitted / Math.max(1, data.total_cells)) * 100)}% completion`, accent: '#534AB7' },
           { label: 'Total present', value: totalPresent, sub: 'This service', accent: '#1D9E75' },
-          { label: 'Avg attendance rate', value: latestTrend ? `${latestTrend.rate}%` : '—', sub: 'Latest service', accent: '#BA7517' },
+          { label: 'Avg attendance rate', value: latestTrend && latestTrend.present > 0 ? `${latestTrend.rate}%` : '—', sub: 'Latest service', accent: '#BA7517' },
           { label: 'Cells pending', value: data.total_cells - cellsSubmitted, sub: 'Not yet submitted', accent: data.total_cells - cellsSubmitted > 0 ? '#D85A30' : '#1D9E75' },
         ].map(k => (
           <div key={k.label} style={{ background: t.card, borderRadius: 11, border: `0.5px solid ${t.border}`, padding: '12px 14px', borderTop: `2.5px solid ${k.accent}` }}>

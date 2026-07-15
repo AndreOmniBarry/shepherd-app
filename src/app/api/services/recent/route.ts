@@ -51,11 +51,15 @@ export async function GET(req: Request) {
       }
     }
 
-    // Add display label to each service
+    // Add display label to each service — no toLocaleDateString (unreliable on server)
+    const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const MONTHS_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const labelled = services.map((s: Record<string, string>) => {
       const [y, mo, d] = s.service_date.split('-').map(Number);
       const date = new Date(y, mo - 1, d);
-      const dateStr = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const dayName = DAYS[date.getDay()];
+      const monthName = MONTHS_NAMES[mo - 1];
+      const dateStr = `${dayName}, ${d} ${monthName} ${y}`;
       const isMidweek = s.service_type === 'midweek';
       return {
         ...s,

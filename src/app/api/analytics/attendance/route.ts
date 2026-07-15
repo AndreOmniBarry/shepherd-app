@@ -55,7 +55,7 @@ export async function GET(req: Request) {
 
     // ── 5. All cells and fellowships ──────────────────────────
     const cellsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/cells?membership_status=neq.archived&select=id,name,fellowship_id,fellowships(name)&order=name.asc`,
+      `${SUPABASE_URL}/rest/v1/cells?select=id,name,fellowship_id,fellowships(name)&order=name.asc`,
       { headers: hdrs() }
     );
     const allCells = await cellsRes.json();
