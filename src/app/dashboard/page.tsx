@@ -2,6 +2,8 @@
 import React from 'react';
 import NotificationBell from "@/components/NotificationBell";
 import PastorAttendance from '@/components/PastorAttendance';
+import PastorRequisitions from '@/components/PastorRequisitions';
+import FellowshipValidation from '@/components/FellowshipValidation';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -14,7 +16,7 @@ import {
 type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; };
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
 type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
-type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer';
+type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation';
 type TimeRange = '8w'|'3m'|'6m'|'1y'|'2y'|'5y';
 
 // ── Unique cell data with realistic, differentiated trends ─────
@@ -812,6 +814,8 @@ export default function DashboardPage(){
     {id:'recognition' as NavPage,icon:'',label:'Recognition'},
     {id:'commendation' as NavPage,icon:'',label:'Commend Leaders'},
     {id:'prayer' as NavPage,icon:'',label:'Prayer Requests'},
+    {id:'requisitions' as NavPage,icon:'',label:'Requisitions'},
+    {id:'validation' as NavPage,icon:'',label:'Validate Records'},
   ];
 
   const agentOpts=[
@@ -1657,6 +1661,12 @@ export default function DashboardPage(){
             </div>
           )}
 
+          {page==='requisitions'&&(
+            <PastorRequisitions t={t} dark={dark} />
+          )}
+          {page==='validation'&&(
+            <FellowshipValidation t={t} dark={dark} />
+          )}
           {page==='prayer'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>

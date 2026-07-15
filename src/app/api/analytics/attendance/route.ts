@@ -25,14 +25,14 @@ export async function GET(req: Request) {
 
     // ── 1. Recent Sunday services ──────────────────────────────
     const sundayServicesRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/services?service_type=neq.midweek&service_date=gte.${cutoff.toISOString().split('T')[0]}&order=service_date.desc&limit=${weeks}&select=id,service_date,service_type,service_number`,
+      `${SUPABASE_URL}/rest/v1/services?service_type=neq.midweek&service_date=gte.${cutoff.toISOString().split('T')[0]}&service_date=lte.${new Date().toISOString().split('T')[0]}&order=service_date.desc&limit=${weeks}&select=id,service_date,service_type,service_number`,
       { headers: hdrs() }
     );
     const sundayServices = await sundayServicesRes.json();
 
     // ── 2. Recent Midweek services ─────────────────────────────
     const midweekServicesRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/services?service_type=eq.midweek&service_date=gte.${cutoff.toISOString().split('T')[0]}&order=service_date.desc&limit=${weeks}&select=id,service_date,service_type`,
+      `${SUPABASE_URL}/rest/v1/services?service_type=eq.midweek&service_date=gte.${cutoff.toISOString().split('T')[0]}&service_date=lte.${new Date().toISOString().split('T')[0]}&order=service_date.desc&limit=${weeks}&select=id,service_date,service_type`,
       { headers: hdrs() }
     );
     const midweekServices = await midweekServicesRes.json();

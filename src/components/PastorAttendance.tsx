@@ -73,8 +73,8 @@ export default function PastorAttendance({ dark, t }: PastorAttendanceProps) {
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '—';
-    const [y, m, d] = dateStr.split('-').map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    const [yr, mo, dy] = dateStr.split('-').map(Number);
+    return new Date(yr, mo - 1, dy).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   };
 
   const fellowships = [...new Set(data.cell_submission_status.map(c => c.fellowship_name))].filter(f => f !== '—');
