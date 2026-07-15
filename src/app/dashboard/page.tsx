@@ -1,6 +1,8 @@
 'use client';
 import React from 'react';
 import NotificationBell from "@/components/NotificationBell";
+import PastorAttendance from '@/components/PastorAttendance';
+import PastorAttendance from '@/components/PastorAttendance';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -1013,121 +1015,8 @@ export default function DashboardPage(){
 
           {/* ══ ATTENDANCE ══ */}
           {page==='attendance'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <div className="range-btns">
-                  {rangeOpts.map(r=>(
-                    <button key={r} onClick={()=>setCellRange(r)}
-                      style={{padding:'5px 12px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:12,fontWeight:cellRange===r?500:400,background:cellRange===r?'#534AB7':t.cardInner,borderColor:cellRange===r?'#534AB7':'#E5E7EB',color:cellRange===r?'#fff':t.sub}}>
-                      {rangeLabel(r)}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={()=>exportCSV(cellTrend(CELLS_DATA[0],cellRange).map(d=>({Week:d.w,Service1:d.v,Service2:Math.floor(d.v*0.63)})),'attendance_export')}
-                  style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 12px',fontSize:12,cursor:'pointer',fontWeight:500}}>⬇ Export CSV</button>
-              </div>
-              <div style={card()}>
-                <div style={{fontSize:13,fontWeight:500,marginBottom:4}}>Overall Attendance Trend</div>
-                <div style={{fontSize:11,color:t.muted,marginBottom:12}}>All fellowships combined · {rangeLabel(cellRange as TimeRange)}</div>
-                <ResponsiveContainer width="100%" height={240}>
-                  <LineChart data={cellTrend(CELLS_DATA[3],cellRange)} margin={{top:5,right:10,left:-20,bottom:0}}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                    <XAxis dataKey="w" tick={{fontSize:9,fill:t.chartAxis}} interval={Math.floor(cellTrend(CELLS_DATA[0],cellRange).length/8)}/>
-                    <YAxis tick={{fontSize:10,fill:t.chartAxis}} domain={['auto','auto']}/>
-                    <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}}/>
-                    <Line type="monotone" dataKey="v" name="Attendance" stroke="#534AB7" strokeWidth={2} dot={false}/>
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:12}}>
-                {[{name:'Youth Fellowship',cells:12,avg:347,trend:'+8%',s1:198,s2:124,absent:25},{name:'Women Fellowship',cells:15,avg:289,trend:'+5%',s1:164,s2:103,absent:22},{name:'Men Fellowship',cells:8,avg:198,trend:'+11%',s1:112,s2:71,absent:15}].map(f=>(
-                  <div key={f.name} onClick={()=>setAttDrill(attDrill===f.name?null:f.name)} style={{...card(),cursor:'pointer',border:attDrill===f.name?'0.5px solid #534AB7':`0.5px solid ${t.border}`}}>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                      <div style={{fontSize:11,color:t.sub,marginBottom:4}}>{f.name}</div>
-                      <span style={{fontSize:10,color:'#534AB7'}}>{attDrill===f.name?'▲':'▼'} drill</span>
-                    </div>
-                    <div style={{fontSize:22,fontWeight:500,color:t.text}}>{f.avg}</div>
-                    <div style={{display:'flex',justifyContent:'space-between',marginTop:4}}>
-                      <span style={{fontSize:11,color:t.muted}}>{f.cells} cells</span>
-                      <span style={{fontSize:11,color:'#1D9E75',fontWeight:500}}>{f.trend}</span>
-                    </div>
-                    {attDrill===f.name&&(
-                      <div style={{marginTop:12,paddingTop:10,borderTop:`0.5px solid ${t.navBorder}`}}>
-                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:8}}>
-                          {[{l:'Service 1',v:f.s1},{l:'Service 2',v:f.s2},{l:'Absent',v:f.absent}].map(s=>(
-                            <div key={s.l} style={{background:t.cardInner,borderRadius:6,padding:'6px 8px',textAlign:'center'}}>
-                              <div style={{fontSize:16,fontWeight:500,color:s.l==='Absent'?'#D85A30':'#374151'}}>{s.v}</div>
-                              <div style={{fontSize:10,color:t.muted}}>{s.l}</div>
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{fontSize:11,color:t.sub}}>Click Cell Ministry tab to see per-cell breakdown</div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div style={card()}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>CYDF - Children & Youth Development Fellowship</div>
-                  <span style={{fontSize:11,background:'#EEEDFE',color:'#3C3489',padding:'2px 8px',borderRadius:10}}>300 total</span>
-                </div>
-                <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:12,marginBottom:12}}>
-                  <div style={{background:t.purpleBg,borderRadius:8,padding:'14px'}}>
-                    <div style={{fontSize:11,color:'#534AB7',marginBottom:6,fontWeight:500}}>Children (Ages 0–12)</div>
-                    <div style={{fontSize:28,fontWeight:600,color:'#3C3489',marginBottom:4}}>180</div>
-                    <div style={{fontSize:11,color:'#7F77DD',marginBottom:8}}>Tracked in demographic profile only</div>
-                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                      {[{label:'Boys',value:94},{label:'Girls',value:86},{label:'Under 5',value:42},{label:'Ages 6–12',value:138}].map(s=>(
-                        <div key={s.label} style={{display:'flex',justifyContent:'space-between',fontSize:11}}>
-                          <span style={{color:'#7F77DD'}}>{s.label}</span>
-                          <span style={{fontWeight:500,color:'#3C3489'}}>{s.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div style={{background:t.tealBg,borderRadius:8,padding:'14px'}}>
-                    <div style={{fontSize:11,color:'#0F6E56',marginBottom:6,fontWeight:500}}>Teenagers (Ages 13–17)</div>
-                    <div style={{fontSize:28,fontWeight:600,color:'#085041',marginBottom:4}}>120</div>
-                    <div style={{fontSize:11,color:'#1D9E75',marginBottom:8}}>Sunday fellowship attendance tracked</div>
-                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                      {[{label:'Male',value:61},{label:'Female',value:59},{label:'Last Sunday',value:98},{label:'Avg Attendance',value:'82%'}].map(s=>(
-                        <div key={s.label} style={{display:'flex',justifyContent:'space-between',fontSize:11}}>
-                          <span style={{color:'#1D9E75'}}>{s.label}</span>
-                          <span style={{fontWeight:500,color:'#085041'}}>{s.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div style={{background:t.cardInner,borderRadius:8,padding:'10px 12px',fontSize:12,color:t.sub}}>
-                  Note: Children are tracked under their parents cell. Teenagers attend the dedicated Sunday Youth Fellowship. Neither group is included in the 1,147 active adult member count.
-                </div>
-              </div>
-              <div style={card()}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>Absentee Report - Last Sunday</div>
-                  <button onClick={()=>exportCSV([{Member:'Bro. Ikenna Obi',Cell:'Peace Cell',Fellowship:'Women',LeaderInformed:'Yes'},{Member:'Sis. Chidinma Eze',Cell:'Tabernacle Cell',Fellowship:'Women',LeaderInformed:'No'}],'absentees_export')}
-                    style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export</button>
-                </div>
-                <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Member','Cell','Fellowship','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
-                  <tbody>
-                    {[{name:'Bro. Ikenna Obi',cell:'Peace Cell',fel:'Women',inf:'Yes'},{name:'Sis. Chidinma Eze',cell:'Tabernacle Cell',fel:'Women',inf:'No'},{name:'Bro. Uche Nwosu',cell:'Burning Bush Cell',fel:'Youth',inf:'Yes'},{name:'Sis. Ada Okafor',cell:'Graceland Cell',fel:'Women',inf:'No'},{name:'Bro. Emeka Chukwu',cell:'Dominion Cell',fel:'Men',inf:'Yes'}].map(r=>(
-                      <tr key={r.name} style={{borderBottom:`0.5px solid ${t.border}`}}>
-                        <td style={{padding:'8px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{r.name}</td>
-                        <td style={{padding:'8px 8px',color:t.sub}}>{r.cell}</td>
-                        <td style={{padding:'8px 8px',color:t.sub}}>{r.fel}</td>
-                        <td style={{padding:'8px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:r.inf==='Yes'?'#E1F5EE':'#FAECE7',color:r.inf==='Yes'?'#085041':'#993C1D'}}>{r.inf}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* ══ GIVING ══ */}
+            <PastorAttendance dark={dark} t={t} />
+          )}          {/* ══ GIVING ══ */}
           {page==='giving'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>

@@ -53,7 +53,8 @@ export async function GET(req: Request) {
 
     // Add display label to each service
     const labelled = services.map((s: Record<string, string>) => {
-      const date = new Date(s.service_date + 'T12:00:00');
+      const [y, mo, d] = s.service_date.split('-').map(Number);
+      const date = new Date(y, mo - 1, d);
       const dateStr = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
       const isMidweek = s.service_type === 'midweek';
       return {
