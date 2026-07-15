@@ -77,7 +77,7 @@ export default function PastorAttendance({ dark, t }: PastorAttendanceProps) {
     if (!dateStr) return '—';
     const [yr, mo, dy] = dateStr.split('-').map(Number);
     const date = new Date(yr, mo - 1, dy);
-    return `${DAYS[date.getDay()]}, ${dy} ${MONTH_NAMES[mo-1]} ${yr}`;
+    return `${dy} ${MONTH_NAMES[mo-1]} ${yr}`;
   };
 
   const fellowships = [...new Set(data.cell_submission_status.map(c => c.fellowship_name))].filter(f => f !== '—');
@@ -166,7 +166,7 @@ export default function PastorAttendance({ dark, t }: PastorAttendanceProps) {
               <div key={fel.fellowship_id} style={{ marginBottom: i < data.fellowship_summary.length - 1 ? 10 : 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{fel.fellowship_name}</span>
-                  <span style={{ fontSize: 11, color: t.muted }}>{fel.submitted_cells}/{fel.total_cells} cells · {fel.total_present} present</span>
+                  <span style={{ fontSize: 11, color: t.muted }}>{fel.total_cells === 0 ? 'Direct headcount' : `${fel.submitted_cells}/${fel.total_cells} cells · ${fel.total_present} present`}</span>
                 </div>
                 <div style={{ height: 5, background: t.input, borderRadius: 3, overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${fel.completion_rate}%`, background: fel.completion_rate === 100 ? '#1D9E75' : fel.completion_rate >= 50 ? '#BA7517' : '#D85A30', borderRadius: 3, transition: 'width 0.3s' }} />

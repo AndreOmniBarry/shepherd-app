@@ -59,7 +59,7 @@ export async function GET(req: Request) {
       const date = new Date(y, mo - 1, d);
       const dayName = DAYS[date.getDay()];
       const monthName = MONTHS_NAMES[mo - 1];
-      const dateStr = `${dayName}, ${d} ${monthName} ${y}`;
+      const dateStr = `${d} ${monthName} ${y}`;
       const isMidweek = s.service_type === 'midweek';
       return {
         ...s,
