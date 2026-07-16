@@ -54,7 +54,7 @@ export default function PastorAttendance({ dark, t }: PastorAttendanceProps) {
       .catch(() => {})
       .finally(() => setLoading(false));
 
-    // Auto-refresh every 60 seconds
+    // Auto-refresh every 60 seconds — v2
     const interval = setInterval(() => {
       fetch('/api/analytics/attendance', { credentials: 'include' })
         .then(r => r.json())
