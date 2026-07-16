@@ -266,10 +266,10 @@ export default function FellowshipHeadPage() {
   );
 
   const navItems: { id: NavTab; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'cells', label: 'Cells' },
-    { id: 'members', label: 'Members' },
-    { id: 'giving', label: 'Giving' },
+    { id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' },
+    { id: 'cells', label: 'Cells', icon: 'ti-circles' },
+    { id: 'members', label: 'Members', icon: 'ti-users' },
+    { id: 'giving', label: 'Giving', icon: 'ti-coin' },
     { id: 'birthdays', label: '🎂 Birthdays' },
       { id: 'cydf', label: 'CYDF Headcount' },
       { id: 'disputes', label: `Disputes${disputes.filter(d => d.status === 'pending').length > 0 ? ` (${disputes.filter(d => d.status === 'pending').length})` : ''}` },

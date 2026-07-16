@@ -217,11 +217,11 @@ export default function CareTeamPage() {
   const newTimers = firstTimers.filter(f => f.status === 'new');
 
   const navItems = [
-    { id: 'overview' as NavTab, label: 'Overview' },
+    { id: 'overview' as NavTab, label: 'Overview', icon: 'ti-layout-dashboard' },
     { id: 'queue' as NavTab, label: `Absence queue${activeLeads.length > 0 ? ` (${activeLeads.length})` : ''}` },
     { id: 'first_timers' as NavTab, label: `First timers${newTimers.length > 0 ? ` (${newTimers.length})` : ''}` },
-    { id: 'history' as NavTab, label: 'History' },
-    { id: 'birthdays' as NavTab, label: '🎂 Birthdays' },
+    { id: 'history' as NavTab, label: 'History', icon: 'ti-history' },
+    { id: 'birthdays' as NavTab, label: 'Birthdays', icon: 'ti-cake' },
   ];
 
   return (

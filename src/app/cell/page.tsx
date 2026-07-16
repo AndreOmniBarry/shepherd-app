@@ -260,15 +260,16 @@ export default function CellPage() {
         {/* Tabs */}
         <div style={{ display: 'flex', background: t.input, borderRadius: 10, padding: 4, marginBottom: 20, border: `0.5px solid ${t.border}` }}>
           {([
-            { id: 'overview', label: 'Overview' },
-            { id: 'submit', label: 'Attendance' },
-            { id: 'history', label: 'History' },
-            { id: 'prayer', label: 'Prayer' },
-            { id: 'followup', label: 'Follow-up' },
-            { id: 'birthdays', label: '🎂 Birthdays' },
+            { id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' },
+            { id: 'submit', label: 'Attendance', icon: 'ti-calendar-check' },
+            { id: 'history', label: 'History', icon: 'ti-history' },
+            { id: 'prayer', label: 'Prayer', icon: 'ti-heart' },
+            { id: 'followup', label: 'Follow-up', icon: 'ti-user-check' },
+            { id: 'birthdays', label: 'Birthdays', icon: 'ti-cake' },
           ] as const).map(tabDef => (
             <button key={tabDef.id} onClick={() => setTab(tabDef.id)}
-              style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: tab === tabDef.id ? 600 : 400, background: tab === tabDef.id ? t.card : 'transparent', color: tab === tabDef.id ? t.purple : t.sub, boxShadow: tab === tabDef.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.15s' }}>
+              style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: tab === tabDef.id ? 600 : 400, background: tab === tabDef.id ? t.card : 'transparent', color: tab === tabDef.id ? t.purple : t.sub, boxShadow: tab === tabDef.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              {(tabDef as {id:string;label:string;icon?:string}).icon && <i className={`ti ${(tabDef as {id:string;label:string;icon?:string}).icon}`} style={{fontSize:14}} aria-hidden='true' />}
               {tabDef.label}
             </button>
           ))}

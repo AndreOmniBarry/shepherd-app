@@ -234,7 +234,7 @@ export default function DepartmentHeadPage() {
 
       {/* Sub-nav */}
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', display: 'flex' }}>
-        {[{ id: 'overview', label: 'Overview' }, { id: 'submit', label: 'Submit Attendance' }, { id: 'history', label: 'History' }, { id: 'roster', label: 'Roster' },
+        {[{ id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' }, { id: 'submit', label: 'Attendance', icon: 'ti-calendar-check' }, { id: 'history', label: 'History', icon: 'ti-history' }, { id: 'roster', label: 'Roster', icon: 'ti-list' },
         { id: 'birthdays', label: '🎂 Birthdays' }].map(n => (
           <button key={n.id} onClick={() => setTab(n.id as typeof tab)}
             style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', marginBottom: -0.5 }}>

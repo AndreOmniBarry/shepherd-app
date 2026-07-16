@@ -804,18 +804,18 @@ export default function DashboardPage(){
   const ss=(s:string)=>s==='rising'?{bg:'#E1F5EE',c:'#085041'}:s==='stable'?{bg:'#F3F4F6',c:'#374151'}:s==='watch'?{bg:'#FAEEDA',c:'#633806'}:{bg:'#FAECE7',c:'#993C1D'};
 
   const navItems=[
-    {id:'dashboard' as NavPage,icon:'',label:'Dashboard'},
-    {id:'members' as NavPage,icon:'',label:'Members'},
-    {id:'departments' as NavPage,icon:'',label:'Departments'},
-    {id:'attendance' as NavPage,icon:'',label:'Attendance'},
-    {id:'giving' as NavPage,icon:'',label:'Giving'},
-    {id:'cells' as NavPage,icon:'',label:'Cell Ministry'},
-    {id:'reports' as NavPage,icon:'',label:'Reports'},
-    {id:'recognition' as NavPage,icon:'',label:'Recognition'},
-    {id:'commendation' as NavPage,icon:'',label:'Commend Leaders'},
-    {id:'prayer' as NavPage,icon:'',label:'Prayer Requests'},
-    {id:'requisitions' as NavPage,icon:'',label:'Requisitions'},
-    {id:'validation' as NavPage,icon:'',label:'Validate Records'},
+    {id:'dashboard' as NavPage,icon:'ti-layout-dashboard',label:'Dashboard'},
+    {id:'members' as NavPage,icon:'ti-users',label:'Members'},
+    {id:'departments' as NavPage,icon:'ti-building',label:'Departments'},
+    {id:'attendance' as NavPage,icon:'ti-calendar-stats',label:'Attendance'},
+    {id:'giving' as NavPage,icon:'ti-coin',label:'Giving'},
+    {id:'cells' as NavPage,icon:'ti-circles',label:'Cell Ministry'},
+    {id:'reports' as NavPage,icon:'ti-chart-bar',label:'Reports'},
+    {id:'recognition' as NavPage,icon:'ti-award',label:'Recognition'},
+    {id:'commendation' as NavPage,icon:'ti-star',label:'Commend Leaders'},
+    {id:'prayer' as NavPage,icon:'ti-heart',label:'Prayer Requests'},
+    {id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'},
+    {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
   ];
 
   const agentOpts=[
@@ -841,7 +841,8 @@ export default function DashboardPage(){
         <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
           {navItems.map(n=>(
             <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDept(null);setPage(n.id);}}
-              style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:'9px 16px',fontSize:13,border:'none',cursor:'pointer',textAlign:'left',background:page===n.id?t.purpleBg:'transparent',color:page===n.id?(dark?'#FFFFFF':'#3C3489'):t.sub,fontWeight:page===n.id?500:400,transition:'background 0.1s'}}>
+              style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:'9px 16px',fontSize:13,border:'none',cursor:'pointer',textAlign:'left',background:page===n.id?t.purpleBg:'transparent',color:page===n.id?(dark?'#FFFFFF':'#3C3489'):t.sub,fontWeight:page===n.id?500:400,transition:'background 0.1s',borderLeft:`2px solid ${page===n.id?'#534AB7':'transparent'}`}}>
+              {n.icon && <i className={`ti ${n.icon}`} style={{fontSize:15,opacity:page===n.id?1:0.5,flexShrink:0}} aria-hidden="true" />}
               {n.label}
             </button>
           ))}

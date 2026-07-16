@@ -208,47 +208,38 @@ export default function CellOverview({ dark = false, t }: CellOverviewProps) {
         {filteredMembers.length === 0 ? (
           <div style={{ padding: 24, textAlign: 'center', color: t.muted, fontSize: 12 }}>No members in this category</div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
-                {['Member', 'Attendance rate', 'Present', 'Absent', 'Consecutive absences', 'Last seen', 'Status'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px', background: t.card, whiteSpace: 'nowrap' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredMembers.map((m, i) => {
-                const hcfg = HEALTH_CFG[m.health] || HEALTH_CFG.new;
-                return (
-                  <tr key={m.id} style={{ borderBottom: i < filteredMembers.length - 1 ? `0.5px solid ${t.border}` : 'none', background: m.health === 'critical' ? (dark ? 'rgba(198,40,40,0.05)' : 'rgba(252,235,235,0.4)') : 'transparent' }}>
-                    <td style={{ padding: '10px 12px', fontWeight: 500, color: t.text, whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {filteredMembers.map(m => {
+              const hcfg = HEALTH_CFG[m.health] || HEALTH_CFG.new;
+              return (
+                <div key={m.id} style={{ background: t.input, borderRadius: 10, padding: '10px 12px', borderLeft: `3px solid ${m.health === 'critical' ? '#C62828' : m.health === 'warning' ? '#D85A30' : m.health === 'healthy' ? '#1D9E75' : t.border}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>
                       {m.full_name}
-                      {m.birthdayStatus === 'today' && <span style={{ marginLeft: 6, fontSize: 12 }}>🎂</span>}
-                    </td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ width: 60, height: 5, background: dark ? '#2A2A2A' : '#F0F0F0', borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ width: `${m.rate || 0}%`, height: '100%', background: m.rate && m.rate >= 80 ? '#1D9E75' : m.rate && m.rate >= 60 ? '#BA7517' : '#D85A30', borderRadius: 3 }} />
-                        </div>
-                        <span style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{m.rate !== null ? `${m.rate}%` : '—'}</span>
+                      {m.birthdayStatus === 'today' && <span style={{ marginLeft: 6, fontSize: 11 }}>🎂</span>}
+                    </div>
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 8, background: hcfg.bg, color: hcfg.text, fontWeight: 500, flexShrink: 0 }}>{hcfg.label}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ width: 48, height: 4, background: dark ? '#2A2A2A' : '#F0F0F0', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ width: `${m.rate || 0}%`, height: '100%', background: m.rate && m.rate >= 80 ? '#1D9E75' : m.rate && m.rate >= 60 ? '#BA7517' : '#D85A30', borderRadius: 2 }} />
                       </div>
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#1D9E75', fontWeight: 500 }}>{m.present}</td>
-                    <td style={{ padding: '10px 12px', color: m.absent > 0 ? '#D85A30' : t.muted }}>{m.absent}</td>
-                    <td style={{ padding: '10px 12px', color: m.consecutiveAbsences >= 2 ? '#D85A30' : t.muted, fontWeight: m.consecutiveAbsences >= 2 ? 600 : 400 }}>
-                      {m.consecutiveAbsences > 0 ? `${m.consecutiveAbsences} in a row` : '—'}
-                    </td>
-                    <td style={{ padding: '10px 12px', color: t.muted, whiteSpace: 'nowrap' }}>
-                      {m.lastSeen ? new Date(m.lastSeen).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Never'}
-                    </td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: hcfg.bg, color: hcfg.text, fontWeight: 500 }}>{hcfg.label}</span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      <span style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{m.rate !== null ? `${m.rate}%` : '—'}</span>
+                    </div>
+                    <span style={{ fontSize: 11, color: t.teal }}>{m.present} present</span>
+                    {m.absent > 0 && <span style={{ fontSize: 11, color: t.coral }}>{m.absent} absent</span>}
+                    {m.consecutiveAbsences >= 2 && (
+                      <span style={{ fontSize: 10, color: t.coral, fontWeight: 600 }}>{m.consecutiveAbsences} in a row</span>
+                    )}
+                    {m.birthdayStatus && m.birthdayStatus !== 'today' && (
+                      <span style={{ fontSize: 10, color: t.amber }}>Birthday {m.birthdayStatus}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
