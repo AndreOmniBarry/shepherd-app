@@ -20,6 +20,7 @@ type AttendanceData = {
   cell_submission_status: CellStatus[];
   dept_status: DeptStatus[];
   fellowship_summary: FellowshipSummary[];
+  fellowship_summary_midweek?: FellowshipSummary[];
   total_cells: number;
   cells_submitted_sunday: number;
   cells_submitted_midweek: number;

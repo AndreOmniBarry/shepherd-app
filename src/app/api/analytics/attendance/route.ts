@@ -146,30 +146,34 @@ export async function GET(req: Request) {
     }) : [];
 
     // ── 10. Fellowship summary ─────────────────────────────────
-    const fellowshipSummary = Array.isArray(fellowships) ? fellowships.map((fel: Record<string, string>) => {
-      const felCells = Array.isArray(allCells) ? allCells.filter((c: Record<string, unknown>) => {
-        const felObj = c.fellowships as Record<string, string> | null;
-        return felObj?.id === fel.id || c.fellowship_id === fel.id;
-      }) : [];
-      const submitted = felCells.filter((c: Record<string, string>) => {
-        return Array.isArray(cellRecords) && cellRecords.some((r: Record<string, string>) =>
-          r.cell_id === c.id && r.service_id === latestSunday?.id
+    const buildFelSummary = (svcId: string | undefined) =>
+      Array.isArray(fellowships) ? fellowships.map((fel: Record<string, string>) => {
+        const felCells = Array.isArray(allCells) ? allCells.filter((c: Record<string, unknown>) => {
+          const felObj = c.fellowships as Record<string, string> | null;
+          return felObj?.id === fel.id || c.fellowship_id === fel.id;
+        }) : [];
+        const submitted = felCells.filter((c: Record<string, string>) =>
+          Array.isArray(cellRecords) && cellRecords.some((r: Record<string, string>) =>
+            r.cell_id === c.id && r.service_id === svcId
+          )
         );
-      });
-      const totalPresent = submitted.reduce((a: number, c: Record<string, string>) => {
-        const rec = Array.isArray(cellRecords) && cellRecords.find((r: Record<string, string>) => r.cell_id === c.id && r.service_id === latestSunday?.id);
-        return a + (rec?.present_count || 0);
-      }, 0);
-      return {
-        fellowship_id: fel.id,
-        fellowship_name: fel.name,
-        total_cells: felCells.length,
-        submitted_cells: submitted.length,
-        total_present: totalPresent,
-        completion_rate: felCells.length > 0 ? Math.round((submitted.length / felCells.length) * 100) : 0,
-      };
-    }) : [];
-
+        const totalPresent = submitted.reduce((a: number, c: Record<string, string>) => {
+          const rec = Array.isArray(cellRecords) && cellRecords.find((r: Record<string, string>) =>
+            r.cell_id === c.id && r.service_id === svcId
+          );
+          return a + ((rec as Record<string, number>)?.present_count || 0);
+        }, 0);
+        return {
+          fellowship_id: fel.id,
+          fellowship_name: fel.name,
+          total_cells: felCells.length,
+          submitted_cells: submitted.length,
+          total_present: totalPresent,
+          completion_rate: felCells.length > 0 ? Math.round((submitted.length / felCells.length) * 100) : 0,
+        };
+      }) : [];
+    const fellowshipSummary = buildFelSummary(latestSunday?.id);
+    const fellowshipSummaryMidweek = buildFelSummary(latestMidweek?.id);
     return NextResponse.json({
       data: {
         latest_sunday: latestSunday,
@@ -179,6 +183,7 @@ export async function GET(req: Request) {
         cell_submission_status: cellSubmissionStatus,
         dept_status: deptStatus,
         fellowship_summary: fellowshipSummary,
+        fellowship_summary_midweek: fellowshipSummaryMidweek,
         total_cells: Array.isArray(allCells) ? allCells.length : 0,
         cells_submitted_sunday: cellSubmissionStatus.filter(c => c.sunday_submitted).length,
         cells_submitted_midweek: cellSubmissionStatus.filter(c => c.midweek_submitted).length,
