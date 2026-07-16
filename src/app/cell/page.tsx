@@ -266,10 +266,10 @@ export default function CellPage() {
             { id: 'prayer', label: 'Prayer', icon: 'ti-heart' },
             { id: 'followup', label: 'Follow-up', icon: 'ti-user-check' },
             { id: 'birthdays', label: 'Birthdays', icon: 'ti-cake' },
-          ] as const).map(tabDef => (
+          ] as {id:string;label:string;icon:string}[]).map(tabDef => (
             <button key={tabDef.id} onClick={() => setTab(tabDef.id)}
               style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: tab === tabDef.id ? 600 : 400, background: tab === tabDef.id ? t.card : 'transparent', color: tab === tabDef.id ? t.purple : t.sub, boxShadow: tab === tabDef.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              {(tabDef as {id:string;label:string;icon?:string}).icon && <i className={`ti ${(tabDef as {id:string;label:string;icon?:string}).icon}`} style={{fontSize:14}} aria-hidden='true' />}
+              {tabDef.icon && <i className={`ti ${tabDef.icon}`} style={{fontSize:14}} aria-hidden='true' />}
               {tabDef.label}
             </button>
           ))}
