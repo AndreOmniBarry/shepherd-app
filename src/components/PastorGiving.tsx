@@ -20,7 +20,8 @@ interface PastorGivingProps { dark: boolean; t: Record<string, string>; }
 export default function PastorGiving({ dark, t }: PastorGivingProps) {
   const [data, setData] = useState<GivingData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'month' | 'week' | 'day'>('month');
+  const [view, setView] = useState<'month' | 'week' | 'day' | 'custom'>('month');
+  const [selectedMonth, setSelectedMonth] = useState<string>(`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`);
   const [range, setRange] = useState<'3m' | '6m' | '1y'>('6m');
 
   const fmtNGN = (n: number) => n >= 1e9 ? `₦${(n/1e9).toFixed(2)}B` : n >= 1e6 ? `₦${(n/1e6).toFixed(2)}M` : `₦${Math.round(n).toLocaleString('en-NG')}`;
@@ -57,7 +58,7 @@ export default function PastorGiving({ dark, t }: PastorGivingProps) {
       {/* View toggle */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', background: t.input, borderRadius: 10, padding: 3, border: `0.5px solid ${t.border}`, gap: 2 }}>
-          {[{ id: 'month', label: 'Monthly' }, { id: 'week', label: 'Weekly' }, { id: 'day', label: 'Today' }].map(v => (
+          {[{ id: 'month', label: 'Monthly' }, { id: 'week', label: 'Weekly' }, { id: 'day', label: 'Today' }, { id: 'custom', label: 'By Month' }].map(v => (
             <button key={v.id} onClick={() => setView(v.id as typeof view)}
               style={{ padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: view === v.id ? 600 : 400, background: view === v.id ? (dark ? 'rgba(83,74,183,0.5)' : '#534AB7') : 'transparent', color: view === v.id ? '#fff' : t.sub, transition: 'all 0.15s', fontFamily: 'inherit' }}>
               {v.label}
@@ -161,6 +162,45 @@ export default function PastorGiving({ dark, t }: PastorGivingProps) {
         </div>
       )}
 
+      {view === 'custom' && (
+        <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Month breakdown</div>
+            <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
+              style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '6px 10px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }}>
+              {data.monthly_trend.filter(m => m.total > 0).map(m => (
+                <option key={m.month} value={m.month}>{m.label} {m.month.split('-')[0]}</option>
+              ))}
+            </select>
+          </div>
+          {(() => {
+            const monthData = data.monthly_trend.find(m => m.month === selectedMonth);
+            if (!monthData) return <div style={{ color: t.muted, fontSize: 13 }}>No data for this month.</div>;
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color: t.teal }}>{fmtNGN(monthData.total)}</div>
+                <div style={{ fontSize: 12, color: t.muted }}>Total for {monthData.label}</div>
+                {data.by_type.map((type, i) => {
+                  const amt = (monthData[type.id] as number) || 0;
+                  if (!amt) return null;
+                  const pct = monthData.total > 0 ? Math.round((amt / (monthData.total as number)) * 100) : 0;
+                  return (
+                    <div key={type.id} style={{ marginTop: 4 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: 12, color: t.text }}>{type.name}</span>
+                        <span style={{ fontSize: 11, color: t.muted }}>{fmtNGN(amt)} · {pct}%</span>
+                      </div>
+                      <div style={{ height: 5, background: dark ? 'rgba(255,255,255,0.06)' : '#F0EEF9', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: TYPE_COLORS[i % TYPE_COLORS.length], borderRadius: 3 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      )}
       {/* By type breakdown + recent entries */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {/* By type */}

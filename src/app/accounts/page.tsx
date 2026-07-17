@@ -438,7 +438,7 @@ export default function AccountsPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div>
                     <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Amount (₦) *</div>
-                    <input type="number" value={incomeForm.amount} onChange={e => setIncomeForm(p => ({ ...p, amount: e.target.value }))}
+                    <input type="number" value={incomeForm.amount ? Number(incomeForm.amount).toLocaleString('en-NG') : ''} onChange={e => { const raw = e.target.value.replace(/,/g, ''); if (!isNaN(Number(raw)) || raw === '') setIncomeForm(p => ({ ...p, amount: raw })); }}
                       placeholder="0" style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 13, fontWeight: 600, background: t.input, color: t.teal, outline: 'none', fontFamily: 'inherit' }} />
                   </div>
                   <div>
@@ -490,7 +490,7 @@ export default function AccountsPage() {
                   style={{ flex: 1, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
                 <button onClick={async () => {
                   if (!newIncomeType.trim()) return;
-                  const addRes = await fetch('/api/accounts/income-types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ name: newIncomeType.trim(), category: 'general' }) });
+                  const addRes = await fetch('/api/accounts/income-types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ name: newIncomeType.trim(), category: 'general', is_active: true }) });
                   const addData = await addRes.json();
                   setNewIncomeType('');
                   // Refresh types list

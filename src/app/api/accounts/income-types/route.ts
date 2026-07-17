@@ -15,7 +15,7 @@ async function getUser(req: Request) {
 }
 
 export async function GET() {
-  const res = await fetch(`${S}/rest/v1/income_types?is_active=eq.true&order=name.asc&select=id,name,category`, { headers: h() });
+  const res = await fetch(`${S}/rest/v1/income_types?order=name.asc&select=id,name,category`, { headers: h() });
   const data = await res.json();
   return NextResponse.json({ data: { types: Array.isArray(data) ? data : [] }, error: null });
 }
