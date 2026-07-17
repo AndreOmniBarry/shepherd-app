@@ -258,7 +258,7 @@ export default function CellPage() {
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '20px 16px' }}>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', background: t.input, borderRadius: 10, padding: 4, marginBottom: 20, border: `0.5px solid ${t.border}` }}>
+        <div style={{ display: 'flex', background: dark?'rgba(255,255,255,0.04)':t.input, borderRadius: 12, padding: 4, marginBottom: 20, border: `0.5px solid ${t.border}`, backdropFilter:'blur(10px)' }}>
           {([
             { id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' },
             { id: 'submit', label: 'Attendance', icon: 'ti-calendar-check' },
@@ -268,7 +268,7 @@ export default function CellPage() {
             { id: 'birthdays', label: 'Birthdays', icon: 'ti-cake' },
           ] as {id:string;label:string;icon:string}[]).map(tabDef => (
             <button key={tabDef.id} onClick={() => setTab(tabDef.id)}
-              style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: tab === tabDef.id ? 600 : 400, background: tab === tabDef.id ? t.card : 'transparent', color: tab === tabDef.id ? t.purple : t.sub, boxShadow: tab === tabDef.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              style={{ flex: 1, padding: '8px 4px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: tab === tabDef.id ? 600 : 400, background: tab === tabDef.id ? (dark?'rgba(83,74,183,0.4)':t.card) : 'transparent', color: tab === tabDef.id ? (dark?'#E8E5FF':t.purple) : t.sub, boxShadow: tab === tabDef.id ? (dark?'0 0 12px rgba(83,74,183,0.3)':'0 1px 4px rgba(83,74,183,0.12)') : 'none', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               {tabDef.icon && <i className={`ti ${tabDef.icon}`} style={{fontSize:14}} aria-hidden='true' />}
               {tabDef.label}
             </button>

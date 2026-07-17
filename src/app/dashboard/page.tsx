@@ -773,31 +773,34 @@ export default function DashboardPage(){
 
   // Theme - true black/white
   const t = {
-    bg:        dark?'#0A0A0A':'#F9FAFB',
-    card:      dark?'#141414':'#FFFFFF',
-    border:    dark?'#2A2A2A':'#E5E7EB',
-    text:      dark?'#FFFFFF':'#111827',
-    sub:       dark?'#AAAAAA':'#6B7280',
-    muted:     dark?'#666666':'#9CA3AF',
-    nav:       dark?'#0A0618':sidebarStyle==='dark'?'#16103A':'#F7F6FF',
-    navBorder: dark?'rgba(168,159,255,0.08)':sidebarStyle==='dark'?'rgba(255,255,255,0.07)':'rgba(83,74,183,0.15)',
-    hover:     dark?'#1F1F1F':'#F9FAFB',
-    input:     dark?'#1F1F1F':'#F9FAFB',
-    tableRow:  dark?'#141414':'#F9FAFB',
-    cardInner: dark?'#1F1F1F':'#F9FAFB',
+    // Concept C — Deep Dark Glass (dark) / Rich Warm White (light)
+    bg:        dark?'#0D0B1E':'#F0EFF8',
+    card:      dark?'rgba(255,255,255,0.04)':'#FFFFFF',
+    cardSolid: dark?'#13102A':'#FFFFFF',
+    border:    dark?'rgba(168,159,255,0.08)':'rgba(83,74,183,0.10)',
+    borderMed: dark?'rgba(168,159,255,0.15)':'rgba(83,74,183,0.20)',
+    text:      dark?'#E8E5FF':'#1A1040',
+    sub:       dark?'rgba(232,229,255,0.55)':'#5A5180',
+    muted:     dark?'rgba(232,229,255,0.28)':'#9990CC',
+    nav:       dark?'#080618':sidebarStyle==='dark'?'#0D0A24':'#FFFFFF',
+    navBorder: dark?'rgba(168,159,255,0.06)':sidebarStyle==='dark'?'rgba(255,255,255,0.07)':'rgba(83,74,183,0.10)',
+    hover:     dark?'rgba(168,159,255,0.06)':'rgba(83,74,183,0.04)',
+    input:     dark?'rgba(255,255,255,0.05)':'#F7F6FF',
+    tableRow:  dark?'rgba(255,255,255,0.02)':'#FAFAFA',
+    cardInner: dark?'rgba(255,255,255,0.03)':'#F7F6FF',
     purple:    dark?'#A89FFF':'#534AB7',
-    purpleBg:  dark?'#1A1A2E':'#EEEDFE',
+    purpleBg:  dark?'rgba(83,74,183,0.25)':'#EEEDFE',
     teal:      dark?'#2DD4AA':'#1D9E75',
-    tealBg:    dark?'#0D2620':'#E1F5EE',
+    tealBg:    dark?'rgba(29,158,117,0.15)':'#E1F5EE',
     amber:     dark?'#FCD34D':'#BA7517',
-    amberBg:   dark?'#1F1A00':'#FAEEDA',
+    amberBg:   dark?'rgba(186,117,23,0.15)':'#FAEEDA',
     coral:     dark?'#F87171':'#D85A30',
-    coralBg:   dark?'#1F0A0A':'#FAECE7',
-    chartGrid: dark?'#2A2A2A':'#F0F0F0',
-    chartAxis: dark?'#666666':'#6B7280',
-    chartTip:  dark?'#141414':'#FFFFFF',
-    chartTipText: dark?'#FFFFFF':'#374151',
-    chartBorder: dark?'#2A2A2A':'#E5E7EB',
+    coralBg:   dark?'rgba(216,90,48,0.15)':'#FAECE7',
+    chartGrid: dark?'rgba(168,159,255,0.06)':'#F0EEF9',
+    chartAxis: dark?'rgba(168,159,255,0.35)':'#9990CC',
+    chartTip:  dark?'#13102A':'#FFFFFF',
+    chartTipText: dark?'#E8E5FF':'#1A1040',
+    chartBorder: dark?'rgba(168,159,255,0.08)':'rgba(83,74,183,0.10)',
   };
   const card=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:10,padding:'16px 20px',...e});
   const bc=(b:string)=>b==='teal'?{bg:'#E1F5EE',c:'#085041'}:b==='amber'?{bg:'#FAEEDA',c:'#633806'}:{bg:'#EEEDFE',c:'#3C3489'};
@@ -833,7 +836,7 @@ export default function DashboardPage(){
       {/* Sidebar overlay for mobile */}
       {isMobile&&sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.3)',zIndex:40}}/>}
       {/* Sidebar */}
-      <div style={{width:220,background:t.nav,borderRight:`0.5px solid ${t.navBorder}`,display:'flex',flexDirection:'column',position:isMobile?'fixed':'sticky',top:0,left:isMobile?(sidebarOpen?0:-196):0,height:'100vh',flexShrink:0,zIndex:50,transition:'left 0.25s ease'}}>
+      <div style={{width:220,background:t.nav,borderRight:`0.5px solid ${t.navBorder}`,display:'flex',flexDirection:'column',position:isMobile?'fixed':'sticky',top:0,left:isMobile?(sidebarOpen?0:-196):0,height:'100vh',flexShrink:0,zIndex:50,transition:'left 0.3s cubic-bezier(0.4,0,0.2,1)',backdropFilter:'blur(20px)'}}>
         <div style={{display:'flex',alignItems:'center',gap:10,padding:'16px 16px 14px',borderBottom:`0.5px solid ${t.navBorder}`}}>
           <div style={{width:28,height:28,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><div style={{position:'absolute',width:4,height:20,background:'#A89FFF',borderRadius:2}}/><div style={{position:'absolute',width:15,height:4,background:'#A89FFF',borderRadius:2}}/></div>
           <div><div style={{fontSize:14,fontWeight:700,color:dark?'#E8E5FF':sidebarStyle==='dark'?'#FFFFFF':'#1A1040',letterSpacing:'1px',lineHeight:1}}>SHEP.HERD</div><div style={{fontSize:9,color:dark?'rgba(232,229,255,0.3)':sidebarStyle==='dark'?'rgba(255,255,255,0.35)':'#9990CC',marginTop:2}}>Church Intelligence</div></div>
@@ -856,7 +859,7 @@ export default function DashboardPage(){
       </div>
 
       {/* Main */}
-      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0}}>
+      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,background:t.bg}}>
         {/* Topbar */}
         <div style={{background:t.nav,borderBottom:`0.5px solid ${t.navBorder}`,padding:'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
