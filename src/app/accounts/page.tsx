@@ -438,7 +438,7 @@ export default function AccountsPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div>
                     <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Amount (₦) *</div>
-                    <input type="number" value={incomeForm.amount ? Number(incomeForm.amount).toLocaleString('en-NG') : ''} onChange={e => { const raw = e.target.value.replace(/,/g, ''); if (!isNaN(Number(raw)) || raw === '') setIncomeForm(p => ({ ...p, amount: raw })); }}
+                    <input type="text" inputMode="numeric" value={incomeForm.amount ? Number(String(incomeForm.amount).replace(/,/g,'')).toLocaleString('en-NG') : ''} onChange={e => { const raw = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, ''); setIncomeForm(p => ({ ...p, amount: raw })); }}
                       placeholder="0" style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 13, fontWeight: 600, background: t.input, color: t.teal, outline: 'none', fontFamily: 'inherit' }} />
                   </div>
                   <div>
@@ -493,18 +493,15 @@ export default function AccountsPage() {
                   const addRes = await fetch('/api/accounts/income-types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ name: newIncomeType.trim(), category: 'general', is_active: true }) });
                   const addData = await addRes.json();
                   setNewIncomeType('');
-                  // Refresh types list
+                  // Refresh types list and auto-select new type
                   const refreshRes = await fetch('/api/accounts/income-types', { credentials: 'include' });
                   const refreshData = await refreshRes.json();
                   if (refreshData.data?.types) {
                     setIncomeTypes(refreshData.data.types);
-                    // Auto-select newly created type
-                    const newId = addData.data?.id || addData.id;
-                    if (newId) setIncomeForm(p => ({ ...p, income_type_id: newId }));
-                    else if (refreshData.data.types.length > 0) {
-                      const newest = refreshData.data.types[refreshData.data.types.length - 1];
-                      setIncomeForm(p => ({ ...p, income_type_id: newest.id }));
-                    }
+                    // Try to find by name since id may be nested differently
+                    const typeName = newIncomeType.trim().toLowerCase();
+                    const newType = refreshData.data.types.find((t: {id:string;name:string}) => t.name.toLowerCase() === typeName);
+                    if (newType) setIncomeForm(p => ({ ...p, income_type_id: newType.id }));
                   }
                 }}
                   style={{ background: t.purpleBg, color: t.purple, border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 12, cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>
