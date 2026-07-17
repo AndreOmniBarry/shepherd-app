@@ -490,7 +490,7 @@ export default function AccountsPage() {
                   style={{ flex: 1, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
                 <button onClick={async () => {
                   if (!newIncomeType.trim()) return;
-                  const addRes = await fetch('/api/accounts/income-types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ name: newIncomeType.trim(), category: 'general', is_active: true }) });
+                  const addRes = await fetch('/api/accounts/income-types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ name: newIncomeType.trim(), category: 'aggregate', is_active: true }) });
                   const addData = await addRes.json();
                   setNewIncomeType('');
                   // Refresh types list and auto-select new type
@@ -547,7 +547,7 @@ export default function AccountsPage() {
                   </div>
                   <div>
                     <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Amount requested (₦) *</div>
-                    <input type="number" value={expenseForm.amount_requested} onChange={e => setExpenseForm(p => ({ ...p, amount_requested: e.target.value }))}
+                    <input type="text" inputMode="numeric" value={expenseForm.amount_requested ? Number(String(expenseForm.amount_requested).replace(/,/g,'')).toLocaleString('en-NG') : ''} onChange={e => { const raw = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, ''); setExpenseForm(p => ({ ...p, amount_requested: raw })); }}
                       placeholder="0" style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 13, fontWeight: 600, background: t.input, color: t.coral, outline: 'none', fontFamily: 'inherit' }} />
                   </div>
                 </div>
