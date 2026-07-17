@@ -844,7 +844,18 @@ export default function DashboardPage(){
         <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
           {navItems.map(n=>(
             <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDept(null);setPage(n.id);}}
-              className={`sh-nav-item${page===n.id?' active':''}`}>
+              className="sh-nav-item"
+              style={{
+                background: page===n.id ? (dark?'rgba(83,74,183,0.45)':'rgba(83,74,183,0.10)') : 'transparent',
+                color: page===n.id ? (dark?'#E8E5FF':'#3C3489') : undefined,
+                fontWeight: page===n.id ? 600 : 400,
+                borderLeft: `2px solid ${page===n.id?'#534AB7':'transparent'}`,
+                boxShadow: page===n.id ? (dark?'0 0 20px rgba(83,74,183,0.3), inset 0 0 0 0.5px rgba(168,159,255,0.2)':'0 0 12px rgba(83,74,183,0.10)') : 'none',
+                borderRadius: '0 8px 8px 0',
+                margin: '1px 8px 1px 0',
+                width: 'calc(100% - 8px)',
+                transition: 'all 0.2s ease',
+              }}>
               {n.icon && <i className={`ti ${n.icon}`} style={{fontSize:15,opacity:page===n.id?1:0.5,flexShrink:0}} aria-hidden="true" />}
               {n.label}
             </button>
