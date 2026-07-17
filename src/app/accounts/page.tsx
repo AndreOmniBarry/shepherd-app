@@ -201,7 +201,14 @@ export default function AccountsPage() {
         setMemberSearch('');
         setDuplicateWarning('');
         setTimeout(() => setIncomeSuccess(false), 3000);
-        fetch('/api/accounts/income', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (data?.records) setIncomeRecords(data.records); });
+        Promise.all([
+          fetch('/api/accounts/income', { credentials: 'include' }).then(r => r.json()),
+          fetch('/api/accounts/income-types', { credentials: 'include' }).then(r => r.json()),
+        ]).then(([incomeRes, typesRes]) => {
+          if (incomeRes.data?.records) setIncomeRecords(incomeRes.data.records);
+          if (typesRes.data?.types) setIncomeTypes(typesRes.data.types);
+        });
+        setTab('overview');
       } else {
         const json = await res.json();
         setIncomeError(json.error?.message || 'Failed to save');
@@ -236,7 +243,7 @@ export default function AccountsPage() {
     fetch('/api/accounts/requisitions', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (data?.requisitions) setRequisitions(data.requisitions); });
   }
 
-  const fmtNGN = (n: number) => n >= 1e6 ? `₦${(n / 1e6).toFixed(1)}M` : n >= 1000 ? `₦${(n / 1000).toFixed(0)}k` : `₦${Math.round(n).toLocaleString()}`;
+  const fmtNGN = (n: number) => n >= 1e9 ? `₦${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `₦${(n / 1e6).toFixed(2)}M` : `₦${Math.round(n).toLocaleString('en-NG')}`;
   const totalIncome = incomeRecords.reduce((a, r) => a + r.amount, 0);
   const totalApproved = requisitions.filter(r => ['approved','paid'].includes(r.status)).reduce((a, r) => a + (r.amount_approved || r.amount_requested), 0);
   const pendingReqs = requisitions.filter(r => r.status === 'pending').length;
@@ -483,9 +490,15 @@ export default function AccountsPage() {
                   style={{ flex: 1, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
                 <button onClick={async () => {
                   if (!newIncomeType.trim()) return;
-                  await fetch('/api/accounts/income-types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ name: newIncomeType }) });
+                  const addRes = await fetch('/api/accounts/income-types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ name: newIncomeType }) });
+                  const addData = await addRes.json();
                   setNewIncomeType('');
-                  fetch('/api/accounts/income-types', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (data?.types) setIncomeTypes(data.types); });
+                  const refreshRes = await fetch('/api/accounts/income-types', { credentials: 'include' });
+                  const refreshData = await refreshRes.json();
+                  if (refreshData.data?.types) {
+                    setIncomeTypes(refreshData.data.types);
+                    if (addData.data?.id) setIncomeForm(p => ({ ...p, income_type_id: addData.data.id }));
+                  }
                 }}
                   style={{ background: t.purpleBg, color: t.purple, border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 12, cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>
                   Add type

@@ -26,7 +26,7 @@ export async function GET(req: Request) {
       fetch(`${SUPABASE_URL}/rest/v1/members?select=membership_status`, { headers }).then(r => r.json()),
       fetch(`${SUPABASE_URL}/rest/v1/cells?is_active=eq.true&select=id`, { headers }).then(r => r.json()),
       fetch(`${SUPABASE_URL}/rest/v1/attendance_records?submitted_at=gte.${getMostRecentSunday()}&select=present_count,visitor_count,cell_id`, { headers }).then(r => r.json()),
-      fetch(`${SUPABASE_URL}/rest/v1/giving_records?recorded_at=gte.${new Date().getFullYear()}-01-01&select=amount`, { headers }).then(r => r.json()),
+      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${new Date().getFullYear()}-01-01T00:00:00&select=amount,income_type_id,income_types(name,category)`, { headers: hdrs() }).then(r => r.json()),
       fetch(`${SUPABASE_URL}/rest/v1/members?join_date=gte.${getFirstOfMonth()}&membership_status=eq.active&select=id`, { headers }).then(r => r.json()),
     ]);
 
