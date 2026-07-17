@@ -51,10 +51,10 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js needs unsafe-eval in dev
-              "style-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
               `connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL} https://api.anthropic.com wss://*.supabase.co`,
               "img-src 'self' data: blob:",
-              "font-src 'self'",
+              "font-src 'self' https://cdn.jsdelivr.net data:",
             ].join('; '),
           },
         ],
