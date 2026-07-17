@@ -25,5 +25,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     headers: { ...h(), 'Prefer': 'return=minimal' },
     body: JSON.stringify(update),
   });
+  // Notify accounts admin when pastor approves/rejects
+  fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://shepherd-app-beta.vercel.app'}/api/notify/dispatch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-internal-secret': 'shepherd-internal-2026' },
+    body: JSON.stringify({
+      event: status === 'paid' ? 'requisition_approved' : 'requisition_raised',
+      actor_name: user.id,
+      actor_role: user.role,
+      detail: `Requisition ${status} by ${user.role}`,
+    }),
+  }).catch(() => {});
   return NextResponse.json({ data: { updated: true }, error: null });
 }

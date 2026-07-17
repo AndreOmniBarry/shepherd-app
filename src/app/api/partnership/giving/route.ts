@@ -29,5 +29,17 @@ export async function POST(req: Request) {
     }),
   });
   const data = await res.json();
-  return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
+  const giving = Array.isArray(data) ? data[0] : data;
+  fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://shepherd-app-beta.vercel.app'}/api/notify/dispatch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-internal-secret': 'shepherd-internal-2026' },
+    body: JSON.stringify({
+      event: 'partnership_giving_logged',
+      actor_name: user.id,
+      actor_role: user.role,
+      detail: `Partnership giving logged — \${body.amount?.toLocaleString()}`,
+      amount: parseFloat(body.amount) || 0,
+    }),
+  }).catch(() => {});
+  return NextResponse.json({ data: giving, error: null }, { status: 201 });
 }
