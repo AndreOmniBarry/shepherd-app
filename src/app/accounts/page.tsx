@@ -490,14 +490,21 @@ export default function AccountsPage() {
                   style={{ flex: 1, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
                 <button onClick={async () => {
                   if (!newIncomeType.trim()) return;
-                  const addRes = await fetch('/api/accounts/income-types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ name: newIncomeType }) });
+                  const addRes = await fetch('/api/accounts/income-types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ name: newIncomeType.trim(), category: 'general' }) });
                   const addData = await addRes.json();
                   setNewIncomeType('');
+                  // Refresh types list
                   const refreshRes = await fetch('/api/accounts/income-types', { credentials: 'include' });
                   const refreshData = await refreshRes.json();
                   if (refreshData.data?.types) {
                     setIncomeTypes(refreshData.data.types);
-                    if (addData.data?.id) setIncomeForm(p => ({ ...p, income_type_id: addData.data.id }));
+                    // Auto-select newly created type
+                    const newId = addData.data?.id || addData.id;
+                    if (newId) setIncomeForm(p => ({ ...p, income_type_id: newId }));
+                    else if (refreshData.data.types.length > 0) {
+                      const newest = refreshData.data.types[refreshData.data.types.length - 1];
+                      setIncomeForm(p => ({ ...p, income_type_id: newest.id }));
+                    }
                   }
                 }}
                   style={{ background: t.purpleBg, color: t.purple, border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 12, cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>

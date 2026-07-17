@@ -2,6 +2,7 @@
 import React from 'react';
 import NotificationBell from "@/components/NotificationBell";
 import PastorAttendance from '@/components/PastorAttendance';
+import PastorGiving from '@/components/PastorGiving';
 import PastorRequisitions from '@/components/PastorRequisitions';
 import FellowshipValidation from '@/components/FellowshipValidation';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
@@ -1036,85 +1037,8 @@ export default function DashboardPage(){
             <PastorAttendance dark={dark} t={t} />
           )}          {/* ══ GIVING ══ */}
           {page==='giving'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <div style={{display:'flex',gap:6}}>
-                  {['6m','1y','2y','5y'].map(r=>(
-                    <button key={r} onClick={()=>setGivingRange(r)}
-                      style={{padding:'5px 12px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:12,fontWeight:givingRange===r?500:400,background:givingRange===r?'#534AB7':t.cardInner,borderColor:givingRange===r?'#534AB7':'#E5E7EB',color:givingRange===r?'#fff':t.sub}}>
-                      {r==='6m'?'6 Months':r==='1y'?'1 Year':r==='2y'?'2 Years':'5 Years'}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={()=>exportCSV(givingSlice(givingRange).map(d=>({Period:d.p,Tithe:d.t,Offering:d.o,Special:d.s,Total:d.t+d.o+d.s})),'giving_export')}
-                  style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 12px',fontSize:12,cursor:'pointer',fontWeight:500}}>⬇ Export CSV</button>
-              </div>
-              <div style={card()}>
-                <div style={{fontSize:13,fontWeight:500,marginBottom:4}}>Monthly Giving - The Comforters House Global</div>
-                <div style={{fontSize:11,color:t.muted,marginBottom:8}}>{givingSlice(givingRange).length} months · Tithe, Offering & Special</div>
-                {/* Legend */}
-                <div style={{display:'flex',gap:14,marginBottom:12,flexWrap:'wrap'}}>
-                  {[{color:'#534AB7',label:'Tithe'},{color:'#1D9E75',label:'Offering'},{color:'#BA7517',label:'Special'}].map(l=>(
-                    <div key={l.label} style={{display:'flex',alignItems:'center',gap:5,fontSize:12}}>
-                      <div style={{width:10,height:10,borderRadius:2,background:l.color,flexShrink:0}}/>
-                      <span style={{color:dark?'#E5E7EB':'#374151'}}>{l.label}</span>
-                    </div>
-                  ))}
-                </div>
-                {/* Scrollable chart container on mobile */}
-                <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch',background:t.card}}>
-                  <div style={{minWidth: givingSlice(givingRange).length > 6 ? Math.max(givingSlice(givingRange).length * 52, 320) : '100%'}}>
-                    <BarChart width={Math.max(givingSlice(givingRange).length * 52, isMobile?320:600)} height={240} data={givingSlice(givingRange)} margin={{top:5,right:10,left:10,bottom:0}}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                      <XAxis dataKey="p" tick={{fontSize:9,fill:t.chartAxis}} interval={0} angle={givingSlice(givingRange).length>8?-35:0} textAnchor={givingSlice(givingRange).length>8?'end':'middle'} height={givingSlice(givingRange).length>8?40:20}/>
-                      <YAxis tick={{fontSize:9,fill:t.chartAxis}} tickFormatter={v=>`₦${(v/1000000).toFixed(1)}M`} width={45}/>
-                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}} formatter={(v:number,n:string)=>[fmtNGN(v),n==='t'?'Tithe':n==='o'?'Offering':'Special']}/>
-                      <Bar dataKey="t" name="Tithe" fill="#534AB7" radius={[2,2,0,0]}/>
-                      <Bar dataKey="o" name="Offering" fill="#1D9E75" radius={[2,2,0,0]}/>
-                      <Bar dataKey="s" name="Special" fill="#BA7517" radius={[2,2,0,0]}/>
-                    </BarChart>
-                  </div>
-                </div>
-                <div style={{fontSize:10,color:t.muted,textAlign:'center',marginTop:4}}>← Swipe to see more →</div>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
-                {[{label:'YTD Tithe',value:'₦7.82M'},{label:'YTD Offering',value:'₦5.56M'},{label:'YTD Special',value:'₦613k'},{label:'Per Member (avg)',value:'₦12.2k'},{label:'Best Month',value:'Dec 2025'},{label:'5-Year Growth',value:'+129%'},{label:'Tithe %',value:'75%'},{label:'Dec 25 Peak',value:'₦3.75M'}].map(s=>(
-                  <div key={s.label} style={card({padding:'10px 12px'})}>
-                    <div style={{fontSize:10,color:t.sub,marginBottom:3}}>{s.label}</div>
-                    <div style={{fontSize:16,fontWeight:600,color:t.text}}>{s.value}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={card()}>
-                <div style={{fontSize:13,fontWeight:500,marginBottom:16}}>Giving Breakdown by Type</div>
-                <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:16}}>
-                  <PieChart width={220} height={220}>
-                    <Pie data={GIVING_PIE} cx={105} cy={105} outerRadius={90} innerRadius={40} dataKey="value" stroke="none">
-                      {GIVING_PIE.map((e,i)=><Cell key={i} fill={e.color}/>)}
-                    </Pie>
-                    <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}} formatter={(v:number,n:string)=>[`${v}%`,n]}/>
-                  </PieChart>
-                  <div style={{width:'100%'}}>
-                    {GIVING_PIE.map(g=>(
-                      <div key={g.name} style={{marginBottom:12}}>
-                        <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:4}}>
-                          <div style={{display:'flex',alignItems:'center',gap:8}}>
-                            <div style={{width:12,height:12,borderRadius:3,background:g.color,flexShrink:0}}/>
-                            <span style={{color:dark?'#E5E7EB':'#374151',fontWeight:500}}>{g.name}</span>
-                          </div>
-                          <span style={{color:dark?'#E5E7EB':'#374151',fontWeight:600}}>{g.value}%</span>
-                        </div>
-                        <div style={{height:8,background:dark?'#1A1740':'#F3F4F6',borderRadius:4,overflow:'hidden'}}>
-                          <div style={{height:'100%',width:`${g.value}%`,background:g.color,borderRadius:4}}/>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <PastorGiving dark={dark} t={t} />
           )}
-
           {/* ══ MEMBERS ══ */}
           {page==='members'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
