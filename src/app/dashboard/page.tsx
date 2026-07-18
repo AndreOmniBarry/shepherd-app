@@ -674,6 +674,69 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
   );
 }
 
+function MemberApprovalPanel({t,dark}:{t:Record<string,string>;dark:boolean}) {
+  const [additions, setAdditions] = React.useState<{id:string;full_name:string;phone:string;gender:string;date_of_birth:string;join_date:string;status:string;submitted_by:string;created_at:string}[]>([]);
+  const [processing, setProcessing] = React.useState<Record<string,boolean>>({});
+  const [done, setDone] = React.useState<Record<string,string>>({});
+
+  React.useEffect(() => {
+    fetch('/api/update/member-additions', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => { if (data?.additions) setAdditions(data.additions); })
+      .catch(() => {});
+  }, []);
+
+  async function act(id: string, action: 'approve' | 'reject') {
+    setProcessing(p => ({ ...p, [id]: true }));
+    try {
+      await fetch('/api/update/member-additions', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ id, action }),
+      });
+      setDone(p => ({ ...p, [id]: action }));
+      setAdditions(prev => prev.filter(a => a.id !== id));
+    } catch {}
+    setProcessing(p => ({ ...p, [id]: false }));
+  }
+
+  if (additions.length === 0) return null;
+
+  return (
+    <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'16px 18px',marginBottom:4}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
+        <div style={{fontSize:13,fontWeight:600,color:t.text}}>Pending Member Approvals</div>
+        <span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:'#FAEEDA',color:'#633806',fontWeight:600}}>{additions.length}</span>
+      </div>
+      {additions.map((a,i) => (
+        <div key={a.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:i<additions.length-1?`0.5px solid ${t.border}`:'none',flexWrap:'wrap'}}>
+          <div style={{flex:1,minWidth:140}}>
+            <div style={{fontSize:13,fontWeight:500,color:t.text}}>{a.full_name}</div>
+            <div style={{fontSize:11,color:t.muted}}>{a.phone||'—'} · {a.gender||'—'} · Joined {a.join_date}</div>
+          </div>
+          <div style={{display:'flex',gap:6}}>
+            {done[a.id] ? (
+              <span style={{fontSize:11,padding:'4px 10px',borderRadius:8,background:done[a.id]==='approve'?'#E1F5EE':'#FAECE7',color:done[a.id]==='approve'?'#085041':'#993C1D',fontWeight:500}}>
+                {done[a.id]==='approve'?'Approved':'Rejected'}
+              </span>
+            ) : (
+              <>
+                <button onClick={()=>act(a.id,'approve')} disabled={processing[a.id]}
+                  style={{background:'#1D9E75',color:'#fff',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id]?0.6:1}}>
+                  {processing[a.id]?'…':'Approve'}
+                </button>
+                <button onClick={()=>act(a.id,'reject')} disabled={processing[a.id]}
+                  style={{background:'#FAECE7',color:'#993C1D',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id]?0.6:1}}>
+                  Reject
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function DashboardPage(){
   const router=useRouter();
   const [page,setPage]=useState<NavPage>('dashboard');
@@ -1136,6 +1199,9 @@ export default function DashboardPage(){
                 </div>
               </div>
 
+              {/* Member Approval Panel - M1 */}
+              <MemberApprovalPanel t={t} dark={dark} />
+
               {/* Full Member Database */}
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
@@ -1406,7 +1472,10 @@ export default function DashboardPage(){
                   <div style={{fontSize:15,fontWeight:700,color:t.text}}>Recognition Centre</div>
                   <div style={{fontSize:12,color:t.muted,marginTop:2}}>SLA performance, badges and leaderboards — updated every Monday</div>
                 </div>
-                <button style={{background:'#FAECE7',color:'#993C1D',border:'0.5px solid rgba(216,90,48,0.2)',borderRadius:8,padding:'7px 14px',fontSize:12,cursor:'pointer',fontWeight:500}}>
+                <button onClick={() => {
+                    const el = document.getElementById('needs-attention-section');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }} style={{background:'#FAECE7',color:'#993C1D',border:'0.5px solid rgba(216,90,48,0.2)',borderRadius:8,padding:'7px 14px',fontSize:12,cursor:'pointer',fontWeight:500}}>
                   Needs Attention
                 </button>
               </div>

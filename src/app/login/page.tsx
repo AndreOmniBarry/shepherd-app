@@ -57,7 +57,8 @@ function LoginForm() {
       const role = json.data?.user?.role || 'cell_leader';
       const next = searchParams.get('next');
       const portal = rolePortal(role);
-      const dest = next && next.startsWith(portal) ? next : portal;
+      // Honour next param as long as it's a relative path (security check)
+      const dest = next && next.startsWith('/') && !next.startsWith('//') ? next : portal;
       router.push(dest);
     } catch {
       setError('Network error. Please check your connection.');

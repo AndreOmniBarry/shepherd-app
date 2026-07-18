@@ -15,18 +15,34 @@ async function getUser(req: Request) {
   return payloadToAuthUser(payload);
 }
 
+async function getOverseerIds(): Promise<string[]> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&is_active=eq.true&select=id`,
+    { headers: hdrs() }
+  );
+  const data = await res.json();
+  return Array.isArray(data) ? data.map((u: Record<string,string>) => u.id) : [];
+}
+
 export async function GET(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
+    const { searchParams } = new URL(req.url);
+    const all = searchParams.get('all') === 'true';
+
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 60);
 
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/first_timers?service_date=gte.${cutoff.toISOString().split('T')[0]}&order=created_at.desc&limit=100&select=id,full_name,phone,how_they_came,service_date,status,notes,assigned_to`,
-      { headers: hdrs() }
-    );
+    // Overseer/PA can see all; care team sees recent
+    const isAdmin = ['overseer', 'pa', 'lead_tech'].includes(user.role);
+    let url = `${SUPABASE_URL}/rest/v1/first_timers?order=created_at.desc&limit=200&select=id,full_name,phone,how_they_came,service_date,status,notes,assigned_to`;
+    if (!isAdmin || !all) {
+      url += `&service_date=gte.${cutoff.toISOString().split('T')[0]}`;
+    }
+
+    const res = await fetch(url, { headers: hdrs() });
     const data = await res.json();
     return NextResponse.json({ data: { first_timers: Array.isArray(data) ? data : [] }, error: null });
   } catch (err) {
@@ -59,6 +75,23 @@ export async function POST(req: Request) {
       }),
     });
     const data = await res.json();
+
+    // FIX E10: Notify overseers/PAs about new first timer
+    const overseerIds = await getOverseerIds();
+    if (overseerIds.length > 0) {
+      await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+        method: 'POST',
+        headers: { ...hdrs(), 'Prefer': 'return=minimal' },
+        body: JSON.stringify(overseerIds.map(uid => ({
+          user_id: uid,
+          type: 'pipeline',
+          title: 'New first timer logged',
+          body: `${full_name} (${phone}) — logged by care team`,
+          read: false,
+        }))),
+      });
+    }
+
     return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ data: null, error: { message: 'Failed to add first timer' } }, { status: 500 });

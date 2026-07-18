@@ -221,15 +221,16 @@ export default function FellowshipHeadPage() {
     if (!tithe && !offering && !special && !project) return;
     setGivingSubmitting(true);
     try {
+      const parse = (v: string) => parseFloat(v.replace(/,/g,'')) || 0;
       const res = await fetch('/api/fellowship/giving', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          tithe: parseFloat(tithe) || 0,
-          offering: parseFloat(offering) || 0,
-          special: parseFloat(special) || 0,
-          project: parseFloat(project) || 0,
+          tithe: parse(tithe),
+          offering: parse(offering),
+          special: parse(special),
+          project: parse(project),
           service_date: new Date().toISOString().split('T')[0],
         }),
       });
@@ -306,7 +307,7 @@ export default function FellowshipHeadPage() {
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', display: 'flex', gap: 0, overflowX: 'auto' }}>
         {navItems.map(n => (
           <button key={n.id} onClick={() => setTab(n.id)}
-            style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', whiteSpace: 'nowrap', marginBottom: -0.5 }}>
+            style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: tab === n.id ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', whiteSpace: 'nowrap', marginBottom: -0.5 }}>
             {n.label}
           </button>
         ))}
@@ -325,8 +326,8 @@ export default function FellowshipHeadPage() {
               <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }} suppressHydrationWarning>{todayStr}</div>
             </div>
 
-            {/* Submission status banner */}
-            <div style={{ background: overdueCells > 0 ? t.coralBg : pendingCells > 0 ? t.amberBg : t.tealBg, borderRadius: 10, padding: '10px 14px', marginBottom: 18, border: `0.5px solid ${overdueCells > 0 ? 'rgba(216,90,48,0.2)' : pendingCells > 0 ? 'rgba(186,117,23,0.2)' : 'rgba(29,158,117,0.2)'}` }}>
+            {/* Submission status banner with nudge button */}
+            <div style={{ background: overdueCells > 0 ? t.coralBg : pendingCells > 0 ? t.amberBg : t.tealBg, borderRadius: 10, padding: '10px 14px', marginBottom: 18, border: `0.5px solid ${overdueCells > 0 ? 'rgba(216,90,48,0.2)' : pendingCells > 0 ? 'rgba(186,117,23,0.2)' : 'rgba(29,158,117,0.2)'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: 12, color: overdueCells > 0 ? t.coral : pendingCells > 0 ? t.amber : t.teal, fontWeight: 500 }}>
                 {overdueCells > 0
                   ? `${overdueCells} cell${overdueCells > 1 ? 's' : ''} overdue — submission window closing soon`
@@ -334,6 +335,22 @@ export default function FellowshipHeadPage() {
                   ? `${pendingCells} cell${pendingCells > 1 ? 's' : ''} pending — remind your leaders to submit`
                   : `All ${submittedCells} cells submitted for this Sunday`}
               </div>
+              {(pendingCells > 0 || overdueCells > 0) && (
+                <button
+                  onClick={async () => {
+                    const pendingLeaders = cells.filter(c => c.status !== 'submitted');
+                    await fetch('/api/notify/dispatch', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({ type: 'nudge_submission', cells: pendingLeaders.map(c => c.id) }),
+                    });
+                    alert(`Nudge sent to ${pendingLeaders.length} cell leader${pendingLeaders.length > 1 ? 's' : ''}`);
+                  }}
+                  style={{ background: overdueCells > 0 ? '#D85A30' : '#BA7517', color: '#fff', border: 'none', borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 10 }}>
+                  Nudge all
+                </button>
+              )}
             </div>
 
             {/* KPI cards */}
@@ -562,18 +579,26 @@ export default function FellowshipHeadPage() {
                   { key: 'offering', label: 'Offering (₦)' },
                   { key: 'special', label: 'Special (₦)' },
                   { key: 'project', label: 'Project (₦)' },
-                ].map(f => (
+                ].map(f => {
+                  const raw = givingForm[f.key as keyof typeof givingForm];
+                  const displayVal = raw ? Number(raw.replace(/,/g,'')).toLocaleString('en-NG') : '';
+                  return (
                   <div key={f.key}>
                     <div style={{ fontSize: 10, color: t.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{f.label}</div>
                     <input
-                      type="number"
-                      value={givingForm[f.key as keyof typeof givingForm]}
-                      onChange={e => setGivingForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      type="text"
+                      inputMode="numeric"
+                      value={displayVal}
+                      onChange={e => {
+                        const stripped = e.target.value.replace(/,/g,'').replace(/[^0-9]/g,'');
+                        setGivingForm(prev => ({ ...prev, [f.key]: stripped }));
+                      }}
                       placeholder="0"
                       style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 13, background: t.input, color: t.text, outline: 'none' }}
                     />
                   </div>
-                ))}
+                  );
+                })}
               </div>
               <button onClick={submitGiving} disabled={givingSubmitting}
                 style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', width: '100%', opacity: givingSubmitting ? 0.7 : 1 }}>
@@ -694,13 +719,55 @@ export default function FellowshipHeadPage() {
         {/* ── DISPUTES ── */}
         {tab === 'disputes' && (
           <div>
-            <div style={{ fontSize: 13, color: t.sub, marginBottom: 16 }}>
-              Flag inaccurate cell submissions here. The PA will review and resolve within 48 hours. You have a 48-hour window from each submission to raise a dispute.
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: t.sub }}>
+                Flag inaccurate cell submissions here. The PA will review and resolve within 48 hours.
+              </div>
+              <button onClick={() => setDisputeForm({ record_id: '', reason: '' })}
+                style={{ background: t.purpleBg, color: t.purple, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 12 }}>
+                + Raise dispute
+              </button>
             </div>
+            {disputeForm !== null && (
+              <div style={{ ...card({ marginBottom: 14 }) }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>New dispute</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Select cell</div>
+                    <select value={disputeForm.record_id} onChange={e => setDisputeForm(p => p ? { ...p, record_id: e.target.value } : p)}
+                      style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
+                      <option value="">Choose cell…</option>
+                      {cells.filter(c => c.status === 'submitted').map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Reason</div>
+                    <select value={disputeForm.reason} onChange={e => setDisputeForm(p => p ? { ...p, reason: e.target.value } : p)}
+                      style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
+                      <option value="">Select reason…</option>
+                      {DISPUTE_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => { if (disputeForm.record_id && disputeForm.reason) raiseDispute(disputeForm.record_id, disputeForm.reason); }}
+                      disabled={!disputeForm.record_id || !disputeForm.reason}
+                      style={{ flex: 1, background: '#534AB7', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: !disputeForm.record_id || !disputeForm.reason ? 0.5 : 1 }}>
+                      Submit dispute
+                    </button>
+                    <button onClick={() => setDisputeForm(null)}
+                      style={{ background: t.input, color: t.sub, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '10px 16px', fontSize: 12, cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {disputes.length === 0 ? (
               <div style={{ ...card(), textAlign: 'center', padding: 32 }}>
                 <div style={{ fontSize: 13, color: t.muted }}>No disputes raised yet.</div>
-                <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>Go to the Cells tab and click a submitted cell to raise a dispute.</div>
+                <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>Click &ldquo;Raise dispute&rdquo; above to flag an inaccurate cell submission.</div>
               </div>
             ) : (
               <div style={{ ...card({ padding: 0 }), overflow: 'hidden' }}>

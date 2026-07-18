@@ -124,7 +124,16 @@ export default function DepartmentHeadPage() {
     if (tab === 'history') {
       fetch('/api/department/attendance?weeks=12', { credentials: 'include' })
         .then(r => r.json())
-        .then(({ data }) => { if (data?.records) setHistory(data.records); })
+        .then(({ data }) => {
+          if (data?.records) {
+            // E13 fix: flatten nested services.service_date
+            const mapped = data.records.map((r: Record<string,unknown>) => ({
+              ...r,
+              service_date: (r.services as Record<string,string>|null)?.service_date || (r.service_date as string) || null,
+            }));
+            setHistory(mapped);
+          }
+        })
         .catch(() => {});
     }
   }, [tab]);
@@ -237,7 +246,7 @@ export default function DepartmentHeadPage() {
         {[{ id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' }, { id: 'submit', label: 'Attendance', icon: 'ti-calendar-check' }, { id: 'history', label: 'History', icon: 'ti-history' }, { id: 'roster', label: 'Roster', icon: 'ti-list' },
         { id: 'birthdays', label: '🎂 Birthdays' }].map(n => (
           <button key={n.id} onClick={() => setTab(n.id as typeof tab)}
-            style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', marginBottom: -0.5 }}>
+            style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: tab === n.id ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', marginBottom: -0.5 }}>
             {n.label}
           </button>
         ))}
@@ -387,9 +396,15 @@ export default function DepartmentHeadPage() {
         {/* ROSTER */}
         {tab === 'roster' && (
           <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: 0, overflow: 'hidden' }}>
-            <div style={{ padding: '14px 16px', borderBottom: `0.5px solid ${t.border}` }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{deptName} — Full Roster</div>
-              <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{members.length} members</div>
+            <div style={{ padding: '14px 16px', borderBottom: `0.5px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{deptName} — Full Roster</div>
+                <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{members.length} members</div>
+              </div>
+              <button onClick={() => { window.location.href = '/update'; }}
+                style={{ background: t.purpleBg, color: t.purple, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                + Add member
+              </button>
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>

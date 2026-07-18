@@ -62,8 +62,9 @@ The database contains records from January 2021 through May 2026. If a user asks
 - fellowships (id, name)
 - attendance_records (id, service_id, cell_id, present_count, absent_count, visitor_count, submitted_at)
 - services (id, service_date, service_number, service_type)
-- giving_records (id, service_id, fellowship_id, giving_type, amount, currency, recorded_at)
-  giving_type: tithe, offering, special, first_fruit, project
+- income_records (id, income_type_id, amount, service_date, created_at, notes)
+- income_types (id, name, category) — category is 'individual', 'aggregate', or 'partnership'
+- giving_records (id, fellowship_id, service_date, tithe, offering, special, project, submitted_by) — fellowship-level giving summary
 - members (id, full_name, gender, date_of_birth, phone, email, cell_id, fellowship_id, sub_group, join_date, membership_status, conversion_source, is_new_convert, created_at)
 - departments (id, name)
 - department_members (id, department_id, member_id)
@@ -71,13 +72,15 @@ The database contains records from January 2021 through May 2026. If a user asks
 JOIN KEYS:
 - attendance_records.service_id -> services.id
 - attendance_records.cell_id -> cells.id
-- giving_records.service_id -> services.id
+- income_records.income_type_id -> income_types.id
 - giving_records.fellowship_id -> fellowships.id
 - members.cell_id -> cells.id
 - members.fellowship_id -> fellowships.id
 - cells.fellowship_id -> fellowships.id
 - department_members.member_id -> members.id
 - department_members.department_id -> departments.id
+
+IMPORTANT: For total church income use income_records joined with income_types. For fellowship-level giving totals use giving_records. Always show income_types.name not 'Anonymous' as the category label.
 
 Dates always come from services.service_date. Join through services for time-filtered attendance or giving queries.
 sub_group in members only contains "children" or "teenagers" for age classification. Leader data is NOT stored in the database. If asked about a cell leader, state clearly: "Leader information is not currently stored in the database."

@@ -49,18 +49,29 @@ export async function POST(req: Request) {
     });
     const data = await res.json();
 
-    // Notify PA
-    await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-      method: 'POST',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify([{
-        user_id: user.id,
-        type: 'pipeline',
-        title: 'New member addition request',
-        body: `${full_name} has been submitted for addition to your cell. Pending PA approval.`,
-        read: false,
-      }]),
-    });
+    // Notify fellowship head and overseers
+    const headRes = fellowship_id ? await fetch(
+      `${SUPABASE_URL}/rest/v1/users?fellowship_id=eq.${fellowship_id}&role=eq.fellowship_head&is_active=eq.true&select=id&limit=1`,
+      { headers: hdrs() }
+    ) : null;
+    const headData = headRes ? await headRes.json() : [];
+    const overseerRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&is_active=eq.true&select=id`, { headers: hdrs() });
+    const overseerData = await overseerRes.json();
+    const notifyIds = [...(Array.isArray(headData) ? headData.map((u: Record<string,string>) => u.id) : []), ...(Array.isArray(overseerData) ? overseerData.map((u: Record<string,string>) => u.id) : [])].filter((v, i, a) => a.indexOf(v) === i);
+    if (notifyIds.length > 0) {
+      await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+        method: 'POST',
+        headers: { ...hdrs(), 'Prefer': 'return=minimal' },
+        body: JSON.stringify(notifyIds.map(uid => ({
+          user_id: uid,
+          type: 'pipeline',
+          title: 'New member addition request',
+          body: `${full_name} submitted by cell/dept leader — pending approval`,
+          link: '/dashboard',
+          read: false,
+        }))),
+      });
+    }
 
     return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
   } catch (err) {

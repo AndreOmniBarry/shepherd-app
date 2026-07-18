@@ -15,6 +15,15 @@ async function getUser(req: Request) {
   return payloadToAuthUser(payload);
 }
 
+async function getOverseerIds(): Promise<string[]> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&is_active=eq.true&select=id`,
+    { headers: hdrs() }
+  );
+  const data = await res.json();
+  return Array.isArray(data) ? data.map((u: Record<string,string>) => u.id) : [];
+}
+
 export async function GET(req: Request) {
   try {
     const user = await getUser(req);
@@ -23,7 +32,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'open';
 
-    let url = `${SUPABASE_URL}/rest/v1/prayer_requests?order=created_at.desc&limit=50&select=id,request,requester_name,category,status,is_anonymous,submitted_by,created_at,members(full_name)`;
+    let url = `${SUPABASE_URL}/rest/v1/prayer_requests?order=created_at.desc&limit=50&select=id,request,requester_name,category,status,is_anonymous,submitted_by,submitted_by_role,created_at`;
     if (status !== 'all') url += `&status=eq.${status}`;
 
     // Non-overseer roles only see their own submissions
@@ -64,18 +73,21 @@ export async function POST(req: Request) {
     });
     const data = await res.json();
 
-    // Notify pastor
-    await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-      method: 'POST',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify([{
-        user_id: user.id,
-        type: 'pastoral',
-        title: 'New prayer request submitted',
-        body: `${is_anonymous ? 'Anonymous' : requester_name || 'A member'} — ${request.slice(0, 80)}${request.length > 80 ? '...' : ''}`,
-        read: false,
-      }]),
-    });
+    // FIX E9: Notify ALL overseers/PAs, not just the submitter
+    const overseerIds = await getOverseerIds();
+    if (overseerIds.length > 0) {
+      await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+        method: 'POST',
+        headers: { ...hdrs(), 'Prefer': 'return=minimal' },
+        body: JSON.stringify(overseerIds.map(uid => ({
+          user_id: uid,
+          type: 'pastoral',
+          title: 'New prayer request',
+          body: `${is_anonymous ? 'Anonymous' : requester_name || 'A member'} — ${request.slice(0, 80)}${request.length > 80 ? '...' : ''}`,
+          read: false,
+        }))),
+      });
+    }
 
     return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
   } catch (err) {
@@ -88,7 +100,7 @@ export async function PATCH(req: Request) {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     if (!['overseer', 'pa', 'lead_tech'].includes(user.role)) {
-      return NextResponse.json({ data: null, error: { message: 'Not authorized to update prayer requests' } }, { status: 403 });
+      return NextResponse.json({ data: null, error: { message: 'Not authorized' } }, { status: 403 });
     }
 
     const body = await req.json();

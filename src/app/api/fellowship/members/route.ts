@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     if (!fellowship_id) return NextResponse.json({ data: { members: [] }, error: null });
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/members?fellowship_id=eq.${fellowship_id}&select=id,full_name,membership_status,cells(name)&order=full_name.asc&limit=500`,
+      `${SUPABASE_URL}/rest/v1/members?fellowship_id=eq.${fellowship_id}&select=id,full_name,membership_status,last_seen,cells(name)&order=full_name.asc&limit=500`,
       { headers: hdrs }
     );
     const data = await res.json();
@@ -33,6 +33,7 @@ export async function GET(req: Request) {
       full_name: m.full_name,
       membership_status: m.membership_status,
       cell_name: (m.cells as Record<string, string> | null)?.name || 'Unassigned',
+      last_seen: m.last_seen || null,
     }));
 
     return NextResponse.json({ data: { members }, error: null });
