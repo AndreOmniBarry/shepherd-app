@@ -17,7 +17,7 @@ async function getUser(req: Request) {
 
 async function getOverseerIds(): Promise<string[]> {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&select=id`,
+    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&select=id`,
     { headers: hdrs() }
   );
   const data = await res.json();
@@ -63,30 +63,33 @@ export async function POST(req: Request) {
       headers: { ...hdrs(), 'Prefer': 'return=representation' },
       body: JSON.stringify({
         request,
-        requester_name: is_anonymous ? 'Anonymous' : (requester_name || 'Unknown'),
+        requester_name: is_anonymous ? 'Anonymous' : (requester_name || user.name || 'Unknown'),
         category: category || 'general',
         is_anonymous: is_anonymous || false,
         status: 'open',
         submitted_by: user.id,
-        submitted_by_role: user.role,
       }),
     });
     const data = await res.json();
 
-    // FIX E9: Notify ALL overseers/PAs, not just the submitter
-    const overseerIds = await getOverseerIds();
-    if (overseerIds.length > 0) {
-      await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-        method: 'POST',
-        headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-        body: JSON.stringify(overseerIds.map(uid => ({
-          user_id: uid,
-          type: 'pastoral',
-          title: 'New prayer request',
-          body: `${is_anonymous ? 'Anonymous' : requester_name || 'A member'} — ${request.slice(0, 80)}${request.length > 80 ? '...' : ''}`,
-          read: false,
-        }))),
-      });
+    // Notify all overseers/PAs - best effort, don't break main flow
+    try {
+      const overseerIds = await getOverseerIds();
+      if (overseerIds.length > 0) {
+        await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+          method: 'POST',
+          headers: { ...hdrs(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify(overseerIds.map(uid => ({
+            user_id: uid,
+            type: 'pastoral',
+            title: 'New prayer request',
+            body: `${is_anonymous ? 'Anonymous' : requester_name || user.name || 'A member'} — ${request.slice(0, 80)}${request.length > 80 ? '...' : ''}`,
+            read: false,
+          }))),
+        });
+      }
+    } catch (notifyErr) {
+      console.error('Prayer notify error (non-fatal):', notifyErr);
     }
 
     return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });

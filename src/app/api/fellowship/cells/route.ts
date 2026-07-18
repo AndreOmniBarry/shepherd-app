@@ -21,7 +21,7 @@ export async function GET(req: Request) {
       { headers: hdrs }
     );
     const memberData = await memberRes.json();
-    const fellowship_id = memberData?.[0]?.fellowship_id;
+    const fellowship_id = user.fellowship_id || memberData?.[0]?.fellowship_id;
     if (!fellowship_id) return NextResponse.json({ data: { cells: [] }, error: null });
 
     // Get all cells in fellowship

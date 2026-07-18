@@ -72,7 +72,7 @@ function allowedPrefixes(role: string): string[] {
     case 'pa':
     case 'lead_tech':
       // Full access — can view all portals for troubleshooting
-      return ['/dashboard', '/fellowship', '/department', '/cell', '/care', '/api'];
+      return ['/dashboard', '/fellowship', '/department', '/cell', '/care', '/update', '/api'];
     case 'fellowship_head':
       return ['/fellowship', '/update', '/api'];
     case 'department_head':

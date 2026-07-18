@@ -133,20 +133,22 @@ export type AIQueryLog = {
 // ── AUTH ────────────────────────────────────────────────────
 
 export type JWTPayload = {
-  sub:     string;    // user id
-  email:   string;
-  role:    Role;
-  cell_id: string | null;
-  iat:     number;
-  exp:     number;
+  sub:          string;    // user id
+  email:        string;
+  role:         Role;
+  cell_id:      string | null;
+  fellowship_id: string | null;
+  iat:          number;
+  exp:          number;
 };
 
 export type AuthUser = {
-  id:      string;
-  email:   string;
-  role:    Role;
-  cell_id: string | null;
-  name:    string;
+  id:           string;
+  email:        string;
+  role:         Role;
+  cell_id:      string | null;
+  fellowship_id: string | null;
+  name:         string;
 };
 
 export type LoginRequest = {

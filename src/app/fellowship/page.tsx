@@ -152,6 +152,7 @@ export default function FellowshipHeadPage() {
   const [cydfSubmitting, setCydfSubmitting] = useState(false);
   const [cydfSuccess, setCydfSuccess] = useState(false);
   const [givingSuccess, setGivingSuccess] = useState(false);
+  const [givingError, setGivingError] = useState('');
   const [disputeForm, setDisputeForm] = useState<{ record_id: string; reason: string } | null>(null);
 
   // ── Theme ────────────────────────────────────────────────────
@@ -294,12 +295,22 @@ export default function FellowshipHeadPage() {
           service_date: new Date().toISOString().split('T')[0],
         }),
       });
+      const result = await res.json();
       if (res.ok) {
         setGivingSuccess(true);
+        setGivingError('');
         setGivingForm({ tithe: '', offering: '', special: '', project: '' });
+        // Reload giving history
+        fetch('/api/fellowship/giving', { credentials: 'include' })
+          .then(r => r.json())
+          .then(({ data }) => { if (data?.records) setGivingHistory(data.records); });
         setTimeout(() => setGivingSuccess(false), 4000);
+      } else {
+        setGivingError(result?.error?.message || 'Failed to submit. Check your fellowship assignment.');
       }
-    } catch {}
+    } catch (err) {
+      setGivingError('Network error. Please try again.');
+    }
     setGivingSubmitting(false);
   }
 
@@ -625,7 +636,7 @@ export default function FellowshipHeadPage() {
                 </tbody>
               </table>
               {filteredMembers.length === 0 && (
-                <div style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No members found.</div>
+                <div style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No members found. If this is unexpected, please sign out and sign back in to refresh your session.</div>
               )}
             </div>
           </div>
@@ -639,7 +650,10 @@ export default function FellowshipHeadPage() {
               <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Submit Sunday giving</div>
               <div style={{ fontSize: 11, color: t.muted, marginBottom: 14 }}>Enter amounts collected in your fellowship this Sunday. Submit by Monday midnight.</div>
               {givingSuccess && (
-                <div style={{ background: t.tealBg, borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: t.teal, fontWeight: 500 }}>Giving submitted successfully.</div>
+                <div style={{ background: t.tealBg, borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: t.teal, fontWeight: 500 }}>✓ Giving submitted successfully.</div>
+              )}
+              {givingError && (
+                <div style={{ background: t.coralBg, borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: t.coral, fontWeight: 500 }}>{givingError}</div>
               )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                 {[
@@ -805,7 +819,7 @@ export default function FellowshipHeadPage() {
                     <select value={disputeForm.record_id} onChange={e => setDisputeForm(p => p ? { ...p, record_id: e.target.value } : p)}
                       style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
                       <option value="">Choose cell…</option>
-                      {cells.filter(c => c.status === 'submitted').map(c => (
+                      {cells.map(c => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>

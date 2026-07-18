@@ -27,9 +27,7 @@ export async function POST(req: Request) {
     if (!full_name) return NextResponse.json({ data: null, error: { message: 'Full name is required' } }, { status: 400 });
 
     // Get fellowship_id from users table
-    const userRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs() });
-    const userData = await userRes.json();
-    const fellowship_id = userData?.[0]?.fellowship_id || null;
+    const fellowship_id = user.fellowship_id || await (async () => { const r = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs() }); const d = await r.json(); return d?.[0]?.fellowship_id || null; })();
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/member_additions`, {
       method: 'POST',

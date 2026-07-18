@@ -76,21 +76,23 @@ export async function POST(req: Request) {
     });
     const data = await res.json();
 
-    // FIX E10: Notify overseers/PAs about new first timer
-    const overseerIds = await getOverseerIds();
-    if (overseerIds.length > 0) {
-      await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-        method: 'POST',
-        headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-        body: JSON.stringify(overseerIds.map(uid => ({
-          user_id: uid,
-          type: 'pipeline',
-          title: 'New first timer logged',
-          body: `${full_name} (${phone}) — logged by care team`,
-          read: false,
-        }))),
-      });
-    }
+    // Notify overseers/PAs about new first timer - best effort
+    try {
+      const overseerIds = await getOverseerIds();
+      if (overseerIds.length > 0) {
+        await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+          method: 'POST',
+          headers: { ...hdrs(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify(overseerIds.map(uid => ({
+            user_id: uid,
+            type: 'pipeline',
+            title: 'New first timer logged',
+            body: `${full_name} (${phone}) — logged by care team`,
+            read: false,
+          }))),
+        });
+      }
+    } catch (e) { console.error('First timer notify error (non-fatal):', e); }
 
     return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
   } catch (err) {

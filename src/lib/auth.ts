@@ -14,18 +14,20 @@ const JWT_EXPIRY = '24h';
 
 // ── Sign a JWT for a verified user ───────────────────────────
 export async function signToken(user: {
-  id:      string;
-  email:   string;
-  role:    Role;
-  cell_id: string | null;
-  name:    string;
+  id:           string;
+  email:        string;
+  role:         Role;
+  cell_id:      string | null;
+  fellowship_id: string | null;
+  name:         string;
 }): Promise<string> {
   return new SignJWT({
-    sub:     user.id,
-    email:   user.email,
-    role:    user.role,
-    cell_id: user.cell_id,
-    name:    user.name,
+    sub:          user.id,
+    email:        user.email,
+    role:         user.role,
+    cell_id:      user.cell_id,
+    fellowship_id: user.fellowship_id,
+    name:         user.name,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -46,11 +48,12 @@ export async function verifyToken(token: string): Promise<JWTPayload | null> {
 // ── Extract AuthUser from a verified payload ─────────────────
 export function payloadToAuthUser(payload: JWTPayload): AuthUser {
   return {
-    id:      payload.sub,
-    email:   payload.email,
-    role:    payload.role,
-    cell_id: payload.cell_id,
-    name:    (payload as Record<string, unknown>)['name'] as string ?? '',
+    id:           payload.sub,
+    email:        payload.email,
+    role:         payload.role,
+    cell_id:      payload.cell_id,
+    fellowship_id: payload.fellowship_id ?? null,
+    name:         (payload as Record<string, unknown>)['name'] as string ?? '',
   };
 }
 

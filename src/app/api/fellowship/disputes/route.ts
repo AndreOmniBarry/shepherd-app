@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 
     const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs() });
     const memberData = await memberRes.json();
-    const fellowship_id = memberData?.[0]?.fellowship_id;
+    const fellowship_id = user.fellowship_id || memberData?.[0]?.fellowship_id;
     if (!fellowship_id) return NextResponse.json({ data: { disputes: [] }, error: null });
 
     const res = await fetch(
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
     // Get fellowship_id
     const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs() });
     const memberData = await memberRes.json();
-    const fellowship_id = memberData?.[0]?.fellowship_id;
+    const fellowship_id = user.fellowship_id || memberData?.[0]?.fellowship_id;
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/attendance_disputes`, {
       method: 'POST',
