@@ -51,11 +51,11 @@ export async function POST(req: Request) {
 
     // Notify fellowship head and overseers
     const headRes = fellowship_id ? await fetch(
-      `${SUPABASE_URL}/rest/v1/users?fellowship_id=eq.${fellowship_id}&role=eq.fellowship_head&is_active=eq.true&select=id&limit=1`,
+      `${SUPABASE_URL}/rest/v1/users?fellowship_id=eq.${fellowship_id}&role=eq.fellowship_head&select=id&limit=1`,
       { headers: hdrs() }
     ) : null;
     const headData = headRes ? await headRes.json() : [];
-    const overseerRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&is_active=eq.true&select=id`, { headers: hdrs() });
+    const overseerRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&select=id`, { headers: hdrs() });
     const overseerData = await overseerRes.json();
     const notifyIds = [...(Array.isArray(headData) ? headData.map((u: Record<string,string>) => u.id) : []), ...(Array.isArray(overseerData) ? overseerData.map((u: Record<string,string>) => u.id) : [])].filter((v, i, a) => a.indexOf(v) === i);
     if (notifyIds.length > 0) {

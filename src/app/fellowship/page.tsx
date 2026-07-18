@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 import NotificationBell from "@/components/NotificationBell";
 import BirthdayPanel from '@/components/BirthdayPanel';
 import { useState, useEffect, useCallback } from 'react';
@@ -71,10 +72,67 @@ const SLA_COLORS: Record<string, { bg: string; text: string }> = {
   'F-': { bg: '#FCEBEB', text: '#A32D2D' },
 };
 
+function FellowshipApprovalPanel({t, dark}: {t: Record<string,string>; dark: boolean}) {
+  const [additions, setAdditions] = React.useState<{id:string;full_name:string;phone:string;gender:string;date_of_birth:string;join_date:string;status:string;created_at:string}[]>([]);
+  const [processing, setProcessing] = React.useState<Record<string,boolean>>({});
+  const [done, setDone] = React.useState<Record<string,string>>({});
+
+  React.useEffect(() => {
+    fetch('/api/update/member-additions', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => { if (data?.additions) setAdditions(data.additions.filter((a: {status:string}) => a.status === 'pending')); })
+      .catch(() => {});
+  }, []);
+
+  async function act(id: string, action: 'approve' | 'reject') {
+    setProcessing(p => ({ ...p, [id]: true }));
+    try {
+      await fetch('/api/update/member-additions', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ id, action }),
+      });
+      setDone(p => ({ ...p, [id]: action }));
+      setAdditions(prev => prev.filter(a => a.id !== id));
+    } catch {}
+    setProcessing(p => ({ ...p, [id]: false }));
+  }
+
+  if (additions.length === 0 && Object.keys(done).length === 0) return null;
+
+  return (
+    <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'16px 18px',marginBottom:16}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
+        <div style={{fontSize:13,fontWeight:600,color:t.text}}>Pending Member Approvals</div>
+        {additions.length > 0 && <span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:'#FAEEDA',color:'#633806',fontWeight:600}}>{additions.length}</span>}
+      </div>
+      {additions.length === 0 && <div style={{fontSize:12,color:t.muted}}>All caught up — no pending approvals.</div>}
+      {additions.map((a, i) => (
+        <div key={a.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:i<additions.length-1?`0.5px solid ${t.border}`:'none',flexWrap:'wrap' as const}}>
+          <div style={{flex:1,minWidth:140}}>
+            <div style={{fontSize:13,fontWeight:500,color:t.text}}>{a.full_name}</div>
+            <div style={{fontSize:11,color:t.muted}}>{a.phone||'—'} · {a.gender||'—'} · Joined {a.join_date}</div>
+          </div>
+          <div style={{display:'flex',gap:6}}>
+            <button onClick={() => act(a.id, 'approve')} disabled={processing[a.id]}
+              style={{background:'#1D9E75',color:'#fff',border:'none',borderRadius:7,padding:'5px 14px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id]?0.6:1}}>
+              {processing[a.id] ? '…' : 'Approve'}
+            </button>
+            <button onClick={() => act(a.id, 'reject')} disabled={processing[a.id]}
+              style={{background:'#FAECE7',color:'#993C1D',border:'none',borderRadius:7,padding:'5px 14px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id]?0.6:1}}>
+              Reject
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function FellowshipHeadPage() {
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('overview');
   const [dark, setDark] = useState(false);
+  const [nudgeMsg, setNudgeMsg] = useState('');
   const [fellowshipName, setFellowshipName] = useState('');
   const [leaderName, setLeaderName] = useState('');
   const [cells, setCells] = useState<Cell[]>([]);
@@ -187,12 +245,14 @@ export default function FellowshipHeadPage() {
   }
 
   // ── Computed stats ───────────────────────────────────────────
-  const totalMembers = cells.reduce((a, c) => a + c.member_count, 0);
+  // Use members array for accurate count; fall back to cell sum
+  const totalMembers = members.length > 0 ? members.length : cells.reduce((a, c) => a + (c.member_count || 0), 0);
   const submittedCells = cells.filter(c => c.status === 'submitted').length;
   const pendingCells = cells.filter(c => c.status === 'pending').length;
   const overdueCells = cells.filter(c => c.status === 'overdue').length;
-  const avgRate = cells.length > 0
-    ? Math.round(cells.filter(c => c.last_rate).reduce((a, c) => a + (c.last_rate || 0), 0) / cells.filter(c => c.last_rate).length)
+  const ratedCells = cells.filter(c => c.last_rate != null && !isNaN(c.last_rate as number));
+  const avgRate = ratedCells.length > 0
+    ? Math.round(ratedCells.reduce((a, c) => a + (c.last_rate || 0), 0) / ratedCells.length)
     : 0;
 
   const ytdGiving = givingHistory.reduce((a, g) => a + g.tithe + g.offering + g.special + g.project, 0);
@@ -314,6 +374,11 @@ export default function FellowshipHeadPage() {
       </div>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px' }}>
+        {nudgeMsg && (
+          <div style={{ background: '#1D9E75', color: '#fff', borderRadius: 10, padding: '11px 16px', marginBottom: 16, fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span>✓</span> {nudgeMsg}
+          </div>
+        )}
 
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && (
@@ -345,7 +410,7 @@ export default function FellowshipHeadPage() {
                       credentials: 'include',
                       body: JSON.stringify({ type: 'nudge_submission', cells: pendingLeaders.map(c => c.id) }),
                     });
-                    alert(`Nudge sent to ${pendingLeaders.length} cell leader${pendingLeaders.length > 1 ? 's' : ''}`);
+                    setNudgeMsg(`Nudge sent to ${pendingLeaders.length} cell leader${pendingLeaders.length > 1 ? 's' : ''}`); setTimeout(() => setNudgeMsg(''), 3500);;
                   }}
                   style={{ background: overdueCells > 0 ? '#D85A30' : '#BA7517', color: '#fff', border: 'none', borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 10 }}>
                   Nudge all
@@ -525,6 +590,9 @@ export default function FellowshipHeadPage() {
         {/* ── MEMBERS ── */}
         {tab === 'members' && (
           <div>
+            {/* Member Approval Panel - fellowship head */}
+            <FellowshipApprovalPanel t={t} dark={dark} />
+
             <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
               <input value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Search members..."
                 style={{ flex: 1, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 12px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }} />

@@ -740,6 +740,7 @@ function MemberApprovalPanel({t,dark}:{t:Record<string,string>;dark:boolean}) {
 export default function DashboardPage(){
   const router=useRouter();
   const [page,setPage]=useState<NavPage>('dashboard');
+  const [showAlertOnly,setShowAlertOnly]=useState(false);
   const [kpi,setKpi]=useState<KPI|null>(null);
   const [userName,setUserName]=useState('');
   const [givingRange,setGivingRange]=useState('6m');
@@ -1472,11 +1473,9 @@ export default function DashboardPage(){
                   <div style={{fontSize:15,fontWeight:700,color:t.text}}>Recognition Centre</div>
                   <div style={{fontSize:12,color:t.muted,marginTop:2}}>SLA performance, badges and leaderboards — updated every Monday</div>
                 </div>
-                <button onClick={() => {
-                    const el = document.getElementById('needs-attention-section');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  }} style={{background:'#FAECE7',color:'#993C1D',border:'0.5px solid rgba(216,90,48,0.2)',borderRadius:8,padding:'7px 14px',fontSize:12,cursor:'pointer',fontWeight:500}}>
-                  Needs Attention
+                <button onClick={() => setShowAlertOnly((v:boolean)=>!v)}
+                  style={{background: showAlertOnly ? '#993C1D' : '#FAECE7',color: showAlertOnly ? '#fff' : '#993C1D',border:'0.5px solid rgba(216,90,48,0.2)',borderRadius:8,padding:'7px 14px',fontSize:12,cursor:'pointer',fontWeight:600}}>
+                  {showAlertOnly ? '✕ All leaders' : '⚠ Needs Attention'}
                 </button>
               </div>
 
@@ -1513,7 +1512,13 @@ export default function DashboardPage(){
                       </tr>
                     </thead>
                     <tbody>
-                      {CELLS_DATA.slice(0,5).map((c,i)=>{
+                      {(showAlertOnly
+                        ? CELLS_DATA.filter(c=>c.status==='alert'||c.status==='watch')
+                        : [...CELLS_DATA].sort((a,b)=>{
+                            const score=(x:typeof CELLS_DATA[0])=>x.status==='rising'?92:x.status==='stable'?78:x.status==='watch'?55:35;
+                            return score(b)-score(a);
+                          }).slice(0,15)
+                      ).map((c,i)=>{
                         const slaScore=c.status==='rising'?92:c.status==='stable'?78:c.status==='watch'?61:45;
                         const tier=slaScore>=95?'Crown of Excellence':slaScore>=90?'Elite Shepherd':slaScore>=75?'Faithful Steward':slaScore>=60?'Consistent Servant':'Needs Improvement';
                         const tierColor=slaScore>=90?{bg:'#EEEDFE',c:'#3C3489'}:slaScore>=75?{bg:'#E1F5EE',c:'#085041'}:slaScore>=60?{bg:'#F3F4F6',c:'#374151'}:{bg:'#FAEEDA',c:'#993C1D'};

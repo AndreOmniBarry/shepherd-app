@@ -17,7 +17,7 @@ async function getUser(req: Request) {
 
 async function getOverseerIds(): Promise<string[]> {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&is_active=eq.true&select=id`,
+    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&select=id`,
     { headers: hdrs() }
   );
   const data = await res.json();

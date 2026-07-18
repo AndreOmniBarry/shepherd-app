@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 import NotificationBell from "@/components/NotificationBell";
 import BirthdayPanel from '@/components/BirthdayPanel';
 import CellOverview from '@/components/CellOverview';
@@ -31,9 +32,104 @@ const SLA_COLORS: Record<string, { bg: string; text: string }> = {
   'F-': { bg: '#FCEBEB', text: '#A32D2D' },
 };
 
+function AddMembersTab({t, dark}: {t: Record<string,string>; dark: boolean}) {
+  const [form, setForm] = React.useState({ full_name: '', phone: '', email: '', date_of_birth: '', gender: '', join_date: new Date().toISOString().split('T')[0] });
+  const [pending, setPending] = React.useState<{id:string;full_name:string;phone:string;status:string;created_at:string}[]>([]);
+  const [saving, setSaving] = React.useState(false);
+  const [success, setSuccess] = React.useState('');
+  const [error, setError] = React.useState('');
+  const t2 = t; const dark2 = dark;
+
+  React.useEffect(() => {
+    fetch('/api/update/member-additions', { credentials: 'include' })
+      .then(r => r.json()).then(({data}) => { if (data?.additions) setPending(data.additions); }).catch(()=>{});
+  }, [success]);
+
+  async function submit() {
+    if (!form.full_name.trim()) { setError('Full name is required'); return; }
+    setSaving(true); setError('');
+    try {
+      const res = await fetch('/api/update/member-additions', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include',
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        setSuccess('Member submitted for approval');
+        setForm({ full_name: '', phone: '', email: '', date_of_birth: '', gender: '', join_date: new Date().toISOString().split('T')[0] });
+        setTimeout(() => setSuccess(''), 4000);
+      } else { const d = await res.json(); setError(d?.error?.message || 'Failed'); }
+    } catch { setError('Network error'); }
+    setSaving(false);
+  }
+
+  const cardStyle = (e?: React.CSSProperties): React.CSSProperties => ({ background: t2.card, border: `0.5px solid ${t2.border}`, borderRadius: 12, padding: '16px 18px', ...e });
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:14}}>
+      <div style={cardStyle()}>
+        <div style={{fontSize:13,fontWeight:600,color:t2.text,marginBottom:4}}>Add a new member</div>
+        <div style={{fontSize:11,color:t2.muted,marginBottom:14}}>Submit details — your fellowship head will approve and add them to the church roster.</div>
+        {success && <div style={{background:t2.tealBg,color:t2.teal,borderRadius:8,padding:'9px 12px',fontSize:12,fontWeight:500,marginBottom:10}}>{success}</div>}
+        {error && <div style={{background:t2.coralBg,color:t2.coral,borderRadius:8,padding:'9px 12px',fontSize:12,marginBottom:10}}>{error}</div>}
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {[{key:'full_name',label:'Full name *',placeholder:'First and last name'},{key:'phone',label:'Phone',placeholder:'08012345678'},{key:'email',label:'Email',placeholder:'optional'}].map(f => (
+            <div key={f.key}>
+              <div style={{fontSize:10,color:t2.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:4}}>{f.label}</div>
+              <input value={form[f.key as keyof typeof form]} onChange={e => setForm(p => ({...p,[f.key]:e.target.value}))}
+                placeholder={f.placeholder}
+                style={{width:'100%',border:`0.5px solid ${t2.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t2.input,color:t2.text,outline:'none',fontFamily:'inherit'}} />
+            </div>
+          ))}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <div>
+              <div style={{fontSize:10,color:t2.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:4}}>Gender</div>
+              <select value={form.gender} onChange={e => setForm(p=>({...p,gender:e.target.value}))}
+                style={{width:'100%',border:`0.5px solid ${t2.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t2.input,color:t2.text,outline:'none'}}>
+                <option value="">Select</option><option value="male">Male</option><option value="female">Female</option>
+              </select>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:t2.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:4}}>Date of birth</div>
+              <input type="date" value={form.date_of_birth} onChange={e => setForm(p=>({...p,date_of_birth:e.target.value}))}
+                style={{width:'100%',border:`0.5px solid ${t2.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t2.input,color:t2.text,outline:'none'}} />
+            </div>
+          </div>
+          <div>
+            <div style={{fontSize:10,color:t2.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:4}}>Date joined</div>
+            <input type="date" value={form.join_date} onChange={e => setForm(p=>({...p,join_date:e.target.value}))}
+              style={{width:'100%',border:`0.5px solid ${t2.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t2.input,color:t2.text,outline:'none'}} />
+          </div>
+          <button onClick={submit} disabled={saving || !form.full_name.trim()}
+            style={{background:'#534AB7',color:'#fff',border:'none',borderRadius:9,padding:'11px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:saving||!form.full_name.trim()?0.6:1}}>
+            {saving ? 'Submitting…' : 'Submit for approval'}
+          </button>
+        </div>
+      </div>
+      {pending.length > 0 && (
+        <div style={cardStyle()}>
+          <div style={{fontSize:12,fontWeight:600,color:t2.text,marginBottom:12}}>Your submissions</div>
+          {pending.map((a,i) => (
+            <div key={a.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:i<pending.length-1?`0.5px solid ${t2.border}`:'none'}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:500,color:t2.text}}>{a.full_name}</div>
+                <div style={{fontSize:10,color:t2.muted}}>{a.phone||'—'} · {new Date(a.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
+              </div>
+              <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,fontWeight:500,
+                background:a.status==='approved'?'#E1F5EE':a.status==='rejected'?'#FAECE7':'#FAEEDA',
+                color:a.status==='approved'?'#085041':a.status==='rejected'?'#993C1D':'#633806'}}>
+                {a.status.charAt(0).toUpperCase()+a.status.slice(1)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CellPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'prayer' | 'birthdays' | 'followup'>('overview');
+  const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'prayer' | 'birthdays' | 'followup' | 'members'>('overview');
   const [members, setMembers] = useState<Member[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState('');
@@ -266,6 +362,7 @@ export default function CellPage() {
             { id: 'prayer', label: 'Prayer', icon: 'ti-heart' },
             { id: 'followup', label: 'Follow-up', icon: 'ti-user-check' },
             { id: 'birthdays', label: 'Birthdays', icon: 'ti-cake' },
+            { id: 'members', label: 'Members', icon: 'ti-users' },
           ] as {id:string;label:string;icon:string}[]).map(tabDef => (
             <button key={tabDef.id} onClick={() => setTab(tabDef.id)}
               style={{ flex: 1, padding: '8px 4px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: tab === tabDef.id ? 600 : 400, background: tab === tabDef.id ? (dark?'rgba(83,74,183,0.4)':t.card) : 'transparent', color: tab === tabDef.id ? (dark?'#E8E5FF':t.purple) : t.sub, boxShadow: tab === tabDef.id ? (dark?'0 0 12px rgba(83,74,183,0.3)':'0 1px 4px rgba(83,74,183,0.12)') : 'none', transition: 'all 0.2s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
@@ -398,7 +495,11 @@ export default function CellPage() {
         {tab === 'birthdays' && (
           <BirthdayPanel dark={dark} t={t} scope="cell" showFellowship={false} />
         )}
-        {tab === 'history' && (
+        {tab === 'members' && (
+          <AddMembersTab t={t} dark={dark} />
+        )}
+
+                {tab === 'history' && (
           <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 14 }}>Last 12 Weeks</div>
             {history.length === 0 ? (
