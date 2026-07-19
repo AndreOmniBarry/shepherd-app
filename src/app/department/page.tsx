@@ -47,6 +47,7 @@ const SLA_COLORS: Record<string, { bg: string; text: string }> = {
 };
 
 export default function DepartmentHeadPage() {
+  const { width: screenWidth, isMobile } = useScreenSize();
   const router = useRouter();
   const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'roster' | 'birthdays'>('overview');
   const [dark, setDark] = useState(false);

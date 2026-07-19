@@ -74,6 +74,7 @@ const HOW_THEY_CAME = [
 ];
 
 export default function CareTeamPage() {
+  const { width: screenWidth, isMobile } = useScreenSize();
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('queue');
   const [dark, setDark] = useState(false);

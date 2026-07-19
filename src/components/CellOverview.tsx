@@ -59,7 +59,22 @@ interface CellOverviewProps {
   t: Record<string, string>;
 }
 
-export default function CellOverview({ dark = false, t, screenWidth = 1280 }: CellOverviewProps) {
+export default function CellOverview({ dark = false, t: tProp, screenWidth = 1280 }: CellOverviewProps) {
+  const LIGHT = {
+    bg:'#F0EFF8',card:'#FFFFFF',nav:'#FFFFFF',navBorder:'rgba(83,74,183,0.1)',
+    text:'#1A1040',sub:'#5A5180',muted:'#9990CC',border:'rgba(83,74,183,0.12)',
+    input:'#F7F6FF',purple:'#534AB7',purpleBg:'#EEEDFE',purpleLight:'#7B74CC',
+    teal:'#1D9E75',tealBg:'#E1F5EE',coral:'#D85A30',coralBg:'#FAECE7',
+    amber:'#BA7517',amberBg:'#FAEEDA',white:'#FFFFFF',
+  };
+  const DARK = {
+    bg:'#0F0A2E',card:'#1A1340',nav:'#140F35',navBorder:'rgba(255,255,255,0.06)',
+    text:'#E8E5FF',sub:'#B8B0E8',muted:'#7870B0',border:'rgba(255,255,255,0.08)',
+    input:'#1F1850',purple:'#A89FFF',purpleBg:'rgba(168,159,255,0.12)',purpleLight:'#C4BFFF',
+    teal:'#2DD4AA',tealBg:'rgba(45,212,170,0.12)',coral:'#F87171',coralBg:'rgba(248,113,113,0.12)',
+    amber:'#FCD34D',amberBg:'rgba(252,211,77,0.12)',white:'#1A1340',
+  };
+  const t = tProp || (dark ? DARK : LIGHT);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
   const [memberView, setMemberView] = useState<'all' | 'critical' | 'watch' | 'healthy'>('all');
