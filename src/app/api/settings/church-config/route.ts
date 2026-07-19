@@ -71,6 +71,25 @@ export async function PATCH(req: Request) {
       updated_at: new Date().toISOString(),
     };
 
+    // Auto-set trial dates on first configuration
+    if (!existingData?.[0]?.trial_started_at) {
+      const now = new Date();
+      const trialEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      Object.assign(payload, {
+        trial_started_at: now.toISOString(),
+        trial_ends_at: trialEnd.toISOString(),
+        plan_tier: body.plan_tier || 'trial',
+        subscription_status: body.plan_tier && body.plan_tier !== 'trial' ? 'active' : 'trial',
+        subscription_started_at: body.plan_tier && body.plan_tier !== 'trial' ? now.toISOString() : null,
+      });
+    } else if (body.plan_tier && body.plan_tier !== 'trial') {
+      // Upgrading from trial to paid
+      Object.assign(payload, {
+        subscription_status: 'active',
+        subscription_started_at: new Date().toISOString(),
+      });
+    }
+
     if (!Array.isArray(existingData) || existingData.length === 0) {
       // INSERT
       const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config`, {

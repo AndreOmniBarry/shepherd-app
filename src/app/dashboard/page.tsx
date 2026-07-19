@@ -17,7 +17,7 @@ import {
 type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; };
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
 type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
-type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation'|'settings';
+type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation'|'settings'|'admin';
 type TimeRange = '8w'|'3m'|'6m'|'1y'|'2y'|'5y';
 
 // ── Unique cell data with realistic, differentiated trends ─────
@@ -994,8 +994,14 @@ export default function DashboardPage(){
       if(data?.name&&data.name!=='General')setUserName(data.name);
       else if(data?.email)setUserName(data.email.split('@')[0]);
     }).catch(()=>{});
-    fetch('/api/settings/church-config',{credentials:'include'})
+    // Reload config fresh - especially after onboarding
+    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const justOnboarded = urlParams?.get('onboarded') === '1';
+    fetch('/api/settings/church-config' + (justOnboarded ? '?fresh=1' : ''), {credentials:'include', cache: justOnboarded ? 'no-store' : 'default'})
       .then(r=>r.json()).then(({data})=>{if(data?.config)setChurchConfig(data.config);}).catch(()=>{});
+    if (justOnboarded && typeof window !== 'undefined') {
+      window.history.replaceState({}, '', '/dashboard');
+    }
     fetch('/api/analytics/dashboard',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setKpi(data);}).catch(()=>{});
 
     // Live feed - fetch real submissions and auto-refresh every 30s
@@ -1093,6 +1099,7 @@ export default function DashboardPage(){
     {id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'},
     {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
     {id:'settings' as NavPage,icon:'ti-settings',label:'Settings'},
+    ...(user?.role === 'lead_tech' ? [{id:'admin' as NavPage,icon:'ti-shield',label:'Admin Portal'}] : []),
   ];
 
   const agentOpts=[
@@ -1891,6 +1898,12 @@ export default function DashboardPage(){
           )}
           {page==='settings'&&(
             <ChurchSettingsPanel t={t} dark={dark} />
+          )}
+          {page==='admin'&&(
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',paddingTop:60,flexDirection:'column',gap:16}}>
+              <div style={{fontSize:14,color:t.sub}}>Opening Admin Portal…</div>
+              <script dangerouslySetInnerHTML={{__html:`window.location.href='/admin'`}} />
+            </div>
           )}
           {page==='prayer'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>

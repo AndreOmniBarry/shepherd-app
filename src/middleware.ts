@@ -27,6 +27,7 @@ const PUBLIC_PATHS = [
   '/api/register',
   '/api/invites',
   '/api/settings/church-config',
+  '/api/subscription',
   '/_next',
   '/favicon.ico',
   '/manifest.json',
@@ -74,7 +75,7 @@ function allowedPrefixes(role: string): string[] {
     case 'pa':
     case 'lead_tech':
       // Full access — can view all portals for troubleshooting
-      return ['/dashboard', '/fellowship', '/department', '/cell', '/care', '/update', '/api'];
+      return ['/dashboard', '/fellowship', '/department', '/cell', '/care', '/update', '/admin', '/api'];
     case 'fellowship_head':
       return ['/fellowship', '/update', '/api'];
     case 'department_head':
