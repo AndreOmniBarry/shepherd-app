@@ -949,6 +949,7 @@ export default function DashboardPage(){
   const [churchConfig,setChurchConfig]=React.useState<{tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string}>({tier1_label:'Fellowship',tier2_label:'Cell',tier1_head_label:'Fellowship Head',tier2_head_label:'Cell Leader',church_name:'',currency:'NGN'});
   const [kpi,setKpi]=useState<KPI|null>(null);
   const [userName,setUserName]=useState('');
+  const [userRole,setUserRole]=useState('');
   const [givingRange,setGivingRange]=useState('6m');
   const [cellRange,setCellRange]=useState('8w');
   const [selectedCell,setSelectedCell]=useState<typeof CELLS_DATA[0]|null>(null);
@@ -993,6 +994,7 @@ export default function DashboardPage(){
     fetch('/api/auth/me',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
       if(data?.name&&data.name!=='General')setUserName(data.name);
       else if(data?.email)setUserName(data.email.split('@')[0]);
+      if(data?.role)setUserRole(data.role);
     }).catch(()=>{});
     // Reload config fresh - especially after onboarding
     const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
@@ -1099,7 +1101,7 @@ export default function DashboardPage(){
     {id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'},
     {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
     {id:'settings' as NavPage,icon:'ti-settings',label:'Settings'},
-    ...(user?.role === 'lead_tech' ? [{id:'admin' as NavPage,icon:'ti-shield',label:'Admin Portal'}] : []),
+    ...(userRole === 'lead_tech' ? [{id:'admin' as NavPage,icon:'ti-shield',label:'Admin Portal'}] : []),
   ];
 
   const agentOpts=[
