@@ -17,7 +17,7 @@ import {
 type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; };
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
 type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
-type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation';
+type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation'|'settings';
 type TimeRange = '8w'|'3m'|'6m'|'1y'|'2y'|'5y';
 
 // ── Unique cell data with realistic, differentiated trends ─────
@@ -674,6 +674,211 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
   );
 }
 
+function ChurchSettingsPanel({t, dark}: {t: Record<string,string>; dark: boolean}) {
+  const [config, setConfig] = React.useState<Record<string,unknown>>({});
+  const [saving, setSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<'structure'|'church'|'services'>('structure');
+
+  // Form fields
+  const [churchName, setChurchName] = React.useState('');
+  const [structureType, setStructureType] = React.useState('cell_church');
+  const [tier1Label, setTier1Label] = React.useState('Fellowship');
+  const [tier2Label, setTier2Label] = React.useState('Cell');
+  const [tier3Label, setTier3Label] = React.useState('');
+  const [tier1HeadLabel, setTier1HeadLabel] = React.useState('Fellowship Head');
+  const [tier2HeadLabel, setTier2HeadLabel] = React.useState('Cell Leader');
+  const [currency, setCurrency] = React.useState('NGN');
+  const [country, setCountry] = React.useState('Nigeria');
+  const [serviceDays, setServiceDays] = React.useState<string[]>(['Sunday']);
+
+  React.useEffect(() => {
+    fetch('/api/settings/church-config', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => {
+        if (data?.config) {
+          const c = data.config;
+          setConfig(c);
+          setChurchName(c.church_name || '');
+          setStructureType(c.structure_type || 'cell_church');
+          setTier1Label(c.tier1_label || '');
+          setTier2Label(c.tier2_label || '');
+          setTier3Label(c.tier3_label || '');
+          setTier1HeadLabel(c.tier1_head_label || 'Fellowship Head');
+          setTier2HeadLabel(c.tier2_head_label || 'Cell Leader');
+          setCurrency(c.currency || 'NGN');
+          setCountry(c.country || 'Nigeria');
+          setServiceDays(c.service_days || ['Sunday']);
+        }
+      }).catch(() => {});
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await fetch('/api/settings/church-config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          church_name: churchName,
+          structure_type: structureType,
+          tier1_label: tier1Label || null,
+          tier2_label: tier2Label || null,
+          tier3_label: tier3Label || null,
+          tier1_head_label: tier1HeadLabel,
+          tier2_head_label: tier2HeadLabel,
+          currency,
+          country,
+          service_days: serviceDays,
+        }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {}
+    setSaving(false);
+  }
+
+  const STRUCTURES = [
+    { value: 'cell_church', label: '⛪ Cell Church', sub: 'Fellowship → Cell → Member' },
+    { value: 'zonal', label: '🗺 Zonal Church', sub: 'Zone → District → Cell → Member' },
+    { value: 'campus', label: '🏙 Multi-Campus', sub: 'Campus → Fellowship → Cell → Member' },
+    { value: 'department', label: '🏛 Department Church', sub: 'Department → Unit → Member' },
+    { value: 'house_network', label: '🏠 House Church Network', sub: 'Network → Home Group → Member' },
+    { value: 'single', label: '🤲 Single Congregation', sub: 'Pastor → Member' },
+  ];
+
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const CURRENCIES = [
+    {code:'NGN',label:'₦ Nigerian Naira'},{code:'GHS',label:'GH₵ Ghanaian Cedi'},
+    {code:'KES',label:'KSh Kenyan Shilling'},{code:'ZAR',label:'R South African Rand'},
+    {code:'USD',label:'$ US Dollar'},{code:'GBP',label:'£ British Pound'},
+  ];
+
+  const cardS = (e?: React.CSSProperties): React.CSSProperties => ({
+    background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '18px 20px', ...e,
+  });
+
+  const inputS: React.CSSProperties = {
+    width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8,
+    padding: '9px 12px', fontSize: 13, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit',
+  };
+
+  const labelS: React.CSSProperties = {
+    fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6, display: 'block',
+  };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div>
+          <div style={{fontSize:17,fontWeight:700,color:t.text}}>Church Settings</div>
+          <div style={{fontSize:12,color:t.muted,marginTop:2}}>Configure your church structure, labels, and preferences</div>
+        </div>
+        <button onClick={save} disabled={saving}
+          style={{background:saved?'#1D9E75':t.purple,color:'#fff',border:'none',borderRadius:9,padding:'9px 20px',fontSize:13,fontWeight:600,cursor:'pointer',transition:'background 0.2s'}}>
+          {saving?'Saving…':saved?'✓ Saved':'Save changes'}
+        </button>
+      </div>
+
+      {/* Tab nav */}
+      <div style={{display:'flex',gap:0,borderBottom:`0.5px solid ${t.border}`}}>
+        {(['structure','church','services'] as const).map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            style={{padding:'9px 18px',border:'none',borderBottom:`2px solid ${activeTab===tab?t.purple:'transparent'}`,background:activeTab===tab?t.purpleBg:'transparent',fontSize:12,fontWeight:activeTab===tab?600:400,color:activeTab===tab?t.purple:t.muted,cursor:'pointer',textTransform:'capitalize' as const}}>
+            {tab === 'structure' ? 'Church Structure' : tab === 'church' ? 'Church Details' : 'Services'}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'structure' && (
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div style={cardS()}>
+            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Structure Model</div>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {STRUCTURES.map(s => (
+                <button key={s.value} onClick={() => setStructureType(s.value)}
+                  style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 14px',borderRadius:9,border:`0.5px solid ${structureType===s.value?t.purple:t.border}`,background:structureType===s.value?t.purpleBg:t.input,cursor:'pointer',textAlign:'left' as const}}>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:500,color:t.text}}>{s.label}</div>
+                    <div style={{fontSize:11,color:t.muted,marginTop:2}}>{s.sub}</div>
+                  </div>
+                  {structureType===s.value && <span style={{width:8,height:8,borderRadius:'50%',background:t.purple,flexShrink:0}}/>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {structureType !== 'single' && (
+            <div style={cardS()}>
+              <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Label Customisation</div>
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                  <div><label style={labelS}>Tier 1 name</label><input value={tier1Label} onChange={e=>setTier1Label(e.target.value)} placeholder="e.g. Fellowship" style={inputS}/></div>
+                  <div><label style={labelS}>Tier 1 leader title</label><input value={tier1HeadLabel} onChange={e=>setTier1HeadLabel(e.target.value)} placeholder="e.g. Fellowship Head" style={inputS}/></div>
+                </div>
+                {tier2Label && (
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                    <div><label style={labelS}>Tier 2 name</label><input value={tier2Label} onChange={e=>setTier2Label(e.target.value)} placeholder="e.g. Cell" style={inputS}/></div>
+                    <div><label style={labelS}>Tier 2 leader title</label><input value={tier2HeadLabel} onChange={e=>setTier2HeadLabel(e.target.value)} placeholder="e.g. Cell Leader" style={inputS}/></div>
+                  </div>
+                )}
+                {(structureType==='zonal'||structureType==='campus') && (
+                  <div><label style={labelS}>Tier 3 name</label><input value={tier3Label} onChange={e=>setTier3Label(e.target.value)} placeholder="e.g. Cell" style={inputS}/></div>
+                )}
+                <div style={{background:t.purpleBg,borderRadius:8,padding:'10px 14px',fontSize:12,color:t.purple}}>
+                  Preview: {[tier1Label,tier2Label,tier3Label].filter(Boolean).join(' → ')} → Member
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'church' && (
+        <div style={cardS()}>
+          <div style={{display:'flex',flexDirection:'column',gap:14}}>
+            <div><label style={labelS}>Church name</label><input value={churchName} onChange={e=>setChurchName(e.target.value)} placeholder="e.g. The Comforters House Global" style={inputS}/></div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+              <div>
+                <label style={labelS}>Country</label>
+                <select value={country} onChange={e=>setCountry(e.target.value)} style={inputS}>
+                  {['Nigeria','Ghana','Kenya','South Africa','Uganda','Tanzania','Rwanda','United Kingdom','United States','Canada','Australia','Other'].map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelS}>Currency</label>
+                <select value={currency} onChange={e=>setCurrency(e.target.value)} style={inputS}>
+                  {CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.label}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'services' && (
+        <div style={cardS()}>
+          <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Service Days</div>
+          <div style={{fontSize:12,color:t.muted,marginBottom:14}}>Select the days your church holds services. These determine attendance submission windows and absence tracking.</div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap' as const}}>
+            {DAYS.map(day => (
+              <button key={day}
+                onClick={() => setServiceDays(prev => prev.includes(day) ? prev.filter(d=>d!==day) : [...prev,day])}
+                style={{padding:'8px 16px',borderRadius:20,border:`0.5px solid ${serviceDays.includes(day)?t.purple:t.border}`,background:serviceDays.includes(day)?t.purple:t.input,color:serviceDays.includes(day)?'#fff':t.sub,fontSize:12,fontWeight:serviceDays.includes(day)?600:400,cursor:'pointer'}}>
+                {day}
+              </button>
+            ))}
+          </div>
+          <div style={{marginTop:16,background:t.purpleBg,borderRadius:8,padding:'10px 14px',fontSize:12,color:t.purple}}>
+            Active: {serviceDays.join(', ') || 'None selected'}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MemberApprovalPanel({t,dark}:{t:Record<string,string>;dark:boolean}) {
   const [additions, setAdditions] = React.useState<{id:string;full_name:string;phone:string;gender:string;date_of_birth:string;join_date:string;status:string;submitted_by:string;created_at:string}[]>([]);
   const [processing, setProcessing] = React.useState<Record<string,boolean>>({});
@@ -741,6 +946,7 @@ export default function DashboardPage(){
   const router=useRouter();
   const [page,setPage]=useState<NavPage>('dashboard');
   const [showAlertOnly,setShowAlertOnly]=useState(false);
+  const [churchConfig,setChurchConfig]=React.useState<{tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string}>({tier1_label:'Fellowship',tier2_label:'Cell',tier1_head_label:'Fellowship Head',tier2_head_label:'Cell Leader',church_name:'',currency:'NGN'});
   const [kpi,setKpi]=useState<KPI|null>(null);
   const [userName,setUserName]=useState('');
   const [givingRange,setGivingRange]=useState('6m');
@@ -788,6 +994,8 @@ export default function DashboardPage(){
       if(data?.name&&data.name!=='General')setUserName(data.name);
       else if(data?.email)setUserName(data.email.split('@')[0]);
     }).catch(()=>{});
+    fetch('/api/settings/church-config',{credentials:'include'})
+      .then(r=>r.json()).then(({data})=>{if(data?.config)setChurchConfig(data.config);}).catch(()=>{});
     fetch('/api/analytics/dashboard',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setKpi(data);}).catch(()=>{});
 
     // Live feed - fetch real submissions and auto-refresh every 30s
@@ -874,16 +1082,17 @@ export default function DashboardPage(){
   const navItems=[
     {id:'dashboard' as NavPage,icon:'ti-layout-dashboard',label:'Dashboard'},
     {id:'members' as NavPage,icon:'ti-users',label:'Members'},
-    {id:'departments' as NavPage,icon:'ti-building',label:'Departments'},
+    {id:'departments' as NavPage,icon:'ti-building',label:`${churchConfig.tier1_label?'Fellowships':'Departments'}`},
     {id:'attendance' as NavPage,icon:'ti-calendar-stats',label:'Attendance'},
     {id:'giving' as NavPage,icon:'ti-coin',label:'Giving'},
-    {id:'cells' as NavPage,icon:'ti-circles',label:'Cell Ministry'},
+    {id:'cells' as NavPage,icon:'ti-circles',label:`${churchConfig.tier2_label||'Cell'} Ministry`},
     {id:'reports' as NavPage,icon:'ti-chart-bar',label:'Reports'},
     {id:'recognition' as NavPage,icon:'ti-award',label:'Recognition'},
     {id:'commendation' as NavPage,icon:'ti-star',label:'Commend Leaders'},
     {id:'prayer' as NavPage,icon:'ti-heart',label:'Prayer Requests'},
     {id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'},
     {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
+    {id:'settings' as NavPage,icon:'ti-settings',label:'Settings'},
   ];
 
   const agentOpts=[
@@ -1679,6 +1888,9 @@ export default function DashboardPage(){
           )}
           {page==='validation'&&(
             <FellowshipValidation t={t} dark={dark} />
+          )}
+          {page==='settings'&&(
+            <ChurchSettingsPanel t={t} dark={dark} />
           )}
           {page==='prayer'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>

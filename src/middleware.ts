@@ -21,6 +21,7 @@ const JWT_SECRET = new TextEncoder().encode(
 const PUBLIC_PATHS = [
   '/login',
   '/register',
+  '/setup',
   '/api/auth/login',
   '/api/auth/register',
   '/api/register',

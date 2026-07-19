@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 import NotificationBell from "@/components/NotificationBell";
 import BirthdayPanel from '@/components/BirthdayPanel';
 import { useState, useEffect, useCallback } from 'react';
@@ -129,6 +130,7 @@ function FellowshipApprovalPanel({t, dark}: {t: Record<string,string>; dark: boo
 }
 
 export default function FellowshipHeadPage() {
+  const { config: churchConfig } = useChurchConfigStandalone();
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('overview');
   const [dark, setDark] = useState(false);
@@ -339,7 +341,7 @@ export default function FellowshipHeadPage() {
 
   const navItems: { id: NavTab; label: string }[] = [
     { id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' },
-    { id: 'cells', label: 'Cells', icon: 'ti-circles' },
+    { id: 'cells', label: churchConfig.tier2_label || 'Cells', icon: 'ti-circles' },
     { id: 'members', label: 'Members', icon: 'ti-users' },
     { id: 'giving', label: 'Giving', icon: 'ti-coin' },
     { id: 'birthdays', label: '🎂 Birthdays' },
@@ -449,7 +451,7 @@ export default function FellowshipHeadPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div style={card()}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Cell submission status</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{churchConfig.tier2_label || 'Cell'} submission status</span>
                   <span style={{ fontSize: 11, color: t.purple, cursor: 'pointer' }} onClick={() => setTab('cells')}>View all</span>
                 </div>
                 {cells.slice(0, 6).map(c => (
