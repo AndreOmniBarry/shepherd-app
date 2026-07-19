@@ -17,7 +17,7 @@ import {
 type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; };
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
 type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
-type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation'|'settings'|'admin';
+type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation'|'settings'|'admin'|'subscription';
 type TimeRange = '8w'|'3m'|'6m'|'1y'|'2y'|'5y';
 
 // ── Unique cell data with realistic, differentiated trends ─────
@@ -674,6 +674,143 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
   );
 }
 
+function SubscriptionPanel({t, dark}: {t: Record<string,string>; dark: boolean}) {
+  const [sub, setSub] = React.useState<{plan_tier:string;status:string;days_remaining:number;trial_ends_at:string;subscription_started_at:string|null}|null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch('/api/subscription', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => { if (data) setSub(data); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const PLANS = [
+    { id: 'starter', name: 'Starter', price: '₦15,000', period: '/month', color: '#1D9E75', colorBg: '#E1F5EE',
+      features: ['Up to 500 members', '1 location', 'Up to 20 cells', 'Attendance & member management', 'Basic giving records', 'Email support'],
+      limits: ['No AI (Moshe)', 'No partnership portal', 'No SMS alerts'] },
+    { id: 'growth', name: 'Growth', price: '₦35,000', period: '/month', color: '#534AB7', colorBg: '#EEEDFE',
+      features: ['Up to 5,000 members', 'Up to 10 locations', 'Unlimited cells', 'Moshe AI agent', 'Partnership portal', 'SMS & WhatsApp alerts', 'Full analytics', 'Priority support'],
+      limits: [] },
+    { id: 'enterprise', name: 'Enterprise', price: 'Custom', period: '', color: '#BA7517', colorBg: '#FAEEDA',
+      features: ['Unlimited members & locations', 'Multi-currency', 'White-label branding', 'API access', 'Dedicated account manager', 'SLA guarantee'],
+      limits: [] },
+  ];
+
+  const currentPlan = PLANS.find(p => p.id === sub?.plan_tier) || PLANS[1];
+  const isTrial = sub?.status === 'trial';
+  const isActive = sub?.status === 'active';
+  const isExpired = sub?.status === 'expired';
+
+  const cardS = (e?: React.CSSProperties): React.CSSProperties => ({
+    background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '18px 20px', ...e,
+  });
+
+  if (loading) return <div style={{padding:40,textAlign:'center',color:t.muted,fontSize:13}}>Loading subscription…</div>;
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div>
+        <div style={{fontSize:17,fontWeight:700,color:t.text}}>Subscription</div>
+        <div style={{fontSize:12,color:t.muted,marginTop:2}}>Manage your SHEPHERD plan and billing</div>
+      </div>
+
+      {/* Current status */}
+      <div style={{...cardS(), background: isTrial ? '#FAEEDA' : isExpired ? '#FAECE7' : '#E1F5EE', border: `0.5px solid ${isTrial ? 'rgba(186,117,23,0.2)' : isExpired ? 'rgba(216,90,48,0.2)' : 'rgba(29,158,117,0.2)'}`}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:4}}>
+              {isTrial ? `Free Trial — ${sub?.days_remaining ?? 0} days remaining` : isExpired ? 'Trial Expired' : `${currentPlan.name} Plan — Active`}
+            </div>
+            <div style={{fontSize:12,color:t.sub}}>
+              {isTrial
+                ? `Your trial gives you full Growth plan access. After ${sub?.days_remaining ?? 0} days, select a plan to continue.`
+                : isExpired
+                ? 'Your trial has ended. Please subscribe to continue using SHEPHERD.'
+                : `You are on the ${currentPlan.name} plan. Thank you for subscribing.`}
+            </div>
+          </div>
+          <span style={{fontSize:10,padding:'3px 10px',borderRadius:10,fontWeight:700,
+            background: isTrial ? '#BA7517' : isExpired ? '#D85A30' : '#1D9E75',
+            color:'#fff', whiteSpace:'nowrap', marginLeft:12}}>
+            {isTrial ? 'TRIAL' : isExpired ? 'EXPIRED' : 'ACTIVE'}
+          </span>
+        </div>
+        {isTrial && sub?.days_remaining !== undefined && (
+          <div style={{marginTop:12,height:6,background:'rgba(0,0,0,0.08)',borderRadius:3,overflow:'hidden'}}>
+            <div style={{height:'100%',width:`${Math.max(0,(sub.days_remaining/30)*100)}%`,background:'#BA7517',borderRadius:3,transition:'width 0.3s'}}/>
+          </div>
+        )}
+      </div>
+
+      {/* Plans */}
+      <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:-4}}>
+        {isTrial || isExpired ? 'Choose a plan to continue' : 'Change your plan'}
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        {PLANS.map(plan => {
+          const isCurrent = sub?.plan_tier === plan.id && isActive;
+          return (
+            <div key={plan.id} style={{...cardS(), border: `${isCurrent ? '1.5px' : '0.5px'} solid ${isCurrent ? plan.color : t.border}`, background: isCurrent ? plan.colorBg : t.card}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
+                <div>
+                  <div style={{fontSize:14,fontWeight:700,color:t.text}}>{plan.name}</div>
+                  <div style={{fontSize:18,fontWeight:800,color:plan.color}}>{plan.price}<span style={{fontSize:12,fontWeight:400,color:t.muted}}>{plan.period}</span></div>
+                </div>
+                {isCurrent
+                  ? <span style={{fontSize:10,background:plan.color,color:'#fff',borderRadius:10,padding:'3px 10px',fontWeight:700}}>Current plan</span>
+                  : plan.id !== 'enterprise'
+                  ? (
+                    <button onClick={() => {
+                        // Open Paystack payment — for now show contact message
+                        alert('To upgrade, please contact support@shepherd.app or call +234 XXX XXX XXXX. Your plan will be activated within 24 hours.');
+                      }}
+                      style={{background:plan.color,color:'#fff',border:'none',borderRadius:8,padding:'7px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+                      {isTrial || isExpired ? 'Subscribe' : 'Switch to this plan'}
+                    </button>
+                  ) : (
+                    <button onClick={() => window.open('mailto:enterprise@shepherd.app?subject=Enterprise Plan Enquiry', '_blank')}
+                      style={{background:plan.color,color:'#fff',border:'none',borderRadius:8,padding:'7px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+                      Contact us
+                    </button>
+                  )
+                }
+              </div>
+              <div style={{display:'flex',flexWrap:'wrap' as const,gap:6}}>
+                {plan.features.slice(0,4).map((f,i) => (
+                  <span key={i} style={{fontSize:10,background:plan.colorBg,color:plan.color,borderRadius:6,padding:'2px 8px'}}>✓ {f}</span>
+                ))}
+                {plan.features.length > 4 && <span style={{fontSize:10,color:t.muted}}>+{plan.features.length-4} more</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{...cardS({padding:'14px 18px'}), background:t.purpleBg}}>
+        <div style={{fontSize:12,fontWeight:600,color:t.purple,marginBottom:4}}>Payment & Billing</div>
+        <div style={{fontSize:12,color:t.sub,lineHeight:1.6}}>
+          SHEPHERD uses Paystack for secure payments. Nigerian bank transfers, Verve cards, and USSD are all supported.
+          To subscribe or renew, contact us at <strong>support@shepherd.app</strong> or call <strong>+234 XXX XXX XXXX</strong>.
+          Paystack integration for self-service payment is coming soon.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminRedirect() {
+  const router = require('next/navigation').useRouter();
+  require('react').useEffect(() => { router.push('/admin'); }, []);
+  return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',paddingTop:80,flexDirection:'column',gap:12}}>
+      <div style={{width:32,height:32,border:'3px solid rgba(83,74,183,0.2)',borderTopColor:'#534AB7',borderRadius:'50%',animation:'spin 1s linear infinite'}}/>
+      <div style={{fontSize:14,color:'#9890C4'}}>Opening Admin Portal…</div>
+    </div>
+  );
+}
+
 function ChurchSettingsPanel({t, dark}: {t: Record<string,string>; dark: boolean}) {
   const [config, setConfig] = React.useState<Record<string,unknown>>({});
   const [saving, setSaving] = React.useState(false);
@@ -693,6 +830,8 @@ function ChurchSettingsPanel({t, dark}: {t: Record<string,string>; dark: boolean
   const [serviceDays, setServiceDays] = React.useState<string[]>(['Sunday']);
 
   React.useEffect(() => {
+    fetch('/api/subscription',{credentials:'include'})
+      .then(r=>r.json()).then(({data})=>{if(data)setSubscription(data);}).catch(()=>{});
     fetch('/api/settings/church-config', { credentials: 'include' })
       .then(r => r.json())
       .then(({ data }) => {
@@ -947,6 +1086,7 @@ export default function DashboardPage(){
   const [page,setPage]=useState<NavPage>('dashboard');
   const [showAlertOnly,setShowAlertOnly]=useState(false);
   const [churchConfig,setChurchConfig]=React.useState<{tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string}>({tier1_label:'Fellowship',tier2_label:'Cell',tier1_head_label:'Fellowship Head',tier2_head_label:'Cell Leader',church_name:'',currency:'NGN'});
+  const [subscription,setSubscription]=React.useState<{plan_tier:string;status:string;days_remaining:number;is_active:boolean}|null>(null);
   const [kpi,setKpi]=useState<KPI|null>(null);
   const [userName,setUserName]=useState('');
   const [userRole,setUserRole]=useState('');
@@ -999,6 +1139,8 @@ export default function DashboardPage(){
     // Reload config fresh - especially after onboarding
     const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     const justOnboarded = urlParams?.get('onboarded') === '1';
+    fetch('/api/subscription',{credentials:'include'})
+      .then(r=>r.json()).then(({data})=>{if(data)setSubscription(data);}).catch(()=>{});
     fetch('/api/settings/church-config' + (justOnboarded ? '?fresh=1' : ''), {credentials:'include', cache: justOnboarded ? 'no-store' : 'default'})
       .then(r=>r.json()).then(({data})=>{if(data?.config)setChurchConfig(data.config);}).catch(()=>{});
     if (justOnboarded && typeof window !== 'undefined') {
@@ -1101,6 +1243,7 @@ export default function DashboardPage(){
     {id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'},
     {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
     {id:'settings' as NavPage,icon:'ti-settings',label:'Settings'},
+    {id:'subscription' as NavPage,icon:'ti-credit-card',label:'Subscription'},
     ...(userRole === 'lead_tech' ? [{id:'admin' as NavPage,icon:'ti-shield',label:'Admin Portal'}] : []),
   ];
 
@@ -1154,6 +1297,13 @@ export default function DashboardPage(){
 
       {/* Main */}
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,background:t.bg}}>
+        {/* Trial banner */}
+        {subscription && subscription.status === 'trial' && (
+          <div style={{background: subscription.days_remaining <= 5 ? '#D85A30' : subscription.days_remaining <= 14 ? '#BA7517' : '#534AB7', color:'#fff', padding:'8px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, fontWeight:500}}>
+            <span>{subscription.days_remaining <= 0 ? '⚠ Your trial has expired. Subscribe to continue.' : `⏱ Free trial — ${subscription.days_remaining} day${subscription.days_remaining !== 1 ? 's' : ''} remaining`}</span>
+            <button onClick={()=>setPage('subscription')} style={{background:'rgba(255,255,255,0.2)',color:'#fff',border:'1px solid rgba(255,255,255,0.4)',borderRadius:6,padding:'4px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>{subscription.days_remaining <= 0 ? 'Subscribe now' : 'View plans'}</button>
+          </div>
+        )}
         {/* Topbar */}
         <div style={{background:t.nav,borderBottom:`0.5px solid ${t.navBorder}`,padding:'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
@@ -1902,10 +2052,10 @@ export default function DashboardPage(){
             <ChurchSettingsPanel t={t} dark={dark} />
           )}
           {page==='admin'&&(
-            <div style={{display:'flex',alignItems:'center',justifyContent:'center',paddingTop:60,flexDirection:'column',gap:16}}>
-              <div style={{fontSize:14,color:t.sub}}>Opening Admin Portal…</div>
-              <script dangerouslySetInnerHTML={{__html:`window.location.href='/admin'`}} />
-            </div>
+            <AdminRedirect />
+          )}
+          {page==='subscription'&&(
+            <SubscriptionPanel t={t} dark={dark} />
           )}
           {page==='prayer'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>

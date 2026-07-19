@@ -478,7 +478,18 @@ export default function SetupWizard() {
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+    // Check if user is logged in - setup requires auth
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => {
+        if (!r.ok) {
+          // Not logged in - redirect to login with next=/setup
+          window.location.href = '/login?next=/setup';
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const question = QUESTIONS[qIndex];
   const totalQ = QUESTIONS.length;
@@ -578,7 +589,7 @@ export default function SetupWizard() {
       service_days: (a.service_days as string[]) || ['Sunday'],
       is_configured: true,
       plan_tier: planTier,
-      church_profile: {
+      church_profile: JSON.stringify({
         denomination: a.denomination,
         founded_year: a.founded_year,
         congregation_size: a.congregation_size,
@@ -597,7 +608,7 @@ export default function SetupWizard() {
         primary_goals: a.primary_goals,
         biggest_challenge: a.biggest_challenge,
         timeline: a.timeline,
-      },
+      }),
     };
 
     try {
@@ -612,7 +623,12 @@ export default function SetupWizard() {
         router.push('/dashboard?onboarded=1');
       } else {
         const d = await res.json();
-        setError(d?.error?.message || 'Failed to save. Please try again.');
+        const msg = d?.error?.message || 'Failed to save.';
+        if (res.status === 401) {
+          setError('You need to be logged in to complete setup. Please sign in as an overseer or lead tech, then return to /setup.');
+        } else {
+          setError(msg + ' Make sure you are logged in as overseer or lead tech.');
+        }
         setScreen('plan');
       }
     } catch {
@@ -675,7 +691,7 @@ export default function SetupWizard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               {question.options?.map(opt => (
                 <button key={opt.value}
-                  onClick={() => { saveAnswer(opt.value); if (!question.required) return; setTimeout(() => go(1), 120); }}
+                  onClick={() => { saveAnswer(opt.value); setTimeout(() => go(1), 120); }}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 16px', borderRadius: 11, border: `${ans === opt.value ? '1.5px' : '1px'} solid ${ans === opt.value ? C.purple : C.border}`, background: ans === opt.value ? C.purpleBg : C.white, cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'all 0.12s' }}>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 500, color: C.text }}>{opt.label}</div>
@@ -768,16 +784,18 @@ export default function SetupWizard() {
                 ← Back
               </button>
             )}
+            {/* Continue button for multi, text, number */}
             {(question?.type === 'multi' || question?.type === 'text' || question?.type === 'number') && (
               <button onClick={() => go(1)} disabled={!canAdvance()}
                 style={{ flex: 1, padding: '12px 22px', borderRadius: 9, border: 'none', background: canAdvance() ? C.purple : C.border, color: C.white, fontSize: 14, fontWeight: 600, cursor: canAdvance() ? 'pointer' : 'default', transition: 'background 0.2s' }}>
                 {qIndex === QUESTIONS.length - 1 ? 'Choose your plan →' : 'Continue →'}
               </button>
             )}
+            {/* Single select: always show Continue, dimmed until selection made */}
             {question?.type === 'single' && (
-              <button onClick={() => go(1)}
-                style={{ padding: '11px 18px', borderRadius: 9, border: `1px solid ${C.border}`, background: C.white, color: C.sub, fontSize: 13, cursor: 'pointer' }}>
-                Skip
+              <button onClick={() => go(1)} disabled={question.required && !currentAnswer()}
+                style={{ flex: 1, padding: '12px 22px', borderRadius: 9, border: 'none', background: (question.required && !currentAnswer()) ? C.border : C.purple, color: C.white, fontSize: 14, fontWeight: 600, cursor: (question.required && !currentAnswer()) ? 'default' : 'pointer', transition: 'background 0.2s' }}>
+                {qIndex === QUESTIONS.length - 1 ? 'Choose your plan →' : 'Continue →'}
               </button>
             )}
           </div>
