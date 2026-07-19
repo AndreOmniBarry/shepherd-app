@@ -791,12 +791,20 @@ export default function SetupWizard() {
                 {qIndex === QUESTIONS.length - 1 ? 'Choose your plan →' : 'Continue →'}
               </button>
             )}
-            {/* Single select: always show Continue, dimmed until selection made */}
+            {/* Single select: Continue always visible. If required, dimmed until picked. Skip shown alongside for optional */}
             {question?.type === 'single' && (
-              <button onClick={() => go(1)} disabled={question.required && !currentAnswer()}
-                style={{ flex: 1, padding: '12px 22px', borderRadius: 9, border: 'none', background: (question.required && !currentAnswer()) ? C.border : C.purple, color: C.white, fontSize: 14, fontWeight: 600, cursor: (question.required && !currentAnswer()) ? 'default' : 'pointer', transition: 'background 0.2s' }}>
-                {qIndex === QUESTIONS.length - 1 ? 'Choose your plan →' : 'Continue →'}
-              </button>
+              <div style={{display:'flex',gap:8,flex:1}}>
+                {!question.required && (
+                  <button onClick={() => go(1)}
+                    style={{ padding: '12px 18px', borderRadius: 9, border: `1px solid ${C.border}`, background: C.white, color: C.sub, fontSize: 13, fontWeight: 400, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    Skip
+                  </button>
+                )}
+                <button onClick={() => go(1)} disabled={!!(question.required && !currentAnswer())}
+                  style={{ flex: 1, padding: '12px 22px', borderRadius: 9, border: 'none', background: (question.required && !currentAnswer()) ? C.border : C.purple, color: C.white, fontSize: 14, fontWeight: 600, cursor: (question.required && !currentAnswer()) ? 'default' : 'pointer', transition: 'background 0.2s' }}>
+                  {qIndex === QUESTIONS.length - 1 ? 'Choose your plan →' : 'Continue →'}
+                </button>
+              </div>
             )}
           </div>
         </div>

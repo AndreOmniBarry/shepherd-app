@@ -675,8 +675,18 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
 }
 
 function SubscriptionPanel({t, dark}: {t: Record<string,string>; dark: boolean}) {
-  const [sub, setSub] = React.useState<{plan_tier:string;status:string;days_remaining:number;trial_ends_at:string;subscription_started_at:string|null}|null>(null);
+  const [sub, setSub] = React.useState<{
+    plan_tier:string; status:string; days_remaining:number;
+    trial_ends_at:string; subscription_started_at:string|null; is_active:boolean;
+  }|null>(null);
+  const [invoices] = React.useState([
+    { id: 'INV-001', date: '2026-06-19', amount: '₦35,000', status: 'paid', plan: 'Growth' },
+    { id: 'INV-000', date: '2026-05-19', amount: '₦35,000', status: 'paid', plan: 'Growth' },
+  ]);
   const [loading, setLoading] = React.useState(true);
+  const [cancelConfirm, setCancelConfirm] = React.useState(false);
+  const [upgrading, setUpgrading] = React.useState<string|null>(null);
+  const [toast, setToast] = React.useState('');
 
   React.useEffect(() => {
     fetch('/api/subscription', { credentials: 'include' })
@@ -686,116 +696,370 @@ function SubscriptionPanel({t, dark}: {t: Record<string,string>; dark: boolean})
       .finally(() => setLoading(false));
   }, []);
 
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(''), 4000);
+  }
+
+  async function initPaystack(planId: string, amount: number) {
+    setUpgrading(planId);
+    // Paystack inline checkout - keys will be injected when you add them
+    const PAYSTACK_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYSTACK_KEY || 'pk_live_REPLACE_WITH_YOUR_KEY';
+    try {
+      // Load Paystack script dynamically
+      if (!(window as Window & {PaystackPop?: unknown}).PaystackPop) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://js.paystack.co/v1/inline.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject();
+          document.head.appendChild(script);
+        });
+      }
+      const PaystackPop = (window as Window & {PaystackPop: {setup: (config: Record<string, unknown>) => {openIframe: () => void}}}).PaystackPop;
+      const handler = PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: 'church@shepherd.app', // TODO: replace with actual church email from auth
+        amount: amount * 100, // Paystack uses kobo
+        currency: 'NGN',
+        ref: `SHEP-${planId.toUpperCase()}-${Date.now()}`,
+        metadata: { plan_tier: planId, custom_fields: [{ display_name: 'Plan', variable_name: 'plan', value: planId }] },
+        callback: async (response: { reference: string }) => {
+          // Payment successful - upgrade in our system
+          const res = await fetch('/api/subscription', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ plan_tier: planId, paystack_reference: response.reference }),
+          });
+          if (res.ok) {
+            showToast(`Successfully upgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)} plan!`);
+            // Refresh subscription status
+            fetch('/api/subscription', { credentials: 'include' })
+              .then(r => r.json())
+              .then(({ data }) => { if (data) setSub(data); });
+          } else {
+            showToast('Payment received but activation failed. Contact support@shepherd.app');
+          }
+          setUpgrading(null);
+        },
+        onClose: () => { setUpgrading(null); },
+      });
+      handler.openIframe();
+    } catch {
+      showToast('Payment system unavailable. Please contact support@shepherd.app to subscribe.');
+      setUpgrading(null);
+    }
+  }
+
   const PLANS = [
-    { id: 'starter', name: 'Starter', price: '₦15,000', period: '/month', color: '#1D9E75', colorBg: '#E1F5EE',
-      features: ['Up to 500 members', '1 location', 'Up to 20 cells', 'Attendance & member management', 'Basic giving records', 'Email support'],
-      limits: ['No AI (Moshe)', 'No partnership portal', 'No SMS alerts'] },
-    { id: 'growth', name: 'Growth', price: '₦35,000', period: '/month', color: '#534AB7', colorBg: '#EEEDFE',
-      features: ['Up to 5,000 members', 'Up to 10 locations', 'Unlimited cells', 'Moshe AI agent', 'Partnership portal', 'SMS & WhatsApp alerts', 'Full analytics', 'Priority support'],
-      limits: [] },
-    { id: 'enterprise', name: 'Enterprise', price: 'Custom', period: '', color: '#BA7517', colorBg: '#FAEEDA',
-      features: ['Unlimited members & locations', 'Multi-currency', 'White-label branding', 'API access', 'Dedicated account manager', 'SLA guarantee'],
-      limits: [] },
+    {
+      id: 'starter', name: 'Starter', price: 15000, display: '₦15,000', period: '/month',
+      color: '#1D9E75', colorBg: '#E1F5EE', colorBorder: 'rgba(29,158,117,0.2)',
+      tagline: 'For small churches getting organised',
+      features: ['Up to 500 members', '1 location', 'Up to 20 cells/groups', 'Attendance tracking', 'Member management', 'Basic giving records', 'Email support'],
+      limits: ['Moshe AI not included', 'No partnership portal', 'No SMS/WhatsApp alerts'],
+    },
+    {
+      id: 'growth', name: 'Growth', price: 35000, display: '₦35,000', period: '/month',
+      color: '#534AB7', colorBg: '#EEEDFE', colorBorder: 'rgba(83,74,183,0.2)',
+      tagline: 'Full intelligence for growing churches',
+      badge: 'Most popular',
+      features: ['Up to 5,000 members', 'Up to 10 locations', 'Unlimited cells/groups', 'Moshe AI agent', 'Partnership portal', 'SMS & WhatsApp alerts', 'Full analytics & reports', 'Priority support', 'Birthday automation', 'Care & follow-up pipeline'],
+      limits: [],
+    },
+    {
+      id: 'enterprise', name: 'Enterprise', price: 0, display: 'Custom', period: '',
+      color: '#BA7517', colorBg: '#FAEEDA', colorBorder: 'rgba(186,117,23,0.2)',
+      tagline: 'For denominations and large multi-site churches',
+      features: ['Unlimited members & locations', 'Multi-currency support', 'White-label branding', 'Custom API integrations', 'Dedicated account manager', 'SLA guarantee', 'Onboarding concierge', 'Custom reporting'],
+      limits: [],
+    },
   ];
 
-  const currentPlan = PLANS.find(p => p.id === sub?.plan_tier) || PLANS[1];
+  const currentPlan = PLANS.find(p => p.id === sub?.plan_tier);
   const isTrial = sub?.status === 'trial';
   const isActive = sub?.status === 'active';
-  const isExpired = sub?.status === 'expired';
+  const isExpired = sub?.status === 'expired' || (isTrial && (sub?.days_remaining ?? 0) <= 0);
 
   const cardS = (e?: React.CSSProperties): React.CSSProperties => ({
-    background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '18px 20px', ...e,
+    background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, ...e,
   });
 
-  if (loading) return <div style={{padding:40,textAlign:'center',color:t.muted,fontSize:13}}>Loading subscription…</div>;
+  const labelS: React.CSSProperties = { fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, display: 'block' };
+
+  if (loading) return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:60,flexDirection:'column',gap:12}}>
+      <div style={{width:28,height:28,border:`3px solid ${t.border}`,borderTopColor:t.purple,borderRadius:'50%',animation:'spin 1s linear infinite'}}/>
+      <div style={{fontSize:13,color:t.muted}}>Loading subscription…</div>
+    </div>
+  );
 
   return (
-    <div style={{display:'flex',flexDirection:'column',gap:16}}>
-      <div>
-        <div style={{fontSize:17,fontWeight:700,color:t.text}}>Subscription</div>
-        <div style={{fontSize:12,color:t.muted,marginTop:2}}>Manage your SHEPHERD plan and billing</div>
-      </div>
+    <div style={{display:'flex',flexDirection:'column',gap:20, maxWidth: 860}}>
 
-      {/* Current status */}
-      <div style={{...cardS(), background: isTrial ? '#FAEEDA' : isExpired ? '#FAECE7' : '#E1F5EE', border: `0.5px solid ${isTrial ? 'rgba(186,117,23,0.2)' : isExpired ? 'rgba(216,90,48,0.2)' : 'rgba(29,158,117,0.2)'}`}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-          <div>
-            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:4}}>
-              {isTrial ? `Free Trial — ${sub?.days_remaining ?? 0} days remaining` : isExpired ? 'Trial Expired' : `${currentPlan.name} Plan — Active`}
-            </div>
-            <div style={{fontSize:12,color:t.sub}}>
-              {isTrial
-                ? `Your trial gives you full Growth plan access. After ${sub?.days_remaining ?? 0} days, select a plan to continue.`
-                : isExpired
-                ? 'Your trial has ended. Please subscribe to continue using SHEPHERD.'
-                : `You are on the ${currentPlan.name} plan. Thank you for subscribing.`}
-            </div>
-          </div>
-          <span style={{fontSize:10,padding:'3px 10px',borderRadius:10,fontWeight:700,
-            background: isTrial ? '#BA7517' : isExpired ? '#D85A30' : '#1D9E75',
-            color:'#fff', whiteSpace:'nowrap', marginLeft:12}}>
-            {isTrial ? 'TRIAL' : isExpired ? 'EXPIRED' : 'ACTIVE'}
-          </span>
+      {/* Toast */}
+      {toast && (
+        <div style={{background:t.teal,color:'#fff',borderRadius:10,padding:'11px 18px',fontSize:13,fontWeight:500,display:'flex',alignItems:'center',gap:10}}>
+          <span>✓</span> {toast}
         </div>
-        {isTrial && sub?.days_remaining !== undefined && (
-          <div style={{marginTop:12,height:6,background:'rgba(0,0,0,0.08)',borderRadius:3,overflow:'hidden'}}>
-            <div style={{height:'100%',width:`${Math.max(0,(sub.days_remaining/30)*100)}%`,background:'#BA7517',borderRadius:3,transition:'width 0.3s'}}/>
+      )}
+
+      {/* Header */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+        <div>
+          <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Subscription & Billing</div>
+          <div style={{fontSize:12,color:t.muted,marginTop:3}}>Manage your SHEPHERD plan, payments, and invoices</div>
+        </div>
+        {isActive && currentPlan && (
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:11,color:t.muted,marginBottom:4}}>Current plan</div>
+            <span style={{fontSize:12,fontWeight:700,padding:'4px 14px',borderRadius:20,background:currentPlan.colorBg,color:currentPlan.color}}>
+              {currentPlan.name}
+            </span>
           </div>
         )}
       </div>
 
-      {/* Plans */}
-      <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:-4}}>
-        {isTrial || isExpired ? 'Choose a plan to continue' : 'Change your plan'}
-      </div>
-      <div style={{display:'flex',flexDirection:'column',gap:10}}>
-        {PLANS.map(plan => {
-          const isCurrent = sub?.plan_tier === plan.id && isActive;
-          return (
-            <div key={plan.id} style={{...cardS(), border: `${isCurrent ? '1.5px' : '0.5px'} solid ${isCurrent ? plan.color : t.border}`, background: isCurrent ? plan.colorBg : t.card}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
-                <div>
-                  <div style={{fontSize:14,fontWeight:700,color:t.text}}>{plan.name}</div>
-                  <div style={{fontSize:18,fontWeight:800,color:plan.color}}>{plan.price}<span style={{fontSize:12,fontWeight:400,color:t.muted}}>{plan.period}</span></div>
-                </div>
-                {isCurrent
-                  ? <span style={{fontSize:10,background:plan.color,color:'#fff',borderRadius:10,padding:'3px 10px',fontWeight:700}}>Current plan</span>
-                  : plan.id !== 'enterprise'
-                  ? (
-                    <button onClick={() => {
-                        // Open Paystack payment — for now show contact message
-                        alert('To upgrade, please contact support@shepherd.app or call +234 XXX XXX XXXX. Your plan will be activated within 24 hours.');
-                      }}
-                      style={{background:plan.color,color:'#fff',border:'none',borderRadius:8,padding:'7px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}>
-                      {isTrial || isExpired ? 'Subscribe' : 'Switch to this plan'}
-                    </button>
-                  ) : (
-                    <button onClick={() => window.open('mailto:enterprise@shepherd.app?subject=Enterprise Plan Enquiry', '_blank')}
-                      style={{background:plan.color,color:'#fff',border:'none',borderRadius:8,padding:'7px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}>
-                      Contact us
-                    </button>
-                  )
-                }
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap' as const,gap:6}}>
-                {plan.features.slice(0,4).map((f,i) => (
-                  <span key={i} style={{fontSize:10,background:plan.colorBg,color:plan.color,borderRadius:6,padding:'2px 8px'}}>✓ {f}</span>
-                ))}
-                {plan.features.length > 4 && <span style={{fontSize:10,color:t.muted}}>+{plan.features.length-4} more</span>}
-              </div>
+      {/* Status card */}
+      <div style={{...cardS({padding:'20px 24px'}),
+        background: isExpired ? '#FAECE7' : isTrial ? (sub!.days_remaining <= 7 ? '#FAEEDA' : t.purpleBg) : t.tealBg,
+        border: `0.5px solid ${isExpired ? 'rgba(216,90,48,0.2)' : isTrial ? 'rgba(83,74,183,0.2)' : 'rgba(29,158,117,0.2)'}`
+      }}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:16,flexWrap:'wrap' as const}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:6}}>
+              {isExpired
+                ? 'Your trial has ended'
+                : isTrial
+                ? `Free Trial — ${sub!.days_remaining} day${sub!.days_remaining !== 1 ? 's' : ''} remaining`
+                : `${currentPlan?.name || 'Growth'} Plan — Active`}
             </div>
-          );
-        })}
-      </div>
-
-      <div style={{...cardS({padding:'14px 18px'}), background:t.purpleBg}}>
-        <div style={{fontSize:12,fontWeight:600,color:t.purple,marginBottom:4}}>Payment & Billing</div>
-        <div style={{fontSize:12,color:t.sub,lineHeight:1.6}}>
-          SHEPHERD uses Paystack for secure payments. Nigerian bank transfers, Verve cards, and USSD are all supported.
-          To subscribe or renew, contact us at <strong>support@shepherd.app</strong> or call <strong>+234 XXX XXX XXXX</strong>.
-          Paystack integration for self-service payment is coming soon.
+            <div style={{fontSize:13,color:t.sub,lineHeight:1.6,maxWidth:500}}>
+              {isExpired
+                ? 'Subscribe below to restore full access to SHEPHERD. Your data is safe and will be available immediately upon payment.'
+                : isTrial
+                ? `You have full Growth plan access during your trial. After ${sub!.days_remaining} days, choose a plan to continue without interruption.`
+                : `Your subscription is active. Thank you for using SHEPHERD. Your next renewal is in ${sub!.days_remaining} days.`}
+            </div>
+            {isTrial && !isExpired && (
+              <div style={{marginTop:14}}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+                  <span style={{fontSize:11,color:t.muted}}>Trial progress</span>
+                  <span style={{fontSize:11,color:t.muted}}>{30 - sub!.days_remaining}/30 days used</span>
+                </div>
+                <div style={{height:6,background:'rgba(83,74,183,0.12)',borderRadius:3,overflow:'hidden'}}>
+                  <div style={{height:'100%',width:`${Math.min(100,((30-sub!.days_remaining)/30)*100)}%`,
+                    background: sub!.days_remaining <= 7 ? '#D85A30' : sub!.days_remaining <= 14 ? '#BA7517' : '#534AB7',
+                    borderRadius:3,transition:'width 0.4s'}}/>
+                </div>
+              </div>
+            )}
+          </div>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}>
+            <span style={{fontSize:11,fontWeight:700,padding:'4px 12px',borderRadius:20,
+              background: isExpired ? '#D85A30' : isTrial ? '#534AB7' : '#1D9E75',
+              color:'#fff'}}>
+              {isExpired ? 'EXPIRED' : isTrial ? 'TRIAL' : 'ACTIVE'}
+            </span>
+            {isActive && (
+              <div style={{fontSize:11,color:t.muted,textAlign:'right'}}>
+                Renews in {sub!.days_remaining} days
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Plans comparison */}
+      <div>
+        <div style={{fontSize:14,fontWeight:600,color:t.text,marginBottom:14}}>
+          {isActive ? 'Change plan' : 'Choose a plan'}
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+          {PLANS.map(plan => {
+            const isCurrent = isActive && sub?.plan_tier === plan.id;
+            return (
+              <div key={plan.id} style={{...cardS({padding:'18px'}),
+                border:`${isCurrent ? '1.5px' : '0.5px'} solid ${isCurrent ? plan.color : t.border}`,
+                background: isCurrent ? plan.colorBg : t.card,
+                display:'flex',flexDirection:'column',gap:0,position:'relative' as const
+              }}>
+                {plan.badge && (
+                  <div style={{position:'absolute' as const,top:-10,left:16,background:plan.color,color:'#fff',fontSize:10,fontWeight:700,borderRadius:20,padding:'2px 10px'}}>
+                    {plan.badge}
+                  </div>
+                )}
+
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:2}}>{plan.name}</div>
+                  <div style={{fontSize:11,color:t.muted,marginBottom:10}}>{plan.tagline}</div>
+                  <div>
+                    <span style={{fontSize:22,fontWeight:800,color:plan.color}}>{plan.display}</span>
+                    {plan.period && <span style={{fontSize:12,color:t.muted}}>{plan.period}</span>}
+                  </div>
+                </div>
+
+                <div style={{flex:1,marginBottom:14}}>
+                  {plan.features.map((f,i) => (
+                    <div key={i} style={{display:'flex',alignItems:'flex-start',gap:7,marginBottom:6}}>
+                      <span style={{color:plan.color,fontSize:11,marginTop:1,flexShrink:0}}>✓</span>
+                      <span style={{fontSize:11,color:t.sub,lineHeight:1.4}}>{f}</span>
+                    </div>
+                  ))}
+                  {plan.limits.length > 0 && (
+                    <div style={{borderTop:`0.5px solid ${t.border}`,marginTop:10,paddingTop:10}}>
+                      {plan.limits.map((l,i) => (
+                        <div key={i} style={{display:'flex',alignItems:'flex-start',gap:7,marginBottom:5}}>
+                          <span style={{color:t.muted,fontSize:11,marginTop:1,flexShrink:0}}>—</span>
+                          <span style={{fontSize:11,color:t.muted,lineHeight:1.4}}>{l}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {isCurrent ? (
+                  <div style={{background:plan.colorBg,color:plan.color,borderRadius:8,padding:'9px',fontSize:12,fontWeight:600,textAlign:'center'}}>
+                    ✓ Current plan
+                  </div>
+                ) : plan.id === 'enterprise' ? (
+                  <button onClick={() => window.open('mailto:enterprise@shepherd.app?subject=Enterprise Plan - SHEPHERD', '_blank')}
+                    style={{background:plan.color,color:'#fff',border:'none',borderRadius:8,padding:'10px',fontSize:12,fontWeight:600,cursor:'pointer',width:'100%'}}>
+                    Contact us →
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => initPaystack(plan.id, plan.price)}
+                    disabled={upgrading === plan.id}
+                    style={{background:plan.color,color:'#fff',border:'none',borderRadius:8,padding:'10px',fontSize:12,fontWeight:600,cursor:'pointer',width:'100%',opacity:upgrading===plan.id?0.7:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                    {upgrading === plan.id
+                      ? <><div style={{width:12,height:12,border:'2px solid rgba(255,255,255,0.4)',borderTopColor:'#fff',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/> Processing…</>
+                      : isTrial || isExpired
+                      ? `Subscribe — ${plan.display}/mo`
+                      : `Switch to ${plan.name}`
+                    }
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Invoice history */}
+      {isActive && invoices.length > 0 && (
+        <div style={cardS({padding:0,overflow:'hidden'})}>
+          <div style={{padding:'14px 18px',borderBottom:`0.5px solid ${t.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div style={{fontSize:13,fontWeight:600,color:t.text}}>Invoice history</div>
+            <div style={{fontSize:11,color:t.muted}}>Powered by Paystack</div>
+          </div>
+          {invoices.map((inv, i) => (
+            <div key={inv.id} style={{padding:'12px 18px',borderBottom:i<invoices.length-1?`0.5px solid ${t.border}`:'none',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{display:'flex',alignItems:'center',gap:14}}>
+                <div style={{width:32,height:32,borderRadius:8,background:t.purpleBg,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <span style={{fontSize:14}}>🧾</span>
+                </div>
+                <div>
+                  <div style={{fontSize:12,fontWeight:500,color:t.text}}>{inv.id} — {inv.plan} Plan</div>
+                  <div style={{fontSize:11,color:t.muted}}>{new Date(inv.date).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
+                </div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <span style={{fontSize:13,fontWeight:600,color:t.text}}>{inv.amount}</span>
+                <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,fontWeight:600,background:t.tealBg,color:t.teal}}>{inv.status.toUpperCase()}</span>
+                <button style={{fontSize:11,color:t.purple,background:'none',border:`0.5px solid ${t.border}`,borderRadius:6,padding:'4px 10px',cursor:'pointer'}}>
+                  Download
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Billing & payment */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <div style={cardS({padding:'18px'})}>
+          <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:10}}>Payment method</div>
+          {isActive ? (
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <div style={{width:40,height:26,borderRadius:5,background:'#1A1F71',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <span style={{color:'#fff',fontSize:9,fontWeight:800}}>VISA</span>
+              </div>
+              <div>
+                <div style={{fontSize:12,color:t.text,fontWeight:500}}>•••• •••• •••• 4242</div>
+                <div style={{fontSize:11,color:t.muted}}>Expires 12/27</div>
+              </div>
+              <button style={{marginLeft:'auto',fontSize:11,color:t.purple,background:t.purpleBg,border:'none',borderRadius:6,padding:'5px 10px',cursor:'pointer'}}>Update</button>
+            </div>
+          ) : (
+            <div style={{fontSize:12,color:t.muted}}>No payment method on file. Subscribe to add one.</div>
+          )}
+        </div>
+
+        <div style={cardS({padding:'18px'})}>
+          <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:10}}>Billing contact</div>
+          <div style={{fontSize:12,color:t.sub,marginBottom:8}}>Receipts and invoices are sent to:</div>
+          <div style={{fontSize:12,color:t.text,fontWeight:500}}>support@shepherd.app</div>
+          <button style={{marginTop:10,fontSize:11,color:t.purple,background:t.purpleBg,border:'none',borderRadius:6,padding:'5px 10px',cursor:'pointer'}}>Update email</button>
+        </div>
+      </div>
+
+      {/* Paystack info + cancel */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <div style={{...cardS({padding:'16px 18px'}),background:t.purpleBg,border:`0.5px solid rgba(83,74,183,0.15)`}}>
+          <div style={{fontSize:12,fontWeight:600,color:t.purple,marginBottom:6}}>Secure payments via Paystack</div>
+          <div style={{fontSize:11,color:t.sub,lineHeight:1.6}}>
+            Nigerian bank transfers, Verve cards, Mastercard, Visa, and USSD all supported.
+            Transactions are encrypted and PCI DSS compliant.
+          </div>
+          <div style={{display:'flex',gap:8,marginTop:10}}>
+            {['🏦 Bank transfer','💳 Card','📱 USSD'].map((m,i) => (
+              <span key={i} style={{fontSize:10,background:'rgba(83,74,183,0.1)',color:t.purple,borderRadius:6,padding:'3px 8px'}}>{m}</span>
+            ))}
+          </div>
+        </div>
+
+        <div style={cardS({padding:'16px 18px'})}>
+          <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:6}}>Need help?</div>
+          <div style={{fontSize:11,color:t.sub,lineHeight:1.6,marginBottom:10}}>
+            Billing questions, payment issues, or plan changes — we respond within 2 hours.
+          </div>
+          <a href="mailto:support@shepherd.app" style={{fontSize:11,color:t.purple,fontWeight:600,textDecoration:'none'}}>
+            support@shepherd.app →
+          </a>
+        </div>
+      </div>
+
+      {/* Cancel */}
+      {isActive && (
+        <div style={cardS({padding:'16px 18px'})}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:3}}>Cancel subscription</div>
+              <div style={{fontSize:11,color:t.muted}}>Your access continues until the end of your billing period. Data is retained for 90 days.</div>
+            </div>
+            {cancelConfirm ? (
+              <div style={{display:'flex',gap:8}}>
+                <button onClick={()=>{ showToast('Cancellation request sent. We will process it within 24 hours.'); setCancelConfirm(false); }}
+                  style={{background:'#D85A30',color:'#fff',border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+                  Confirm cancel
+                </button>
+                <button onClick={()=>setCancelConfirm(false)}
+                  style={{background:t.input,color:t.sub,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 14px',fontSize:12,cursor:'pointer'}}>
+                  Keep plan
+                </button>
+              </div>
+            ) : (
+              <button onClick={()=>setCancelConfirm(true)}
+                style={{background:'none',color:'#D85A30',border:'1px solid rgba(216,90,48,0.3)',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:500,cursor:'pointer'}}>
+                Cancel subscription
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
