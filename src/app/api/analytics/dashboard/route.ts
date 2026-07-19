@@ -20,13 +20,14 @@ export async function GET(req: Request) {
 
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    const headers = { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` };
+    const headers = { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' };
+    const hdrs = () => headers;
 
     const [members, activeCells, todayAttendance, ytdGiving, newMembers] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/members?select=membership_status`, { headers }).then(r => r.json()),
       fetch(`${SUPABASE_URL}/rest/v1/cells?is_active=eq.true&select=id`, { headers }).then(r => r.json()),
       fetch(`${SUPABASE_URL}/rest/v1/attendance_records?submitted_at=gte.${getMostRecentSunday()}&select=present_count,visitor_count,cell_id`, { headers }).then(r => r.json()),
-      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${new Date().getFullYear()}-01-01T00:00:00&select=amount,income_type_id,income_types(name,category)`, { headers: hdrs() }).then(r => r.json()),
+      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${new Date().getFullYear()}-01-01T00:00:00&select=amount,income_type_id,income_types(name,category)`, { headers }).then(r => r.json()),
       fetch(`${SUPABASE_URL}/rest/v1/members?join_date=gte.${getFirstOfMonth()}&membership_status=eq.active&select=id`, { headers }).then(r => r.json()),
     ]);
 

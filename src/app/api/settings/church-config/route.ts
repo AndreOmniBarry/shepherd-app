@@ -39,7 +39,11 @@ export async function GET(req: Request) {
       });
     }
 
-    return NextResponse.json({ data: { config: data[0] }, error: null });
+    const cfg = data[0];
+    if (cfg.church_profile && typeof cfg.church_profile === 'string') {
+      try { cfg.church_profile = JSON.parse(cfg.church_profile); } catch {}
+    }
+    return NextResponse.json({ data: { config: cfg }, error: null });
   } catch (err) {
     console.error('[GET /api/settings/church-config]', err);
     return NextResponse.json({ data: { config: { ...DEFAULT_CONFIG, id: 'default' } }, error: null });

@@ -679,10 +679,720 @@ function SubscriptionPanel({t, dark}: {t: Record<string,string>; dark: boolean})
     plan_tier:string; status:string; days_remaining:number;
     trial_ends_at:string; subscription_started_at:string|null; is_active:boolean;
   }|null>(null);
-  const [invoices] = React.useState([
-    { id: 'INV-001', date: '2026-06-19', amount: '₦35,000', status: 'paid', plan: 'Growth' },
-    { id: 'INV-000', date: '2026-05-19', amount: '₦35,000', status: 'paid', plan: 'Growth' },
-  ]);
+  const [invoices] = React.useState<{id:string;date:string;amount:string;status:string;plan:string}[]>([]);
+  // Invoices will populate from Paystack webhooks once payment is configured
+  const [loading, setLoading] = React.useState(true);
+  const [cancelConfirm, setCancelConfirm] = React.useState(false);
+  const [upgrading, setUpgrading] = React.useState<string|null>(null);
+  const [toast, setToast] = React.useState('');
+
+  React.useEffect(() => {
+    fetch('/api/subscription', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => { if (data) setSub(data); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(''), 4000);
+  }
+
+  async function initPaystack(planId: string, amount: number) {
+    setUpgrading(planId);
+    // Paystack inline checkout - keys will be injected when you add them
+    const PAYSTACK_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYSTACK_KEY || 'pk_live_REPLACE_WITH_YOUR_KEY';
+    try {
+      // Load Paystack script dynamically
+      if (!(window as Window & {PaystackPop?: unknown}).PaystackPop) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://js.paystack.co/v1/inline.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject();
+          document.head.appendChild(script);
+        });
+      }
+      const PaystackPop = (window as Window & {PaystackPop: {setup: (config: Record<string, unknown>) => {openIframe: () => void}}}).PaystackPop;
+      const handler = PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: 'church@shepherd.app', // TODO: replace with actual church email from auth
+        amount: amount * 100, // Paystack uses kobo
+        currency: 'NGN',
+        ref: `SHEP-${planId.toUpperCase()}-${Date.now()}`,
+        metadata: { plan_tier: planId, custom_fields: [{ display_name: 'Plan', variable_name: 'plan', value: planId }] },
+        callback: async (response: { reference: string }) => {
+          // Payment successful - upgrade in our system
+          const res = await fetch('/api/subscription', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ plan_tier: planId, paystack_reference: response.reference }),
+          });
+          if (res.ok) {
+            showToast(`Successfully upgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)} plan!`);
+            // Refresh subscription status
+            fetch('/api/subscription', { credentials: 'include' })
+              .then(r => r.json())
+              .then(({ data }) => { if (data) setSub(data); });
+          } else {
+            showToast('Payment received but activation failed. Contact support@shepherd.app');
+          }
+          setUpgrading(null);
+        },
+        onClose: () => { setUpgrading(null); },
+      });
+      handler.openIframe();
+    } catch {
+      showToast('Payment system unavailable. Please contact support@shepherd.app to subscribe.');
+      setUpgrading(null);
+    }
+  }
+
+  const PLANS = [
+    {
+      id: 'starter', name: 'Starter', price: 15000, display: '₦15,000', period: '/month',
+      color: '#1D9E75', colorBg: '#E1F5EE', colorBorder: 'rgba(29,158,117,0.2)',
+      tagline: 'For small churches getting organised',
+      features: ['Up to 500 members', '1 location', 'Up to 20 cells/groups', 'Attendance tracking', 'Member management', 'Basic giving records', 'Email support'],
+      limits: ['Moshe AI not included', 'No partnership portal', 'No SMS/WhatsApp alerts'],
+    },
+    {
+      id: 'growth', name: 'Growth', price: 35000, display: '₦35,000', period: '/month',
+      color: '#534AB7', colorBg: '#EEEDFE', colorBorder: 'rgba(83,74,183,0.2)',
+      tagline: 'Full intelligence for growing churches',
+      badge: 'Most popular',
+      features: ['Up to 5,000 members', 'Up to 10 locations', 'Unlimited cells/groups', 'Moshe AI agent', 'Partnership portal', 'SMS & WhatsApp alerts', 'Full analytics & reports', 'Priority support', 'Birthday automation', 'Care & follow-up pipeline'],
+      limits: [],
+    },
+    {
+      id: 'enterprise', name: 'Enterprise', price: 0, display: 'Custom', period: '',
+      color: '#BA7517', colorBg: '#FAEEDA', colorBorder: 'rgba(186,117,23,0.2)',
+      tagline: 'For denominations and large multi-site churches',
+      features: ['Unlimited members & locations', 'Multi-currency support', 'White-label branding', 'Custom API integrations', 'Dedicated account manager', 'SLA guarantee', 'Onboarding concierge', 'Custom reporting'],
+      limits: [],
+    },
+  ];
+
+  const currentPlan = PLANS.find(p => p.id === sub?.plan_tier);
+  const isTrial = sub?.status === 'trial';
+  const isActive = sub?.status === 'active';
+  const isExpired = sub?.status === 'expired' || (isTrial && (sub?.days_remaining ?? 0) <= 0);
+
+  const cardS = (e?: React.CSSProperties): React.CSSProperties => ({
+    background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, ...e,
+  });
+
+  const labelS: React.CSSProperties = { fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, display: 'block' };
+
+  if (loading) return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:60,flexDirection:'column',gap:12}}>
+      <div style={{width:28,height:28,border:`3px solid ${t.border}`,borderTopColor:t.purple,borderRadius:'50%',animation:'spin 1s linear infinite'}}/>
+      <div style={{fontSize:13,color:t.muted}}>Loading subscription…</div>
+    </div>
+  );
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:20, maxWidth: 860}}>
+
+      {/* Toast */}
+      {toast && (
+        <div style={{background:t.teal,color:'#fff',borderRadius:10,padding:'11px 18px',fontSize:13,fontWeight:500,display:'flex',alignItems:'center',gap:10}}>
+          <span>✓</span> {toast}
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+        <div>
+          <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Subscription & Billing</div>
+          <div style={{fontSize:12,color:t.muted,marginTop:3}}>Manage your SHEPHERD plan, payments, and invoices</div>
+        </div>
+        {isActive && currentPlan && (
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:11,color:t.muted,marginBottom:4}}>Current plan</div>
+            <span style={{fontSize:12,fontWeight:700,padding:'4px 14px',borderRadius:20,background:currentPlan.colorBg,color:currentPlan.color}}>
+              {currentPlan.name}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Status card */}
+      <div style={{...cardS({padding:'20px 24px'}),
+        background: isExpired ? '#FAECE7' : isTrial ? (sub!.days_remaining <= 7 ? '#FAEEDA' : t.purpleBg) : t.tealBg,
+        border: `0.5px solid ${isExpired ? 'rgba(216,90,48,0.2)' : isTrial ? 'rgba(83,74,183,0.2)' : 'rgba(29,158,117,0.2)'}`
+      }}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:16,flexWrap:'wrap' as const}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:6}}>
+              {isExpired
+                ? 'Your trial has ended'
+                : isTrial
+                ? `Free Trial — ${sub!.days_remaining} day${sub!.days_remaining !== 1 ? 's' : ''} remaining`
+                : `${currentPlan?.name || 'Growth'} Plan — Active`}
+            </div>
+            <div style={{fontSize:13,color:t.sub,lineHeight:1.6,maxWidth:500}}>
+              {isExpired
+                ? 'Subscribe below to restore full access to SHEPHERD. Your data is safe and will be available immediately upon payment.'
+                : isTrial
+                ? `You have full Growth plan access during your trial. After ${sub!.days_remaining} days, choose a plan to continue without interruption.`
+                : `Your subscription is active. Thank you for using SHEPHERD. Your next renewal is in ${sub!.days_remaining} days.`}
+            </div>
+            {isTrial && !isExpired && (
+              <div style={{marginTop:14}}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+                  <span style={{fontSize:11,color:t.muted}}>Trial progress</span>
+                  <span style={{fontSize:11,color:t.muted}}>{30 - sub!.days_remaining}/30 days used</span>
+                </div>
+                <div style={{height:6,background:'rgba(83,74,183,0.12)',borderRadius:3,overflow:'hidden'}}>
+                  <div style={{height:'100%',width:`${Math.min(100,((30-sub!.days_remaining)/30)*100)}%`,
+                    background: sub!.days_remaining <= 7 ? '#D85A30' : sub!.days_remaining <= 14 ? '#BA7517' : '#534AB7',
+                    borderRadius:3,transition:'width 0.4s'}}/>
+                </div>
+              </div>
+            )}
+          </div>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}>
+            <span style={{fontSize:11,fontWeight:700,padding:'4px 12px',borderRadius:20,
+              background: isExpired ? '#D85A30' : isTrial ? '#534AB7' : '#1D9E75',
+              color:'#fff'}}>
+              {isExpired ? 'EXPIRED' : isTrial ? 'TRIAL' : 'ACTIVE'}
+            </span>
+            {isActive && (
+              <div style={{fontSize:11,color:t.muted,textAlign:'right'}}>
+                Renews in {sub!.days_remaining} days
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Plans comparison */}
+      <div>
+        <div style={{fontSize:14,fontWeight:600,color:t.text,marginBottom:14}}>
+          {isActive ? 'Change plan' : 'Choose a plan'}
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+          {PLANS.map(plan => {
+            const isCurrent = isActive && sub?.plan_tier === plan.id;
+            return (
+              <div key={plan.id} style={{...cardS({padding:'18px'}),
+                border:`${isCurrent ? '1.5px' : '0.5px'} solid ${isCurrent ? plan.color : t.border}`,
+                background: isCurrent ? plan.colorBg : t.card,
+                display:'flex',flexDirection:'column',gap:0,position:'relative' as const
+              }}>
+                {plan.badge && (
+                  <div style={{position:'absolute' as const,top:-10,left:16,background:plan.color,color:'#fff',fontSize:10,fontWeight:700,borderRadius:20,padding:'2px 10px'}}>
+                    {plan.badge}
+                  </div>
+                )}
+
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:2}}>{plan.name}</div>
+                  <div style={{fontSize:11,color:t.muted,marginBottom:10}}>{plan.tagline}</div>
+                  <div>
+                    <span style={{fontSize:22,fontWeight:800,color:plan.color}}>{plan.display}</span>
+                    {plan.period && <span style={{fontSize:12,color:t.muted}}>{plan.period}</span>}
+                  </div>
+                </div>
+
+                <div style={{flex:1,marginBottom:14}}>
+                  {plan.features.map((f,i) => (
+                    <div key={i} style={{display:'flex',alignItems:'flex-start',gap:7,marginBottom:6}}>
+                      <span style={{color:plan.color,fontSize:11,marginTop:1,flexShrink:0}}>✓</span>
+                      <span style={{fontSize:11,color:t.sub,lineHeight:1.4}}>{f}</span>
+                    </div>
+                  ))}
+                  {plan.limits.length > 0 && (
+                    <div style={{borderTop:`0.5px solid ${t.border}`,marginTop:10,paddingTop:10}}>
+                      {plan.limits.map((l,i) => (
+                        <div key={i} style={{display:'flex',alignItems:'flex-start',gap:7,marginBottom:5}}>
+                          <span style={{color:t.muted,fontSize:11,marginTop:1,flexShrink:0}}>—</span>
+                          <span style={{fontSize:11,color:t.muted,lineHeight:1.4}}>{l}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {isCurrent ? (
+                  <div style={{background:plan.colorBg,color:plan.color,borderRadius:8,padding:'9px',fontSize:12,fontWeight:600,textAlign:'center'}}>
+                    ✓ Current plan
+                  </div>
+                ) : plan.id === 'enterprise' ? (
+                  <button onClick={() => window.open('mailto:enterprise@shepherd.app?subject=Enterprise Plan - SHEPHERD', '_blank')}
+                    style={{background:plan.color,color:'#fff',border:'none',borderRadius:8,padding:'10px',fontSize:12,fontWeight:600,cursor:'pointer',width:'100%'}}>
+                    Contact us →
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => initPaystack(plan.id, plan.price)}
+                    disabled={upgrading === plan.id}
+                    style={{background:plan.color,color:'#fff',border:'none',borderRadius:8,padding:'10px',fontSize:12,fontWeight:600,cursor:'pointer',width:'100%',opacity:upgrading===plan.id?0.7:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                    {upgrading === plan.id
+                      ? <><div style={{width:12,height:12,border:'2px solid rgba(255,255,255,0.4)',borderTopColor:'#fff',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/> Processing…</>
+                      : isTrial || isExpired
+                      ? `Subscribe — ${plan.display}/mo`
+                      : `Switch to ${plan.name}`
+                    }
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Invoice history */}
+      {isActive && invoices.length > 0 && (
+        <div style={cardS({padding:0,overflow:'hidden'})}>
+          <div style={{padding:'14px 18px',borderBottom:`0.5px solid ${t.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div style={{fontSize:13,fontWeight:600,color:t.text}}>Invoice history</div>
+            <div style={{fontSize:11,color:t.muted}}>Powered by Paystack</div>
+          </div>
+          {invoices.map((inv, i) => (
+            <div key={inv.id} style={{padding:'12px 18px',borderBottom:i<invoices.length-1?`0.5px solid ${t.border}`:'none',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{display:'flex',alignItems:'center',gap:14}}>
+                <div style={{width:32,height:32,borderRadius:8,background:t.purpleBg,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <span style={{fontSize:14}}>🧾</span>
+                </div>
+                <div>
+                  <div style={{fontSize:12,fontWeight:500,color:t.text}}>{inv.id} — {inv.plan} Plan</div>
+                  <div style={{fontSize:11,color:t.muted}}>{new Date(inv.date).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
+                </div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <span style={{fontSize:13,fontWeight:600,color:t.text}}>{inv.amount}</span>
+                <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,fontWeight:600,background:t.tealBg,color:t.teal}}>{inv.status.toUpperCase()}</span>
+                <button style={{fontSize:11,color:t.purple,background:'none',border:`0.5px solid ${t.border}`,borderRadius:6,padding:'4px 10px',cursor:'pointer'}}>
+                  Download
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Billing & payment */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <div style={cardS({padding:'18px'})}>
+          <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:10}}>Payment method</div>
+          {isActive ? (
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <div style={{width:40,height:26,borderRadius:5,background:'#1A1F71',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <span style={{color:'#fff',fontSize:9,fontWeight:800}}>VISA</span>
+              </div>
+              <div>
+                <div style={{fontSize:12,color:t.text,fontWeight:500}}>•••• •••• •••• 4242</div>
+                <div style={{fontSize:11,color:t.muted}}>Expires 12/27</div>
+              </div>
+              <button style={{marginLeft:'auto',fontSize:11,color:t.purple,background:t.purpleBg,border:'none',borderRadius:6,padding:'5px 10px',cursor:'pointer'}}>Update</button>
+            </div>
+          ) : (
+            <div style={{fontSize:12,color:t.muted}}>No payment method on file. Subscribe to add one.</div>
+          )}
+        </div>
+
+        <div style={cardS({padding:'18px'})}>
+          <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:10}}>Billing contact</div>
+          <div style={{fontSize:12,color:t.sub,marginBottom:8}}>Receipts and invoices are sent to:</div>
+          <div style={{fontSize:12,color:t.text,fontWeight:500}}>support@shepherd.app</div>
+          <button style={{marginTop:10,fontSize:11,color:t.purple,background:t.purpleBg,border:'none',borderRadius:6,padding:'5px 10px',cursor:'pointer'}}>Update email</button>
+        </div>
+      </div>
+
+      {/* Paystack info + cancel */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <div style={{...cardS({padding:'16px 18px'}),background:t.purpleBg,border:`0.5px solid rgba(83,74,183,0.15)`}}>
+          <div style={{fontSize:12,fontWeight:600,color:t.purple,marginBottom:6}}>Secure payments via Paystack</div>
+          <div style={{fontSize:11,color:t.sub,lineHeight:1.6}}>
+            Nigerian bank transfers, Verve cards, Mastercard, Visa, and USSD all supported.
+            Transactions are encrypted and PCI DSS compliant.
+          </div>
+          <div style={{display:'flex',gap:8,marginTop:10}}>
+            {['🏦 Bank transfer','💳 Card','📱 USSD'].map((m,i) => (
+              <span key={i} style={{fontSize:10,background:'rgba(83,74,183,0.1)',color:t.purple,borderRadius:6,padding:'3px 8px'}}>{m}</span>
+            ))}
+          </div>
+        </div>
+
+        <div style={cardS({padding:'16px 18px'})}>
+          <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:6}}>Need help?</div>
+          <div style={{fontSize:11,color:t.sub,lineHeight:1.6,marginBottom:10}}>
+            Billing questions, payment issues, or plan changes — we respond within 2 hours.
+          </div>
+          <a href="mailto:support@shepherd.app" style={{fontSize:11,color:t.purple,fontWeight:600,textDecoration:'none'}}>
+            support@shepherd.app →
+          </a>
+        </div>
+      </div>
+
+      {/* Cancel */}
+      {isActive && (
+        <div style={cardS({padding:'16px 18px'})}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:3}}>Cancel subscription</div>
+              <div style={{fontSize:11,color:t.muted}}>Your access continues until the end of your billing period. Data is retained for 90 days.</div>
+            </div>
+            {cancelConfirm ? (
+              <div style={{display:'flex',gap:8}}>
+                <button onClick={()=>{ showToast('Cancellation request sent. We will process it within 24 hours.'); setCancelConfirm(false); }}
+                  style={{background:'#D85A30',color:'#fff',border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+                  Confirm cancel
+                </button>
+                <button onClick={()=>setCancelConfirm(false)}
+                  style={{background:t.input,color:t.sub,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 14px',fontSize:12,cursor:'pointer'}}>
+                  Keep plan
+                </button>
+              </div>
+            ) : (
+              <button onClick={()=>setCancelConfirm(true)}
+                style={{background:'none',color:'#D85A30',border:'1px solid rgba(216,90,48,0.3)',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:500,cursor:'pointer'}}>
+                Cancel subscription
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+function AdminRedirect() {
+  const router = require('next/navigation').useRouter();
+  require('react').useEffect(() => { router.push('/admin'); }, []);
+  return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',paddingTop:80,flexDirection:'column',gap:12}}>
+      <div style={{width:32,height:32,border:'3px solid rgba(83,74,183,0.2)',borderTopColor:'#534AB7',borderRadius:'50%',animation:'spin 1s linear infinite'}}/>
+      <div style={{fontSize:14,color:'#9890C4'}}>Opening Admin Portal…</div>
+    </div>
+  );
+}
+
+function ChurchSettingsPanel({t, dark}: {t: Record<string,string>; dark: boolean}) {
+  const [config, setConfig] = React.useState<Record<string,unknown>>({});
+  const [saving, setSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<'profile'|'structure'|'services'|'team'>('profile');
+
+  // Church profile fields
+  const [churchName, setChurchName] = React.useState('');
+  const [country, setCountry] = React.useState('Nigeria');
+  const [currency, setCurrency] = React.useState('NGN');
+  const [denomination, setDenomination] = React.useState('');
+  const [foundedYear, setFoundedYear] = React.useState('');
+  const [contactEmail, setContactEmail] = React.useState('');
+  const [contactPhone, setContactPhone] = React.useState('');
+  const [address, setAddress] = React.useState('');
+  const [website, setWebsite] = React.useState('');
+  const [logoUrl, setLogoUrl] = React.useState('');
+  // Structure fields
+  const [structureType, setStructureType] = React.useState('cell_church');
+  const [tier1Label, setTier1Label] = React.useState('Fellowship');
+  const [tier2Label, setTier2Label] = React.useState('Cell');
+  const [tier1HeadLabel, setTier1HeadLabel] = React.useState('Fellowship Head');
+  const [tier2HeadLabel, setTier2HeadLabel] = React.useState('Cell Leader');
+  // Services
+  const [serviceDays, setServiceDays] = React.useState<string[]>(['Sunday']);
+  // Users
+  const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string;cell_id:string|null}[]>([]);
+
+  React.useEffect(() => {
+    fetch('/api/settings/church-config', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => {
+        if (data?.config) {
+          const c = data.config;
+          setConfig(c);
+          setChurchName(c.church_name || '');
+          setCountry(c.country || 'Nigeria');
+          setCurrency(c.currency || 'NGN');
+          setStructureType(c.structure_type || 'cell_church');
+          setTier1Label(c.tier1_label || '');
+          setTier2Label(c.tier2_label || '');
+          setTier1HeadLabel(c.tier1_head_label || 'Fellowship Head');
+          setTier2HeadLabel(c.tier2_head_label || 'Cell Leader');
+          setServiceDays(c.service_days || ['Sunday']);
+          if (c.church_profile) {
+            const p = typeof c.church_profile === 'string' ? JSON.parse(c.church_profile) : c.church_profile;
+            setDenomination(p.denomination || '');
+            setFoundedYear(p.founded_year || '');
+            setContactEmail(p.contact_email || '');
+            setContactPhone(p.contact_phone || '');
+            setAddress(p.address || '');
+            setWebsite(p.website || '');
+          }
+          setLogoUrl(c.logo_url || '');
+        }
+      }).catch(() => {});
+
+    // Load team members
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => {
+        if (data?.role === 'overseer' || data?.role === 'lead_tech' || data?.role === 'pa') {
+          fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users?select=id,full_name,email,role,cell_id&order=role.asc`, {
+            headers: {
+              'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+              'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
+            }
+          }).then(r => r.json()).then(d => { if (Array.isArray(d)) setUsers(d); }).catch(() => {});
+        }
+      }).catch(() => {});
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const currentProfile = typeof config.church_profile === 'string' 
+        ? JSON.parse(config.church_profile as string) 
+        : (config.church_profile || {});
+      
+      await fetch('/api/settings/church-config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          church_name: churchName,
+          country, currency,
+          structure_type: structureType,
+          tier1_label: tier1Label || null,
+          tier2_label: tier2Label || null,
+          tier1_head_label: tier1HeadLabel,
+          tier2_head_label: tier2HeadLabel,
+          service_days: serviceDays,
+          logo_url: logoUrl || null,
+          church_profile: JSON.stringify({
+            ...currentProfile,
+            denomination, founded_year: foundedYear,
+            contact_email: contactEmail, contact_phone: contactPhone,
+            address, website,
+          }),
+        }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {}
+    setSaving(false);
+  }
+
+  const STRUCTURES = [
+    { value: 'cell_church', label: 'Cell Church', sub: 'Fellowship → Cell → Member' },
+    { value: 'zonal', label: 'Zonal Church', sub: 'Zone → District → Cell → Member' },
+    { value: 'campus', label: 'Multi-Campus', sub: 'Campus → Fellowship → Cell → Member' },
+    { value: 'department', label: 'Department Church', sub: 'Department → Unit → Member' },
+    { value: 'house_network', label: 'House Church Network', sub: 'Network → Home Group → Member' },
+    { value: 'single', label: 'Single Congregation', sub: 'Pastor → Member' },
+  ];
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const CURRENCIES = [{code:'NGN',label:'₦ Nigerian Naira'},{code:'GHS',label:'GH₵ Ghanaian Cedi'},{code:'KES',label:'KSh Kenyan Shilling'},{code:'ZAR',label:'R South African Rand'},{code:'USD',label:'$ US Dollar'},{code:'GBP',label:'£ British Pound'}];
+  const ROLE_LABELS: Record<string,string> = { overseer:'Overseer / Lead Pastor', pa:'Personal Assistant / PA', lead_tech:'Lead Technologist', fellowship_head:'Fellowship Head', cell_leader:'Cell Leader', department_head:'Department Head', care_team:'Care Team', accounts:'Accounts', partnership:'Partnership' };
+
+  const cardS = (e?: React.CSSProperties): React.CSSProperties => ({ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '18px 20px', ...e });
+  const inputS: React.CSSProperties = { width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 12px', fontSize: 13, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const };
+  const labelS: React.CSSProperties = { fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 5, display: 'block' };
+  const gridS: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:16,maxWidth:800}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div>
+          <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Church Settings</div>
+          <div style={{fontSize:12,color:t.muted,marginTop:2}}>Manage your church profile, structure, and team</div>
+        </div>
+        <button onClick={save} disabled={saving}
+          style={{background:saved?'#1D9E75':t.purple,color:'#fff',border:'none',borderRadius:9,padding:'10px 22px',fontSize:13,fontWeight:600,cursor:'pointer',transition:'background 0.2s'}}>
+          {saving?'Saving…':saved?'✓ Saved':'Save changes'}
+        </button>
+      </div>
+
+      {/* Tab nav */}
+      <div style={{display:'flex',gap:0,borderBottom:`0.5px solid ${t.border}`}}>
+        {([['profile','Church Profile'],['structure','Structure'],['services','Services'],['team','Team']] as const).map(([tab,label]) => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            style={{padding:'9px 18px',border:'none',borderBottom:`2px solid ${activeTab===tab?t.purple:'transparent'}`,background:activeTab===tab?t.purpleBg:'transparent',fontSize:12,fontWeight:activeTab===tab?600:400,color:activeTab===tab?t.purple:t.muted,cursor:'pointer'}}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── PROFILE TAB ── */}
+      {activeTab === 'profile' && (
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div style={cardS()}>
+            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Identity</div>
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              <div>
+                <label style={labelS}>Church name *</label>
+                <input value={churchName} onChange={e=>setChurchName(e.target.value)} placeholder="e.g. The Comforters House Global" style={inputS} />
+              </div>
+              <div style={gridS}>
+                <div>
+                  <label style={labelS}>Denomination / Movement</label>
+                  <select value={denomination} onChange={e=>setDenomination(e.target.value)} style={inputS}>
+                    <option value="">Select…</option>
+                    {['Pentecostal / Charismatic','Evangelical / Baptist','Methodist / Anglican','Catholic','Apostolic / Prophetic','Seventh-day Adventist','Interdenominational','Other'].map(d=><option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelS}>Year founded</label>
+                  <input value={foundedYear} onChange={e=>setFoundedYear(e.target.value)} type="number" placeholder="e.g. 1998" min={1800} max={2026} style={inputS} />
+                </div>
+              </div>
+              <div style={gridS}>
+                <div>
+                  <label style={labelS}>Country</label>
+                  <select value={country} onChange={e=>setCountry(e.target.value)} style={inputS}>
+                    {['Nigeria','Ghana','Kenya','South Africa','Uganda','Tanzania','Rwanda','United Kingdom','United States','Canada','Other'].map(c=><option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelS}>Currency</label>
+                  <select value={currency} onChange={e=>setCurrency(e.target.value)} style={inputS}>
+                    {CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.label}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={cardS()}>
+            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Contact & Location</div>
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              <div style={gridS}>
+                <div><label style={labelS}>Contact email</label><input value={contactEmail} onChange={e=>setContactEmail(e.target.value)} placeholder="church@example.com" type="email" style={inputS}/></div>
+                <div><label style={labelS}>Contact phone</label><input value={contactPhone} onChange={e=>setContactPhone(e.target.value)} placeholder="+234 XXX XXX XXXX" style={inputS}/></div>
+              </div>
+              <div><label style={labelS}>Physical address</label><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="12 Church Street, Lagos" style={inputS}/></div>
+              <div style={gridS}>
+                <div><label style={labelS}>Website</label><input value={website} onChange={e=>setWebsite(e.target.value)} placeholder="https://yourchurch.org" style={inputS}/></div>
+                <div><label style={labelS}>Logo URL</label><input value={logoUrl} onChange={e=>setLogoUrl(e.target.value)} placeholder="https://…/logo.png" style={inputS}/></div>
+              </div>
+              {logoUrl && (
+                <div style={{display:'flex',alignItems:'center',gap:12,marginTop:4}}>
+                  <img src={logoUrl} alt="Logo" style={{width:48,height:48,borderRadius:8,objectFit:'contain',border:`0.5px solid ${t.border}`}} onError={e=>{(e.target as HTMLImageElement).style.display='none'}}/>
+                  <div style={{fontSize:11,color:t.muted}}>Logo preview</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── STRUCTURE TAB ── */}
+      {activeTab === 'structure' && (
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div style={cardS()}>
+            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Structure model</div>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {STRUCTURES.map(s=>(
+                <button key={s.value} onClick={()=>setStructureType(s.value)}
+                  style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 14px',borderRadius:9,border:`0.5px solid ${structureType===s.value?t.purple:t.border}`,background:structureType===s.value?t.purpleBg:t.input,cursor:'pointer',textAlign:'left' as const}}>
+                  <div><div style={{fontSize:13,fontWeight:500,color:t.text}}>{s.label}</div><div style={{fontSize:11,color:t.muted,marginTop:2}}>{s.sub}</div></div>
+                  {structureType===s.value&&<span style={{width:8,height:8,borderRadius:'50%',background:t.purple,flexShrink:0}}/>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {structureType !== 'single' && (
+            <div style={cardS()}>
+              <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Label customisation</div>
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                <div style={gridS}>
+                  <div><label style={labelS}>Tier 1 name</label><input value={tier1Label} onChange={e=>setTier1Label(e.target.value)} placeholder="e.g. Fellowship" style={inputS}/></div>
+                  <div><label style={labelS}>Tier 1 leader title</label><input value={tier1HeadLabel} onChange={e=>setTier1HeadLabel(e.target.value)} placeholder="e.g. Fellowship Head" style={inputS}/></div>
+                </div>
+                <div style={gridS}>
+                  <div><label style={labelS}>Tier 2 name</label><input value={tier2Label} onChange={e=>setTier2Label(e.target.value)} placeholder="e.g. Cell" style={inputS}/></div>
+                  <div><label style={labelS}>Tier 2 leader title</label><input value={tier2HeadLabel} onChange={e=>setTier2HeadLabel(e.target.value)} placeholder="e.g. Cell Leader" style={inputS}/></div>
+                </div>
+                <div style={{background:t.purpleBg,borderRadius:8,padding:'10px 14px',fontSize:12,color:t.purple}}>
+                  Preview: {[tier1Label,tier2Label].filter(Boolean).join(' → ')} → Member
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── SERVICES TAB ── */}
+      {activeTab === 'services' && (
+        <div style={cardS()}>
+          <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:6}}>Service days</div>
+          <div style={{fontSize:12,color:t.muted,marginBottom:14}}>Days your church holds regular services. Determines attendance windows and absence tracking.</div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap' as const,marginBottom:16}}>
+            {DAYS.map(day=>(
+              <button key={day} onClick={()=>setServiceDays(prev=>prev.includes(day)?prev.filter(d=>d!==day):[...prev,day])}
+                style={{padding:'8px 16px',borderRadius:20,border:`0.5px solid ${serviceDays.includes(day)?t.purple:t.border}`,background:serviceDays.includes(day)?t.purple:t.input,color:serviceDays.includes(day)?'#fff':t.sub,fontSize:12,fontWeight:serviceDays.includes(day)?600:400,cursor:'pointer'}}>
+                {day}
+              </button>
+            ))}
+          </div>
+          <div style={{background:t.purpleBg,borderRadius:8,padding:'10px 14px',fontSize:12,color:t.purple}}>
+            Active: {serviceDays.join(', ') || 'None selected'}
+          </div>
+        </div>
+      )}
+
+      {/* ── TEAM TAB ── */}
+      {activeTab === 'team' && (
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div style={cardS({padding:0,overflow:'hidden'})}>
+            <div style={{padding:'14px 18px',borderBottom:`0.5px solid ${t.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div style={{fontSize:13,fontWeight:600,color:t.text}}>Team members ({users.length})</div>
+              <button onClick={()=>window.location.href='/register'} style={{background:t.purple,color:'#fff',border:'none',borderRadius:7,padding:'6px 14px',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Invite member</button>
+            </div>
+            {users.length === 0 ? (
+              <div style={{padding:32,textAlign:'center',color:t.muted,fontSize:13}}>No team members found. Invite your staff via the register link.</div>
+            ) : (
+              users.map((u,i)=>(
+                <div key={u.id} style={{padding:'12px 18px',borderBottom:i<users.length-1?`0.5px solid ${t.border}`:'none',display:'flex',alignItems:'center',gap:12}}>
+                  <div style={{width:34,height:34,borderRadius:'50%',background:t.purpleBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:600,color:t.purple,flexShrink:0}}>
+                    {u.full_name?.slice(0,2).toUpperCase()||'??'}
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:500,color:t.text}}>{u.full_name||'Unknown'}</div>
+                    <div style={{fontSize:11,color:t.muted}}>{u.email}</div>
+                  </div>
+                  <span style={{fontSize:10,padding:'2px 9px',borderRadius:10,fontWeight:600,background:t.purpleBg,color:t.purple}}>
+                    {ROLE_LABELS[u.role]||u.role}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+          <div style={{...cardS({padding:'14px 18px'}),background:t.purpleBg,border:`0.5px solid rgba(83,74,183,0.15)`}}>
+            <div style={{fontSize:12,fontWeight:600,color:t.purple,marginBottom:4}}>Invite via registration link</div>
+            <div style={{fontSize:11,color:t.sub,marginBottom:10}}>Share this link with your staff. They complete registration and are assigned their role.</div>
+            <div style={{display:'flex',gap:8,alignItems:'center'}}>
+              <div style={{flex:1,background:t.white,border:`0.5px solid ${t.border}`,borderRadius:7,padding:'8px 12px',fontSize:11,color:t.sub,fontFamily:'monospace',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>
+                {typeof window !== 'undefined' ? window.location.origin : 'https://shepherd-app-beta.vercel.app'}/register
+              </div>
+              <button onClick={()=>{navigator.clipboard.writeText((typeof window!=='undefined'?window.location.origin:'')+'/register');}}
+                style={{background:t.purple,color:'#fff',border:'none',borderRadius:7,padding:'8px 14px',fontSize:11,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap' as const}}>
+                Copy link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function SubscriptionPanel({t, dark}: {t: Record<string,string>; dark: boolean}) {
+  const [sub, setSub] = React.useState<{
+    plan_tier:string; status:string; days_remaining:number;
+    trial_ends_at:string; subscription_started_at:string|null; is_active:boolean;
+  }|null>(null);
+  const [invoices] = React.useState<{id:string;date:string;amount:string;status:string;plan:string}[]>([]);
+  // Invoices will populate from Paystack webhooks once payment is configured
   const [loading, setLoading] = React.useState(true);
   const [cancelConfirm, setCancelConfirm] = React.useState(false);
   const [upgrading, setUpgrading] = React.useState<string|null>(null);
@@ -1529,7 +2239,7 @@ export default function DashboardPage(){
       <div style={{width:220,background:t.nav,borderRight:`0.5px solid ${t.navBorder}`,display:'flex',flexDirection:'column',position:isMobile?'fixed':'sticky',top:0,left:isMobile?(sidebarOpen?0:-196):0,height:'100vh',flexShrink:0,zIndex:50,transition:'left 0.3s cubic-bezier(0.4,0,0.2,1)',backdropFilter:'blur(20px)'}}>
         <div style={{display:'flex',alignItems:'center',gap:10,padding:'16px 16px 14px',borderBottom:`0.5px solid ${t.navBorder}`}}>
           <div style={{width:28,height:28,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><div style={{position:'absolute',width:4,height:20,background:'#A89FFF',borderRadius:2}}/><div style={{position:'absolute',width:15,height:4,background:'#A89FFF',borderRadius:2}}/></div>
-          <div><div style={{fontSize:14,fontWeight:700,color:dark?'#E8E5FF':sidebarStyle==='dark'?'#FFFFFF':'#1A1040',letterSpacing:'1px',lineHeight:1}}>SHEP.HERD</div><div style={{fontSize:9,color:dark?'rgba(232,229,255,0.3)':sidebarStyle==='dark'?'rgba(255,255,255,0.35)':'#9990CC',marginTop:2}}>Church Intelligence</div></div>
+          <div><div style={{fontSize:14,fontWeight:700,color:dark?'#E8E5FF':sidebarStyle==='dark'?'#FFFFFF':'#1A1040',letterSpacing:'1px',lineHeight:1}}>SHEP.HERD</div><div style={{fontSize:9,color:dark?'rgba(232,229,255,0.3)':sidebarStyle==='dark'?'rgba(255,255,255,0.35)':'#9990CC',marginTop:2,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{churchConfig.church_name || 'Church Intelligence'}</div></div>
         </div>
         <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
           {navItems.map(n=>(
@@ -1573,7 +2283,7 @@ export default function DashboardPage(){
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             {isMobile&&<button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,color:'#534AB7',padding:'0 4px',lineHeight:1}}>☰</button>}
             <div>
-              <span style={{fontSize:14,fontWeight:500,color:t.text}}>{navItems.find(n=>n.id===page)?.label}</span>
+              <span style={{fontSize:14,fontWeight:500,color:t.text}}>{navItems.find(n=>n.id===page)?.label}</span>{churchConfig.church_name&&page==='dashboard'&&<span style={{fontSize:11,color:t.muted,marginLeft:8}}>{churchConfig.church_name}</span>}
               {!isMobile&&<span suppressHydrationWarning style={{fontSize:11,color:t.muted,marginLeft:10}}>{new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>}
               {userName&&userName!=='General'&&<span style={{fontSize:12,color:'#534AB7',marginLeft:isMobile?6:10}}>· {greeting()}, {userName.split(' ')[0]}</span>}
             </div>
@@ -1595,6 +2305,22 @@ export default function DashboardPage(){
           {/* ══ DASHBOARD ══ */}
           {page==='dashboard'&&(
             <div>
+              {/* Profile completion prompt */}
+              {churchConfig.church_name && !churchConfig.church_name.includes('My Church') && (() => {
+                const profile = typeof (churchConfig as Record<string,unknown>).church_profile === 'object' ? (churchConfig as Record<string,unknown>).church_profile as Record<string,unknown> : null;
+                const isComplete = profile?.contact_email && profile?.address;
+                if (isComplete) return null;
+                return (
+                  <div style={{background:t.amberBg,border:`0.5px solid rgba(186,117,23,0.2)`,borderRadius:9,padding:'10px 16px',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
+                    <div style={{fontSize:12,color:t.amber,fontWeight:500}}>
+                      📋 Complete your church profile — add contact details, address, and logo so your team can identify you.
+                    </div>
+                    <button onClick={()=>{setPage('settings');}} style={{background:t.amber,color:'#fff',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
+                      Complete profile →
+                    </button>
+                  </div>
+                );
+              })()}
               <div style={{background:t.tealBg,borderRadius:8,padding:'8px 14px',marginBottom:18,display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#085041'}}>
                 <span>●</span>
                 <span>Attendance session live &mdash; <strong>{fmt(kpi?.today_present)}</strong> check-ins · <strong>{kpi?.today_cells_reported??'—'}/{kpi?.today_cells_total??'—'}</strong> cells reported</span>
