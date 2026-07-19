@@ -4,6 +4,9 @@ const withPWA = require('next-pwa')({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development', // PWA off in dev — faster HMR
+  // Exclude setup and auth pages from SW precache
+  publicExcludes: ['!setup', '!login', '!register'],
+  buildExcludes: [/middleware-manifest\.json$/],
   runtimeCaching: [
     {
       // Cache Supabase API calls for offline graceful degradation

@@ -26,6 +26,7 @@ const PUBLIC_PATHS = [
   '/api/auth/register',
   '/api/register',
   '/api/invites',
+  '/api/settings/church-config',
   '/_next',
   '/favicon.ico',
   '/manifest.json',
