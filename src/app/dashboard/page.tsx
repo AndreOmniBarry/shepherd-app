@@ -1,4 +1,5 @@
 'use client';
+import { useScreenSize } from '@/hooks/useScreenSize';
 import React from 'react';
 import NotificationBell from "@/components/NotificationBell";
 import PastorAttendance from '@/components/PastorAttendance';
@@ -1347,6 +1348,7 @@ export default function DashboardPage(){
   const router=useRouter();
   const [page,setPage]=useState<NavPage>('dashboard');
   const [showAlertOnly,setShowAlertOnly]=useState(false);
+  const { width: screenWidth } = useScreenSize();
   const [churchConfig,setChurchConfig]=React.useState<{tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string}>({tier1_label:'Fellowship',tier2_label:'Cell',tier1_head_label:'Fellowship Head',tier2_head_label:'Cell Leader',church_name:'',currency:'NGN'});
   const [subscription,setSubscription]=React.useState<{plan_tier:string;status:string;days_remaining:number;is_active:boolean}|null>(null);
   const [kpi,setKpi]=useState<KPI|null>(null);
@@ -1593,15 +1595,16 @@ export default function DashboardPage(){
           {/* ══ DASHBOARD ══ */}
           {page==='dashboard'&&(
             <div>
-              {/* Profile completion prompt */}
-              {churchConfig.church_name && !churchConfig.church_name.includes('My Church') && (() => {
-                const profile = typeof (churchConfig as Record<string,unknown>).church_profile === 'object' ? (churchConfig as Record<string,unknown>).church_profile as Record<string,unknown> : null;
-                const isComplete = profile?.contact_email && profile?.address;
-                if (isComplete) return null;
+              {/* Profile completion prompt - only show if no contact email saved */}
+              {churchConfig.church_name && (() => {
+                const profile = (churchConfig as Record<string,unknown>).church_profile;
+                const p = profile && typeof profile === 'object' ? profile as Record<string,unknown> : null;
+                const hasContact = !!(p?.contact_email || p?.address || p?.contact_phone);
+                if (hasContact) return null;
                 return (
                   <div style={{background:t.amberBg,border:`0.5px solid rgba(186,117,23,0.2)`,borderRadius:9,padding:'10px 16px',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
                     <div style={{fontSize:12,color:t.amber,fontWeight:500}}>
-                      📋 Complete your church profile — add contact details, address, and logo so your team can identify you.
+                      Complete your church profile — add contact details, address, and logo so your team can identify you.
                     </div>
                     <button onClick={()=>{setPage('settings');}} style={{background:t.amber,color:'#fff',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
                       Complete profile →
@@ -2223,7 +2226,7 @@ export default function DashboardPage(){
               {/* Badge showcase */}
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Badge System</div>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
+                <div style={{display:'grid',gridTemplateColumns: screenWidth >= 1024 ? 'repeat(4,1fr)' : 'repeat(2,1fr)',gap:10}}>
                   {[
                     {icon:'⏰',name:'On Time',desc:'4 consecutive on-time submissions',cat:'Promptness'},
                     {icon:'🕐',name:'Clockwork',desc:'8 consecutive on-time submissions',cat:'Promptness'},

@@ -1,4 +1,5 @@
 'use client';
+import { useScreenSize } from '@/hooks/useScreenSize';
 import NotificationBell from "@/components/NotificationBell";
 import DeptOverview from '@/components/DeptOverview';
 import BirthdayPanel from '@/components/BirthdayPanel';
@@ -252,7 +253,7 @@ export default function DepartmentHeadPage() {
         ))}
       </div>
 
-      <div style={{ maxWidth: 540, margin: '0 auto', padding: '20px 16px' }}>
+      <div style={{ maxWidth: 540, margin: '0 auto', padding: isMobile ? '16px 16px' : '24px 28px' }}>
 
         {tab === 'overview' && (
           <DeptOverview dark={dark} t={t} />

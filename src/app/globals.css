@@ -738,3 +738,49 @@ input:focus {
   background: rgba(168,159,255,0.12) !important;
   color: #E8E5FF !important;
 }
+
+/* ── SHEPHERD RESPONSIVE SYSTEM ─────────────────────── */
+
+/* Hide scrollbar on nav tabs but keep scrollable */
+.nav-scroll::-webkit-scrollbar { display: none; }
+.nav-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Responsive typography */
+@media (max-width: 639px) {
+  html { font-size: 14px; }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+  html { font-size: 15px; }
+}
+@media (min-width: 1024px) {
+  html { font-size: 16px; }
+}
+
+/* Responsive grid helpers */
+@media (min-width: 1024px) {
+  .grid-responsive-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-responsive-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid-responsive-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+}
+@media (max-width: 1023px) {
+  .grid-responsive-2, .grid-responsive-3 { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  .grid-responsive-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+}
+
+/* Card hover lift */
+.card-hover { transition: box-shadow 0.15s, transform 0.15s; }
+.card-hover:hover { box-shadow: 0 4px 20px rgba(83,74,183,0.12); transform: translateY(-1px); }
+
+/* Smooth scrolling */
+html { scroll-behavior: smooth; }
+
+/* Better table overflow */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Responsive sidebar */
+@media (max-width: 1023px) {
+  .sidebar-desktop { display: none !important; }
+}
+@media (min-width: 1024px) {
+  .sidebar-mobile-overlay { display: none !important; }
+}

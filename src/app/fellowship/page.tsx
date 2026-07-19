@@ -1,4 +1,5 @@
 'use client';
+import { useScreenSize } from '@/hooks/useScreenSize';
 import React from 'react';
 import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 import NotificationBell from "@/components/NotificationBell";
@@ -130,6 +131,7 @@ function FellowshipApprovalPanel({t, dark}: {t: Record<string,string>; dark: boo
 }
 
 export default function FellowshipHeadPage() {
+  const { width: screenWidth, isMobile } = useScreenSize();
   const { config: churchConfig } = useChurchConfigStandalone();
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('overview');
@@ -386,7 +388,7 @@ export default function FellowshipHeadPage() {
         ))}
       </div>
 
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px' }}>
+      <div style={{ maxWidth: screenWidth >= 1440 ? 1200 : screenWidth >= 1024 ? 960 : screenWidth >= 768 ? 720 : '100%', margin: '0 auto', padding: isMobile ? '16px 16px' : '24px 28px' }}>
         {nudgeMsg && (
           <div style={{ background: '#1D9E75', color: '#fff', borderRadius: 10, padding: '11px 16px', marginBottom: 16, fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 10 }}>
             <span>✓</span> {nudgeMsg}

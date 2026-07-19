@@ -1,4 +1,5 @@
 'use client';
+import { useScreenSize } from '@/hooks/useScreenSize';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
@@ -31,6 +32,7 @@ const BAND_CONFIG: Record<string, { color: string; bg: string; text: string }> =
 };
 
 export default function PartnershipPage() {
+  const { width: screenWidth, isMobile } = useScreenSize();
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('partners');
   const [dark, setDark] = useState(false);
@@ -214,7 +216,7 @@ export default function PartnershipPage() {
         ))}
       </div>
 
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px' }}>
+      <div style={{ maxWidth: screenWidth >= 1440 ? 1200 : screenWidth >= 1024 ? 960 : screenWidth >= 768 ? 720 : '100%', margin: '0 auto', padding: isMobile ? '16px 16px' : '24px 28px' }}>
 
         {/* ── PARTNERS (primary view) ── */}
         {tab === 'partners' && (

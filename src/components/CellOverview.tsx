@@ -59,7 +59,7 @@ interface CellOverviewProps {
   t: Record<string, string>;
 }
 
-export default function CellOverview({ dark = false, t }: CellOverviewProps) {
+export default function CellOverview({ dark = false, t, screenWidth = 1280 }: CellOverviewProps) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
   const [memberView, setMemberView] = useState<'all' | 'critical' | 'watch' | 'healthy'>('all');
@@ -113,7 +113,7 @@ export default function CellOverview({ dark = false, t }: CellOverviewProps) {
       )}
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: screenWidth >= 1024 ? 'repeat(4,1fr)' : screenWidth >= 640 ? 'repeat(2,1fr)' : 'repeat(2,1fr)', gap: 10 }}>
         {[
           { label: 'Cell members', value: cell.totalMembers, sub: cell.fellowship + ' Fellowship', accent: '#534AB7' },
           { label: 'Avg attendance', value: stats.avgRate !== null ? `${stats.avgRate}%` : '—', sub: 'Last 8 Sundays', accent: '#1D9E75' },
@@ -129,7 +129,7 @@ export default function CellOverview({ dark = false, t }: CellOverviewProps) {
       </div>
 
       {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: screenWidth >= 768 ? '1fr 1fr' : '1fr', gap: 14 }}>
 
         {/* Attendance trend */}
         <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>

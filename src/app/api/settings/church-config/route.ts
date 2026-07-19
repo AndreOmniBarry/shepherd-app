@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/church_config?order=created_at.asc&limit=1`,
+      `${SUPABASE_URL}/rest/v1/church_config?order=updated_at.desc&limit=1`,
       { headers: hdrs() }
     );
     const data = await res.json();
@@ -64,7 +64,7 @@ export async function PATCH(req: Request) {
 
     // Check if record exists
     const existing = await fetch(
-      `${SUPABASE_URL}/rest/v1/church_config?limit=1`,
+      `${SUPABASE_URL}/rest/v1/church_config?order=updated_at.desc&limit=1`,
       { headers: hdrs() }
     );
     const existingData = await existing.json();
