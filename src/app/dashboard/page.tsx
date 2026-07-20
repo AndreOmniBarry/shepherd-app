@@ -1064,8 +1064,13 @@ function SubscriptionPanel({t, dark}: {t: Record<string,string>; dark: boolean})
 }
 
 function AdminRedirect() {
-  const router = require('next/navigation').useRouter();
-  require('react').useEffect(() => { router.push('/admin'); }, []);
+  const router = React.useRef<ReturnType<typeof import('next/navigation').useRouter> | null>(null);
+  React.useEffect(() => {
+    // Use window.location for reliability in static builds
+    if (typeof window !== 'undefined') {
+      window.location.href = '/admin';
+    }
+  }, []);
   return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',paddingTop:80,flexDirection:'column',gap:12}}>
       <div style={{width:32,height:32,border:'3px solid rgba(83,74,183,0.2)',borderTopColor:'#534AB7',borderRadius:'50%',animation:'spin 1s linear infinite'}}/>

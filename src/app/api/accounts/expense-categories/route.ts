@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
