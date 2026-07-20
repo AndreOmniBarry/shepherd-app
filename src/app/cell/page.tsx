@@ -7,7 +7,7 @@ import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import CellFollowup from '@/components/CellFollowup';
 import { useScreenSize } from '@/hooks/useScreenSize';
 
-type Tab = 'overview' | 'submit' | 'history' | 'prayer' | 'followup' | 'birthdays' | 'members';
+type Tab = 'overview' | 'submit' | 'history' | 'prayer' | 'followup' | 'birthdays' | 'members' | 'assignments';
 
 const THEMES = {
   light: {
@@ -167,6 +167,7 @@ export default function CellPage() {
     { id: 'followup', label: 'Follow-up', icon: 'ti-user-check' },
     { id: 'birthdays', label: 'Birthdays', icon: 'ti-cake' },
     { id: 'members', label: 'Members', icon: 'ti-users' },
+    { id: 'assignments', label: 'My Assignments', icon: 'ti-calendar-check' },
   ];
 
   return (
@@ -221,6 +222,7 @@ export default function CellPage() {
         {tab === 'followup' && <CellFollowup dark={dark} />}
         {tab === 'birthdays' && <BirthdaysTab t={t} dark={dark} />}
         {tab === 'members' && <AddMembersTab t={t} dark={dark} />}
+        {tab === 'assignments' && <MyAssignmentsTab t={t} dark={dark} />}
       </div>
     </div>
   );
@@ -437,6 +439,127 @@ function BirthdaysTab({ t, dark }: { t: Record<string, string>; dark: boolean })
           </div>
         ))
       )}
+    </div>
+  );
+}
+
+function MyAssignmentsTab({ t, dark }: { t: Record<string, string>; dark: boolean }) {
+  const [assignments, setAssignments] = React.useState<{
+    plan_id: string; plan_title: string; service_date: string;
+    item_type: string; title: string; description: string; duration_minutes: number;
+    roster_dept?: string; roster_date?: string; roster_role?: string; source: 'service_plan'|'roster';
+  }[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    // Fetch user id first
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => r.json())
+      .then(async ({ data }) => {
+        if (!data?.id) return;
+        const [planItemsRes, rosterRes] = await Promise.all([
+          fetch(`/api/service-planner/items?assigned_to=${data.id}`, { credentials: 'include' }),
+          fetch(`/api/workforce/rosters`, { credentials: 'include' }),
+        ]);
+        const [planItemsData, rosterData] = await Promise.all([
+          planItemsRes.json(), rosterRes.json(),
+        ]);
+
+        const serviceItems: typeof assignments = [];
+        const planItems = planItemsData?.data?.items || [];
+
+        // Fetch plan details for each item
+        if (planItems.length > 0) {
+          const planIds = [...new Set(planItems.map((i: Record<string,unknown>) => i.plan_id))];
+          const plansRes = await fetch('/api/service-planner?upcoming=true', { credentials: 'include' });
+          const plansData = await plansRes.json();
+          const plans = plansData?.data?.plans || [];
+
+          planItems.forEach((item: Record<string,unknown>) => {
+            const plan = plans.find((p: Record<string,unknown>) => p.id === item.plan_id);
+            if (plan) {
+              serviceItems.push({
+                plan_id: plan.id as string,
+                plan_title: plan.title as string,
+                service_date: plan.service_date as string,
+                item_type: item.item_type as string,
+                title: item.title as string,
+                description: item.description as string,
+                duration_minutes: item.duration_minutes as number,
+                source: 'service_plan',
+              });
+            }
+          });
+        }
+
+        // Find roster assignments for this member
+        const rosters = rosterData?.data?.rosters || [];
+        const today = new Date().toISOString().split('T')[0];
+        rosters.forEach((r: Record<string,unknown>) => {
+          if ((r.service_date as string) < today) return;
+          const entries = (r.entries as Record<string,unknown>[]) || [];
+          entries.forEach((e: Record<string,unknown>) => {
+            if (e.member_id === data.id) {
+              serviceItems.push({
+                plan_id: r.id as string,
+                plan_title: `${r.department_id} Rota`,
+                service_date: r.service_date as string,
+                item_type: 'roster',
+                title: e.role_title as string,
+                description: e.position as string || '',
+                duration_minutes: 0,
+                roster_role: e.role_title as string,
+                source: 'roster',
+              });
+            }
+          });
+        });
+
+        serviceItems.sort((a, b) => a.service_date.localeCompare(b.service_date));
+        setAssignments(serviceItems);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const ITEM_ICONS: Record<string,string> = { prayer:'🙏', song:'🎵', announcement:'📢', offering:'💰', sermon:'📖', item:'📋', benediction:'✝', break:'⏸', roster:'👥' };
+  const card = (e?: React.CSSProperties): React.CSSProperties => ({ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, ...e });
+
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+      <div style={{ fontSize: 13, color: t.muted }}>Loading assignments…</div>
+    </div>
+  );
+
+  if (assignments.length === 0) return (
+    <div style={card({ padding: 40, textAlign: 'center' as const })}>
+      <div style={{ fontSize: 28, marginBottom: 12 }}>📋</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: 6 }}>No upcoming assignments</div>
+      <div style={{ fontSize: 12, color: t.muted }}>When the PA or department head assigns you a role in a service or rota, it will appear here.</div>
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: 4 }}>My upcoming assignments</div>
+      {assignments.map((a, i) => (
+        <div key={i} style={card({ padding: '14px 16px', borderLeft: `3px solid ${a.source === 'service_plan' ? t.purple : t.teal}` })}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <span style={{ fontSize: 22, flexShrink: 0 }}>{ITEM_ICONS[a.item_type] || '📋'}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{a.title}</div>
+              <div style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>
+                {a.plan_title} · {new Date(a.service_date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </div>
+              {a.description && <div style={{ fontSize: 12, color: t.sub, marginTop: 4 }}>{a.description}</div>}
+              {a.duration_minutes > 0 && <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>Duration: {a.duration_minutes} min</div>}
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 8, background: a.source === 'service_plan' ? t.purpleBg : t.tealBg, color: a.source === 'service_plan' ? t.purple : t.teal, whiteSpace: 'nowrap' as const }}>
+              {a.source === 'service_plan' ? 'Service Plan' : 'Rota'}
+            </span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

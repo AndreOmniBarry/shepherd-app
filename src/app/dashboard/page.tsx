@@ -18,7 +18,7 @@ import {
 type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; };
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
 type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
-type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation'|'settings'|'admin'|'subscription';
+type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation'|'settings'|'admin'|'subscription'|'service_planner'|'events'|'workforce';
 type TimeRange = '8w'|'3m'|'6m'|'1y'|'2y'|'5y';
 
 // ── Unique cell data with realistic, differentiated trends ─────
@@ -1506,6 +1506,9 @@ export default function DashboardPage(){
     {id:'prayer' as NavPage,icon:'ti-heart',label:'Prayer Requests'},
     {id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'},
     {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
+    {id:'service_planner' as NavPage,icon:'ti-calendar-event',label:'Service Planner'},
+    {id:'events' as NavPage,icon:'ti-calendar-stats',label:'Events'},
+    {id:'workforce' as NavPage,icon:'ti-users-group',label:'Workforce'},
     {id:'settings' as NavPage,icon:'ti-settings',label:'Settings'},
     {id:'subscription' as NavPage,icon:'ti-credit-card',label:'Subscription'},
     ...(userRole === 'lead_tech' ? [{id:'admin' as NavPage,icon:'ti-shield',label:'Admin Portal'}] : []),
@@ -2338,6 +2341,15 @@ export default function DashboardPage(){
           {page==='subscription'&&(
             <SubscriptionPanel t={t} dark={dark} />
           )}
+          {page==='service_planner'&&(
+            <ServicePlannerPage t={t} dark={dark} screenWidth={screenWidth} />
+          )}
+          {page==='events'&&(
+            <EventsPage t={t} dark={dark} screenWidth={screenWidth} />
+          )}
+          {page==='workforce'&&(
+            <WorkforceIntelligencePage t={t} dark={dark} screenWidth={screenWidth} />
+          )}
           {page==='prayer'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
@@ -2450,6 +2462,733 @@ export default function DashboardPage(){
     .grid-2{gap:16px;}
   }
 `}</style>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// SERVICE PLANNER PAGE
+// ─────────────────────────────────────────────────────────────
+const ITEM_TYPES = [
+  { value:'prayer', label:'Opening Prayer', icon:'🙏', color:'#534AB7' },
+  { value:'song', label:'Praise & Worship', icon:'🎵', color:'#1D9E75' },
+  { value:'announcement', label:'Announcements', icon:'📢', color:'#BA7517' },
+  { value:'offering', label:'Tithes & Offering', icon:'💰', color:'#D85A30' },
+  { value:'sermon', label:'Sermon / Message', icon:'📖', color:'#534AB7' },
+  { value:'item', label:'General Item', icon:'📋', color:'#9890C4' },
+  { value:'benediction', label:'Benediction', icon:'✝', color:'#534AB7' },
+  { value:'break', label:'Break / Interval', icon:'⏸', color:'#9890C4' },
+];
+
+function ServicePlannerPage({ t, dark, screenWidth }: { t: Record<string,string>; dark: boolean; screenWidth: number }) {
+  const [plans, setPlans] = React.useState<Record<string,unknown>[]>([]);
+  const [selected, setSelected] = React.useState<Record<string,unknown>|null>(null);
+  const [items, setItems] = React.useState<Record<string,unknown>[]>([]);
+  const [users, setUsers] = React.useState<{id:string;full_name:string;role:string}[]>([]);
+  const [creating, setCreating] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [publishing, setPublishing] = React.useState(false);
+  const [toast, setToast] = React.useState('');
+  const [newPlan, setNewPlan] = React.useState({ service_date: '', service_type: 'sunday', title: 'Sunday Service', theme: '' });
+
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
+
+  React.useEffect(() => {
+    fetch('/api/service-planner', { credentials: 'include' })
+      .then(r => r.json()).then(({ data }) => { if (data?.plans) setPlans(data.plans); }).catch(() => {});
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => r.json()).then(({ data }) => {
+        if (data?.id) {
+          fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users?select=id,full_name,role&order=full_name.asc`, {
+            headers: { 'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}` }
+          }).then(r => r.json()).then(d => { if (Array.isArray(d)) setUsers(d); }).catch(() => {});
+        }
+      }).catch(() => {});
+  }, []);
+
+  function loadItems(planId: string) {
+    fetch(`/api/service-planner/items?plan_id=${planId}`, { credentials: 'include' })
+      .then(r => r.json()).then(({ data }) => { if (data?.items) setItems(data.items); }).catch(() => {});
+  }
+
+  function selectPlan(plan: Record<string,unknown>) {
+    setSelected(plan); loadItems(plan.id as string);
+  }
+
+  function addItem(type: string) {
+    const def = ITEM_TYPES.find(t => t.value === type) || ITEM_TYPES[5];
+    const newItem = { id: `new_${Date.now()}`, item_type: type, title: def.label, description: '', duration_minutes: 10, assigned_to: null, assigned_to_name: null, color: def.color, is_completed: false, position: items.length };
+    setItems(prev => [...prev, newItem]);
+  }
+
+  function updateItem(id: string, field: string, value: unknown) {
+    setItems(prev => prev.map(item => (item.id as string) === id ? { ...item, [field]: value } : item));
+    if (field === 'assigned_to' && value) {
+      const u = users.find(u => u.id === value);
+      setItems(prev => prev.map(item => (item.id as string) === id ? { ...item, assigned_to_name: u?.full_name || null } : item));
+    }
+  }
+
+  function removeItem(id: string) { setItems(prev => prev.filter(item => (item.id as string) !== id)); }
+
+  function moveItem(id: string, dir: 1 | -1) {
+    const idx = items.findIndex(item => (item.id as string) === id);
+    if (idx + dir < 0 || idx + dir >= items.length) return;
+    const newItems = [...items];
+    [newItems[idx], newItems[idx + dir]] = [newItems[idx + dir], newItems[idx]];
+    setItems(newItems);
+  }
+
+  async function createPlan() {
+    if (!newPlan.service_date || !newPlan.title) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/service-planner', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ ...newPlan, items: [] }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setPlans(prev => [d.data.plan, ...prev]);
+        selectPlan(d.data.plan);
+        setCreating(false);
+        showToast('Service plan created');
+      }
+    } catch {} setSaving(false);
+  }
+
+  async function savePlan() {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await fetch('/api/service-planner', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ id: selected.id, items: items.map((item, i) => ({ ...item, position: i, id: String(item.id).startsWith('new_') ? undefined : item.id })) }),
+      });
+      showToast('Plan saved');
+    } catch {} setSaving(false);
+  }
+
+  async function publishPlan() {
+    if (!selected) return;
+    setPublishing(true);
+    try {
+      await fetch('/api/service-planner', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ id: selected.id, status: 'published', items: items.map((item, i) => ({ ...item, position: i, id: String(item.id).startsWith('new_') ? undefined : item.id })) }),
+      });
+      setSelected(prev => prev ? { ...prev, status: 'published' } : prev);
+      setPlans(prev => prev.map(p => (p.id as string) === (selected.id as string) ? { ...p, status: 'published' } : p));
+      showToast('Plan published — all assigned leaders notified');
+    } catch {} setPublishing(false);
+  }
+
+  const cardS = (e?: React.CSSProperties): React.CSSProperties => ({ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, ...e });
+  const inputS: React.CSSProperties = { border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 11px', fontSize: 13, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' };
+  const isWide = screenWidth >= 1024;
+  const totalDuration = items.reduce((a, item) => a + ((item.duration_minutes as number) || 0), 0);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {toast && <div style={{ background: t.teal, color: '#fff', borderRadius: 9, padding: '10px 16px', fontSize: 13, fontWeight: 500 }}>✓ {toast}</div>}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 19, fontWeight: 700, color: t.text, letterSpacing: '-0.3px' }}>Service Planner</div>
+          <div style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>Build Sunday programmes, assign roles, publish to all leaders</div>
+        </div>
+        <button onClick={() => setCreating(true)} style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 9, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>+ New plan</button>
+      </div>
+
+      {creating && (
+        <div style={cardS({ padding: '20px' })}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: 14 }}>New service plan</div>
+          <div style={{ display: 'grid', gridTemplateColumns: isWide ? '1fr 1fr 1fr 1fr' : '1fr 1fr', gap: 12 }}>
+            <div style={{ gridColumn: isWide ? '1 / 3' : '1 / -1' }}>
+              <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 5 }}>Service title</div>
+              <input value={newPlan.title} onChange={e => setNewPlan(p => ({ ...p, title: e.target.value }))} style={{ ...inputS, width: '100%', boxSizing: 'border-box' as const }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 5 }}>Date *</div>
+              <input type="date" value={newPlan.service_date} onChange={e => setNewPlan(p => ({ ...p, service_date: e.target.value }))} style={{ ...inputS, width: '100%', boxSizing: 'border-box' as const }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 5 }}>Type</div>
+              <select value={newPlan.service_type} onChange={e => setNewPlan(p => ({ ...p, service_type: e.target.value }))} style={{ ...inputS, width: '100%' }}>
+                {['sunday','wednesday','friday','special'].map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)} Service</option>)}
+              </select>
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 5 }}>Theme / Series (optional)</div>
+              <input value={newPlan.theme} onChange={e => setNewPlan(p => ({ ...p, theme: e.target.value }))} placeholder="e.g. The Power of Prayer" style={{ ...inputS, width: '100%', boxSizing: 'border-box' as const }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+            <button onClick={createPlan} disabled={saving || !newPlan.service_date}
+              style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving || !newPlan.service_date ? 0.7 : 1 }}>
+              {saving ? 'Creating…' : 'Create plan'}
+            </button>
+            <button onClick={() => setCreating(false)} style={{ background: t.input, color: t.sub, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '10px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: isWide ? '280px 1fr' : '1fr', gap: 16 }}>
+        {/* Plans list */}
+        <div style={cardS({ padding: 0, overflow: 'hidden' })}>
+          <div style={{ padding: '12px 16px', borderBottom: `0.5px solid ${t.border}`, fontSize: 12, fontWeight: 600, color: t.text }}>Plans ({plans.length})</div>
+          {plans.length === 0 ? (
+            <div style={{ padding: 24, textAlign: 'center' as const, color: t.muted, fontSize: 13 }}>No plans yet. Create your first service plan.</div>
+          ) : plans.map((plan, i) => (
+            <div key={plan.id as string} onClick={() => selectPlan(plan)}
+              style={{ padding: '12px 16px', borderBottom: i < plans.length - 1 ? `0.5px solid ${t.border}` : 'none', cursor: 'pointer', background: (selected?.id as string) === (plan.id as string) ? t.purpleBg : 'transparent', transition: 'background 0.12s' }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: t.text }}>{plan.title as string}</div>
+              <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>
+                {plan.service_date ? new Date((plan.service_date as string) + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 8, marginTop: 4, display: 'inline-block', background: plan.status === 'published' ? t.tealBg : plan.status === 'live' ? '#FAEEDA' : t.purpleBg, color: plan.status === 'published' ? t.teal : plan.status === 'live' ? t.amber : t.purple }}>
+                {(plan.status as string).toUpperCase()}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Plan editor */}
+        {selected ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={cardS({ padding: '16px 18px' })}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' as const, gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>{selected.title as string}</div>
+                  <div style={{ fontSize: 12, color: t.muted }}>
+                    {selected.service_date ? new Date((selected.service_date as string) + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''} · {items.length} items · {totalDuration} min total
+                  </div>
+                  {selected.theme && <div style={{ fontSize: 12, color: t.purple, marginTop: 3 }}>Theme: {selected.theme as string}</div>}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={savePlan} disabled={saving} style={{ background: t.purpleBg, color: t.purple, border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    {saving ? 'Saving…' : 'Save'}
+                  </button>
+                  {selected.status !== 'published' && (
+                    <button onClick={publishPlan} disabled={publishing} style={{ background: t.teal, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: publishing ? 0.7 : 1 }}>
+                      {publishing ? 'Publishing…' : '📢 Publish & notify'}
+                    </button>
+                  )}
+                  {selected.status === 'published' && (
+                    <span style={{ fontSize: 12, fontWeight: 600, color: t.teal, padding: '8px 14px', background: t.tealBg, borderRadius: 8 }}>✓ Published</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Item type adder */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+              {ITEM_TYPES.map(type => (
+                <button key={type.value} onClick={() => addItem(type.value)}
+                  style={{ padding: '6px 12px', borderRadius: 8, border: `0.5px solid ${t.border}`, background: t.card, fontSize: 12, cursor: 'pointer', color: t.sub, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span>{type.icon}</span> {type.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Order of service items */}
+            {items.length === 0 ? (
+              <div style={cardS({ padding: 32, textAlign: 'center' as const })}>
+                <div style={{ fontSize: 13, color: t.muted }}>Add items above to build the order of service.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {items.map((item, idx) => {
+                  const def = ITEM_TYPES.find(t => t.value === item.item_type) || ITEM_TYPES[5];
+                  return (
+                    <div key={item.id as string} style={cardS({ padding: '14px 16px', borderLeft: `3px solid ${item.color as string || def.color}` })}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+                          <button onClick={() => moveItem(item.id as string, -1)} disabled={idx === 0} style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', color: t.muted, fontSize: 12, padding: '2px' }}>↑</button>
+                          <span style={{ fontSize: 11, color: t.muted, textAlign: 'center' as const }}>{idx + 1}</span>
+                          <button onClick={() => moveItem(item.id as string, 1)} disabled={idx === items.length - 1} style={{ background: 'none', border: 'none', cursor: idx === items.length - 1 ? 'default' : 'pointer', color: t.muted, fontSize: 12, padding: '2px' }}>↓</button>
+                        </div>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 1fr', gap: 8 }}>
+                            <input value={item.title as string} onChange={e => updateItem(item.id as string, 'title', e.target.value)}
+                              style={{ ...inputS, fontWeight: 600 }} placeholder="Item title" />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <input type="number" value={item.duration_minutes as number} onChange={e => updateItem(item.id as string, 'duration_minutes', parseInt(e.target.value) || 0)}
+                                style={{ ...inputS, width: '60px' }} min={1} />
+                              <span style={{ fontSize: 11, color: t.muted }}>min</span>
+                            </div>
+                            <select value={(item.assigned_to as string) || ''} onChange={e => updateItem(item.id as string, 'assigned_to', e.target.value || null)}
+                              style={{ ...inputS }}>
+                              <option value="">Assign to…</option>
+                              {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.role.replace('_',' ')})</option>)}
+                            </select>
+                          </div>
+                          <input value={(item.description as string) || ''} onChange={e => updateItem(item.id as string, 'description', e.target.value)}
+                            style={{ ...inputS, fontSize: 12, color: t.sub }} placeholder="Notes or instructions (optional)" />
+                        </div>
+                        <button onClick={() => removeItem(item.id as string)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.muted, fontSize: 16, padding: '4px', flexShrink: 0 }}>×</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={cardS({ padding: 40, textAlign: 'center' as const })}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: 6 }}>Select a plan to edit</div>
+            <div style={{ fontSize: 12, color: t.muted }}>Choose a plan from the list or create a new one.</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// EVENTS PAGE
+// ─────────────────────────────────────────────────────────────
+const EVENT_TYPES = ['programme','conference','vigil','concert','outreach','training','thanksgiving','dedication','other'];
+const EVENT_ICONS: Record<string,string> = { programme:'📋', conference:'🎤', vigil:'🕯', concert:'🎶', outreach:'🌍', training:'📚', thanksgiving:'🙏', dedication:'👶', other:'⭐' };
+
+function EventsPage({ t, dark, screenWidth }: { t: Record<string,string>; dark: boolean; screenWidth: number }) {
+  const [events, setEvents] = React.useState<Record<string,unknown>[]>([]);
+  const [selected, setSelected] = React.useState<Record<string,unknown>|null>(null);
+  const [registrations, setRegistrations] = React.useState<Record<string,unknown>[]>([]);
+  const [creating, setCreating] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [toast, setToast] = React.useState('');
+  const [regTab, setRegTab] = React.useState<'list'|'attendance'>('list');
+  const [form, setForm] = React.useState({ title: '', event_date: '', event_type: 'programme', start_time: '', end_time: '', location: '', description: '', is_free: true, price: '', capacity: '', banner_url: '', whatsapp_confirmation: true, sms_confirmation: true });
+
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
+
+  React.useEffect(() => {
+    fetch('/api/events', { credentials: 'include' })
+      .then(r => r.json()).then(({ data }) => { if (data?.events) setEvents(data.events); }).catch(() => {});
+  }, []);
+
+  function loadRegistrations(eventId: string) {
+    fetch(`/api/events/register?event_id=${eventId}`, { credentials: 'include' })
+      .then(r => r.json()).then(({ data }) => { if (data?.registrations) setRegistrations(data.registrations); }).catch(() => {});
+  }
+
+  function selectEvent(ev: Record<string,unknown>) {
+    setSelected(ev); loadRegistrations(ev.id as string); setRegTab('list');
+  }
+
+  async function createEvent() {
+    if (!form.title || !form.event_date) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/events', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ ...form, is_free: form.is_free, price: form.is_free ? 0 : parseFloat(form.price) || 0, capacity: form.capacity ? parseInt(form.capacity) : null }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setEvents(prev => [d.data, ...prev]);
+        setCreating(false);
+        setForm({ title: '', event_date: '', event_type: 'programme', start_time: '', end_time: '', location: '', description: '', is_free: true, price: '', capacity: '', banner_url: '', whatsapp_confirmation: true, sms_confirmation: true });
+        showToast('Event created');
+      }
+    } catch {} setSaving(false);
+  }
+
+  async function toggleAttendance(regId: string, attended: boolean) {
+    await fetch('/api/events/register', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ id: regId, attended: !attended }),
+    });
+    setRegistrations(prev => prev.map(r => (r.id as string) === regId ? { ...r, attended: !attended } : r));
+  }
+
+  async function closeEvent(id: string) {
+    await fetch('/api/events', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ id, registration_open: false }),
+    });
+    setEvents(prev => prev.map(e => (e.id as string) === id ? { ...e, registration_open: false } : e));
+    if (selected?.id === id) setSelected(prev => prev ? { ...prev, registration_open: false } : prev);
+    showToast('Registration closed');
+  }
+
+  const cardS = (e?: React.CSSProperties): React.CSSProperties => ({ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, ...e });
+  const inputS: React.CSSProperties = { border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 11px', fontSize: 13, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const };
+  const isWide = screenWidth >= 1024;
+  const attended = registrations.filter(r => r.attended).length;
+  const conversionRate = registrations.length > 0 ? Math.round((attended / registrations.length) * 100) : 0;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {toast && <div style={{ background: t.teal, color: '#fff', borderRadius: 9, padding: '10px 16px', fontSize: 13, fontWeight: 500 }}>✓ {toast}</div>}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 19, fontWeight: 700, color: t.text, letterSpacing: '-0.3px' }}>Events & Programmes</div>
+          <div style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>Create events, manage registration, track attendance and conversion</div>
+        </div>
+        <button onClick={() => setCreating(true)} style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 9, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>+ New event</button>
+      </div>
+
+      {creating && (
+        <div style={cardS({ padding: '20px' })}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: 14 }}>New event</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isWide ? '1fr 1fr 1fr' : '1fr 1fr', gap: 12 }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 5 }}>Event title *</div>
+                <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. December Praise Night" style={inputS} />
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 5 }}>Date *</div>
+                <input type="date" value={form.event_date} onChange={e => setForm(p => ({ ...p, event_date: e.target.value }))} style={inputS} />
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 5 }}>Type</div>
+                <select value={form.event_type} onChange={e => setForm(p => ({ ...p, event_type: e.target.value }))} style={inputS}>
+                  {EVENT_TYPES.map(et => <option key={et} value={et}>{et.charAt(0).toUpperCase()+et.slice(1)}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 5 }}>Capacity (optional)</div>
+                <input type="number" value={form.capacity} onChange={e => setForm(p => ({ ...p, capacity: e.target.value }))} placeholder="Leave blank for unlimited" style={inputS} />
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 5 }}>Start time</div>
+                <input type="time" value={form.start_time} onChange={e => setForm(p => ({ ...p, start_time: e.target.value }))} style={inputS} />
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 5 }}>End time</div>
+                <input type="time" value={form.end_time} onChange={e => setForm(p => ({ ...p, end_time: e.target.value }))} style={inputS} />
+              </div>
+              <div style={{ gridColumn: isWide ? '1 / 3' : '1 / -1' }}>
+                <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 5 }}>Location</div>
+                <input value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} placeholder="Church auditorium, online, etc." style={inputS} />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 5 }}>Description</div>
+                <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={3}
+                  style={{ ...inputS, resize: 'vertical' as const }} placeholder="Tell people what to expect…" />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' as const }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: t.text }}>
+                <input type="checkbox" checked={form.is_free} onChange={e => setForm(p => ({ ...p, is_free: e.target.checked }))} />
+                Free entry
+              </label>
+              {!form.is_free && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, color: t.muted }}>₦</span>
+                  <input type="number" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} placeholder="Ticket price" style={{ ...inputS, width: 140 }} />
+                </div>
+              )}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: t.text }}>
+                <input type="checkbox" checked={form.whatsapp_confirmation} onChange={e => setForm(p => ({ ...p, whatsapp_confirmation: e.target.checked }))} />
+                WhatsApp confirmation
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: t.text }}>
+                <input type="checkbox" checked={form.sms_confirmation} onChange={e => setForm(p => ({ ...p, sms_confirmation: e.target.checked }))} />
+                SMS confirmation
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={createEvent} disabled={saving || !form.title || !form.event_date}
+                style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving || !form.title || !form.event_date ? 0.7 : 1 }}>
+                {saving ? 'Creating…' : 'Create event'}
+              </button>
+              <button onClick={() => setCreating(false)} style={{ background: t.input, color: t.sub, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '10px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: isWide ? '300px 1fr' : '1fr', gap: 16 }}>
+        {/* Events list */}
+        <div style={cardS({ padding: 0, overflow: 'hidden' })}>
+          <div style={{ padding: '12px 16px', borderBottom: `0.5px solid ${t.border}`, fontSize: 12, fontWeight: 600, color: t.text }}>All events ({events.length})</div>
+          {events.length === 0 ? (
+            <div style={{ padding: 32, textAlign: 'center' as const, color: t.muted, fontSize: 13 }}>No events yet.</div>
+          ) : events.map((ev, i) => (
+            <div key={ev.id as string} onClick={() => selectEvent(ev)}
+              style={{ padding: '12px 16px', borderBottom: i < events.length - 1 ? `0.5px solid ${t.border}` : 'none', cursor: 'pointer', background: (selected?.id as string) === (ev.id as string) ? t.purpleBg : 'transparent', transition: 'background 0.12s' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                <span style={{ fontSize: 16 }}>{EVENT_ICONS[ev.event_type as string] || '⭐'}</span>
+                <div style={{ fontSize: 13, fontWeight: 500, color: t.text }}>{ev.title as string}</div>
+              </div>
+              <div style={{ fontSize: 11, color: t.muted }}>
+                {ev.event_date ? new Date((ev.event_date as string) + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'} · {(ev.registration_count as number) || 0} registered
+              </div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 8, background: ev.status === 'upcoming' ? t.tealBg : ev.status === 'cancelled' ? t.coralBg : t.amberBg, color: ev.status === 'upcoming' ? t.teal : ev.status === 'cancelled' ? t.coral : t.amber }}>
+                  {(ev.status as string).toUpperCase()}
+                </span>
+                {ev.is_free ? <span style={{ fontSize: 10, color: t.muted }}>Free</span> : <span style={{ fontSize: 10, color: t.amber, fontWeight: 600 }}>₦{Number(ev.price).toLocaleString()}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Event detail */}
+        {selected ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Event header */}
+            <div style={cardS({ padding: '18px' })}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' as const }}>
+                <div>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: t.text, marginBottom: 4 }}>{selected.title as string}</div>
+                  <div style={{ fontSize: 12, color: t.muted }}>
+                    {selected.event_date ? new Date((selected.event_date as string) + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '—'}
+                    {selected.start_time && ` · ${selected.start_time}`}
+                    {selected.location && ` · ${selected.location}`}
+                  </div>
+                  {selected.description && <div style={{ fontSize: 12, color: t.sub, marginTop: 6, lineHeight: 1.5 }}>{selected.description as string}</div>}
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/events/${selected.public_slug}`); showToast('Registration link copied!'); }}
+                    style={{ background: t.purpleBg, color: t.purple, border: 'none', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    📋 Copy link
+                  </button>
+                  {selected.registration_open && (
+                    <button onClick={() => closeEvent(selected.id as string)}
+                      style={{ background: t.coralBg, color: t.coral, border: 'none', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                      Close registration
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* KPIs */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginTop: 14 }}>
+                {[
+                  { label: 'Registered', value: registrations.length, color: t.purple, bg: t.purpleBg },
+                  { label: 'Attended', value: attended, color: t.teal, bg: t.tealBg },
+                  { label: 'Conversion', value: `${conversionRate}%`, color: t.amber, bg: t.amberBg },
+                  { label: 'Capacity', value: selected.capacity ? `${registrations.length}/${selected.capacity}` : '∞', color: t.sub, bg: t.input },
+                ].map((kpi, i) => (
+                  <div key={i} style={{ background: kpi.bg, borderRadius: 9, padding: '10px 12px', textAlign: 'center' as const }}>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
+                    <div style={{ fontSize: 11, color: kpi.color, opacity: 0.8 }}>{kpi.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 14, fontSize: 12, color: t.muted }}>
+                <span>WhatsApp confirmation: <strong style={{ color: selected.whatsapp_confirmation ? t.teal : t.coral }}>{selected.whatsapp_confirmation ? 'On' : 'Off'}</strong></span>
+                <span>·</span>
+                <span>SMS: <strong style={{ color: selected.sms_confirmation ? t.teal : t.coral }}>{selected.sms_confirmation ? 'On' : 'Off'}</strong></span>
+                <span>·</span>
+                <span style={{ color: t.muted, fontSize: 11 }}>Confirmations queued — will send when provider is configured</span>
+              </div>
+            </div>
+
+            {/* Registrations */}
+            <div style={cardS({ padding: 0, overflow: 'hidden' })}>
+              <div style={{ display: 'flex', borderBottom: `0.5px solid ${t.border}` }}>
+                {(['list','attendance'] as const).map(tab => (
+                  <button key={tab} onClick={() => setRegTab(tab)}
+                    style={{ flex: 1, padding: '11px', border: 'none', borderBottom: `2px solid ${regTab === tab ? t.purple : 'transparent'}`, background: regTab === tab ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: regTab === tab ? 600 : 400, color: regTab === tab ? t.purple : t.muted, cursor: 'pointer', textTransform: 'capitalize' as const }}>
+                    {tab === 'list' ? `Registrations (${registrations.length})` : 'Mark Attendance'}
+                  </button>
+                ))}
+              </div>
+              {registrations.length === 0 ? (
+                <div style={{ padding: 32, textAlign: 'center' as const, color: t.muted, fontSize: 13 }}>No registrations yet. Share the registration link.</div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
+                        {['Name', 'Phone', 'Type', 'Channel', ...(regTab === 'attendance' ? ['Attended'] : [])].map(h => (
+                          <th key={h} style={{ padding: '10px 14px', textAlign: 'left' as const, fontSize: 10, color: t.muted, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.4px', whiteSpace: 'nowrap' as const }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {registrations.map((reg, i) => (
+                        <tr key={reg.id as string} style={{ borderBottom: i < registrations.length - 1 ? `0.5px solid ${t.border}` : 'none' }}>
+                          <td style={{ padding: '10px 14px', color: t.text, fontWeight: 500 }}>{reg.full_name as string}</td>
+                          <td style={{ padding: '10px 14px', color: t.muted }}>{reg.phone as string}</td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 8, background: reg.is_member ? t.purpleBg : t.input, color: reg.is_member ? t.purple : t.muted, fontWeight: 600 }}>
+                              {reg.is_member ? 'Member' : 'Walk-in'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <span style={{ fontSize: 11, color: t.muted }}>{(reg.preferred_comms as string) || '—'}</span>
+                          </td>
+                          {regTab === 'attendance' && (
+                            <td style={{ padding: '10px 14px' }}>
+                              <button onClick={() => toggleAttendance(reg.id as string, reg.attended as boolean)}
+                                style={{ padding: '5px 12px', borderRadius: 7, border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer', background: reg.attended ? t.tealBg : t.input, color: reg.attended ? t.teal : t.muted }}>
+                                {reg.attended ? '✓ Present' : 'Absent'}
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div style={cardS({ padding: 40, textAlign: 'center' as const })}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>🗓</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: 6 }}>Select an event</div>
+            <div style={{ fontSize: 12, color: t.muted }}>Choose an event to see registrations and mark attendance.</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// WORKFORCE INTELLIGENCE PAGE
+// ─────────────────────────────────────────────────────────────
+function WorkforceIntelligencePage({ t, dark, screenWidth }: { t: Record<string,string>; dark: boolean; screenWidth: number }) {
+  const [data, setData] = React.useState<Record<string,unknown>|null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch('/api/workforce/intelligence', { credentials: 'include' })
+      .then(r => r.json()).then(({ data: d }) => { if (d) setData(d); })
+      .catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const cardS = (e?: React.CSSProperties): React.CSSProperties => ({ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, ...e });
+  const isWide = screenWidth >= 1024;
+
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 60, flexDirection: 'column', gap: 12 }}>
+      <div style={{ width: 28, height: 28, border: `3px solid ${t.border}`, borderTopColor: t.purple, borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+      <div style={{ fontSize: 13, color: t.muted }}>Loading workforce intelligence…</div>
+    </div>
+  );
+
+  const summary = data?.summary as Record<string,number> || {};
+  const deptStats = (data?.department_stats as Record<string,unknown>[]) || [];
+  const overcommitted = (data?.overcommitted as Record<string,unknown>[]) || [];
+  const rankings = (data?.reliability_rankings as Record<string,unknown>[]) || [];
+  const nextSunday = data?.next_sunday as string;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div>
+        <div style={{ fontSize: 19, fontWeight: 700, color: t.text, letterSpacing: '-0.3px' }}>Workforce Intelligence</div>
+        <div style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>
+          Department coverage, volunteer reliability, and staffing gaps for {nextSunday ? new Date(nextSunday + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) : 'upcoming Sunday'}
+        </div>
+      </div>
+
+      {/* Summary KPIs */}
+      <div style={{ display: 'grid', gridTemplateColumns: isWide ? 'repeat(5,1fr)' : 'repeat(2,1fr)', gap: 12 }}>
+        {[
+          { label: 'Total workforce', value: summary.total_workforce || 0, color: t.purple, bg: t.purpleBg, icon: '👥' },
+          { label: 'Departments', value: summary.total_departments || 0, color: t.sub, bg: t.input, icon: '🏢' },
+          { label: 'Scheduled', value: summary.departments_scheduled_next_sunday || 0, color: t.teal, bg: t.tealBg, icon: '✅' },
+          { label: 'With gaps', value: summary.departments_with_gaps || 0, color: summary.departments_with_gaps > 0 ? t.coral : t.teal, bg: summary.departments_with_gaps > 0 ? t.coralBg : t.tealBg, icon: '⚠' },
+          { label: 'Overcommitted', value: summary.overcommitted_members || 0, color: summary.overcommitted_members > 0 ? t.amber : t.teal, bg: summary.overcommitted_members > 0 ? t.amberBg : t.tealBg, icon: '🔥' },
+        ].map((kpi, i) => (
+          <div key={i} style={{ ...cardS({ padding: '16px' }), background: kpi.bg }}>
+            <div style={{ fontSize: 22, marginBottom: 6 }}>{kpi.icon}</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
+            <div style={{ fontSize: 11, color: kpi.color, opacity: 0.8 }}>{kpi.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: isWide ? '1fr 1fr' : '1fr', gap: 16 }}>
+        {/* Department coverage */}
+        <div style={cardS({ padding: 0, overflow: 'hidden' })}>
+          <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Department coverage — next Sunday</div>
+          </div>
+          {deptStats.length === 0 ? (
+            <div style={{ padding: 32, textAlign: 'center' as const, color: t.muted, fontSize: 13 }}>No departments found. Add departments first.</div>
+          ) : deptStats.map((dept, i) => {
+            const hasRoster = dept.next_roster_coverage === 'scheduled';
+            return (
+              <div key={dept.id as string} style={{ padding: '12px 18px', borderBottom: i < deptStats.length - 1 ? `0.5px solid ${t.border}` : 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: hasRoster ? t.teal : t.coral, flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: t.text }}>{dept.name as string}</div>
+                  <div style={{ fontSize: 11, color: t.muted }}>
+                    {dept.member_count as number} members · {dept.roster_count as number} rosters built
+                    {hasRoster && ` · ${dept.assigned_next} assigned next Sunday`}
+                  </div>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 8, background: hasRoster ? t.tealBg : t.coralBg, color: hasRoster ? t.teal : t.coral, whiteSpace: 'nowrap' as const }}>
+                  {hasRoster ? '✓ Scheduled' : '⚠ No roster'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Reliability rankings */}
+        <div style={cardS({ padding: 0, overflow: 'hidden' })}>
+          <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${t.border}` }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Volunteer reliability rankings</div>
+            <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>Based on assignments vs attendance across all Sundays</div>
+          </div>
+          {rankings.length === 0 ? (
+            <div style={{ padding: 32, textAlign: 'center' as const, color: t.muted, fontSize: 13 }}>No workforce profiles yet. Profiles are built automatically as rosters are published.</div>
+          ) : rankings.map((r, i) => {
+            const score = r.reliability_score as number || 0;
+            const scoreColor = score >= 4 ? t.teal : score >= 2.5 ? t.amber : t.coral;
+            return (
+              <div key={r.member_id as string} style={{ padding: '11px 18px', borderBottom: i < rankings.length - 1 ? `0.5px solid ${t.border}` : 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: t.purpleBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: t.purple, flexShrink: 0 }}>
+                  {i + 1}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: t.text }}>{r.full_name as string}</div>
+                  <div style={{ fontSize: 11, color: t.muted }}>
+                    {r.total_attended as number}/{r.total_assigned as number} services attended
+                    {r.last_served && ` · Last served ${new Date((r.last_served as string) + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' as const }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: scoreColor }}>{score.toFixed(1)}</div>
+                  <div style={{ fontSize: 10, color: scoreColor }}>{score >= 4 ? 'Excellent' : score >= 2.5 ? 'Good' : 'Low'}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Overcommitted members alert */}
+      {overcommitted.length > 0 && (
+        <div style={cardS({ padding: '16px 18px', background: t.amberBg, border: `0.5px solid rgba(186,117,23,0.2)` })}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.amber, marginBottom: 8 }}>⚠ {overcommitted.length} overcommitted volunteer{overcommitted.length !== 1 ? 's' : ''}</div>
+          <div style={{ fontSize: 12, color: t.sub, marginBottom: 12 }}>These members are assigned to 3 or more departments. Consider redistributing their load to prevent burnout.</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+            {overcommitted.map(m => (
+              <span key={m.member_id as string} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 8, background: 'rgba(186,117,23,0.15)', color: t.amber, fontWeight: 500 }}>
+                {m.department_count} departments
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Gap alert */}
+      {(summary.departments_with_gaps || 0) > 0 && (
+        <div style={cardS({ padding: '16px 18px', background: t.coralBg, border: `0.5px solid rgba(216,90,48,0.2)` })}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.coral, marginBottom: 4 }}>
+            🚨 {summary.departments_with_gaps} department{summary.departments_with_gaps !== 1 ? 's' : ''} with no roster for next Sunday
+          </div>
+          <div style={{ fontSize: 12, color: t.sub }}>Department heads have been notified. Ask them to build and publish their rosters before Saturday 6pm.</div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,99 +1,72 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const hdrs = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
+const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const H = () => ({ 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const m = cookie.match(/shepherd_token=([^;]+)/);
-  const token = m?.[1];
-  if (!token) return null;
-  const payload = await verifyToken(token);
-  if (!payload) return null;
-  return payloadToAuthUser(payload);
-}
-
-async function getOverseerIds(): Promise<string[]> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&select=id`,
-    { headers: hdrs() }
-  );
-  const data = await res.json();
-  return Array.isArray(data) ? data.map((u: Record<string,string>) => u.id) : [];
+  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
+  if (!m) return null;
+  const p = await verifyToken(m[1]);
+  return p ? payloadToAuthUser(p) : null;
 }
 
 export async function GET(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'open';
-
-    let url = `${SUPABASE_URL}/rest/v1/prayer_requests?order=created_at.desc&limit=50&select=id,request,requester_name,category,status,is_anonymous,submitted_by,submitted_by_role,created_at`;
+    let url = `${SURL}/rest/v1/prayer_requests?order=created_at.desc&limit=50&select=id,request,requester_name,category,status,submitted_by_role,created_at,prayed_at`;
     if (status !== 'all') url += `&status=eq.${status}`;
-
-    // Non-overseer roles only see their own submissions
-    if (!['overseer', 'pa', 'lead_tech'].includes(user.role)) {
-      url += `&submitted_by=eq.${user.id}`;
-    }
-
-    const res = await fetch(url, { headers: hdrs() });
-    const data = await res.json();
-    return NextResponse.json({ data: { requests: Array.isArray(data) ? data : [] }, error: null });
-  } catch (err) {
-    return NextResponse.json({ data: null, error: { message: 'Failed to load prayer requests' } }, { status: 500 });
-  }
+    const res = await fetch(url, { headers: H() });
+    const requests = await res.json();
+    return NextResponse.json({ data: { requests: Array.isArray(requests) ? requests : [] }, error: null });
+  } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
 }
 
 export async function POST(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    const { request, category, requester_name } = await req.json();
+    if (!request?.trim()) return NextResponse.json({ data: null, error: { message: 'Prayer request text required' } }, { status: 400 });
 
-    const body = await req.json();
-    const { request, requester_name, category, is_anonymous } = body;
-
-    if (!request) return NextResponse.json({ data: null, error: { message: 'Prayer request text is required' } }, { status: 400 });
-
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/prayer_requests`, {
-      method: 'POST',
-      headers: { ...hdrs(), 'Prefer': 'return=representation' },
-      body: JSON.stringify({
-        request,
-        requester_name: is_anonymous ? 'Anonymous' : (requester_name || user.name || 'Unknown'),
-        category: category || 'general',
-        is_anonymous: is_anonymous || false,
-        status: 'open',
-        submitted_by: user.id,
-      }),
+    // Save the prayer request
+    const prRes = await fetch(`${SURL}/rest/v1/prayer_requests`, {
+      method: 'POST', headers: { ...H(), 'Prefer': 'return=representation' },
+      body: JSON.stringify({ request: request.trim(), category: category || 'general', requester_name: requester_name || user.name || 'Anonymous', submitted_by: user.id, submitted_by_role: user.role, status: 'open' }),
     });
-    const data = await res.json();
+    const prData = await prRes.json();
+    const prayerReq = Array.isArray(prData) ? prData[0] : prData;
 
-    // Notify all overseers/PAs - best effort, don't break main flow
-    try {
-      const overseerIds = await getOverseerIds();
-      if (overseerIds.length > 0) {
-        await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-          method: 'POST',
-          headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-          body: JSON.stringify(overseerIds.map(uid => ({
-            user_id: uid,
-            type: 'pastoral',
-            title: 'New prayer request',
-            body: `${is_anonymous ? 'Anonymous' : requester_name || user.name || 'A member'} — ${request.slice(0, 80)}${request.length > 80 ? '...' : ''}`,
-            read: false,
-          }))),
+    // Notify overseer and PA — fetch by role directly
+    const notifyRoles = ['overseer', 'pa'];
+    const notified: string[] = [];
+
+    for (const role of notifyRoles) {
+      const usersRes = await fetch(`${SURL}/rest/v1/users?role=eq.${role}&select=id`, { headers: H() });
+      const roleUsers = await usersRes.json();
+      if (Array.isArray(roleUsers) && roleUsers.length > 0) {
+        const notifications = roleUsers.map((u: { id: string }) => ({
+          user_id: u.id,
+          type: 'prayer',
+          read: false,
+          title: 'New prayer request',
+          body: `${requester_name || user.name || 'A member'} submitted a prayer request: "${request.trim().slice(0, 80)}${request.trim().length > 80 ? '…' : ''}"`,
+        }));
+        await fetch(`${SURL}/rest/v1/notifications`, {
+          method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' },
+          body: JSON.stringify(notifications),
         });
+        notified.push(...roleUsers.map((u: { id: string }) => u.id));
       }
-    } catch (notifyErr) {
-      console.error('Prayer notify error (non-fatal):', notifyErr);
     }
 
-    return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
-  } catch (err) {
+    return NextResponse.json({ data: { prayer_request: prayerReq, notified: notified.length }, error: null }, { status: 201 });
+  } catch (e) {
+    console.error('[POST /api/prayer-requests]', e);
     return NextResponse.json({ data: null, error: { message: 'Failed to submit prayer request' } }, { status: 500 });
   }
 }
@@ -102,21 +75,11 @@ export async function PATCH(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    if (!['overseer', 'pa', 'lead_tech'].includes(user.role)) {
-      return NextResponse.json({ data: null, error: { message: 'Not authorized' } }, { status: 403 });
-    }
-
-    const body = await req.json();
-    const { id, status } = body;
-
-    await fetch(`${SUPABASE_URL}/rest/v1/prayer_requests?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ status, updated_at: new Date().toISOString() }),
+    const { id, status } = await req.json();
+    await fetch(`${SURL}/rest/v1/prayer_requests?id=eq.${id}`, {
+      method: 'PATCH', headers: { ...H(), 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ status, prayed_at: status === 'prayed' ? new Date().toISOString() : null }),
     });
-
     return NextResponse.json({ data: { updated: true }, error: null });
-  } catch (err) {
-    return NextResponse.json({ data: null, error: { message: 'Failed to update' } }, { status: 500 });
-  }
+  } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
 }
