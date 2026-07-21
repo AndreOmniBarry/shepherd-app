@@ -1472,9 +1472,19 @@ export default function DashboardPage(){
           {/* ══ CELLS ══ */}
           {page==='cells'&&!selectedCell&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{display:'grid',gap:10}}>
-                {[{label:'Total Active Cells',value:String((dbCells||CELLS_DATA).length)},{label:'Rising',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='rising').length)},{label:'Need Attention',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='alert'||c.status==='watch').length)},{label:'Avg Attendance Rate',value:'78%'}].map(s=>(
-                  <div key={s.label} style={card({padding:'10px 12px'})}><div style={{fontSize:11,color:t.sub,marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500,color:t.text}}>{s.value}</div></div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
+                {[
+                  {label:'Total Active Cells',value:String((dbCells||CELLS_DATA).length),color:t.purple,bg:t.purpleBg},
+                  {label:'Rising',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='rising').length),color:'#1D9E75',bg:'#E1F5EE'},
+                  {label:'Need Attention',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='alert'||c.status==='watch').length),color:'#D85A30',bg:'#FAECE7'},
+                  {label:'Avg Attendance',value:'78%',color:'#BA7517',bg:'#FAEEDA'},
+                ].map(s=>(
+                  <div key={s.label} style={{...card({padding:'16px 18px'}),background:s.bg,cursor:'pointer'}}
+                    onMouseEnter={e=>e.currentTarget.style.transform='translateY(-1px)'}
+                    onMouseLeave={e=>e.currentTarget.style.transform='none'}>
+                    <div style={{fontSize:11,color:s.color,marginBottom:6,fontWeight:500,textTransform:'uppercase' as const,letterSpacing:'0.04em'}}>{s.label}</div>
+                    <div style={{fontSize:28,fontWeight:700,color:s.color,lineHeight:1}}>{s.value}</div>
+                  </div>
                 ))}
               </div>
               <div style={card()}>
@@ -1630,9 +1640,70 @@ export default function DashboardPage(){
           {page==='events'&&(<EventsPage t={t} dark={dark} screenWidth={screenWidth||1280}/>)}
           {page==='workforce'&&(<WorkforceIntelligencePage t={t} dark={dark} screenWidth={screenWidth||1280}/>)}
           {page==='recognition'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Recognition</div>
-              <CommendLeadersPanel t={t} dark={dark}/>
+            <div style={{display:'flex',flexDirection:'column',gap:16}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div><div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Recognition Centre</div>
+                <div style={{fontSize:12,color:t.muted,marginTop:2}}>Leaderboard, badges, performance tiers and commendations</div></div>
+              </div>
+              {/* Performance Tiers */}
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
+                {[{tier:'Platinum',icon:'🏆',count:2,color:'#7B61FF',bg:'#EEF0FF',req:'95%+ attendance, 3+ months'},
+                  {tier:'Gold',icon:'⭐',count:7,color:'#BA7517',bg:'#FAEEDA',req:'85-94% attendance'},
+                  {tier:'Silver',icon:'🥈',count:18,color:'#6B7280',bg:'#F3F4F6',req:'75-84% attendance'},
+                  {tier:'Bronze',icon:'🥉',count:8,color:'#D85A30',bg:'#FAECE7',req:'Below 75%'},
+                ].map(tier=>(
+                  <div key={tier.tier} style={{background:tier.bg,borderRadius:12,padding:'16px',border:`0.5px solid rgba(0,0,0,0.06)`}}>
+                    <div style={{fontSize:22,marginBottom:6}}>{tier.icon}</div>
+                    <div style={{fontSize:22,fontWeight:700,color:tier.color}}>{tier.count}</div>
+                    <div style={{fontSize:12,fontWeight:600,color:tier.color}}>{tier.tier}</div>
+                    <div style={{fontSize:10,color:tier.color,opacity:0.7,marginTop:2}}>{tier.req}</div>
+                  </div>
+                ))}
+              </div>
+              {/* Leaderboard + Commend */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+                <div style={card({padding:0,overflow:'hidden'})}>
+                  <div style={{padding:'14px 18px',borderBottom:`0.5px solid ${t.border}`,fontSize:13,fontWeight:600,color:t.text}}>Cell Leader Leaderboard</div>
+                  {[
+                    {rank:1,name:'Bro. Emeka Okafor',cell:'Glory House Cell',score:97,badge:'🏆',trend:'+18%'},
+                    {rank:2,name:'Sis. Chioma Uzoma',cell:'Zion Cell',score:94,badge:'⭐',trend:'+7%'},
+                    {rank:3,name:'Bro. Tunde Adeleke',cell:'Power House Cell',score:91,badge:'⭐',trend:'+12%'},
+                    {rank:4,name:'Sis. Adaeze Nwosu',cell:'Covenant Cell',score:88,badge:'⭐',trend:'+5%'},
+                    {rank:5,name:'Bro. Felix Okeke',cell:'Victory Cell',score:85,badge:'🥈',trend:'+3%'},
+                    {rank:6,name:'Sis. Funmi Adeyemi',cell:'Grace Cell',score:82,badge:'🥈',trend:'+2%'},
+                  ].map((leader,i)=>(
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 18px',borderBottom:i<5?`0.5px solid ${t.border}`:'none'}}>
+                      <div style={{width:24,height:24,borderRadius:'50%',background:leader.rank<=3?'#FAEEDA':t.input,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:leader.rank<=3?'#BA7517':t.muted,flexShrink:0}}>{leader.rank}</div>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:13,fontWeight:500,color:t.text}}>{leader.name}</div>
+                        <div style={{fontSize:11,color:t.muted}}>{leader.cell}</div>
+                      </div>
+                      <span style={{fontSize:14}}>{leader.badge}</span>
+                      <div style={{textAlign:'right' as const}}>
+                        <div style={{fontSize:14,fontWeight:700,color:t.purple}}>{leader.score}</div>
+                        <div style={{fontSize:10,color:'#1D9E75'}}>{leader.trend}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                  {/* Needs improvement */}
+                  <div style={card({padding:0,overflow:'hidden'})}>
+                    <div style={{padding:'12px 16px',borderBottom:`0.5px solid ${t.border}`,fontSize:13,fontWeight:600,color:'#D85A30'}}>Needs Improvement</div>
+                    {[
+                      {name:'Bro. Moses Eze',cell:'Dominion Cell',rate:'54%',weeks:3},
+                      {name:'Bro. Elijah Adeleke',cell:'Fortress Cell',rate:'50%',weeks:4},
+                    ].map((l,i)=>(
+                      <div key={i} style={{padding:'10px 16px',borderBottom:i===0?`0.5px solid ${t.border}`:'none',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                        <div><div style={{fontSize:12,fontWeight:500,color:t.text}}>{l.name}</div><div style={{fontSize:10,color:t.muted}}>{l.cell} · {l.weeks} weeks below target</div></div>
+                        <span style={{fontSize:12,fontWeight:700,color:'#D85A30'}}>{l.rate}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Send commendation */}
+                  <CommendLeadersPanel t={t} dark={dark}/>
+                </div>
+              </div>
             </div>
           )}
           {page==='commendation'&&(
@@ -2114,29 +2185,164 @@ function AdminRedirect() {
 }
 
 function ServicePlannerPage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;screenWidth:number}) {
-  const cardS = (e?:React.CSSProperties):React.CSSProperties => ({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,...e});
+  const [plans,setPlans]=React.useState<{id:string;title:string;service_date:string;status:string}[]>([]);
+  const [creating,setCreating]=React.useState(false);
+  const [form,setForm]=React.useState({title:'Sunday Service',service_date:'',service_type:'sunday',theme:''});
+  const [saving,setSaving]=React.useState(false);
+  const [selected,setSelected]=React.useState<{id:string;title:string;service_date:string;status:string}|null>(null);
+  const [items,setItems]=React.useState<{id:string;position:number;title:string;item_type:string;duration_minutes:number;assigned_to_name:string|null;color:string}[]>([]);
+  const [toast,setToast]=React.useState('');
+  const cardS=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,...e});
+  const inp:React.CSSProperties={width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 12px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box' as const};
+
+  React.useEffect(()=>{
+    fetch('/api/service-planner',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.plans)setPlans(data.plans);}).catch(()=>{});
+  },[]);
+
+  const TYPES=[{v:'prayer',l:'Opening Prayer',c:'#534AB7'},{v:'song',l:'Praise & Worship',c:'#1D9E75'},{v:'announcement',l:'Announcements',c:'#BA7517'},{v:'offering',l:'Tithes & Offering',c:'#D85A30'},{v:'sermon',l:'Sermon',c:'#534AB7'},{v:'item',l:'General Item',c:'#9890C4'},{v:'benediction',l:'Benediction',c:'#534AB7'}];
+
+  async function createPlan(){
+    if(!form.service_date||!form.title)return;
+    setSaving(true);
+    try{
+      const r=await fetch('/api/service-planner',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({...form,items:[]})});
+      const d=await r.json();
+      if(r.ok){setPlans(p=>[d.data.plan,...p]);setSelected(d.data.plan);setCreating(false);setToast('Plan created');setTimeout(()=>setToast(''),3000);}
+    }catch{}setSaving(false);
+  }
+
+  function addItem(type:string){
+    const def=TYPES.find(t=>t.v===type)||TYPES[5];
+    setItems(p=>[...p,{id:`new_${Date.now()}`,position:p.length,title:def.l,item_type:type,duration_minutes:10,assigned_to_name:null,color:def.c}]);
+  }
+
+  async function savePlan(){
+    if(!selected)return;setSaving(true);
+    try{
+      await fetch('/api/service-planner',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id:selected.id,items:items.map((item,i)=>({...item,position:i,id:String(item.id).startsWith('new_')?undefined:item.id}))})});
+      setToast('Plan saved');setTimeout(()=>setToast(''),3000);
+    }catch{}setSaving(false);
+  }
+
+  async function publishPlan(){
+    if(!selected)return;setSaving(true);
+    try{
+      await fetch('/api/service-planner',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id:selected.id,status:'published',items:items.map((item,i)=>({...item,position:i,id:String(item.id).startsWith('new_')?undefined:item.id}))})});
+      setSelected(p=>p?{...p,status:'published'}:p);
+      setToast('Published — all assigned leaders notified');setTimeout(()=>setToast(''),4000);
+    }catch{}setSaving(false);
+  }
+
+  const isWide=screenWidth>=1024;
+  const totalDuration=items.reduce((a,item)=>a+(item.duration_minutes||0),0);
+
   return (
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      {toast&&<div style={{background:t.teal,color:'#fff',borderRadius:9,padding:'10px 16px',fontSize:13,fontWeight:500}}>✓ {toast}</div>}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <div><div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Service Planner</div><div style={{fontSize:12,color:t.muted,marginTop:2}}>Build Sunday programmes, assign roles, publish to all leaders</div></div>
-        <button style={{background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'10px 18px',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ New plan</button>
+        <div><div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Service Planner</div>
+        <div style={{fontSize:12,color:t.muted,marginTop:2}}>Build service programmes, assign roles, publish to all leaders</div></div>
+        <button onClick={()=>setCreating(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'10px 18px',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ New plan</button>
       </div>
-      <div style={cardS({padding:'32px',textAlign:'center' as const})}>
-        <div style={{width:48,height:48,background:t.purpleBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
-          <i className="ti-calendar-event" style={{fontSize:24,color:t.purple}}/>
-        </div>
-        <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:6}}>No service plans yet</div>
-        <div style={{fontSize:13,color:t.muted,marginBottom:20,maxWidth:400,margin:'0 auto 20px'}}>Create your first service plan. Add items, assign leaders, and publish so every department knows the programme before Sunday.</div>
-        <button style={{background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'12px 24px',fontSize:14,fontWeight:600,cursor:'pointer'}}>Create first plan</button>
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'1fr 1fr 1fr':'1fr',gap:12}}>
-        {[{icon:'ti-prayer',title:'Assign prayer leaders',desc:'Assign who leads opening prayer for each service'},{icon:'ti-microphone',title:'Schedule preachers',desc:'Rotate sermon assignments and track who is preaching'},{icon:'ti-users',title:'Coordinate departments',desc:'Music, ushering, media — all coordinated from one plan'}].map((item,i)=>(
-          <div key={i} style={cardS({padding:'16px'})}>
-            <i className={item.icon} style={{fontSize:20,color:t.purple,marginBottom:10,display:'block'}}/>
-            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:4}}>{item.title}</div>
-            <div style={{fontSize:12,color:t.muted}}>{item.desc}</div>
+
+      {creating&&(
+        <div style={cardS({padding:'20px'})}>
+          <div style={{fontSize:14,fontWeight:600,color:t.text,marginBottom:14}}>New service plan</div>
+          <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr 1fr 1fr':'1fr 1fr',gap:12,marginBottom:14}}>
+            <div style={{gridColumn:isWide?'1/3':'1/-1'}}>
+              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5}}>Title</div>
+              <input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} style={inp}/>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5}}>Date *</div>
+              <input type="date" value={form.service_date} onChange={e=>setForm(p=>({...p,service_date:e.target.value}))} style={inp}/>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5}}>Type</div>
+              <select value={form.service_type} onChange={e=>setForm(p=>({...p,service_type:e.target.value}))} style={inp}>
+                {['sunday','wednesday','friday','special'].map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)} Service</option>)}
+              </select>
+            </div>
+            <div style={{gridColumn:'1/-1'}}>
+              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5}}>Theme / Series (optional)</div>
+              <input value={form.theme} onChange={e=>setForm(p=>({...p,theme:e.target.value}))} placeholder="e.g. The Power of Prayer" style={inp}/>
+            </div>
           </div>
-        ))}
+          <div style={{display:'flex',gap:10}}>
+            <button onClick={createPlan} disabled={saving||!form.service_date} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'10px 20px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:saving||!form.service_date?0.7:1}}>{saving?'Creating…':'Create plan'}</button>
+            <button onClick={()=>setCreating(false)} style={{background:t.input,color:t.sub,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'10px 16px',fontSize:13,cursor:'pointer'}}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{display:'grid',gridTemplateColumns:isWide?'260px 1fr':'1fr',gap:16}}>
+        <div style={cardS({padding:0,overflow:'hidden'})}>
+          <div style={{padding:'12px 16px',borderBottom:`0.5px solid ${t.border}`,fontSize:12,fontWeight:600,color:t.text}}>Plans ({plans.length})</div>
+          {plans.length===0?(
+            <div style={{padding:'28px 16px',textAlign:'center' as const}}>
+              <div style={{fontSize:13,color:t.muted,marginBottom:12}}>No plans yet.</div>
+              <button onClick={()=>setCreating(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'8px 16px',fontSize:12,fontWeight:600,cursor:'pointer'}}>Create first plan</button>
+            </div>
+          ):plans.map((plan,i)=>(
+            <div key={plan.id} onClick={()=>{setSelected(plan);fetch(`/api/service-planner/items?plan_id=${plan.id}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.items)setItems(data.items);}).catch(()=>{});}}
+              style={{padding:'12px 16px',borderBottom:i<plans.length-1?`0.5px solid ${t.border}`:'none',cursor:'pointer',background:selected?.id===plan.id?t.purpleBg:'transparent',transition:'background 0.12s'}}>
+              <div style={{fontSize:13,fontWeight:500,color:t.text}}>{plan.title}</div>
+              <div style={{fontSize:11,color:t.muted,marginTop:2}}>{plan.service_date?new Date(plan.service_date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</div>
+              <span style={{fontSize:10,fontWeight:600,padding:'1px 7px',borderRadius:8,marginTop:4,display:'inline-block',background:plan.status==='published'?t.tealBg:t.purpleBg,color:plan.status==='published'?t.teal:t.purple}}>{plan.status.toUpperCase()}</span>
+            </div>
+          ))}
+        </div>
+
+        {selected?(
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            <div style={cardS({padding:'16px 18px'})}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap' as const,gap:10}}>
+                <div>
+                  <div style={{fontSize:16,fontWeight:700,color:t.text}}>{selected.title}</div>
+                  <div style={{fontSize:12,color:t.muted}}>{items.length} items · {totalDuration} min total</div>
+                </div>
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={savePlan} disabled={saving} style={{background:t.purpleBg,color:t.purple,border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}>{saving?'Saving…':'Save'}</button>
+                  {selected.status!=='published'&&<button onClick={publishPlan} disabled={saving} style={{background:t.teal,color:'#fff',border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}>Publish & notify</button>}
+                  {selected.status==='published'&&<span style={{fontSize:12,fontWeight:600,color:t.teal,padding:'8px 14px',background:t.tealBg,borderRadius:8}}>✓ Published</span>}
+                </div>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap' as const}}>
+              {TYPES.map(type=>(
+                <button key={type.v} onClick={()=>addItem(type.v)} style={{padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.border}`,background:t.card,fontSize:12,cursor:'pointer',color:t.sub}}>+ {type.l}</button>
+              ))}
+            </div>
+            {items.length===0?(
+              <div style={cardS({padding:28,textAlign:'center' as const,color:t.muted,fontSize:13})}>Add items above to build the order of service.</div>
+            ):items.map((item,idx)=>{
+              const def=TYPES.find(tp=>tp.v===item.item_type)||TYPES[5];
+              return(
+                <div key={item.id} style={cardS({padding:'14px 16px',borderLeft:`3px solid ${item.color||def.c}`})}>
+                  <div style={{display:'flex',alignItems:'center',gap:10}}>
+                    <span style={{fontSize:11,color:t.muted,minWidth:20,textAlign:'center' as const}}>{idx+1}</span>
+                    <div style={{flex:1,display:'grid',gridTemplateColumns:'1fr 80px',gap:8}}>
+                      <input value={item.title} onChange={e=>setItems(p=>p.map(i=>i.id===item.id?{...i,title:e.target.value}:i))} style={{...inp,fontWeight:600,padding:'7px 10px'}}/>
+                      <div style={{display:'flex',alignItems:'center',gap:4}}>
+                        <input type="number" value={item.duration_minutes} onChange={e=>setItems(p=>p.map(i=>i.id===item.id?{...i,duration_minutes:parseInt(e.target.value)||0}:i))} style={{...inp,width:50,padding:'7px 8px'}} min={1}/>
+                        <span style={{fontSize:11,color:t.muted}}>min</span>
+                      </div>
+                    </div>
+                    <button onClick={()=>setItems(p=>p.filter(i=>i.id!==item.id))} style={{background:'none',border:'none',cursor:'pointer',color:t.muted,fontSize:16,padding:'4px'}}>×</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ):(
+          <div style={cardS({padding:40,textAlign:'center' as const})}>
+            <div style={{width:48,height:48,background:t.purpleBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={t.purple} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+            </div>
+            <div style={{fontSize:14,fontWeight:600,color:t.text,marginBottom:6}}>Select a plan to edit</div>
+            <div style={{fontSize:12,color:t.muted}}>Choose from the list or create a new plan.</div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2152,7 +2358,7 @@ function EventsPage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;s
       </div>
       <div style={cardS({padding:'32px',textAlign:'center' as const})}>
         <div style={{width:48,height:48,background:t.purpleBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
-          <i className="ti-calendar-stats" style={{fontSize:24,color:t.purple}}/>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={t.purple} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="16" r="3"/></svg>
         </div>
         <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:6}}>No upcoming events</div>
         <div style={{fontSize:13,color:t.muted,marginBottom:20,maxWidth:400,margin:'0 auto 20px'}}>Create your first event. Members register via a shareable link. You track who registered, who attended, and conversion rate.</div>
@@ -2161,7 +2367,7 @@ function EventsPage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;s
       <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'1fr 1fr 1fr':'1fr',gap:12}}>
         {[{icon:'ti-link',title:'Shareable registration',desc:'Public link — no login needed to register'},{icon:'ti-device-mobile',title:'WhatsApp confirmation',desc:'Automatic confirmation via WhatsApp or SMS'},{icon:'ti-chart-line',title:'Conversion tracking',desc:'Registered vs attended vs walk-in intelligence'}].map((item,i)=>(
           <div key={i} style={cardS({padding:'16px'})}>
-            <i className={item.icon} style={{fontSize:20,color:t.purple,marginBottom:10,display:'block'}}/>
+            <div style={{marginBottom:10}}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={t.purple} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
             <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:4}}>{item.title}</div>
             <div style={{fontSize:12,color:t.muted}}>{item.desc}</div>
           </div>
@@ -2207,7 +2413,7 @@ function WorkforceIntelligencePage({t,dark,screenWidth}:{t:Record<string,string>
       </div>
       {deptStats.length===0?(
         <div style={cardS({padding:'32px',textAlign:'center' as const})}>
-          <div style={{width:48,height:48,background:t.purpleBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}><i className="ti-id-badge" style={{fontSize:24,color:t.purple}}/></div>
+          <div style={{width:48,height:48,background:t.purpleBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={t.purple} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><circle cx="12" cy="12" r="2"/></svg></div>
           <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:6}}>No workforce data yet</div>
           <div style={{fontSize:13,color:t.muted,maxWidth:400,margin:'0 auto'}}>Department heads need to publish their rosters for workforce intelligence to populate. Prompt them via the departments tab.</div>
         </div>

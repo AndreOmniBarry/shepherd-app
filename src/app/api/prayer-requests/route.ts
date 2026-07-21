@@ -38,11 +38,9 @@ export async function POST(req: Request) {
     const prRes = await fetch(`${SURL}/rest/v1/prayer_requests`, {
       method: 'POST', headers: { ...H(), 'Prefer': 'return=representation' },
       body: JSON.stringify({ 
-        request: request.trim(), 
-        category: category || 'general', 
-        requester_name: requester_name || user.name || 'Anonymous', 
-        submitted_by: user.id, 
-        status: 'open' 
+        request: request.trim(),
+        requester_name: requester_name || user.name || 'Anonymous',
+        status: 'open'
       }),
     });
     if (!prRes.ok) {
