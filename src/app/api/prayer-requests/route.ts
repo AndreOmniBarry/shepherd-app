@@ -43,7 +43,6 @@ export async function POST(req: Request) {
         requester_name: requester_name || user.name || 'Anonymous', 
         submitted_by: user.id, 
         submitted_by_role: user.role, 
-        fellowship_id: user.fellowship_id || null,
         status: 'open' 
       }),
     });
