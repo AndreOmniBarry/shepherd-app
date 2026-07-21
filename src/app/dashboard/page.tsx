@@ -840,7 +840,7 @@ export default function DashboardPage(){
   const rangeLabel=(r:TimeRange)=>r==='8w'?'8 Weeks':r==='3m'?'3 Months':r==='6m'?'6 Months':r==='1y'?'1 Year':r==='2y'?'2 Years':'5 Years';
 
   return(
-    <div style={{display:'flex',minHeight:'100vh',background:t.bg,fontFamily:"'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",overflow:'hidden',position:'relative' as const}}>
+    <div style={{display:'flex',minHeight:'100vh',background:dark?'linear-gradient(135deg,#080616 0%,#0F0A2E 45%,#080B1E 100%)':'linear-gradient(135deg,#F2F0FB 0%,#EEEEFF 50%,#F0EFF8 100%)',fontFamily:"'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",overflow:'hidden',position:'relative' as const}}>
       {/* Sidebar overlay for mobile */}
       {isMobile&&sidebarOpen&&(
         <div onClick={()=>setSidebarOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:40,backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)'}}/>
@@ -848,8 +848,8 @@ export default function DashboardPage(){
       {/* Sidebar - zero width on mobile so content takes full width */}
       <div style={{width:isMobile?0:240,flexShrink:0,position:'relative' as const}}>
         <div style={{
-          width:isMobile?280:240,background:t.nav,
-          borderRight:`1px solid ${t.navBorder}`,
+          width:isMobile?280:240,background:dark?'rgba(8,4,22,0.96)':'rgba(255,255,255,0.92)',backdropFilter:'blur(28px)',WebkitBackdropFilter:'blur(28px)',
+          borderRight:`0.5px solid ${t.navBorder}`,
           display:'flex',flexDirection:'column',
           position:'fixed' as const,top:0,
           left:isMobile?(sidebarOpen?0:-290):0,
@@ -859,12 +859,12 @@ export default function DashboardPage(){
           overflowY:'auto',
         }}>
         <div style={{display:'flex',alignItems:'center',gap:10,padding:'16px 16px 14px',borderBottom:`0.5px solid ${t.navBorder}`}}>
-          <div style={{width:32,height:32,background:'linear-gradient(135deg,#534AB7,#7F77DD)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>&#10013;</div>
+          <div style={{width:32,height:32,background:'linear-gradient(135deg,#534AB7,#7B74D0)',borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 12px rgba(83,74,183,0.4)'}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.95)" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/></svg></div>
           <div><div style={{fontSize:13,fontWeight:600,color:t.text}}>SHEP.HERD</div><div style={{fontSize:10,color:t.muted,marginTop:1}}>Comforters House Global</div></div>
         </div>
         <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
           {navItems.map(n=>(
-            <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDept(null);setPageVisible(false);setTimeout(()=>{setPage(n.id);setPageVisible(true);},120);if(isMobile)setSidebarOpen(false);}}
+            <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDept(null);setPageVisible(false);setTimeout(()=>{setPage(n.id);setTimeout(()=>setPageVisible(true),20);},150);if(isMobile)setSidebarOpen(false);}}
               style={{display:'flex',alignItems:'center',gap:10,padding:'0 12px 0 14px',height:'42px',margin:'1px 8px',width:'calc(100% - 16px)',fontSize:13,border:'none',cursor:'pointer',textAlign:'left' as const,borderRadius:10,background:page===n.id?(dark?'rgba(168,159,255,0.15)':'rgba(83,74,183,0.1)'):'transparent',color:page===n.id?(dark?'#C4BFFF':'#534AB7'):(dark?'#6B63A8':'#9890C4'),fontWeight:page===n.id?600:400,transition:'all 0.15s ease',boxShadow:page===n.id?(dark?'0 0 0 0.5px rgba(168,159,255,0.2)':'0 0 0 0.5px rgba(83,74,183,0.15)'):'none'}}>
               <span style={{width:18,flexShrink:0,display:'inline-flex',alignItems:'center',justifyContent:'center'}}><NavIcon id={n.id} active={page===n.id} color={dark?'#A89FFF':'#534AB7'}/></span>
               <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{n.label}</span>
@@ -936,7 +936,7 @@ export default function DashboardPage(){
           </div>
         </div>
 
-        <div style={{flex:1,padding:'20px',overflowY:'auto',background:t.bg,maxWidth:'100%',transition:'opacity 0.12s ease',opacity:pageVisible?1:0}}>
+        <div style={{flex:1,padding:'20px',overflowY:'auto',background:'transparent',maxWidth:'100%',transition:'opacity 0.18s ease, transform 0.18s ease',opacity:pageVisible?1:0,transform:pageVisible?'translateY(0)':'translateY(8px)'}}>
 
           {/* ══ DASHBOARD ══ */}
           {page==='dashboard'&&(
@@ -945,19 +945,31 @@ export default function DashboardPage(){
                 <span>●</span>
                 <span>Attendance session live &mdash; <strong>{fmt(kpi?.today_present)}</strong> check-ins · <strong>{kpi?.today_cells_reported??'—'}/{kpi?.today_cells_total??'—'}</strong> cells reported</span>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:18}}>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14,marginBottom:20}}>
                 {[
-                  {label:'Total members',value:'1,147',delta:'+23 this month',page:'members' as NavPage},
-                  {label:"Today's check-ins",value:fmt(kpi?.today_present),delta:`${kpi?.today_cells_reported??'—'}/${kpi?.today_cells_total??'—'} cells in`,page:'attendance' as NavPage},
-                  {label:'YTD giving',value:kpi?fmtNGN(kpi.ytd_giving_ngn):'—',delta:'+12% vs last year',page:'giving' as NavPage},
-                  {label:'Active cells',value:fmt(kpi?.active_cells),delta:'3 fellowships',page:'cells' as NavPage},
+                  {label:'Total members',value:'1,147',delta:'+23 this month',page:'members' as NavPage,
+                   bg:dark?'linear-gradient(135deg,rgba(83,74,183,0.18),rgba(83,74,183,0.04))':'linear-gradient(135deg,rgba(83,74,183,0.09),rgba(83,74,183,0.02))',ac:dark?'#A89FFF':'#534AB7',
+                   icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M21 20c0-2.8-1.8-5-4-5.5"/></svg>},
+                  {label:"Today's check-ins",value:fmt(kpi?.today_present),delta:`${kpi?.today_cells_reported??'—'}/${kpi?.today_cells_total??'—'} cells in`,page:'attendance' as NavPage,
+                   bg:dark?'linear-gradient(135deg,rgba(45,212,170,0.15),rgba(45,212,170,0.03))':'linear-gradient(135deg,rgba(29,158,117,0.08),rgba(29,158,117,0.02))',ac:dark?'#2DD4AA':'#1D9E75',
+                   icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>},
+                  {label:'YTD giving',value:kpi?fmtNGN(kpi.ytd_giving_ngn):'—',delta:'+12% vs last year',page:'giving' as NavPage,
+                   bg:dark?'linear-gradient(135deg,rgba(252,211,77,0.14),rgba(252,211,77,0.03))':'linear-gradient(135deg,rgba(186,117,23,0.09),rgba(186,117,23,0.02))',ac:dark?'#FCD34D':'#BA7517',
+                   icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v2m0 6v2M9.5 9.5c0-1.1.9-2 2-2h1.5a2 2 0 0 1 0 4H11a2 2 0 0 0 0 4h1.5a2 2 0 0 0 2-2"/></svg>},
+                  {label:'Active cells',value:fmt(kpi?.active_cells),delta:'3 fellowships',page:'cells' as NavPage,
+                   bg:dark?'linear-gradient(135deg,rgba(248,113,113,0.14),rgba(248,113,113,0.03))':'linear-gradient(135deg,rgba(216,90,48,0.09),rgba(216,90,48,0.02))',ac:dark?'#F87171':'#D85A30',
+                   icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v4M8.5 17.5 12 11l3.5 6.5"/></svg>},
                 ].map(m=>(
-                  <div key={m.label} onClick={()=>setPage(m.page)} style={{...card({padding:'16px 18px'}),cursor:'pointer'}}
-                    onMouseEnter={e=>e.currentTarget.style.boxShadow='0 2px 8px rgba(83,74,183,0.15)'}
-                    onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
-                    <div style={{fontSize:11,color:t.sub,marginBottom:4}}>{m.label}</div>
-                    <div style={{fontSize:20,fontWeight:700,color:t.text,lineHeight:1,fontVariantNumeric:'tabular-nums',letterSpacing:'-0.02em'}}>{m.value}</div>
-                    <div style={{fontSize:11,color:'#1D9E75',marginTop:3}}>{m.delta}</div>
+                  <div key={m.label} onClick={()=>{setPageVisible(false);setTimeout(()=>{setPage(m.page);setTimeout(()=>setPageVisible(true),20);},150);}}
+                    style={{...card({padding:'18px 20px'}),cursor:'pointer',background:m.bg,border:`0.5px solid ${dark?'rgba(255,255,255,0.06)':'rgba(83,74,183,0.09)'}`}}
+                    onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=dark?'0 8px 40px rgba(83,74,183,0.2)':'0 8px 32px rgba(83,74,183,0.1)';}}
+                    onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='';}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
+                      <div style={{fontSize:10,color:m.ac,fontWeight:600,letterSpacing:'0.06em',textTransform:'uppercase' as const,opacity:0.8}}>{m.label}</div>
+                      <div style={{color:m.ac,opacity:0.65,transition:'opacity 0.15s'}}>{m.icon}</div>
+                    </div>
+                    <div style={{fontSize:28,fontWeight:700,color:t.text,lineHeight:1,fontVariantNumeric:'tabular-nums',letterSpacing:'-0.03em',marginBottom:8}}>{m.value}</div>
+                    <div style={{fontSize:11,color:m.ac,fontWeight:500}}>{m.delta}</div>
                   </div>
                 ))}
               </div>
