@@ -783,7 +783,7 @@ export default function DashboardPage(){
     {id:'departments' as NavPage,icon:'ti-building-community',label:'Departments'},
     {id:'attendance' as NavPage,icon:'ti-calendar-check',label:'Attendance'},
     {id:'giving' as NavPage,icon:'ti-coin',label:'Giving'},
-    {id:'cells' as NavPage,icon:'ti-users-group',label:`${churchConfig.tier2_label||'Cell'} Ministry`},
+    {id:'cells' as NavPage,icon:'ti-users-group',label:'Cell Ministry'},
     {id:'reports' as NavPage,icon:'ti-chart-bar',label:'Reports'},
     {id:'recognition' as NavPage,icon:'ti-award',label:'Recognition'},
     {id:'prayer' as NavPage,icon:'ti-heart',label:'Prayer Requests'},
@@ -832,7 +832,7 @@ export default function DashboardPage(){
             <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDept(null);setPage(n.id);if(isMobile)setSidebarOpen(false);}}
               style={{display:'flex',alignItems:'center',gap:10,padding:'0 14px 0 16px',height:'44px',fontSize:12,display:'flex',alignItems:'center',width:'100%',border:'none',cursor:'pointer',textAlign:'left',background:page===n.id?t.purpleBg:'transparent',color:page===n.id?(dark?'#FFFFFF':'#3C3489'):t.sub,fontWeight:page===n.id?500:400,transition:'background 0.1s',borderRadius:6,margin:'1px 6px',width:'calc(100% - 12px)'}}>
               {n.icon&&<i className={n.icon} style={{fontSize:15,width:18,flexShrink:0,opacity:page===n.id?1:0.7}}/>}
-              <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{n.label}</span>
+              <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{n.id==='cells'?(churchConfig?.tier2_label||'Cell')+' Ministry':n.label}</span>
               {(pendingCounts[n.id]||0)>0&&<span style={{minWidth:16,height:16,borderRadius:8,background:'#D85A30',color:'#fff',fontSize:9,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',padding:'0 3px',flexShrink:0}}>{pendingCounts[n.id]}</span>}
             </button>
           ))}
