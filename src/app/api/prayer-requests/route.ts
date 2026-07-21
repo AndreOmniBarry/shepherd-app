@@ -19,8 +19,11 @@ export async function GET(req: Request) {
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'open';
-    let url = `${SURL}/rest/v1/prayer_requests?order=created_at.desc&limit=50&select=id,request,requester_name,category,status,created_at,prayed_at`;
+    const scope = searchParams.get('scope');
+    let url = `${SURL}/rest/v1/prayer_requests?order=created_at.desc&limit=100&select=id,request,requester_name,category,status,submitted_by,created_at,prayed_at`;
     if (status !== 'all') url += `&status=eq.${status}`;
+    // Cell leaders only see their own submissions
+    if (scope === 'mine') url += `&submitted_by=eq.${user.id}`;
     const res = await fetch(url, { headers: H() });
     const requests = await res.json();
     return NextResponse.json({ data: { requests: Array.isArray(requests) ? requests : [] }, error: null });

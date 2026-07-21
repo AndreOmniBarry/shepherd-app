@@ -1725,10 +1725,7 @@ export default function DashboardPage(){
             </div>
           )}
           {page==='validation'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Validate Records</div>
-              <FellowshipValidation t={t} dark={dark}/>
-            </div>
+            <ApprovalQueuePage t={t} dark={dark} screenWidth={screenWidth||1280}/>
           )}
 
         </div>
@@ -2398,14 +2395,19 @@ function WorkforceIntelligencePage({t,dark,screenWidth}:{t:Record<string,string>
       <div><div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Workforce Intelligence</div><div style={{fontSize:12,color:t.muted,marginTop:2}}>Department coverage, volunteer reliability, and staffing gaps</div></div>
       <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'repeat(5,1fr)':'repeat(2,1fr)',gap:12}}>
         {[
-          {label:'Total volunteers',value:summary.total_workforce||0,color:t.purple,bg:t.purpleBg,icon:'ti-users'},
-          {label:'Departments',value:summary.total_departments||0,color:t.sub,bg:t.input,icon:'ti-building'},
-          {label:'Scheduled',value:summary.departments_scheduled_next_sunday||0,color:t.teal,bg:t.tealBg,icon:'ti-check'},
-          {label:'Gaps',value:summary.departments_with_gaps||0,color:(summary.departments_with_gaps||0)>0?t.coral:t.teal,bg:(summary.departments_with_gaps||0)>0?t.coralBg:t.tealBg,icon:'ti-alert-triangle'},
-          {label:'Overcommitted',value:summary.overcommitted_members||0,color:(summary.overcommitted_members||0)>0?t.amber:t.teal,bg:(summary.overcommitted_members||0)>0?t.amberBg:t.tealBg,icon:'ti-flame'},
+          {label:'Total volunteers',value:summary.total_workforce||0,color:t.purple,bg:t.purpleBg,
+            svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M21 20c0-2.8-1.8-5-4-5.5"/></svg>},
+          {label:'Departments',value:summary.total_departments||0,color:t.sub,bg:t.input,
+            svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><rect x="9" y="13" width="6" height="8"/></svg>},
+          {label:'Scheduled',value:summary.departments_scheduled_next_sunday||0,color:t.teal,bg:t.tealBg,
+            svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20,6 9,17 4,12"/></svg>},
+          {label:'Gaps',value:summary.departments_with_gaps||0,color:(summary.departments_with_gaps||0)>0?t.coral:t.teal,bg:(summary.departments_with_gaps||0)>0?t.coralBg:t.tealBg,
+            svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>},
+          {label:'Overcommitted',value:summary.overcommitted_members||0,color:(summary.overcommitted_members||0)>0?t.amber:t.teal,bg:(summary.overcommitted_members||0)>0?t.amberBg:t.tealBg,
+            svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>},
         ].map((kpi,i)=>(
           <div key={i} style={{...cardS({padding:'16px'}),background:kpi.bg}}>
-            <i className={kpi.icon} style={{fontSize:18,color:kpi.color,marginBottom:8,display:'block'}}/>
+            <div style={{color:kpi.color,marginBottom:8}}>{kpi.svg}</div>
             <div style={{fontSize:22,fontWeight:700,color:kpi.color}}>{kpi.value}</div>
             <div style={{fontSize:11,color:kpi.color,opacity:0.8}}>{kpi.label}</div>
           </div>
@@ -2506,6 +2508,206 @@ function CommendLeadersPanel({t, dark}: {t: Record<string,string>; dark: boolean
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── APPROVAL QUEUE — full chain, all request types ──────────
+function ApprovalQueuePage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;screenWidth:number}) {
+  const [additions,setAdditions]=React.useState<Record<string,unknown>[]>([]);
+  const [userRole,setUserRole]=React.useState('');
+  const [userId,setUserId]=React.useState('');
+  const [loading,setLoading]=React.useState(true);
+  const [processing,setProcessing]=React.useState<Record<string,boolean>>({});
+  const [filter,setFilter]=React.useState<'pending'|'approved'|'rejected'|'all'>('pending');
+  const [revokeId,setRevokeId]=React.useState<string|null>(null);
+  const [revokeReason,setRevokeReason]=React.useState('');
+  const [toast,setToast]=React.useState('');
+  const cardS=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,...e});
+  const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(''),4000);};
+
+  React.useEffect(()=>{
+    fetch('/api/auth/me',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
+      if(data?.role){setUserRole(data.role);setUserId(data.id);}
+    }).catch(()=>{});
+  },[]);
+
+  React.useEffect(()=>{
+    if(!userRole)return;
+    const isAdmin=['overseer','pa','lead_tech'].includes(userRole);
+    const isFellowship=['fellowship_head'].includes(userRole);
+    const scope=isAdmin?'all':isFellowship?'fellowship':'mine';
+    fetch(`/api/update/member-additions?scope=${scope}`,{credentials:'include'})
+      .then(r=>r.json()).then(({data})=>{if(data?.additions)setAdditions(data.additions);})
+      .catch(()=>{}).finally(()=>setLoading(false));
+  },[userRole,toast]);
+
+  async function act(id:string, action:string, comment?:string){
+    setProcessing(p=>({...p,[id]:true}));
+    try{
+      await fetch('/api/update/member-additions',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id,action,comment:comment||undefined,pastor_revoke_reason:action==='pastor_revoke'?revokeReason:undefined})});
+      showToast(action.includes('approve')?'Approved successfully':'Action completed');
+      setRevokeId(null);setRevokeReason('');
+    }catch{}
+    setProcessing(p=>({...p,[id]:false}));
+  }
+
+  const filtered=additions.filter(a=>{
+    if(filter==='all')return true;
+    if(filter==='pending')return a.status==='pending'||a.l1_status==='pending'||a.l2_status==='pending';
+    return a.status===filter;
+  });
+
+  const isOverseer=userRole==='overseer';
+  const isPA=userRole==='pa';
+  const isFellowshipHead=userRole==='fellowship_head';
+
+  function getActions(a:Record<string,unknown>){
+    if((a.pastor_revoked as boolean))return null;
+    if(isOverseer&&a.status!=='pending')return(
+      <button onClick={()=>setRevokeId(a.id as string)} style={{background:t.coralBg,color:t.coral,border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>Revoke</button>
+    );
+    if(isFellowshipHead&&a.l1_status==='pending')return(
+      <div style={{display:'flex',gap:6}}>
+        <button onClick={()=>act(a.id as string,'l1_approve')} disabled={processing[a.id as string]} style={{background:t.teal,color:'#fff',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id as string]?0.6:1}}>Approve</button>
+        <button onClick={()=>act(a.id as string,'l1_reject')} disabled={processing[a.id as string]} style={{background:t.coralBg,color:t.coral,border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>Decline</button>
+      </div>
+    );
+    if(isPA&&a.l1_status==='approved'&&a.l2_status==='pending')return(
+      <div style={{display:'flex',gap:6}}>
+        <button onClick={()=>act(a.id as string,'l2_approve')} disabled={processing[a.id as string]} style={{background:t.teal,color:'#fff',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id as string]?0.6:1}}>Final approve</button>
+        <button onClick={()=>act(a.id as string,'l2_reject')} disabled={processing[a.id as string]} style={{background:t.coralBg,color:t.coral,border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>Reject</button>
+      </div>
+    );
+    if(isPA&&a.l1_status==='pending')return(
+      <div style={{display:'flex',gap:6}}>
+        <button onClick={()=>act(a.id as string,'l1_approve')} disabled={processing[a.id as string]} style={{background:t.teal,color:'#fff',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id as string]?0.6:1}}>Approve (L1)</button>
+        <button onClick={()=>act(a.id as string,'l1_reject')} disabled={processing[a.id as string]} style={{background:t.coralBg,color:t.coral,border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>Decline</button>
+      </div>
+    );
+    return null;
+  }
+
+  function statusBadge(a:Record<string,unknown>){
+    if(a.pastor_revoked)return{label:'Revoked by Pastor',bg:'#FAECE7',c:'#993C1D'};
+    if(a.status==='approved')return{label:'Approved — Active',bg:'#E1F5EE',c:'#085041'};
+    if(a.status==='rejected')return{label:'Declined',bg:'#FAECE7',c:'#993C1D'};
+    if(a.l1_status==='pending')return{label:'Awaiting L1 approval',bg:'#FAEEDA',c:'#633806'};
+    if(a.l1_status==='approved'&&a.l2_status==='pending')return{label:'Awaiting final approval',bg:'#EEEDFE',c:'#3C3489'};
+    return{label:'Pending',bg:'#FAEEDA',c:'#633806'};
+  }
+
+  return(
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      {toast&&<div style={{background:t.teal,color:'#fff',borderRadius:9,padding:'10px 16px',fontSize:13,fontWeight:500}}>✓ {toast}</div>}
+
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap' as const,gap:10}}>
+        <div>
+          <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Approve & Validate</div>
+          <div style={{fontSize:12,color:t.muted,marginTop:2}}>All pending member additions, transfers, and requests across the church</div>
+        </div>
+        <div style={{display:'flex',gap:6}}>
+          {(['pending','approved','rejected','all'] as const).map(f=>(
+            <button key={f} onClick={()=>setFilter(f)} style={{padding:'5px 12px',borderRadius:20,border:`0.5px solid ${filter===f?t.purple:t.border}`,background:filter===f?t.purple:'transparent',color:filter===f?'#fff':t.muted,fontSize:11,cursor:'pointer',fontWeight:filter===f?600:400}}>
+              {f.charAt(0).toUpperCase()+f.slice(1)} {f==='pending'&&additions.filter(a=>a.status==='pending').length>0?`(${additions.filter(a=>a.status==='pending').length})`:''}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Summary counts */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
+        {[
+          {label:'Pending',value:additions.filter(a=>a.status==='pending').length,color:t.amber,bg:t.amberBg},
+          {label:'Approved',value:additions.filter(a=>a.status==='approved').length,color:t.teal,bg:t.tealBg},
+          {label:'Declined',value:additions.filter(a=>a.status==='rejected').length,color:t.coral,bg:t.coralBg},
+          {label:'Total requests',value:additions.length,color:t.purple,bg:t.purpleBg},
+        ].map(k=>(
+          <div key={k.label} style={{...cardS({padding:'14px 16px'}),background:k.bg}}>
+            <div style={{fontSize:22,fontWeight:700,color:k.color}}>{k.value}</div>
+            <div style={{fontSize:11,color:k.color,opacity:0.8,marginTop:4}}>{k.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {loading?(
+        <div style={{padding:32,textAlign:'center' as const,color:t.muted,fontSize:13}}>Loading requests…</div>
+      ):filtered.length===0?(
+        <div style={cardS({padding:'40px',textAlign:'center' as const})}>
+          <div style={{width:44,height:44,background:t.purpleBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={t.purple} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9,12 11,14 15,10"/></svg>
+          </div>
+          <div style={{fontSize:14,fontWeight:600,color:t.text,marginBottom:6}}>No {filter} requests</div>
+          <div style={{fontSize:12,color:t.muted}}>When cell leaders, fellowship heads, or department heads submit member additions, they appear here for approval.</div>
+        </div>
+      ):(
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {filtered.map(a=>{
+            const badge=statusBadge(a);
+            return(
+              <div key={a.id as string} style={cardS({padding:'16px 18px'})}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12,flexWrap:'wrap' as const}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                      <div style={{fontSize:14,fontWeight:600,color:t.text}}>{a.full_name as string}</div>
+                      <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,fontWeight:600,background:badge.bg,color:badge.c}}>{badge.label}</span>
+                    </div>
+                    <div style={{display:'flex',gap:12,flexWrap:'wrap' as const,fontSize:11,color:t.muted}}>
+                      {(a.phone as string)&&<span>📱 {a.phone as string}</span>}
+                      {(a.gender as string)&&<span>· {a.gender as string}</span>}
+                      {(a.occupation as string)&&<span>· {a.occupation as string}</span>}
+                      <span>· Submitted by <strong style={{color:t.sub}}>{a.submitted_by_name as string||'Unknown'}</strong></span>
+                      <span>· {new Date(a.created_at as string).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</span>
+                    </div>
+                    {(a.l1_comment as string)&&<div style={{marginTop:6,fontSize:11,color:t.sub,fontStyle:'italic' as const}}>L1 note: {a.l1_comment as string}</div>}
+                    {(a.l2_comment as string)&&<div style={{marginTop:4,fontSize:11,color:t.sub,fontStyle:'italic' as const}}>Final note: {a.l2_comment as string}</div>}
+                    {(a.pastor_revoke_reason as string)&&<div style={{marginTop:6,fontSize:11,color:t.coral,fontStyle:'italic' as const}}>Pastor revoke reason: {a.pastor_revoke_reason as string}</div>}
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+                    {getActions(a)}
+                  </div>
+                </div>
+                {/* Approval chain tracker */}
+                <div style={{marginTop:12,paddingTop:12,borderTop:`0.5px solid ${t.border}`,display:'flex',gap:6,alignItems:'center'}}>
+                  {[
+                    {label:'Submitted',done:true,color:t.teal},
+                    {label:'L1 Review',done:a.l1_status==='approved',active:a.l1_status==='pending',rejected:a.l1_status==='rejected',color:a.l1_status==='approved'?t.teal:a.l1_status==='rejected'?t.coral:t.amber},
+                    {label:'Final Approval',done:a.l2_status==='approved',active:a.l1_status==='approved'&&a.l2_status==='pending',rejected:a.l2_status==='rejected',color:a.l2_status==='approved'?t.teal:a.l2_status==='rejected'?t.coral:t.amber},
+                    {label:'Active Member',done:a.status==='approved',color:t.teal},
+                  ].map((step,i)=>(
+                    <React.Fragment key={i}>
+                      <div style={{display:'flex',alignItems:'center',gap:4}}>
+                        <div style={{width:16,height:16,borderRadius:'50%',background:(step.done||step.active)?step.color:t.input,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                          {step.done&&<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20,6 9,17 4,12"/></svg>}
+                          {(step as Record<string,unknown>).rejected&&<span style={{fontSize:8,color:'#fff',fontWeight:700}}>✕</span>}
+                        </div>
+                        <span style={{fontSize:10,color:step.done?step.color:t.muted,fontWeight:step.active?600:400}}>{step.label}</span>
+                      </div>
+                      {i<3&&<div style={{flex:1,height:1,background:step.done?t.teal:t.border}}/>}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Revoke modal */}
+      {revokeId&&(
+        <div style={{position:'fixed' as const,inset:0,background:'rgba(0,0,0,0.4)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+          <div style={{background:t.card,borderRadius:14,padding:'24px',maxWidth:440,width:'100%',boxShadow:'0 8px 32px rgba(0,0,0,0.2)'}}>
+            <div style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:6}}>Revoke member addition</div>
+            <div style={{fontSize:12,color:t.muted,marginBottom:16}}>This action will be logged and all parties notified. A reason is required.</div>
+            <textarea value={revokeReason} onChange={e=>setRevokeReason(e.target.value)} rows={3} placeholder="State your reason for revoking this request…"
+              style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'10px 12px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',resize:'vertical' as const,boxSizing:'border-box' as const,marginBottom:14}}/>
+            <div style={{display:'flex',gap:10}}>
+              <button onClick={()=>act(revokeId,'pastor_revoke')} disabled={!revokeReason.trim()} style={{flex:1,background:t.coral,color:'#fff',border:'none',borderRadius:8,padding:'10px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:!revokeReason.trim()?0.6:1}}>Revoke</button>
+              <button onClick={()=>{setRevokeId(null);setRevokeReason('');}} style={{background:t.input,color:t.sub,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'10px 16px',fontSize:13,cursor:'pointer'}}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
