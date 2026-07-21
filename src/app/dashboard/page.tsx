@@ -740,67 +740,72 @@ export default function DashboardPage(){
 
   function logout(){fetch('/api/auth/logout',{method:'POST',credentials:'include'}).catch(()=>{});document.cookie='shepherd_token=; Max-Age=0; path=/';router.push('/login');}
 
-  // ── YouVersion × CHMeetings Premium Theme ──────────────────
+  // ── SHEPHERD Premium Glass Theme 2026 ──────────────────────
   const t = {
-    // Backgrounds
-    bg:           dark ? '#0C0C0C' : '#FAFAF9',
-    card:         dark ? '#161616' : '#FFFFFF',
-    cardInner:    dark ? '#1F1F1F' : '#F7F7F7',
+    // Backgrounds — deep glass layers
+    bg:           dark ? '#080616' : '#F2F0FB',
+    card:         dark ? 'rgba(20,14,52,0.82)' : 'rgba(255,255,255,0.88)',
+    cardInner:    dark ? 'rgba(30,22,68,0.6)' : 'rgba(244,243,251,0.9)',
     // Text
-    text:         dark ? '#F2F2F2' : '#1A1A1A',
-    textSec:      dark ? '#A0A0A0' : '#6B6B6B',
-    muted:        dark ? '#5A5A5A' : '#9B9B9B',
-    // Borders
-    border:       dark ? '#242424' : '#EBEBEB',
-    divider:      dark ? '#1E1E1E' : '#F2F2F2',
-    // Navigation
-    nav:          dark ? '#111111' : '#FFFFFF',
-    navBorder:    dark ? '#1E1E1E' : '#EBEBEB',
-    navActive:    dark ? '#1C1C2E' : '#F0EFFE',
-    navActiveTxt: dark ? '#A89FFF' : '#4338CA',
-    navTxt:       dark ? '#666666' : '#9B9B9B',
+    text:         dark ? '#EDE9FF' : '#0F0A2E',
+    textSec:      dark ? '#B8B0E8' : '#4A4272',
+    sub:          dark ? '#B8B0E8' : '#4A4272',
+    muted:        dark ? '#6B63A8' : '#9890C4',
+    // Borders — glass edges
+    border:       dark ? 'rgba(255,255,255,0.07)' : 'rgba(83,74,183,0.1)',
+    divider:      dark ? 'rgba(255,255,255,0.04)' : 'rgba(83,74,183,0.06)',
+    // Navigation — dark glass
+    nav:          dark ? 'rgba(10,6,30,0.95)' : 'rgba(255,255,255,0.95)',
+    navBorder:    dark ? 'rgba(255,255,255,0.06)' : 'rgba(83,74,183,0.08)',
+    navActive:    dark ? 'rgba(83,74,183,0.2)' : 'rgba(83,74,183,0.08)',
+    navActiveTxt: dark ? '#A89FFF' : '#534AB7',
+    navTxt:       dark ? '#6B63A8' : '#9890C4',
     // Interactive
-    hover:        dark ? '#1C1C1C' : '#F5F5F5',
-    input:        dark ? '#1C1C1C' : '#F7F7F7',
-    inputBorder:  dark ? '#2A2A2A' : '#E0E0E0',
+    hover:        dark ? 'rgba(255,255,255,0.04)' : 'rgba(83,74,183,0.04)',
+    input:        dark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.8)',
+    inputBorder:  dark ? 'rgba(255,255,255,0.08)' : 'rgba(83,74,183,0.12)',
     // Brand
-    purple:       dark ? '#8B82FF' : '#534AB7',
-    purpleBg:     dark ? '#1C1C2E' : '#F0EFFE',
-    purpleText:   dark ? '#A89FFF' : '#4338CA',
-    // Status colors
-    teal:         dark ? '#34D399' : '#059669',
-    tealBg:       dark ? '#0A1F16' : '#ECFDF5',
-    tealText:     dark ? '#34D399' : '#065F46',
-    amber:        dark ? '#FBBF24' : '#D97706',
-    amberBg:      dark ? '#1A1400' : '#FFFBEB',
-    amberText:    dark ? '#FCD34D' : '#92400E',
-    coral:        dark ? '#F87171' : '#DC2626',
-    coralBg:      dark ? '#1A0808' : '#FEF2F2',
-    coralText:    dark ? '#FCA5A5' : '#991B1B',
+    purple:       dark ? '#A89FFF' : '#534AB7',
+    purpleBg:     dark ? 'rgba(168,159,255,0.12)' : 'rgba(83,74,183,0.08)',
+    purpleText:   dark ? '#C4BFFF' : '#3C3489',
+    // Status
+    teal:         dark ? '#2DD4AA' : '#1D9E75',
+    tealBg:       dark ? 'rgba(45,212,170,0.1)' : 'rgba(29,158,117,0.08)',
+    tealText:     dark ? '#2DD4AA' : '#085041',
+    amber:        dark ? '#FCD34D' : '#BA7517',
+    amberBg:      dark ? 'rgba(252,211,77,0.1)' : 'rgba(186,117,23,0.08)',
+    amberText:    dark ? '#FCD34D' : '#633806',
+    coral:        dark ? '#F87171' : '#D85A30',
+    coralBg:      dark ? 'rgba(248,113,113,0.1)' : 'rgba(216,90,48,0.08)',
+    coralText:    dark ? '#FCA5A5' : '#993C1D',
     // Charts
-    chartBg:      dark ? '#161616' : '#FFFFFF',
-    chartGrid:    dark ? '#222222' : '#F5F5F5',
-    chartAxis:    dark ? '#4A4A4A' : '#BBBBBB',
-    chartTip:     dark ? '#1F1F1F' : '#FFFFFF',
-    chartTipBorder: dark ? '#2A2A2A' : '#E5E5E5',
-    chartTipText: dark ? '#F2F2F2' : '#1A1A1A',
-    // Shadows
-    cardShadow:   dark 
-      ? '0 1px 2px rgba(0,0,0,0.5)' 
-      : '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
+    chartBg:      dark ? 'rgba(20,14,52,0.82)' : 'rgba(255,255,255,0.88)',
+    chartGrid:    dark ? 'rgba(255,255,255,0.04)' : 'rgba(83,74,183,0.05)',
+    chartAxis:    dark ? '#4A4272' : '#C4BFFF',
+    chartTip:     dark ? 'rgba(20,14,52,0.95)' : 'rgba(255,255,255,0.98)',
+    chartTipBorder: dark ? 'rgba(255,255,255,0.1)' : 'rgba(83,74,183,0.15)',
+    chartTipText: dark ? '#EDE9FF' : '#0F0A2E',
+    // Glass shadows
+    cardShadow:   dark
+      ? '0 4px 32px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.04) inset'
+      : '0 4px 24px rgba(83,74,183,0.06), 0 1px 0 rgba(255,255,255,0.9) inset',
     cardShadowHover: dark
-      ? '0 4px 20px rgba(0,0,0,0.8)'
-      : '0 4px 24px rgba(0,0,0,0.10)',
+      ? '0 8px 48px rgba(83,74,183,0.25)'
+      : '0 8px 40px rgba(83,74,183,0.12)',
+    // Extra aliases for compatibility
+    white:        dark ? '#1A1340' : '#FFFFFF',
   };
   const brand = dark ? '#8B82FF' : '#534AB7';
   const brandColor = brand; // alias
   const card=(e?:React.CSSProperties):React.CSSProperties=>({
     background:t.card,
-    border:`1px solid ${t.border}`,
-    borderRadius:12,
+    backdropFilter:'blur(20px)',
+    WebkitBackdropFilter:'blur(20px)',
+    border:`0.5px solid ${t.border}`,
+    borderRadius:16,
     padding:'20px',
     boxShadow:t.cardShadow,
-    transition:'box-shadow 200ms ease, transform 200ms ease',
+    transition:'box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease',
     ...e,
   });
 
@@ -860,7 +865,7 @@ export default function DashboardPage(){
         <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
           {navItems.map(n=>(
             <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDept(null);setPageVisible(false);setTimeout(()=>{setPage(n.id);setPageVisible(true);},120);if(isMobile)setSidebarOpen(false);}}
-              style={{display:'flex',alignItems:'center',gap:10,padding:'0 14px 0 16px',height:'44px',fontSize:13,width:'100%',border:'none',cursor:'pointer',textAlign:'left',background:page===n.id?t.purpleBg:'transparent',color:page===n.id?(dark?'#FFFFFF':'#3C3489'):t.sub,fontWeight:page===n.id?500:400,transition:'background 0.1s'}}>
+              style={{display:'flex',alignItems:'center',gap:10,padding:'0 12px 0 14px',height:'42px',margin:'1px 8px',width:'calc(100% - 16px)',fontSize:13,border:'none',cursor:'pointer',textAlign:'left' as const,borderRadius:10,background:page===n.id?(dark?'rgba(168,159,255,0.15)':'rgba(83,74,183,0.1)'):'transparent',color:page===n.id?(dark?'#C4BFFF':'#534AB7'):(dark?'#6B63A8':'#9890C4'),fontWeight:page===n.id?600:400,transition:'all 0.15s ease',boxShadow:page===n.id?(dark?'0 0 0 0.5px rgba(168,159,255,0.2)':'0 0 0 0.5px rgba(83,74,183,0.15)'):'none'}}>
               <span style={{width:18,flexShrink:0,display:'inline-flex',alignItems:'center',justifyContent:'center'}}><NavIcon id={n.id} active={page===n.id} color={dark?'#A89FFF':'#534AB7'}/></span>
               <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{n.label}</span>
               {(pendingCounts[n.id]||0)>0&&<span style={{minWidth:16,height:16,borderRadius:8,background:'#D85A30',color:'#fff',fontSize:9,fontWeight:700,display:'inline-flex',alignItems:'center',justifyContent:'center',padding:'0 3px',flexShrink:0}}>{pendingCounts[n.id]}</span>}
@@ -895,7 +900,7 @@ export default function DashboardPage(){
           </div>
         )}
         {/* Topbar */}
-        <div style={{background:t.nav,borderBottom:`1px solid ${t.navBorder}`,padding:isMobile?'0 12px':'0 20px',height:'56px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky' as const,top:0,zIndex:30,flexShrink:0,width:'100%',boxSizing:'border-box' as const,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
+        <div style={{background:dark?'rgba(6,4,20,0.92)':'rgba(255,255,255,0.88)',backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',borderBottom:`0.5px solid ${t.navBorder}`,padding:isMobile?'0 12px':'0 20px',height:'56px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky' as const,top:0,zIndex:30,flexShrink:0,width:'100%',boxSizing:'border-box' as const,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             {isMobile&&(
               <button onClick={()=>setSidebarOpen(v=>!v)} aria-label="Toggle menu"
@@ -2194,11 +2199,15 @@ function ServicePlannerPage({t,dark,screenWidth}:{t:Record<string,string>;dark:b
   const cardS=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,...e});
   const inp:React.CSSProperties={width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 12px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box' as const};
 
+  const selectedRef=React.useRef<typeof selected>(null);
+  const itemsRef=React.useRef<typeof items>([]);
+  selectedRef.current=selected;
+  itemsRef.current=items;
+
   React.useEffect(()=>{
     fetch('/api/service-planner',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
       if(data?.plans&&data.plans.length>0){
         setPlans(data.plans);
-        // Auto-select most recent plan and load its items
         const first=data.plans[0];
         setSelected(first);
         fetch(`/api/service-planner/items?plan_id=${first.id}`,{credentials:'include'})
@@ -2206,6 +2215,18 @@ function ServicePlannerPage({t,dark,screenWidth}:{t:Record<string,string>;dark:b
       }
     }).catch(()=>{});
   },[]);
+
+  // Auto-save items 1.5s after any change — prevents data loss on tab switch
+  React.useEffect(()=>{
+    if(!selected||items.length===0)return;
+    const timer=setTimeout(async()=>{
+      if(!selectedRef.current)return;
+      await fetch('/api/service-planner',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',
+        body:JSON.stringify({id:selectedRef.current.id,items:itemsRef.current.map((item,i)=>({...item,position:i,id:String(item.id).startsWith('new_')?undefined:item.id}))})
+      }).catch(()=>{});
+    },1500);
+    return()=>clearTimeout(timer);
+  },[items,selected]);
 
   const TYPES=[{v:'prayer',l:'Opening Prayer',c:'#534AB7'},{v:'song',l:'Praise & Worship',c:'#1D9E75'},{v:'announcement',l:'Announcements',c:'#BA7517'},{v:'offering',l:'Tithes & Offering',c:'#D85A30'},{v:'sermon',l:'Sermon',c:'#534AB7'},{v:'item',l:'General Item',c:'#9890C4'},{v:'benediction',l:'Benediction',c:'#534AB7'}];
 
@@ -2388,7 +2409,12 @@ function EventsPage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;s
 function WorkforceIntelligencePage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;screenWidth:number}) {
   const [data,setData]=React.useState<Record<string,unknown>|null>(null);
   const [loading,setLoading]=React.useState(true);
-  const cardS = (e?:React.CSSProperties):React.CSSProperties => ({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,...e});
+  const [selectedDept,setSelectedDept]=React.useState<Record<string,unknown>|null>(null);
+  const cardS=(e?:React.CSSProperties):React.CSSProperties=>({
+    background:dark?'rgba(20,14,52,0.82)':'rgba(255,255,255,0.88)',
+    backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',
+    border:`0.5px solid ${dark?'rgba(255,255,255,0.07)':'rgba(83,74,183,0.1)'}`,
+    borderRadius:16,boxShadow:dark?'0 4px 32px rgba(0,0,0,0.4)':'0 4px 24px rgba(83,74,183,0.06)',...e});
 
   React.useEffect(()=>{
     fetch('/api/workforce/intelligence',{credentials:'include'})
@@ -2396,19 +2422,89 @@ function WorkforceIntelligencePage({t,dark,screenWidth}:{t:Record<string,string>
       .catch(()=>{}).finally(()=>setLoading(false));
   },[]);
 
-  if(loading) return <div style={{padding:40,textAlign:'center' as const,color:t.muted,fontSize:13}}>Loading workforce data…</div>;
+  if(loading)return(
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:300,flexDirection:'column',gap:14}}>
+      <div style={{width:36,height:36,borderRadius:'50%',border:`2px solid ${t.purpleBg}`,borderTopColor:t.purple,animation:'spin 0.8s linear infinite'}}/>
+      <div style={{fontSize:13,color:t.muted}}>Loading workforce intelligence…</div>
+    </div>
+  );
 
-  const summary = data?.summary as Record<string,number> || {};
-  const deptStats = (data?.department_stats as Record<string,unknown>[]) || [];
+  const summary=data?.summary as Record<string,number>||{};
+  const deptStats=(data?.department_stats as Record<string,unknown>[])||[];
+  const rankings=(data?.reliability_rankings as Record<string,unknown>[])||[];
+  const overcommitted=(data?.overcommitted as Record<string,unknown>[])||[];
 
-  return (
+  // DRILL-DOWN VIEW
+  if(selectedDept){
+    const dept=selectedDept;
+    const deptName=dept.name as string;
+    const memberCount=dept.member_count as number||0;
+    const hasRoster=(dept.next_roster_coverage as string)==='scheduled';
+    return(
+      <div style={{display:'flex',flexDirection:'column',gap:16}}>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <button onClick={()=>setSelectedDept(null)}
+            style={{display:'flex',alignItems:'center',gap:6,background:'transparent',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 12px',fontSize:12,color:t.muted,cursor:'pointer'}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
+            Workforce
+          </button>
+          <div style={{fontSize:19,fontWeight:700,color:t.text}}>{deptName}</div>
+          <span style={{fontSize:11,padding:'3px 10px',borderRadius:20,background:hasRoster?t.tealBg:t.coralBg,color:hasRoster?t.teal:t.coral,fontWeight:600}}>{hasRoster?'Roster scheduled':'No roster'}</span>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
+          {[
+            {label:'Total members',value:memberCount,color:t.purple,bg:t.purpleBg},
+            {label:'Assigned next Sunday',value:(dept.assigned_next as number)||0,color:t.teal,bg:t.tealBg},
+            {label:'Rosters built',value:(dept.roster_count as number)||0,color:t.amber,bg:t.amberBg},
+            {label:'Last roster',value:(dept.last_roster_date as string)?new Date((dept.last_roster_date as string)+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'Never',color:t.muted,bg:t.purpleBg},
+          ].map((k,i)=>(
+            <div key={i} style={{...cardS({padding:'16px'}),background:k.bg}}>
+              <div style={{fontSize:22,fontWeight:700,color:k.color}}>{k.value}</div>
+              <div style={{fontSize:11,color:k.color,opacity:0.8,marginTop:4}}>{k.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={cardS({padding:0,overflow:'hidden'})}>
+          <div style={{padding:'14px 20px',borderBottom:`0.5px solid ${t.border}`,fontSize:13,fontWeight:600,color:t.text}}>Reliability — top performers</div>
+          {rankings.length===0?(
+            <div style={{padding:32,textAlign:'center' as const,color:t.muted,fontSize:13}}>No roster data yet. Department head needs to publish a roster first.</div>
+          ):rankings.map((r,i)=>{
+            const score=r.reliability_score as number||0;
+            const scoreColor=score>=4?t.teal:score>=2.5?t.amber:t.coral;
+            return(
+              <div key={i} style={{padding:'12px 20px',borderBottom:i<rankings.length-1?`0.5px solid ${t.border}`:'none',display:'flex',alignItems:'center',gap:12}}>
+                <div style={{width:28,height:28,borderRadius:'50%',background:t.purpleBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:t.purple,flexShrink:0}}>{i+1}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>{r.full_name as string}</div>
+                  <div style={{fontSize:11,color:t.muted}}>{r.total_attended as number}/{r.total_assigned as number} services attended</div>
+                </div>
+                <div style={{textAlign:'right' as const}}>
+                  <div style={{fontSize:18,fontWeight:700,color:scoreColor}}>{score.toFixed(1)}</div>
+                  <div style={{fontSize:10,color:scoreColor}}>{score>=4?'Excellent':score>=2.5?'Good':'Needs attention'}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // MAIN OVERVIEW
+  return(
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
-      <div><div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Workforce Intelligence</div><div style={{fontSize:12,color:t.muted,marginTop:2}}>Department coverage, volunteer reliability, and staffing gaps</div></div>
+      <div>
+        <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Workforce Intelligence</div>
+        <div style={{fontSize:12,color:t.muted,marginTop:2}}>Click any department for full drill-down</div>
+      </div>
+
       <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'repeat(5,1fr)':'repeat(2,1fr)',gap:12}}>
         {[
           {label:'Total volunteers',value:summary.total_workforce||0,color:t.purple,bg:t.purpleBg,
             svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M21 20c0-2.8-1.8-5-4-5.5"/></svg>},
-          {label:'Departments',value:summary.total_departments||0,color:t.sub,bg:t.input,
+          {label:'Departments',value:summary.total_departments||0,color:t.muted,bg:dark?'rgba(255,255,255,0.05)':t.purpleBg,
             svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><rect x="9" y="13" width="6" height="8"/></svg>},
           {label:'Scheduled',value:summary.departments_scheduled_next_sunday||0,color:t.teal,bg:t.tealBg,
             svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20,6 9,17 4,12"/></svg>},
@@ -2419,39 +2515,62 @@ function WorkforceIntelligencePage({t,dark,screenWidth}:{t:Record<string,string>
         ].map((kpi,i)=>(
           <div key={i} style={{...cardS({padding:'16px'}),background:kpi.bg}}>
             <div style={{color:kpi.color,marginBottom:8}}>{kpi.svg}</div>
-            <div style={{fontSize:22,fontWeight:700,color:kpi.color}}>{kpi.value}</div>
-            <div style={{fontSize:11,color:kpi.color,opacity:0.8}}>{kpi.label}</div>
+            <div style={{fontSize:24,fontWeight:700,color:kpi.color}}>{kpi.value}</div>
+            <div style={{fontSize:11,color:kpi.color,opacity:0.8,marginTop:2}}>{kpi.label}</div>
           </div>
         ))}
       </div>
-      {deptStats.length===0?(
-        <div style={cardS({padding:'32px',textAlign:'center' as const})}>
-          <div style={{width:48,height:48,background:t.purpleBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={t.purple} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><circle cx="12" cy="12" r="2"/></svg></div>
-          <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:6}}>No workforce data yet</div>
-          <div style={{fontSize:13,color:t.muted,maxWidth:400,margin:'0 auto'}}>Department heads need to publish their rosters for workforce intelligence to populate.</div>
-        </div>
-      ):(
+
+      <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'1fr 1fr':'1fr',gap:14}}>
         <div style={cardS({padding:0,overflow:'hidden'})}>
-          <div style={{padding:'14px 18px',borderBottom:`0.5px solid ${t.border}`,fontSize:13,fontWeight:600,color:t.text}}>Department coverage — upcoming Sunday</div>
-          {deptStats.map((dept,i)=>{
+          <div style={{padding:'14px 18px',borderBottom:`0.5px solid ${t.border}`,fontSize:13,fontWeight:600,color:t.text}}>Department coverage — click to drill down</div>
+          {deptStats.length===0?(
+            <div style={{padding:32,textAlign:'center' as const,color:t.muted,fontSize:13}}>No departments found.</div>
+          ):deptStats.map((dept,i)=>{
             const has=(dept.next_roster_coverage as string)==='scheduled';
-            return (
-              <div key={dept.id as string} style={{padding:'12px 18px',borderBottom:i<deptStats.length-1?`0.5px solid ${t.border}`:'none',display:'flex',alignItems:'center',gap:12}}>
-                <div style={{width:8,height:8,borderRadius:'50%',background:has?t.teal:t.coral,flexShrink:0}}/>
+            return(
+              <div key={dept.id as string} onClick={()=>setSelectedDept(dept)} style={{padding:'12px 18px',borderBottom:i<deptStats.length-1?`0.5px solid ${t.border}`:'none',display:'flex',alignItems:'center',gap:12,cursor:'pointer',transition:'all 0.15s ease'}}
+                onMouseEnter={e=>{e.currentTarget.style.background=dark?'rgba(255,255,255,0.04)':'rgba(83,74,183,0.04)';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}>
+                <div style={{width:8,height:8,borderRadius:'50%',background:has?t.teal:t.coral,flexShrink:0,boxShadow:`0 0 6px ${has?t.teal:t.coral}`}}/>
                 <div style={{flex:1}}>
                   <div style={{fontSize:13,fontWeight:500,color:t.text}}>{dept.name as string}</div>
-                  <div style={{fontSize:11,color:t.muted}}>{dept.member_count as number} members{has?` · ${dept.assigned_next} assigned`:''}</div>
+                  <div style={{fontSize:11,color:t.muted}}>{dept.member_count as number} members{has?` · ${dept.assigned_next as number} assigned`:' · No roster yet'}</div>
                 </div>
-                <span style={{fontSize:10,fontWeight:700,padding:'3px 9px',borderRadius:8,background:has?t.tealBg:t.coralBg,color:has?t.teal:t.coral}}>{has?'Scheduled':'No roster'}</span>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:10,fontWeight:600,padding:'3px 9px',borderRadius:20,background:has?t.tealBg:t.coralBg,color:has?t.teal:t.coral}}>{has?'✓ Scheduled':'No roster'}</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9,18 15,12 9,6"/></svg>
+                </div>
               </div>
             );
           })}
         </div>
-      )}
+
+        <div style={cardS({padding:0,overflow:'hidden'})}>
+          <div style={{padding:'14px 18px',borderBottom:`0.5px solid ${t.border}`,fontSize:13,fontWeight:600,color:t.text}}>Reliability rankings</div>
+          {rankings.length===0?(
+            <div style={{padding:32,textAlign:'center' as const,color:t.muted,fontSize:13}}>Publish rosters to see reliability scores.</div>
+          ):rankings.slice(0,6).map((r,i)=>{
+            const score=r.reliability_score as number||0;
+            const scoreColor=score>=4?t.teal:score>=2.5?t.amber:t.coral;
+            return(
+              <div key={i} style={{padding:'10px 18px',borderBottom:i<Math.min(rankings.length,6)-1?`0.5px solid ${t.border}`:'none',display:'flex',alignItems:'center',gap:10}}>
+                <div style={{width:24,height:24,borderRadius:'50%',background:i<3?t.amberBg:t.purpleBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:i<3?t.amber:t.purple,flexShrink:0}}>{i+1}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:500,color:t.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{r.full_name as string}</div>
+                  <div style={{fontSize:10,color:t.muted}}>{r.total_attended as number}/{r.total_assigned as number} attended</div>
+                </div>
+                <div style={{textAlign:'right' as const}}>
+                  <div style={{fontSize:15,fontWeight:700,color:scoreColor}}>{score.toFixed(1)}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
-
 
 function CommendLeadersPanel({t, dark}: {t: Record<string,string>; dark: boolean}) {
   const [leaders, setLeaders] = React.useState<{id:string;full_name:string;role:string;cell_name:string;commendation:string;created_at:string}[]>([]);
