@@ -11,7 +11,7 @@ import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis,
+  LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 
@@ -669,6 +669,7 @@ export default function DashboardPage(){
   const [dbCells,setDbCells]=useState<typeof CELLS_DATA|null>(null);
   const [editGoals,setEditGoals]=useState(false);
   const [liveFeed,setLiveFeed]=useState<{id:string;cell:string;fellowship:string;present:number;absent:number;visitors:number;mins_ago:number}[]>([]);
+  const [churchStruct,setChurchStruct]=useState({tier1:'Fellowship',tier2:'Cell',tier1Head:'Fellowship Head',tier2Head:'Cell Leader',structureType:'cell_church',serviceDays:['Sunday']});
   const [livePresent,setLivePresent]=useState<number|null>(null);
   const [liveCellsReported,setLiveCellsReported]=useState<number|null>(null);
 
@@ -692,6 +693,11 @@ export default function DashboardPage(){
       else if(data?.email)setUserName(data.email.split('@')[0]);
     }).catch(()=>{});
     fetch('/api/analytics/dashboard',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setKpi(data);}).catch(()=>{});
+    fetch('/api/settings/church-config',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
+      if(data?.config){const c=data.config;
+        setChurchStruct({tier1:c.tier1_label||'Fellowship',tier2:c.tier2_label||'Cell',tier1Head:c.tier1_head_label||'Fellowship Head',tier2Head:c.tier2_head_label||'Cell Leader',structureType:c.structure_type||'cell_church',serviceDays:c.service_days||['Sunday']});
+      }
+    }).catch(()=>{});
 
     // Live feed - fetch real submissions and auto-refresh every 30s
     function fetchLive(){
@@ -818,7 +824,7 @@ export default function DashboardPage(){
     {id:'departments' as NavPage,icon:'ti-building-community',label:'Departments'},
     {id:'attendance' as NavPage,icon:'ti-calendar-check',label:'Attendance'},
     {id:'giving' as NavPage,icon:'ti-coin',label:'Giving'},
-    {id:'cells' as NavPage,icon:'ti-users-group',label:'Cell Ministry'},
+    {id:'cells' as NavPage,icon:'ti-users-group',label:`${churchStruct.tier2} Ministry`},
     {id:'reports' as NavPage,icon:'ti-chart-bar',label:'Reports'},
     {id:'recognition' as NavPage,icon:'ti-award',label:'Recognition'},
     {id:'prayer' as NavPage,icon:'ti-heart',label:'Prayer Requests'},
@@ -1111,7 +1117,7 @@ export default function DashboardPage(){
                     <YAxis tick={{fontSize:10,fill:t.chartAxis,fontFamily:'Inter,sans-serif'}} domain={['auto','auto']}/>
                     <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText,border:`1px solid ${t.chartTipBorder}`,boxShadow:dark?'0 8px 32px rgba(0,0,0,0.8)':'0 4px 24px rgba(0,0,0,0.12)',padding:'10px 14px',borderRadius:10,fontSize:12}}/>
                     <Line type="monotone" dataKey="v" name="Attendance" stroke="#534AB7" strokeWidth={2.5} dot={false}/>
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
               <div style={{display:'grid',gap:12}}>
@@ -1286,17 +1292,17 @@ export default function DashboardPage(){
           {/* ══ MEMBERS ══ */}
           {page==='members'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{display:'grid',gap:10}}>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14}}>
                 {[
-                  {label:'Total Members',value:'1,147',sub:'All statuses'},
-                  {label:'Active Members',value:'1,089',sub:'Regularly attending'},
-                  {label:'New This Month',value:'23',sub:'June 2026'},
-                  {label:'CYDF Combined',value:'300',sub:'180 children · 120 teens'},
+                  {label:'Total Members',value:'1,147',sub:'All statuses',color:dark?'#A89FFF':'#534AB7',bg:dark?'rgba(168,159,255,0.12)':'rgba(83,74,183,0.07)'},
+                  {label:'Active Members',value:'1,089',sub:'Regularly attending',color:dark?'#2DD4AA':'#1D9E75',bg:dark?'rgba(45,212,170,0.12)':'rgba(29,158,117,0.07)'},
+                  {label:'New This Month',value:'23',sub:'June 2026',color:dark?'#FCD34D':'#BA7517',bg:dark?'rgba(252,211,77,0.12)':'rgba(186,117,23,0.07)'},
+                  {label:'CYDF Combined',value:'300',sub:'180 children · 120 teens',color:dark?'#F87171':'#D85A30',bg:dark?'rgba(248,113,113,0.12)':'rgba(216,90,48,0.07)'},
                 ].map(s=>(
-                  <div key={s.label} style={card()}>
-                    <div style={{fontSize:11,color:t.sub,marginBottom:4}}>{s.label}</div>
-                    <div style={{fontSize:22,fontWeight:500,color:t.text}}>{s.value}</div>
-                    <div style={{fontSize:11,color:t.muted,marginTop:2}}>{s.sub}</div>
+                  <div key={s.label} style={{...card({padding:'18px 20px'}),background:s.bg,border:`0.5px solid ${dark?'rgba(255,255,255,0.06)':'rgba(83,74,183,0.08)'}`}}>
+                    <div style={{fontSize:10,color:s.color,opacity:0.8,fontWeight:600,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:10}}>{s.label}</div>
+                    <div style={{fontSize:28,fontWeight:700,color:t.text,lineHeight:1,marginBottom:6}}>{s.value}</div>
+                    <div style={{fontSize:11,color:s.color,fontWeight:500}}>{s.sub}</div>
                   </div>
                 ))}
               </div>
@@ -1304,12 +1310,14 @@ export default function DashboardPage(){
                 <div style={card()}>
                   <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Member Growth - 2026</div>
                   <ResponsiveContainer width="100%" height={160}>
-                    <LineChart data={[{m:'Jan',n:1040},{m:'Feb',n:1058},{m:'Mar',n:1075},{m:'Apr',n:1098},{m:'May',n:1124},{m:'Jun',n:1147}]} margin={{top:5,right:10,left:-20,bottom:0}}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                      <XAxis dataKey="m" tick={{fontSize:11,fill:t.chartAxis}}/><YAxis tick={{fontSize:10,fill:t.chartAxis,fontFamily:'Inter,sans-serif'}} domain={[1000,1200]}/>
-                      <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText,border:`1px solid ${t.chartTipBorder}`,boxShadow:dark?'0 8px 32px rgba(0,0,0,0.8)':'0 4px 24px rgba(0,0,0,0.12)',padding:'10px 14px',borderRadius:10,fontSize:12}}/>
-                      <Line type="monotone" dataKey="n" name="Members" stroke="#534AB7" strokeWidth={2.5} dot={{fill:'#534AB7',r:3}}/>
-                    </LineChart>
+                    <AreaChart data={[{m:'Jan',n:1040},{m:'Feb',n:1058},{m:'Mar',n:1075},{m:'Apr',n:1098},{m:'May',n:1124},{m:'Jun',n:1147}]} margin={{top:5,right:10,left:-20,bottom:0}}>
+                      <defs><linearGradient id="mgGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#534AB7" stopOpacity={0.25}/><stop offset="95%" stopColor="#534AB7" stopOpacity={0}/></linearGradient></defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke={t.chartGrid} vertical={false}/>
+                      <XAxis dataKey="m" tick={{fontSize:11,fill:t.chartAxis,fontFamily:'Inter,sans-serif'}} tickLine={false} axisLine={false}/>
+                      <YAxis tick={{fontSize:10,fill:t.chartAxis,fontFamily:'Inter,sans-serif'}} domain={[1000,1200]} tickLine={false} axisLine={false}/>
+                      <Tooltip contentStyle={{background:t.chartTip,border:`0.5px solid ${t.chartTipBorder}`,borderRadius:12,fontSize:12,color:t.chartTipText,boxShadow:'0 8px 24px rgba(0,0,0,0.12)',padding:'10px 14px'}}/>
+                      <Area type="monotone" dataKey="n" name="Members" stroke="#534AB7" strokeWidth={2.5} fill="url(#mgGrad)" dot={false} activeDot={{r:5,fill:'#534AB7',stroke:'#fff',strokeWidth:2}}/>
+                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
                 <div style={card()}>
@@ -1491,6 +1499,12 @@ export default function DashboardPage(){
           {/* ══ CELLS ══ */}
           {page==='cells'&&!selectedCell&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+                <div>
+                  <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>{churchStruct.tier2} Ministry</div>
+                  <div style={{fontSize:12,color:t.muted,marginTop:2}}>{churchStruct.structureType==='cell_church'?'Cell-based structure':churchStruct.structureType==='zonal'?'Zonal structure':churchStruct.structureType==='campus'?'Multi-campus structure':churchStruct.structureType==='department'?'Department-based structure':'Church structure'} · Led by {churchStruct.tier2Head}s</div>
+                </div>
+              </div>
               <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
                 {[
                   {label:'Total Active Cells',value:String((dbCells||CELLS_DATA).length),color:t.purple,bg:t.purpleBg},
@@ -1571,7 +1585,7 @@ export default function DashboardPage(){
                       <YAxis tick={{fontSize:10,fill:t.chartAxis,fontFamily:'Inter,sans-serif'}} domain={[0,'auto']} width={32}/>
                       <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText,border:`1px solid ${t.chartTipBorder}`,boxShadow:dark?'0 8px 32px rgba(0,0,0,0.8)':'0 4px 24px rgba(0,0,0,0.12)',padding:'10px 14px',borderRadius:10,fontSize:12}}/>
                       <Line type="monotone" dataKey="v" name="Attendance" stroke={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'} strokeWidth={2.5} dot={false}/>
-                    </LineChart>
+                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </div>
@@ -2075,7 +2089,16 @@ function ChurchSettingsPanel({t,dark}:{t:Record<string,string>;dark:boolean}) {
     fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users?select=id,full_name,email,role&order=role.asc`,{headers:{'apikey':process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||'','Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||''}`}}).then(r=>r.json()).then(d=>{if(Array.isArray(d))setUsers(d);}).catch(()=>{});
   },[]);
 
+  const [origStructure]=React.useState(structureType);
+  const [showStructureWarning,setShowStructureWarning]=React.useState(false);
+
   async function save(){
+    // Warn if structure type changed
+    if(structureType!==origStructure&&!showStructureWarning){
+      setShowStructureWarning(true);
+      return;
+    }
+    setShowStructureWarning(false);
     setSaving(true);
     try{
       const p=typeof config.church_profile==='string'?JSON.parse(config.church_profile as string):(config.church_profile||{});
@@ -2100,6 +2123,22 @@ function ChurchSettingsPanel({t,dark}:{t:Record<string,string>;dark:boolean}) {
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <div><div style={{fontSize:19,fontWeight:700,color:t.text}}>Church Settings</div><div style={{fontSize:12,color:t.muted,marginTop:2}}>Manage your church profile, structure, service days and team</div></div>
         <button onClick={save} disabled={saving} style={{background:saved?t.teal:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'10px 22px',fontSize:13,fontWeight:600,cursor:'pointer',transition:'background 0.2s'}}>{saving?'Saving…':saved?'✓ Saved':'Save changes'}</button>
+      </div>{/* end topbar */}
+
+      {/* Structure change warning modal */}
+      {showStructureWarning&&(
+        <div style={{position:'fixed' as const,inset:0,background:'rgba(0,0,0,0.5)',zIndex:300,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+          <div style={{background:t.card,borderRadius:16,padding:'28px',maxWidth:440,width:'100%',boxShadow:'0 24px 64px rgba(0,0,0,0.3)',backdropFilter:'blur(20px)'}}>
+            <div style={{fontSize:24,marginBottom:12}}>⚠️</div>
+            <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:8}}>Critical: Structure change</div>
+            <div style={{fontSize:13,color:t.muted,lineHeight:1.7,marginBottom:20}}>Changing your church structure model will affect how all portals display data — fellowship heads, cell leaders, and department heads will see different labels, and existing data mappings may need to be updated.<br/><br/>This cannot be automatically undone. If you are unsure, contact support before proceeding.</div>
+            <div style={{display:'flex',gap:10}}>
+              <button onClick={()=>setShowStructureWarning(false)} style={{flex:1,background:t.input,color:t.sub,border:`0.5px solid ${t.border}`,borderRadius:9,padding:'11px',fontSize:13,cursor:'pointer'}}>Cancel</button>
+              <button onClick={save} style={{flex:1,background:'#D85A30',color:'#fff',border:'none',borderRadius:9,padding:'11px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Yes, change structure</button>
+              <button onClick={()=>{window.open('mailto:support@shepherd.app','_blank');}} style={{flex:1,background:t.purpleBg,color:t.purple,border:`0.5px solid ${t.border}`,borderRadius:9,padding:'11px',fontSize:12,fontWeight:500,cursor:'pointer'}}>Contact support</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div style={{display:'flex',borderBottom:`0.5px solid ${t.border}`}}>
         {(['profile','structure','services','team'] as const).map(tab=>(
@@ -2390,30 +2429,151 @@ function ServicePlannerPage({t,dark,screenWidth}:{t:Record<string,string>;dark:b
 }
 
 function EventsPage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;screenWidth:number}) {
-  const cardS = (e?:React.CSSProperties):React.CSSProperties => ({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,...e});
-  return (
+  const cardS=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',border:`0.5px solid ${t.border}`,borderRadius:16,boxShadow:dark?'0 4px 32px rgba(0,0,0,0.3)':'0 4px 24px rgba(83,74,183,0.05)',...e});
+  const inp:React.CSSProperties={width:'100%',border:`0.5px solid ${t.border}`,borderRadius:10,padding:'10px 14px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box' as const};
+  const [events,setEvents]=React.useState<Record<string,unknown>[]>([]);
+  const [creating,setCreating]=React.useState(false);
+  const [saving,setSaving]=React.useState(false);
+  const [selected,setSelected]=React.useState<Record<string,unknown>|null>(null);
+  const [registrations,setRegistrations]=React.useState<Record<string,unknown>[]>([]);
+  const [toast,setToast]=React.useState('');
+  const [form,setForm]=React.useState({title:'',event_date:'',event_type:'programme',start_time:'',location:'',description:'',is_free:true,price:'',capacity:''});
+
+  const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(''),3500);};
+
+  React.useEffect(()=>{
+    fetch('/api/events',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.events)setEvents(data.events);}).catch(()=>{});
+  },[toast]);
+
+  async function createEvent(){
+    if(!form.title||!form.event_date){showToast('Title and date are required');return;}
+    setSaving(true);
+    try{
+      const res=await fetch('/api/events',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+        body:JSON.stringify({...form,is_free:form.is_free,price:form.is_free?0:parseFloat(form.price)||0,capacity:form.capacity?parseInt(form.capacity):null})});
+      if(res.ok){showToast('Event created');setCreating(false);setForm({title:'',event_date:'',event_type:'programme',start_time:'',location:'',description:'',is_free:true,price:'',capacity:''});}
+      else{const d=await res.json();showToast(d?.error?.message||'Failed to create event');}
+    }catch{showToast('Network error');}setSaving(false);
+  }
+
+  const EVENT_TYPES=['programme','conference','vigil','concert','outreach','training','thanksgiving','dedication','other'];
+  const TYPE_COLOR:Record<string,string>={programme:t.purple,conference:t.amber,vigil:t.purple,outreach:t.teal,training:t.amber,thanksgiving:t.teal,dedication:t.coral,other:t.muted,concert:t.coral};
+
+  return(
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      {toast&&<div style={{background:toast.includes('Failed')||toast.includes('error')?t.coralBg:t.tealBg,color:toast.includes('Failed')||toast.includes('error')?t.coral:t.teal,borderRadius:12,padding:'12px 16px',fontSize:13,fontWeight:500}}>
+        {toast.includes('Failed')||toast.includes('error')?'⚠ ':'✓ '}{toast}</div>}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <div><div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Events & Programmes</div><div style={{fontSize:12,color:t.muted,marginTop:2}}>Create events, manage registrations, track attendance and conversion</div></div>
-        <button style={{background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'10px 18px',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ New event</button>
+        <div><div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Events & Programmes</div>
+        <div style={{fontSize:12,color:t.muted,marginTop:2}}>Create events, generate registration links, track attendance</div></div>
+        <button onClick={()=>setCreating(v=>!v)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:10,padding:'10px 18px',fontSize:13,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:7}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New event
+        </button>
       </div>
-      <div style={cardS({padding:'32px',textAlign:'center' as const})}>
-        <div style={{width:48,height:48,background:t.purpleBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={t.purple} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="16" r="3"/></svg>
-        </div>
-        <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:6}}>No upcoming events</div>
-        <div style={{fontSize:13,color:t.muted,marginBottom:20,maxWidth:400,margin:'0 auto 20px'}}>Create your first event. Members register via a shareable link. You track who registered, who attended, and conversion rate.</div>
-        <button style={{background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'12px 24px',fontSize:14,fontWeight:600,cursor:'pointer'}}>Create first event</button>
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'1fr 1fr 1fr':'1fr',gap:12}}>
-        {[{icon:'ti-link',title:'Shareable registration',desc:'Public link — no login needed to register'},{icon:'ti-device-mobile',title:'WhatsApp confirmation',desc:'Automatic confirmation via WhatsApp or SMS'},{icon:'ti-chart-line',title:'Conversion tracking',desc:'Registered vs attended vs walk-in intelligence'}].map((item,i)=>(
-          <div key={i} style={cardS({padding:'16px'})}>
-            <div style={{marginBottom:10}}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={t.purple} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
-            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:4}}>{item.title}</div>
-            <div style={{fontSize:12,color:t.muted}}>{item.desc}</div>
+
+      {creating&&(
+        <div style={cardS({padding:'24px'})}>
+          <div style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:18}}>Create event</div>
+          <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'1fr 1fr 1fr':'1fr',gap:14,marginBottom:16}}>
+            <div style={{gridColumn:screenWidth>=1024?'1/3':'1/-1'}}>
+              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:6,fontWeight:600}}>Event title *</div>
+              <input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="e.g. December Praise Night" style={inp}/>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:6,fontWeight:600}}>Date *</div>
+              <input type="date" value={form.event_date} onChange={e=>setForm(p=>({...p,event_date:e.target.value}))} min={new Date().toISOString().split('T')[0]} style={inp}/>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:6,fontWeight:600}}>Type</div>
+              <select value={form.event_type} onChange={e=>setForm(p=>({...p,event_type:e.target.value}))} style={inp}>
+                {EVENT_TYPES.map(et=><option key={et} value={et}>{et.charAt(0).toUpperCase()+et.slice(1)}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:6,fontWeight:600}}>Start time</div>
+              <input type="time" value={form.start_time} onChange={e=>setForm(p=>({...p,start_time:e.target.value}))} style={inp}/>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:6,fontWeight:600}}>Location</div>
+              <input value={form.location} onChange={e=>setForm(p=>({...p,location:e.target.value}))} placeholder="Main auditorium" style={inp}/>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:6,fontWeight:600}}>Capacity</div>
+              <input type="number" value={form.capacity} onChange={e=>setForm(p=>({...p,capacity:e.target.value}))} placeholder="Leave blank = unlimited" style={inp}/>
+            </div>
+            <div style={{gridColumn:'1/-1'}}>
+              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:6,fontWeight:600}}>Description</div>
+              <textarea value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} rows={2} placeholder="What to expect…" style={{...inp,resize:'vertical' as const}}/>
+            </div>
           </div>
-        ))}
-      </div>
+          <div style={{display:'flex',gap:16,alignItems:'center',marginBottom:16}}>
+            <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:t.text,cursor:'pointer'}}>
+              <input type="checkbox" checked={form.is_free} onChange={e=>setForm(p=>({...p,is_free:e.target.checked}))} style={{width:16,height:16}}/>Free entry
+            </label>
+            {!form.is_free&&<div style={{display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:13,color:t.muted}}>₦</span>
+              <input type="number" value={form.price} onChange={e=>setForm(p=>({...p,price:e.target.value}))} placeholder="Amount" style={{...inp,width:140}}/>
+            </div>}
+          </div>
+          <div style={{display:'flex',gap:10}}>
+            <button onClick={createEvent} disabled={saving||!form.title||!form.event_date}
+              style={{background:t.purple,color:'#fff',border:'none',borderRadius:10,padding:'11px 22px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:saving||!form.title||!form.event_date?0.6:1}}>
+              {saving?'Creating…':'Create event'}
+            </button>
+            <button onClick={()=>setCreating(false)} style={{background:'transparent',color:t.muted,border:`0.5px solid ${t.border}`,borderRadius:10,padding:'11px 18px',fontSize:13,cursor:'pointer'}}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {events.length===0&&!creating?(
+        <div style={cardS({padding:'48px',textAlign:'center' as const})}>
+          <div style={{width:56,height:56,background:t.purpleBg,borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 18px'}}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={t.purple} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="16" r="3"/></svg>
+          </div>
+          <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:8}}>No events yet</div>
+          <div style={{fontSize:13,color:t.muted,maxWidth:380,margin:'0 auto 20px',lineHeight:1.7}}>Create your first event. Members register via a public link — no login needed. Track registrations, attendance, and conversion rate.</div>
+          <button onClick={()=>setCreating(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:10,padding:'12px 24px',fontSize:14,fontWeight:600,cursor:'pointer'}}>Create first event</button>
+        </div>
+      ):(
+        <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'repeat(3,1fr)':'1fr',gap:14}}>
+          {events.map(ev=>{
+            const ac=TYPE_COLOR[ev.event_type as string]||t.purple;
+            return(
+              <div key={ev.id as string} style={{...cardS({padding:'0',overflow:'hidden'}),cursor:'pointer'}}
+                onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=dark?'0 8px 40px rgba(83,74,183,0.2)':'0 8px 32px rgba(83,74,183,0.1)';}}
+                onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='';}}>
+                <div style={{height:6,background:ac,opacity:0.8}}/>
+                <div style={{padding:'16px 18px'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:10}}>
+                    <div style={{fontSize:14,fontWeight:600,color:t.text,lineHeight:1.3}}>{ev.title as string}</div>
+                    <span style={{fontSize:10,fontWeight:600,padding:'3px 9px',borderRadius:20,background:t.purpleBg,color:t.purple,whiteSpace:'nowrap' as const,flexShrink:0,textTransform:'capitalize' as const}}>{ev.event_type as string}</span>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:12}}>
+                    <div style={{display:'flex',gap:7,alignItems:'center',fontSize:12,color:t.muted}}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
+                      {ev.event_date?new Date((ev.event_date as string)+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}):'—'}
+                      {ev.start_time&&` · ${ev.start_time}`}
+                    </div>
+                    {(ev.location as string)&&<div style={{display:'flex',gap:7,alignItems:'center',fontSize:12,color:t.muted}}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      {ev.location as string}
+                    </div>}
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <div style={{fontSize:12,fontWeight:600,color:ac}}>{ev.is_free?'Free entry':`₦${Number(ev.price).toLocaleString()}`}</div>
+                    <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                      <span style={{fontSize:12,color:t.muted}}>{(ev.registration_count as number)||0} registered</span>
+                      <button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/events/${ev.public_slug}`);showToast('Registration link copied!');}}
+                        style={{background:t.purpleBg,color:t.purple,border:'none',borderRadius:7,padding:'4px 10px',fontSize:10,fontWeight:600,cursor:'pointer'}}>Copy link</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
