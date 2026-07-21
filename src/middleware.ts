@@ -31,6 +31,7 @@ const PUBLIC_PATHS = [
   '/api/events/public',
   '/api/events/register',
   '/api/subscription',
+  '/api/absence-reports',
   '/api/service-planner',
   '/api/workforce',
   '/_next',

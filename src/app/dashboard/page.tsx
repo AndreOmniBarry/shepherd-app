@@ -1,5 +1,12 @@
 'use client';
 import { useScreenSize } from '@/hooks/useScreenSize';
+import React from 'react';
+import NotificationBell from '@/components/NotificationBell';
+import PastorAttendance from '@/components/PastorAttendance';
+import PastorGiving from '@/components/PastorGiving';
+import PastorRequisitions from '@/components/PastorRequisitions';
+import FellowshipValidation from '@/components/FellowshipValidation';
+import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -1581,6 +1588,36 @@ export default function DashboardPage(){
           {page==='service_planner'&&(<ServicePlannerPage t={t} dark={dark} screenWidth={screenWidth||1280}/>)}
           {page==='events'&&(<EventsPage t={t} dark={dark} screenWidth={screenWidth||1280}/>)}
           {page==='workforce'&&(<WorkforceIntelligencePage t={t} dark={dark} screenWidth={screenWidth||1280}/>)}
+          {page==='recognition'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Recognition</div>
+              <CommendLeadersPanel t={t} dark={dark}/>
+            </div>
+          )}
+          {page==='commendation'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Commend Leaders</div>
+              <CommendLeadersPanel t={t} dark={dark}/>
+            </div>
+          )}
+          {page==='prayer'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Prayer Requests</div>
+              <PrayerRequestPanel dark={dark} t={t}/>
+            </div>
+          )}
+          {page==='requisitions'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Requisitions</div>
+              <PastorRequisitions t={t} dark={dark}/>
+            </div>
+          )}
+          {page==='validation'&&(
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Validate Records</div>
+              <FellowshipValidation t={t} dark={dark}/>
+            </div>
+          )}
 
         </div>
       </div>
@@ -2014,4 +2051,75 @@ function EventsPage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;s
 
 function WorkforceIntelligencePage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;screenWidth:number}) {
   return <div style={{padding:40,textAlign:'center' as const,color:t.muted}}><div style={{fontSize:32,marginBottom:12}}>👥</div><div style={{fontSize:16,fontWeight:600,color:t.text,marginBottom:6}}>Workforce Intelligence</div><div style={{fontSize:13}}>Department coverage, volunteer reliability, and staffing gap alerts.</div></div>;
+}
+
+
+function CommendLeadersPanel({t, dark}: {t: Record<string,string>; dark: boolean}) {
+  const [leaders, setLeaders] = React.useState<{id:string;full_name:string;role:string;cell_name:string;commendation:string;created_at:string}[]>([]);
+  const [form, setForm] = React.useState({leader_id:'', commendation:'', category:'attendance'});
+  const [users, setUsers] = React.useState<{id:string;full_name:string;role:string}[]>([]);
+  const [saving, setSaving] = React.useState(false);
+  const [success, setSuccess] = React.useState('');
+
+  React.useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users?select=id,full_name,role&role=in.(cell_leader,fellowship_head,department_head)&order=full_name.asc`, {
+      headers: {'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||'', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||''}`}
+    }).then(r=>r.json()).then(d=>{if(Array.isArray(d))setUsers(d);}).catch(()=>{});
+  }, []);
+
+  const cardS = (e?: React.CSSProperties): React.CSSProperties => ({background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '16px 18px', ...e});
+  const CATEGORIES = ['attendance','giving','soul winning','leadership','faithfulness','outstanding service'];
+
+  async function submit() {
+    if (!form.leader_id || !form.commendation.trim()) return;
+    setSaving(true);
+    try {
+      const user = users.find(u => u.id === form.leader_id);
+      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/notifications`, {
+        method: 'POST',
+        headers: {'apikey': process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY||'', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY||''}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal'},
+        body: JSON.stringify({user_id: form.leader_id, type: 'commendation', read: false, title: '🏆 You have been commended!', body: form.commendation})
+      });
+      setSuccess(`${user?.full_name} has been commended and notified.`);
+      setForm({leader_id:'', commendation:'', category:'attendance'});
+      setTimeout(() => setSuccess(''), 4000);
+    } catch {}
+    setSaving(false);
+  }
+
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:14}}>
+      {success && <div style={{background:t.tealBg, color:t.teal, borderRadius:9, padding:'10px 16px', fontSize:13, fontWeight:500}}>✓ {success}</div>}
+      <div style={cardS()}>
+        <div style={{fontSize:13, fontWeight:600, color:t.text, marginBottom:14}}>Commend a leader</div>
+        <div style={{display:'flex', flexDirection:'column', gap:12}}>
+          <div>
+            <div style={{fontSize:10, color:t.muted, textTransform:'uppercase' as const, letterSpacing:'0.4px', marginBottom:5}}>Select leader</div>
+            <select value={form.leader_id} onChange={e=>setForm(p=>({...p,leader_id:e.target.value}))}
+              style={{width:'100%', border:`0.5px solid ${t.border}`, borderRadius:8, padding:'9px 12px', fontSize:13, background:t.input, color:t.text, outline:'none'}}>
+              <option value="">Choose a leader…</option>
+              {users.map(u=><option key={u.id} value={u.id}>{u.full_name} ({u.role.replace('_',' ')})</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={{fontSize:10, color:t.muted, textTransform:'uppercase' as const, letterSpacing:'0.4px', marginBottom:5}}>Category</div>
+            <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))}
+              style={{width:'100%', border:`0.5px solid ${t.border}`, borderRadius:8, padding:'9px 12px', fontSize:13, background:t.input, color:t.text, outline:'none'}}>
+              {CATEGORIES.map(c=><option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={{fontSize:10, color:t.muted, textTransform:'uppercase' as const, letterSpacing:'0.4px', marginBottom:5}}>Commendation message</div>
+            <textarea value={form.commendation} onChange={e=>setForm(p=>({...p,commendation:e.target.value}))} rows={4}
+              placeholder="Write your commendation here. This will be sent to the leader as a notification."
+              style={{width:'100%', border:`0.5px solid ${t.border}`, borderRadius:8, padding:'9px 12px', fontSize:13, background:t.input, color:t.text, outline:'none', fontFamily:'inherit', resize:'vertical' as const, boxSizing:'border-box' as const}}/>
+          </div>
+          <button onClick={submit} disabled={saving||!form.leader_id||!form.commendation.trim()}
+            style={{background:t.purple, color:'#fff', border:'none', borderRadius:9, padding:'11px', fontSize:14, fontWeight:600, cursor:'pointer', opacity:saving||!form.leader_id||!form.commendation.trim()?0.6:1}}>
+            {saving?'Sending…':'Send commendation 🏆'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
