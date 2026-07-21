@@ -1,5 +1,4 @@
 'use client';
-import { useScreenSize } from '@/hooks/useScreenSize';
 import NotificationBell from "@/components/NotificationBell";
 import CareOverview from '@/components/CareOverview';
 import BirthdayPanel from '@/components/BirthdayPanel';
@@ -74,7 +73,6 @@ const HOW_THEY_CAME = [
 ];
 
 export default function CareTeamPage() {
-  const { width: screenWidth, isMobile } = useScreenSize();
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('queue');
   const [dark, setDark] = useState(false);
@@ -264,7 +262,7 @@ export default function CareTeamPage() {
         ))}
       </div>
 
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: isMobile ? '16px 16px' : '24px 28px' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto', padding: '20px 16px' }}>
 
         {/* Success banner */}
         {success && (

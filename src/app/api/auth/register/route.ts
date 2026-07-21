@@ -1,4 +1,3 @@
-export const dynamic = 'force-dynamic';
 // POST /api/auth/register
 // Creates a Supabase Auth user + a users table row (is_active = false).
 // Account requires admin approval in Supabase Studio before login works.

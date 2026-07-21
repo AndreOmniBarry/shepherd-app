@@ -1,4 +1,3 @@
-export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 
@@ -21,11 +20,11 @@ export async function GET(req: Request) {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/church_config?order=updated_at.desc&limit=1&select=plan_tier,subscription_status,trial_started_at,trial_ends_at,subscription_started_at`, { headers: hdrs() });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/church_config?limit=1&select=plan_tier,subscription_status,trial_started_at,trial_ends_at,subscription_started_at`, { headers: hdrs() });
     const data = await res.json();
     const config = data?.[0];
 
-    if (!config) return NextResponse.json({ data: { plan_tier: 'trial', status: 'trial', days_remaining: 30, is_active: true, needs_setup: true }, error: null });
+    if (!config) return NextResponse.json({ data: { plan_tier: 'trial', status: 'trial', days_remaining: 30, is_active: true }, error: null });
 
     const now = new Date();
     const trialEnd = config.trial_ends_at ? new Date(config.trial_ends_at) : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);

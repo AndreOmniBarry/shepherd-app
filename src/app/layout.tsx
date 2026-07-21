@@ -32,7 +32,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={inter.variable}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
       </head>
       <body className="bg-gray-50 text-gray-900 antialiased min-h-screen">
         {children}

@@ -1,4 +1,3 @@
-export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { DEFAULT_CONFIG, type ChurchConfig } from '@/lib/church-config';
@@ -27,7 +26,7 @@ export async function GET(req: Request) {
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/church_config?order=updated_at.desc&limit=1`,
+      `${SUPABASE_URL}/rest/v1/church_config?order=created_at.asc&limit=1`,
       { headers: hdrs() }
     );
     const data = await res.json();
@@ -40,11 +39,7 @@ export async function GET(req: Request) {
       });
     }
 
-    const cfg = data[0];
-    if (cfg.church_profile && typeof cfg.church_profile === 'string') {
-      try { cfg.church_profile = JSON.parse(cfg.church_profile); } catch {}
-    }
-    return NextResponse.json({ data: { config: cfg }, error: null });
+    return NextResponse.json({ data: { config: data[0] }, error: null });
   } catch (err) {
     console.error('[GET /api/settings/church-config]', err);
     return NextResponse.json({ data: { config: { ...DEFAULT_CONFIG, id: 'default' } }, error: null });
@@ -65,7 +60,7 @@ export async function PATCH(req: Request) {
 
     // Check if record exists
     const existing = await fetch(
-      `${SUPABASE_URL}/rest/v1/church_config?order=updated_at.desc&limit=1`,
+      `${SUPABASE_URL}/rest/v1/church_config?limit=1`,
       { headers: hdrs() }
     );
     const existingData = await existing.json();

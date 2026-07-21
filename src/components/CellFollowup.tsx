@@ -44,13 +44,10 @@ const STATUS_CFG: Record<string, { bg: string; text: string; label: string }> = 
 
 interface CellFollowupProps {
   dark?: boolean;
-  t?: Record<string, string>;
+  t: Record<string, string>;
 }
 
-export default function CellFollowup({ dark = false, t: tProp }: CellFollowupProps) {
-  const LIGHT = { bg:'#F0EFF8',card:'#FFFFFF',text:'#1A1040',sub:'#5A5180',muted:'#9890CC',border:'rgba(83,74,183,0.12)',input:'#F7F6FF',purple:'#534AB7',purpleBg:'#EEEDFE',teal:'#1D9E75',tealBg:'#E1F5EE',coral:'#D85A30',coralBg:'#FAECE7',amber:'#BA7517',amberBg:'#FAEEDA' };
-  const DARK = { bg:'#0F0A2E',card:'#1A1340',text:'#E8E5FF',sub:'#B8B0E8',muted:'#7870B0',border:'rgba(255,255,255,0.08)',input:'#1F1850',purple:'#A89FFF',purpleBg:'rgba(168,159,255,0.12)',teal:'#2DD4AA',tealBg:'rgba(45,212,170,0.12)',coral:'#F87171',coralBg:'rgba(248,113,113,0.12)',amber:'#FCD34D',amberBg:'rgba(252,211,77,0.12)' };
-  const t = tProp || (dark ? DARK : LIGHT);
+export default function CellFollowup({ dark = false, t }: CellFollowupProps) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeLog, setActiveLog] = useState<string | null>(null);

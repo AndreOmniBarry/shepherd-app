@@ -1,4 +1,3 @@
-export const dynamic = 'force-dynamic';
 // GET /api/cells
 // ?fellowship_id=uuid  → cells for that fellowship (for registration dropdown)
 // ?include=fellowships → returns fellowships list alongside cells

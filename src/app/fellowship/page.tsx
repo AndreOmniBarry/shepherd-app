@@ -1,5 +1,4 @@
 'use client';
-import { useScreenSize } from '@/hooks/useScreenSize';
 import React from 'react';
 import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 import NotificationBell from "@/components/NotificationBell";
@@ -131,7 +130,6 @@ function FellowshipApprovalPanel({t, dark}: {t: Record<string,string>; dark: boo
 }
 
 export default function FellowshipHeadPage() {
-  const { width: screenWidth, isMobile } = useScreenSize();
   const { config: churchConfig } = useChurchConfigStandalone();
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('overview');
@@ -388,7 +386,7 @@ export default function FellowshipHeadPage() {
         ))}
       </div>
 
-      <div style={{ maxWidth: screenWidth >= 1440 ? 1200 : screenWidth >= 1024 ? 960 : screenWidth >= 768 ? 720 : '100%', margin: '0 auto', padding: isMobile ? '16px 16px' : '24px 28px' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px' }}>
         {nudgeMsg && (
           <div style={{ background: '#1D9E75', color: '#fff', borderRadius: 10, padding: '11px 16px', marginBottom: 16, fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 10 }}>
             <span>✓</span> {nudgeMsg}
@@ -640,7 +638,7 @@ export default function FellowshipHeadPage() {
                 </tbody>
               </table>
               {filteredMembers.length === 0 && (
-                <div style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No members found. Use the "Add member" button above to add your first member.</div>
+                <div style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No members found. If this is unexpected, please sign out and sign back in to refresh your session.</div>
               )}
             </div>
           </div>
@@ -885,70 +883,6 @@ export default function FellowshipHeadPage() {
             )}
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function FellowshipAddMemberForm({ t, onClose, onSuccess }: { t: Record<string,string>; onClose: ()=>void; onSuccess: (msg:string)=>void }) {
-  const [form, setForm] = useState({ full_name: '', phone: '', email: '', gender: '', date_of_birth: '' });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  async function submit() {
-    if (!form.full_name.trim()) { setError('Full name is required'); return; }
-    setSaving(true); setError('');
-    try {
-      const res = await fetch('/api/update/member-additions', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ ...form, join_date: new Date().toISOString().split('T')[0] }),
-      });
-      if (res.ok) {
-        onSuccess('Member submitted. Once approved they will appear in your fellowship roster.');
-      } else {
-        const d = await res.json();
-        setError(d?.error?.message || 'Failed to submit');
-      }
-    } catch { setError('Network error'); }
-    setSaving(false);
-  }
-
-  const inputS: React.CSSProperties = { width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 13, background: t.bg || '#F7F6FF', color: t.text, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const };
-
-  return (
-    <div style={{ background: t.purpleBg, border: `0.5px solid rgba(83,74,183,0.2)`, borderRadius: 10, padding: '16px', marginBottom: 14 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Add new member</div>
-      {error && <div style={{ background: t.coralBg, color: t.coral, borderRadius: 7, padding: '8px 12px', fontSize: 12, marginBottom: 10 }}>{error}</div>}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-        <div style={{ gridColumn: '1 / -1' }}>
-          <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 4 }}>Full name *</div>
-          <input value={form.full_name} onChange={e => setForm(p=>({...p, full_name: e.target.value}))} placeholder="First and last name" style={inputS} />
-        </div>
-        <div>
-          <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 4 }}>Phone</div>
-          <input value={form.phone} onChange={e => setForm(p=>({...p, phone: e.target.value}))} placeholder="08012345678" style={inputS} />
-        </div>
-        <div>
-          <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 4 }}>Gender</div>
-          <select value={form.gender} onChange={e => setForm(p=>({...p, gender: e.target.value}))} style={inputS}>
-            <option value="">Select</option><option value="male">Male</option><option value="female">Female</option>
-          </select>
-        </div>
-        <div>
-          <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 4 }}>Date of birth</div>
-          <input type="date" value={form.date_of_birth} onChange={e => setForm(p=>({...p, date_of_birth: e.target.value}))} style={inputS} />
-        </div>
-        <div style={{ gridColumn: '1 / -1' }}>
-          <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 4 }}>Email</div>
-          <input type="email" value={form.email} onChange={e => setForm(p=>({...p, email: e.target.value}))} placeholder="optional" style={inputS} />
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={submit} disabled={saving || !form.full_name.trim()}
-          style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: saving || !form.full_name.trim() ? 0.7 : 1 }}>
-          {saving ? 'Submitting…' : 'Submit for approval'}
-        </button>
-        <button onClick={onClose} style={{ background: 'transparent', color: t.muted, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 14px', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
       </div>
     </div>
   );

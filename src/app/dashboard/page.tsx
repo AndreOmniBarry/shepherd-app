@@ -1,7 +1,6 @@
 'use client';
-import { useScreenSize } from '@/hooks/useScreenSize';
 import React from 'react';
-import NotificationBell from '@/components/NotificationBell';
+import NotificationBell from "@/components/NotificationBell";
 import PastorAttendance from '@/components/PastorAttendance';
 import PastorGiving from '@/components/PastorGiving';
 import PastorRequisitions from '@/components/PastorRequisitions';
@@ -11,14 +10,14 @@ import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
+  LineChart, Line, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 
 type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; };
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
-type AgentName = 'moshe';
-type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation'|'settings'|'admin'|'subscription'|'service_planner'|'events'|'workforce';
+type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
+type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation'|'settings'|'admin';
 type TimeRange = '8w'|'3m'|'6m'|'1y'|'2y'|'5y';
 
 // ── Unique cell data with realistic, differentiated trends ─────
@@ -608,46 +607,349 @@ function exportCSV(data:Record<string,unknown>[], filename:string){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename+'.csv';a.click();
 }
 
-
-// ── Inline SVG icons — no font dependency ─────────────
-function NavIcon({ id, active, color }: { id: string; active: boolean; color: string }) {
-  const c = active ? color : '#9890CC';
-  const s = { width: 16, height: 16, flexShrink: 0 as const };
-  const icons: Record<string, React.ReactNode> = {
-    dashboard: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>,
-    members: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M21 20c0-2.8-1.8-5-4-5.5"/></svg>,
-    departments: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><rect x="9" y="13" width="6" height="8"/><path d="M9 9h.01M15 9h.01M9 12h.01M15 12h.01"/></svg>,
-    attendance: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>,
-    giving: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v2m0 6v2M9.5 9.5c0-1.1.9-2 2-2h1.5a2 2 0 0 1 0 4H11a2 2 0 0 0 0 4h1.5a2 2 0 0 0 2-2"/></svg>,
-    cells: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v4M8.5 17.5 12 11l3.5 6.5"/></svg>,
-    reports: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
-    recognition: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12,2 15.1,8.3 22,9.3 17,14.1 18.2,21 12,17.8 5.8,21 7,14.1 2,9.3 8.9,8.3"/></svg>,
-    prayer: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>,
-    requisitions: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>,
-    validation: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9,12 11,14 15,10"/></svg>,
-    service_planner: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg>,
-    events: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="16" r="3"/></svg>,
-    workforce: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><circle cx="12" cy="12" r="2"/><path d="M12 14v3"/></svg>,
-    subscription: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
-    settings: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
-    admin: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-    commendation: <svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12,2 15.1,8.3 22,9.3 17,14.1 18.2,21 12,17.8 5.8,21 7,14.1 2,9.3 8.9,8.3"/></svg>,
+function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean}){
+  const [requests,setRequests]=React.useState<{id:string;request:string;requester_name:string;category:string;status:string;submitted_by_role:string;created_at:string}[]>([]);
+  const [filter,setFilter]=React.useState('open');
+  React.useEffect(()=>{
+    fetch(`/api/prayer-requests?status=${filter}`,{credentials:'include'})
+      .then(r=>r.json()).then(({data})=>{if(data?.requests)setRequests(data.requests);}).catch(()=>{});
+  },[filter]);
+  async function markPrayed(id:string){
+    await fetch('/api/prayer-requests',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id,status:'prayed'})});
+    setRequests(prev=>prev.map(r=>r.id===id?{...r,status:'prayed'}:r));
+  }
+  const STATUS_CFG:{[k:string]:{bg:string;text:string;label:string}}={
+    open:{bg:'#EEEDFE',text:'#3C3489',label:'Open'},
+    prayed:{bg:'#E1F5EE',text:'#085041',label:'Prayed'},
+    closed:{bg:'#F3F4F6',text:'#6B7280',label:'Closed'},
   };
-  return <>{icons[id] || icons.dashboard}</>;
+  const CATS:{[k:string]:string}={general:'General',healing:'Healing',family:'Family',finance:'Finance',guidance:'Guidance',thanksgiving:'Thanksgiving',other:'Other'};
+  return(
+    <div style={{display:'flex',flexDirection:'column',gap:10}}>
+      <div style={{display:'flex',gap:8,marginBottom:4}}>
+        {['open','prayed','all'].map(f=>(
+          <button key={f} onClick={()=>setFilter(f)}
+            style={{padding:'5px 14px',borderRadius:20,border:'none',background:filter===f?'#534AB7':t.input,color:filter===f?'#fff':t.sub,fontSize:11,cursor:'pointer',fontWeight:filter===f?600:400,fontFamily:'inherit'}}>
+            {f.charAt(0).toUpperCase()+f.slice(1)}
+          </button>
+        ))}
+        <span style={{marginLeft:'auto',fontSize:11,color:t.muted,alignSelf:'center'}}>{requests.length} request{requests.length!==1?'s':''}</span>
+      </div>
+      {requests.length===0?(
+        <div style={{background:t.card,borderRadius:12,border:`0.5px solid ${t.border}`,padding:40,textAlign:'center'}}>
+          <div style={{fontSize:24,marginBottom:8}}>🙏</div>
+          <div style={{fontSize:13,color:t.sub}}>No {filter==='all'?'':filter} prayer requests</div>
+        </div>
+      ):(
+        <div style={{background:t.card,borderRadius:12,border:`0.5px solid ${t.border}`,overflow:'hidden'}}>
+          {requests.map((r,i)=>{
+            const cfg=STATUS_CFG[r.status]||STATUS_CFG.open;
+            const daysAgo=Math.floor((Date.now()-new Date(r.created_at).getTime())/86400000);
+            return(
+              <div key={r.id} style={{padding:'13px 16px',borderBottom:i<requests.length-1?`0.5px solid ${t.border}`:'none'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
+                  <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                    <span style={{fontSize:12,fontWeight:600,color:t.text}}>{r.requester_name||'Anonymous'}</span>
+                    <span style={{fontSize:9,padding:'2px 7px',borderRadius:10,background:t.purpleBg,color:t.purple,fontWeight:500}}>{r.submitted_by_role?.replace('_',' ')}</span>
+                    <span style={{fontSize:9,padding:'2px 7px',borderRadius:10,background:t.input,color:t.sub}}>{CATS[r.category]||r.category}</span>
+                  </div>
+                  <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
+                    <span style={{fontSize:9,padding:'2px 7px',borderRadius:10,background:cfg.bg,color:cfg.text,fontWeight:500}}>{cfg.label}</span>
+                    {r.status==='open'&&(
+                      <button onClick={()=>markPrayed(r.id)}
+                        style={{fontSize:10,padding:'3px 9px',borderRadius:8,background:t.tealBg,color:t.teal,border:'none',cursor:'pointer',fontWeight:500,fontFamily:'inherit'}}>
+                        Mark prayed
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div style={{fontSize:12,color:t.sub,lineHeight:1.5,marginBottom:4}}>{r.request}</div>
+                <div style={{fontSize:10,color:t.muted}}>{daysAgo===0?'Today':daysAgo===1?'Yesterday':`${daysAgo} days ago`}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChurchSettingsPanel({t, dark}: {t: Record<string,string>; dark: boolean}) {
+  const [config, setConfig] = React.useState<Record<string,unknown>>({});
+  const [saving, setSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<'structure'|'church'|'services'>('structure');
+
+  // Form fields
+  const [churchName, setChurchName] = React.useState('');
+  const [structureType, setStructureType] = React.useState('cell_church');
+  const [tier1Label, setTier1Label] = React.useState('Fellowship');
+  const [tier2Label, setTier2Label] = React.useState('Cell');
+  const [tier3Label, setTier3Label] = React.useState('');
+  const [tier1HeadLabel, setTier1HeadLabel] = React.useState('Fellowship Head');
+  const [tier2HeadLabel, setTier2HeadLabel] = React.useState('Cell Leader');
+  const [currency, setCurrency] = React.useState('NGN');
+  const [country, setCountry] = React.useState('Nigeria');
+  const [serviceDays, setServiceDays] = React.useState<string[]>(['Sunday']);
+
+  React.useEffect(() => {
+    fetch('/api/settings/church-config', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => {
+        if (data?.config) {
+          const c = data.config;
+          setConfig(c);
+          setChurchName(c.church_name || '');
+          setStructureType(c.structure_type || 'cell_church');
+          setTier1Label(c.tier1_label || '');
+          setTier2Label(c.tier2_label || '');
+          setTier3Label(c.tier3_label || '');
+          setTier1HeadLabel(c.tier1_head_label || 'Fellowship Head');
+          setTier2HeadLabel(c.tier2_head_label || 'Cell Leader');
+          setCurrency(c.currency || 'NGN');
+          setCountry(c.country || 'Nigeria');
+          setServiceDays(c.service_days || ['Sunday']);
+        }
+      }).catch(() => {});
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await fetch('/api/settings/church-config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          church_name: churchName,
+          structure_type: structureType,
+          tier1_label: tier1Label || null,
+          tier2_label: tier2Label || null,
+          tier3_label: tier3Label || null,
+          tier1_head_label: tier1HeadLabel,
+          tier2_head_label: tier2HeadLabel,
+          currency,
+          country,
+          service_days: serviceDays,
+        }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {}
+    setSaving(false);
+  }
+
+  const STRUCTURES = [
+    { value: 'cell_church', label: '⛪ Cell Church', sub: 'Fellowship → Cell → Member' },
+    { value: 'zonal', label: '🗺 Zonal Church', sub: 'Zone → District → Cell → Member' },
+    { value: 'campus', label: '🏙 Multi-Campus', sub: 'Campus → Fellowship → Cell → Member' },
+    { value: 'department', label: '🏛 Department Church', sub: 'Department → Unit → Member' },
+    { value: 'house_network', label: '🏠 House Church Network', sub: 'Network → Home Group → Member' },
+    { value: 'single', label: '🤲 Single Congregation', sub: 'Pastor → Member' },
+  ];
+
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const CURRENCIES = [
+    {code:'NGN',label:'₦ Nigerian Naira'},{code:'GHS',label:'GH₵ Ghanaian Cedi'},
+    {code:'KES',label:'KSh Kenyan Shilling'},{code:'ZAR',label:'R South African Rand'},
+    {code:'USD',label:'$ US Dollar'},{code:'GBP',label:'£ British Pound'},
+  ];
+
+  const cardS = (e?: React.CSSProperties): React.CSSProperties => ({
+    background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '18px 20px', ...e,
+  });
+
+  const inputS: React.CSSProperties = {
+    width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8,
+    padding: '9px 12px', fontSize: 13, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit',
+  };
+
+  const labelS: React.CSSProperties = {
+    fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6, display: 'block',
+  };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div>
+          <div style={{fontSize:17,fontWeight:700,color:t.text}}>Church Settings</div>
+          <div style={{fontSize:12,color:t.muted,marginTop:2}}>Configure your church structure, labels, and preferences</div>
+        </div>
+        <button onClick={save} disabled={saving}
+          style={{background:saved?'#1D9E75':t.purple,color:'#fff',border:'none',borderRadius:9,padding:'9px 20px',fontSize:13,fontWeight:600,cursor:'pointer',transition:'background 0.2s'}}>
+          {saving?'Saving…':saved?'✓ Saved':'Save changes'}
+        </button>
+      </div>
+
+      {/* Tab nav */}
+      <div style={{display:'flex',gap:0,borderBottom:`0.5px solid ${t.border}`}}>
+        {(['structure','church','services'] as const).map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            style={{padding:'9px 18px',border:'none',borderBottom:`2px solid ${activeTab===tab?t.purple:'transparent'}`,background:activeTab===tab?t.purpleBg:'transparent',fontSize:12,fontWeight:activeTab===tab?600:400,color:activeTab===tab?t.purple:t.muted,cursor:'pointer',textTransform:'capitalize' as const}}>
+            {tab === 'structure' ? 'Church Structure' : tab === 'church' ? 'Church Details' : 'Services'}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'structure' && (
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div style={cardS()}>
+            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Structure Model</div>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {STRUCTURES.map(s => (
+                <button key={s.value} onClick={() => setStructureType(s.value)}
+                  style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 14px',borderRadius:9,border:`0.5px solid ${structureType===s.value?t.purple:t.border}`,background:structureType===s.value?t.purpleBg:t.input,cursor:'pointer',textAlign:'left' as const}}>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:500,color:t.text}}>{s.label}</div>
+                    <div style={{fontSize:11,color:t.muted,marginTop:2}}>{s.sub}</div>
+                  </div>
+                  {structureType===s.value && <span style={{width:8,height:8,borderRadius:'50%',background:t.purple,flexShrink:0}}/>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {structureType !== 'single' && (
+            <div style={cardS()}>
+              <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Label Customisation</div>
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                  <div><label style={labelS}>Tier 1 name</label><input value={tier1Label} onChange={e=>setTier1Label(e.target.value)} placeholder="e.g. Fellowship" style={inputS}/></div>
+                  <div><label style={labelS}>Tier 1 leader title</label><input value={tier1HeadLabel} onChange={e=>setTier1HeadLabel(e.target.value)} placeholder="e.g. Fellowship Head" style={inputS}/></div>
+                </div>
+                {tier2Label && (
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                    <div><label style={labelS}>Tier 2 name</label><input value={tier2Label} onChange={e=>setTier2Label(e.target.value)} placeholder="e.g. Cell" style={inputS}/></div>
+                    <div><label style={labelS}>Tier 2 leader title</label><input value={tier2HeadLabel} onChange={e=>setTier2HeadLabel(e.target.value)} placeholder="e.g. Cell Leader" style={inputS}/></div>
+                  </div>
+                )}
+                {(structureType==='zonal'||structureType==='campus') && (
+                  <div><label style={labelS}>Tier 3 name</label><input value={tier3Label} onChange={e=>setTier3Label(e.target.value)} placeholder="e.g. Cell" style={inputS}/></div>
+                )}
+                <div style={{background:t.purpleBg,borderRadius:8,padding:'10px 14px',fontSize:12,color:t.purple}}>
+                  Preview: {[tier1Label,tier2Label,tier3Label].filter(Boolean).join(' → ')} → Member
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'church' && (
+        <div style={cardS()}>
+          <div style={{display:'flex',flexDirection:'column',gap:14}}>
+            <div><label style={labelS}>Church name</label><input value={churchName} onChange={e=>setChurchName(e.target.value)} placeholder="e.g. The Comforters House Global" style={inputS}/></div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+              <div>
+                <label style={labelS}>Country</label>
+                <select value={country} onChange={e=>setCountry(e.target.value)} style={inputS}>
+                  {['Nigeria','Ghana','Kenya','South Africa','Uganda','Tanzania','Rwanda','United Kingdom','United States','Canada','Australia','Other'].map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelS}>Currency</label>
+                <select value={currency} onChange={e=>setCurrency(e.target.value)} style={inputS}>
+                  {CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.label}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'services' && (
+        <div style={cardS()}>
+          <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Service Days</div>
+          <div style={{fontSize:12,color:t.muted,marginBottom:14}}>Select the days your church holds services. These determine attendance submission windows and absence tracking.</div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap' as const}}>
+            {DAYS.map(day => (
+              <button key={day}
+                onClick={() => setServiceDays(prev => prev.includes(day) ? prev.filter(d=>d!==day) : [...prev,day])}
+                style={{padding:'8px 16px',borderRadius:20,border:`0.5px solid ${serviceDays.includes(day)?t.purple:t.border}`,background:serviceDays.includes(day)?t.purple:t.input,color:serviceDays.includes(day)?'#fff':t.sub,fontSize:12,fontWeight:serviceDays.includes(day)?600:400,cursor:'pointer'}}>
+                {day}
+              </button>
+            ))}
+          </div>
+          <div style={{marginTop:16,background:t.purpleBg,borderRadius:8,padding:'10px 14px',fontSize:12,color:t.purple}}>
+            Active: {serviceDays.join(', ') || 'None selected'}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MemberApprovalPanel({t,dark}:{t:Record<string,string>;dark:boolean}) {
+  const [additions, setAdditions] = React.useState<{id:string;full_name:string;phone:string;gender:string;date_of_birth:string;join_date:string;status:string;submitted_by:string;created_at:string}[]>([]);
+  const [processing, setProcessing] = React.useState<Record<string,boolean>>({});
+  const [done, setDone] = React.useState<Record<string,string>>({});
+
+  React.useEffect(() => {
+    fetch('/api/update/member-additions', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => { if (data?.additions) setAdditions(data.additions); })
+      .catch(() => {});
+  }, []);
+
+  async function act(id: string, action: 'approve' | 'reject') {
+    setProcessing(p => ({ ...p, [id]: true }));
+    try {
+      await fetch('/api/update/member-additions', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ id, action }),
+      });
+      setDone(p => ({ ...p, [id]: action }));
+      setAdditions(prev => prev.filter(a => a.id !== id));
+    } catch {}
+    setProcessing(p => ({ ...p, [id]: false }));
+  }
+
+  if (additions.length === 0) return null;
+
+  return (
+    <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'16px 18px',marginBottom:4}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
+        <div style={{fontSize:13,fontWeight:600,color:t.text}}>Pending Member Approvals</div>
+        <span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:'#FAEEDA',color:'#633806',fontWeight:600}}>{additions.length}</span>
+      </div>
+      {additions.map((a,i) => (
+        <div key={a.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:i<additions.length-1?`0.5px solid ${t.border}`:'none',flexWrap:'wrap'}}>
+          <div style={{flex:1,minWidth:140}}>
+            <div style={{fontSize:13,fontWeight:500,color:t.text}}>{a.full_name}</div>
+            <div style={{fontSize:11,color:t.muted}}>{a.phone||'—'} · {a.gender||'—'} · Joined {a.join_date}</div>
+          </div>
+          <div style={{display:'flex',gap:6}}>
+            {done[a.id] ? (
+              <span style={{fontSize:11,padding:'4px 10px',borderRadius:8,background:done[a.id]==='approve'?'#E1F5EE':'#FAECE7',color:done[a.id]==='approve'?'#085041':'#993C1D',fontWeight:500}}>
+                {done[a.id]==='approve'?'Approved':'Rejected'}
+              </span>
+            ) : (
+              <>
+                <button onClick={()=>act(a.id,'approve')} disabled={processing[a.id]}
+                  style={{background:'#1D9E75',color:'#fff',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id]?0.6:1}}>
+                  {processing[a.id]?'…':'Approve'}
+                </button>
+                <button onClick={()=>act(a.id,'reject')} disabled={processing[a.id]}
+                  style={{background:'#FAECE7',color:'#993C1D',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id]?0.6:1}}>
+                  Reject
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function DashboardPage(){
   const router=useRouter();
   const [page,setPage]=useState<NavPage>('dashboard');
-  const [pageVisible,setPageVisible]=useState(true);
-  const [pendingPage,setPendingPage]=useState<NavPage|null>(null);
-  const { width: screenWidth } = useScreenSize();
-  const [subscription,setSubscription]=useState<{plan_tier:string;status:string;days_remaining:number;is_active:boolean;trial_ends_at?:string}|null>(null);
-  const [countdown,setCountdown]=useState<{d:number;h:number;m:number;s:number}|null>(null);
-  const [userRole,setUserRole]=useState('');
-  const [pendingCounts,setPendingCounts]=useState<Record<string,number>>({});
+  const [showAlertOnly,setShowAlertOnly]=useState(false);
+  const [churchConfig,setChurchConfig]=React.useState<{tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string}>({tier1_label:'Fellowship',tier2_label:'Cell',tier1_head_label:'Fellowship Head',tier2_head_label:'Cell Leader',church_name:'',currency:'NGN'});
   const [kpi,setKpi]=useState<KPI|null>(null);
   const [userName,setUserName]=useState('');
+  const [userRole,setUserRole]=useState('');
   const [givingRange,setGivingRange]=useState('6m');
   const [cellRange,setCellRange]=useState('8w');
   const [selectedCell,setSelectedCell]=useState<typeof CELLS_DATA[0]|null>(null);
@@ -662,14 +964,22 @@ export default function DashboardPage(){
   const [messages,setMessages]=useState<ChatMessage[]>([{role:'agent',agent:'Moshe',text:'Good day, Pastor. I am Moshe — your church intelligence assistant. Ask me about attendance, giving, members, cell performance, or budget planning. I can also answer general questions.'}]);
   const [chatLoading,setChatLoading]=useState(false);
   const chatEndRef=useRef<HTMLDivElement>(null);
-  const [goals,setGoals]=useState({q3:1250,dec:1400});
+  const [goals,setGoals]=useState(()=>{
+    if(typeof window !== 'undefined'){
+      try{
+        const saved=localStorage.getItem('shepherd_goals');
+        if(saved) return JSON.parse(saved);
+      }catch{}
+    }
+    return {q3:1250,dec:1400};
+  });
   const [dark,setDark]=useState(false);
+  const [sidebarStyle,setSidebarStyle]=useState<'light'|'dark'>('light');
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [isMobile,setIsMobile]=useState(false);
   const [dbCells,setDbCells]=useState<typeof CELLS_DATA|null>(null);
   const [editGoals,setEditGoals]=useState(false);
   const [liveFeed,setLiveFeed]=useState<{id:string;cell:string;fellowship:string;present:number;absent:number;visitors:number;mins_ago:number}[]>([]);
-  const [churchStruct,setChurchStruct]=useState({tier1:'Fellowship',tier2:'Cell',tier1Head:'Fellowship Head',tier2Head:'Cell Leader',structureType:'cell_church',serviceDays:['Sunday']});
   const [livePresent,setLivePresent]=useState<number|null>(null);
   const [liveCellsReported,setLiveCellsReported]=useState<number|null>(null);
 
@@ -677,13 +987,6 @@ export default function DashboardPage(){
     const checkMobile=()=>setIsMobile(window.innerWidth<768);
     checkMobile();
     window.addEventListener('resize',checkMobile);
-    // Init dark mode from localStorage or system
-    try{
-      const saved=localStorage.getItem('shepherd-theme');
-      if(saved==='dark') setDark(true);
-      else if(saved==='light') setDark(false);
-      else if(window.matchMedia('(prefers-color-scheme: dark)').matches) setDark(true);
-    }catch(e){}
     return()=>window.removeEventListener('resize',checkMobile);
   },[]);
 
@@ -691,13 +994,17 @@ export default function DashboardPage(){
     fetch('/api/auth/me',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
       if(data?.name&&data.name!=='General')setUserName(data.name);
       else if(data?.email)setUserName(data.email.split('@')[0]);
+      if(data?.role)setUserRole(data.role);
     }).catch(()=>{});
+    // Reload config fresh - especially after onboarding
+    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const justOnboarded = urlParams?.get('onboarded') === '1';
+    fetch('/api/settings/church-config' + (justOnboarded ? '?fresh=1' : ''), {credentials:'include', cache: justOnboarded ? 'no-store' : 'default'})
+      .then(r=>r.json()).then(({data})=>{if(data?.config)setChurchConfig(data.config);}).catch(()=>{});
+    if (justOnboarded && typeof window !== 'undefined') {
+      window.history.replaceState({}, '', '/dashboard');
+    }
     fetch('/api/analytics/dashboard',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setKpi(data);}).catch(()=>{});
-    fetch('/api/settings/church-config',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
-      if(data?.config){const c=data.config;
-        setChurchStruct({tier1:c.tier1_label||'Fellowship',tier2:c.tier2_label||'Cell',tier1Head:c.tier1_head_label||'Fellowship Head',tier2Head:c.tier2_head_label||'Cell Leader',structureType:c.structure_type||'cell_church',serviceDays:c.service_days||['Sunday']});
-      }
-    }).catch(()=>{});
 
     // Live feed - fetch real submissions and auto-refresh every 30s
     function fetchLive(){
@@ -721,7 +1028,6 @@ export default function DashboardPage(){
   },[]);
 
   useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:'smooth'});},[messages]);
-  useEffect(()=>{try{localStorage.setItem('shepherd-theme',dark?'dark':'light');}catch(e){}},[dark]);
 
   const sendChat=useCallback(async()=>{
     if(!chatInput.trim()||chatLoading)return;
@@ -729,7 +1035,7 @@ export default function DashboardPage(){
     setMessages(m=>[...m,{role:'user',text:query},{role:'agent',agent:selectedAgent,text:'',loading:true}]);
     setChatLoading(true);
     try{
-      const res=await fetch('/api/ai/query',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({query,agent:selectedAgent})});
+      const res=await fetch('/api/ai/query',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({query,agent:selectedAgent,history:messages.filter(m=>!m.loading&&m.text&&m.text.trim()!=="").map(m=>({role:m.role==="user"?"user":"assistant",content:m.text}))})});
       if(!res.ok){const e=await res.json();setMessages(m=>{const u=[...m];u[u.length-1]={role:'agent',agent:selectedAgent,text:e?.error?.message||'Request failed.',loading:false};return u;});setChatLoading(false);return;}
       const reader=res.body?.getReader();const decoder=new TextDecoder();let full='';let lbl=selectedAgent.charAt(0).toUpperCase()+selectedAgent.slice(1);
       while(reader){const{done,value}=await reader.read();if(done)break;
@@ -737,7 +1043,7 @@ export default function DashboardPage(){
           const raw=line.slice(6);if(raw==='[DONE]')break;
           try{const p=JSON.parse(raw);
             if(p.text){full+=p.text;setMessages(m=>{const u=[...m];u[u.length-1]={role:'agent',agent:lbl,text:full,loading:false};return u;});}
-            if(p.meta?.agent)lbl=p.meta.agent;
+            if(p.meta?.agent)lbl={moshe:'Moshe',ktava:'Ktava',arkwind:'ArkMind',numbers:'NUMB3RS1.2'}[p.meta.agent as string]||p.meta.agent;
             if(p.error)setMessages(m=>{const u=[...m];u[u.length-1]={role:'agent',agent:lbl,text:`Error: ${p.error}`,loading:false};return u;});
           }catch{}}}
     }catch{setMessages(m=>{const u=[...m];u[u.length-1]={role:'agent',agent:selectedAgent,text:'Network error. Please try again.',loading:false};return u;});}
@@ -746,135 +1052,95 @@ export default function DashboardPage(){
 
   function logout(){fetch('/api/auth/logout',{method:'POST',credentials:'include'}).catch(()=>{});document.cookie='shepherd_token=; Max-Age=0; path=/';router.push('/login');}
 
-  // ── SHEPHERD Premium Glass Theme 2026 ──────────────────────
+  // Theme - true black/white
   const t = {
-    // Backgrounds — deep glass layers
-    bg:           dark ? '#080616' : '#F2F0FB',
-    card:         dark ? 'rgba(20,14,52,0.82)' : 'rgba(255,255,255,0.88)',
-    cardInner:    dark ? 'rgba(30,22,68,0.6)' : 'rgba(244,243,251,0.9)',
-    // Text
-    text:         dark ? '#EDE9FF' : '#0F0A2E',
-    textSec:      dark ? '#B8B0E8' : '#4A4272',
-    sub:          dark ? '#B8B0E8' : '#4A4272',
-    muted:        dark ? '#6B63A8' : '#9890C4',
-    // Borders — glass edges
-    border:       dark ? 'rgba(255,255,255,0.07)' : 'rgba(83,74,183,0.1)',
-    divider:      dark ? 'rgba(255,255,255,0.04)' : 'rgba(83,74,183,0.06)',
-    // Navigation — dark glass
-    nav:          dark ? 'rgba(10,6,30,0.95)' : 'rgba(255,255,255,0.95)',
-    navBorder:    dark ? 'rgba(255,255,255,0.06)' : 'rgba(83,74,183,0.08)',
-    navActive:    dark ? 'rgba(83,74,183,0.2)' : 'rgba(83,74,183,0.08)',
-    navActiveTxt: dark ? '#A89FFF' : '#534AB7',
-    navTxt:       dark ? '#6B63A8' : '#9890C4',
-    // Interactive
-    hover:        dark ? 'rgba(255,255,255,0.04)' : 'rgba(83,74,183,0.04)',
-    input:        dark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.8)',
-    inputBorder:  dark ? 'rgba(255,255,255,0.08)' : 'rgba(83,74,183,0.12)',
-    // Brand
-    purple:       dark ? '#A89FFF' : '#534AB7',
-    purpleBg:     dark ? 'rgba(168,159,255,0.12)' : 'rgba(83,74,183,0.08)',
-    purpleText:   dark ? '#C4BFFF' : '#3C3489',
-    // Status
-    teal:         dark ? '#2DD4AA' : '#1D9E75',
-    tealBg:       dark ? 'rgba(45,212,170,0.1)' : 'rgba(29,158,117,0.08)',
-    tealText:     dark ? '#2DD4AA' : '#085041',
-    amber:        dark ? '#FCD34D' : '#BA7517',
-    amberBg:      dark ? 'rgba(252,211,77,0.1)' : 'rgba(186,117,23,0.08)',
-    amberText:    dark ? '#FCD34D' : '#633806',
-    coral:        dark ? '#F87171' : '#D85A30',
-    coralBg:      dark ? 'rgba(248,113,113,0.1)' : 'rgba(216,90,48,0.08)',
-    coralText:    dark ? '#FCA5A5' : '#993C1D',
-    // Charts
-    chartBg:      dark ? 'rgba(20,14,52,0.82)' : 'rgba(255,255,255,0.88)',
-    chartGrid:    dark ? 'rgba(255,255,255,0.04)' : 'rgba(83,74,183,0.05)',
-    chartAxis:    dark ? '#4A4272' : '#C4BFFF',
-    chartTip:     dark ? 'rgba(20,14,52,0.95)' : 'rgba(255,255,255,0.98)',
-    chartTipBorder: dark ? 'rgba(255,255,255,0.1)' : 'rgba(83,74,183,0.15)',
-    chartTipText: dark ? '#EDE9FF' : '#0F0A2E',
-    // Glass shadows
-    cardShadow:   dark
-      ? '0 4px 32px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.04) inset'
-      : '0 4px 24px rgba(83,74,183,0.06), 0 1px 0 rgba(255,255,255,0.9) inset',
-    cardShadowHover: dark
-      ? '0 8px 48px rgba(83,74,183,0.25)'
-      : '0 8px 40px rgba(83,74,183,0.12)',
-    // Extra aliases for compatibility
-    white:        dark ? '#1A1340' : '#FFFFFF',
+    // Concept C — Deep Dark Glass (dark) / Rich Warm White (light)
+    bg:        dark?'#0D0B1E':'#F0EFF8',
+    card:      dark?'rgba(255,255,255,0.04)':'#FFFFFF',
+    cardSolid: dark?'#13102A':'#FFFFFF',
+    border:    dark?'rgba(168,159,255,0.08)':'rgba(83,74,183,0.10)',
+    borderMed: dark?'rgba(168,159,255,0.15)':'rgba(83,74,183,0.20)',
+    text:      dark?'#E8E5FF':'#1A1040',
+    sub:       dark?'rgba(232,229,255,0.55)':'#5A5180',
+    muted:     dark?'rgba(232,229,255,0.28)':'#9990CC',
+    nav:       dark?'#080618':sidebarStyle==='dark'?'#0D0A24':'#FFFFFF',
+    navBorder: dark?'rgba(168,159,255,0.06)':sidebarStyle==='dark'?'rgba(255,255,255,0.07)':'rgba(83,74,183,0.10)',
+    hover:     dark?'rgba(168,159,255,0.06)':'rgba(83,74,183,0.04)',
+    input:     dark?'rgba(255,255,255,0.05)':'#F7F6FF',
+    tableRow:  dark?'rgba(255,255,255,0.02)':'#FAFAFA',
+    cardInner: dark?'rgba(255,255,255,0.03)':'#F7F6FF',
+    purple:    dark?'#A89FFF':'#534AB7',
+    purpleBg:  dark?'rgba(83,74,183,0.25)':'#EEEDFE',
+    teal:      dark?'#2DD4AA':'#1D9E75',
+    tealBg:    dark?'rgba(29,158,117,0.15)':'#E1F5EE',
+    amber:     dark?'#FCD34D':'#BA7517',
+    amberBg:   dark?'rgba(186,117,23,0.15)':'#FAEEDA',
+    coral:     dark?'#F87171':'#D85A30',
+    coralBg:   dark?'rgba(216,90,48,0.15)':'#FAECE7',
+    chartGrid: dark?'rgba(168,159,255,0.06)':'#F0EEF9',
+    chartAxis: dark?'rgba(168,159,255,0.35)':'#9990CC',
+    chartTip:  dark?'#13102A':'#FFFFFF',
+    chartTipText: dark?'#E8E5FF':'#1A1040',
+    chartBorder: dark?'rgba(168,159,255,0.08)':'rgba(83,74,183,0.10)',
   };
-  const brand = dark ? '#8B82FF' : '#534AB7';
-  const brandColor = brand; // alias
-  const card=(e?:React.CSSProperties):React.CSSProperties=>({
-    background:t.card,
-    backdropFilter:'blur(20px)',
-    WebkitBackdropFilter:'blur(20px)',
-    border:`0.5px solid ${t.border}`,
-    borderRadius:16,
-    padding:'20px',
-    boxShadow:t.cardShadow,
-    transition:'box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease',
-    ...e,
-  });
-
-  const bc=(b:string)=>b==='teal'?{bg:t.tealBg,c:t.tealText}:b==='amber'?{bg:t.amberBg,c:t.amberText}:{bg:t.purpleBg,c:t.purpleText};
+  const card=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:10,padding:'16px 20px',...e});
+  const bc=(b:string)=>b==='teal'?{bg:'#E1F5EE',c:'#085041'}:b==='amber'?{bg:'#FAEEDA',c:'#633806'}:{bg:'#EEEDFE',c:'#3C3489'};
   const ss=(s:string)=>s==='rising'?{bg:'#E1F5EE',c:'#085041'}:s==='stable'?{bg:'#F3F4F6',c:'#374151'}:s==='watch'?{bg:'#FAEEDA',c:'#633806'}:{bg:'#FAECE7',c:'#993C1D'};
 
   const navItems=[
-    {id:'dashboard' as NavPage,icon:'',label:'Dashboard'},
+    {id:'dashboard' as NavPage,icon:'ti-layout-dashboard',label:'Dashboard'},
     {id:'members' as NavPage,icon:'ti-users',label:'Members'},
-    {id:'departments' as NavPage,icon:'ti-building-community',label:'Departments'},
-    {id:'attendance' as NavPage,icon:'ti-calendar-check',label:'Attendance'},
+    {id:'departments' as NavPage,icon:'ti-building',label:`${churchConfig.tier1_label?'Fellowships':'Departments'}`},
+    {id:'attendance' as NavPage,icon:'ti-calendar-stats',label:'Attendance'},
     {id:'giving' as NavPage,icon:'ti-coin',label:'Giving'},
-    {id:'cells' as NavPage,icon:'ti-users-group',label:`${churchStruct.tier2} Ministry`},
+    {id:'cells' as NavPage,icon:'ti-circles',label:`${churchConfig.tier2_label||'Cell'} Ministry`},
     {id:'reports' as NavPage,icon:'ti-chart-bar',label:'Reports'},
     {id:'recognition' as NavPage,icon:'ti-award',label:'Recognition'},
+    {id:'commendation' as NavPage,icon:'ti-star',label:'Commend Leaders'},
     {id:'prayer' as NavPage,icon:'ti-heart',label:'Prayer Requests'},
-    {id:'requisitions' as NavPage,icon:'ti-file-invoice',label:'Requisitions'},
-    {id:'validation' as NavPage,icon:'ti-shield-check',label:'Approve & Validate'},
-    {id:'service_planner' as NavPage,icon:'ti-calendar-event',label:'Service Planner'},
-    {id:'events' as NavPage,icon:'ti-calendar-stats',label:'Events'},
-    {id:'workforce' as NavPage,icon:'ti-id-badge',label:'Workforce'},
-    {id:'subscription' as NavPage,icon:'ti-credit-card',label:'Subscription'},
+    {id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'},
+    {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
     {id:'settings' as NavPage,icon:'ti-settings',label:'Settings'},
-    ...(userRole==='lead_tech'?[{id:'admin' as NavPage,icon:'',label:'Admin Portal'}]:[]),
+    ...(userRole === 'lead_tech' ? [{id:'admin' as NavPage,icon:'ti-shield',label:'Admin Portal'}] : []),
   ];
 
   const agentOpts=[
-    {id:'moshe' as AgentName,label:'Moshe',desc:'Church Intelligence — ask anything'},
+    {id:'moshe' as AgentName,label:'Moshe',desc:'Strategy & all domains'},
+    {id:'ktava' as AgentName,label:'Ktava',desc:'Attendance records'},
+    {id:'arkwind' as AgentName,label:'ArkMind',desc:'Giving & financials'},
+    {id:'numbers' as AgentName,label:'NUMB3RS1.2',desc:'Census & demographics'},
   ];
 
   const rangeOpts:TimeRange[]=['8w','3m','6m','1y','2y','5y'];
   const rangeLabel=(r:TimeRange)=>r==='8w'?'8 Weeks':r==='3m'?'3 Months':r==='6m'?'6 Months':r==='1y'?'1 Year':r==='2y'?'2 Years':'5 Years';
 
   return(
-    <div style={{display:'flex',minHeight:'100vh',background:dark?'linear-gradient(135deg,#080616 0%,#0F0A2E 45%,#080B1E 100%)':'linear-gradient(135deg,#F2F0FB 0%,#EEEEFF 50%,#F0EFF8 100%)',fontFamily:"'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",overflow:'hidden',position:'relative' as const}}>
+    <div data-theme={dark?'dark':'light'} data-sidebar={dark?'dark':sidebarStyle} style={{display:'flex',minHeight:'100vh',background:t.bg,fontFamily:'Inter,system-ui,sans-serif'}}>
       {/* Sidebar overlay for mobile */}
-      {isMobile&&sidebarOpen&&(
-        <div onClick={()=>setSidebarOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:40,backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)'}}/>
-      )}
-      {/* Sidebar - zero width on mobile so content takes full width */}
-      <div style={{width:isMobile?0:240,flexShrink:0,position:'relative' as const}}>
-        <div style={{
-          width:isMobile?280:240,background:dark?'rgba(8,4,22,0.96)':'rgba(255,255,255,0.92)',backdropFilter:'blur(28px)',WebkitBackdropFilter:'blur(28px)',
-          borderRight:`0.5px solid ${t.navBorder}`,
-          display:'flex',flexDirection:'column',
-          position:'fixed' as const,top:0,
-          left:isMobile?(sidebarOpen?0:-290):0,
-          height:'100vh',zIndex:50,
-          transition:'left 300ms cubic-bezier(0.4,0,0.2,1)',
-          boxShadow:isMobile&&sidebarOpen?'8px 0 40px rgba(0,0,0,0.5)':(dark?'none':'1px 0 0 #EBEBEB'),
-          overflowY:'auto',
-        }}>
+      {isMobile&&sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.3)',zIndex:40}}/>}
+      {/* Sidebar */}
+      <div style={{width:220,background:t.nav,borderRight:`0.5px solid ${t.navBorder}`,display:'flex',flexDirection:'column',position:isMobile?'fixed':'sticky',top:0,left:isMobile?(sidebarOpen?0:-196):0,height:'100vh',flexShrink:0,zIndex:50,transition:'left 0.3s cubic-bezier(0.4,0,0.2,1)',backdropFilter:'blur(20px)'}}>
         <div style={{display:'flex',alignItems:'center',gap:10,padding:'16px 16px 14px',borderBottom:`0.5px solid ${t.navBorder}`}}>
-          <div style={{width:32,height:32,background:'linear-gradient(135deg,#534AB7,#7B74D0)',borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 12px rgba(83,74,183,0.4)'}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.95)" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/></svg></div>
-          <div><div style={{fontSize:13,fontWeight:600,color:t.text}}>SHEP.HERD</div><div style={{fontSize:10,color:t.muted,marginTop:1}}>Comforters House Global</div></div>
+          <div style={{width:28,height:28,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><div style={{position:'absolute',width:4,height:20,background:'#A89FFF',borderRadius:2}}/><div style={{position:'absolute',width:15,height:4,background:'#A89FFF',borderRadius:2}}/></div>
+          <div><div style={{fontSize:14,fontWeight:700,color:dark?'#E8E5FF':sidebarStyle==='dark'?'#FFFFFF':'#1A1040',letterSpacing:'1px',lineHeight:1}}>SHEP.HERD</div><div style={{fontSize:9,color:dark?'rgba(232,229,255,0.3)':sidebarStyle==='dark'?'rgba(255,255,255,0.35)':'#9990CC',marginTop:2}}>Church Intelligence</div></div>
         </div>
         <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
           {navItems.map(n=>(
-            <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDept(null);setPageVisible(false);setTimeout(()=>{setPage(n.id);setTimeout(()=>setPageVisible(true),20);},150);if(isMobile)setSidebarOpen(false);}}
-              style={{display:'flex',alignItems:'center',gap:10,padding:'0 12px 0 14px',height:'42px',margin:'1px 8px',width:'calc(100% - 16px)',fontSize:13,border:'none',cursor:'pointer',textAlign:'left' as const,borderRadius:10,background:page===n.id?(dark?'rgba(168,159,255,0.15)':'rgba(83,74,183,0.1)'):'transparent',color:page===n.id?(dark?'#C4BFFF':'#534AB7'):(dark?'#6B63A8':'#9890C4'),fontWeight:page===n.id?600:400,transition:'all 0.15s ease',boxShadow:page===n.id?(dark?'0 0 0 0.5px rgba(168,159,255,0.2)':'0 0 0 0.5px rgba(83,74,183,0.15)'):'none'}}>
-              <span style={{width:18,flexShrink:0,display:'inline-flex',alignItems:'center',justifyContent:'center'}}><NavIcon id={n.id} active={page===n.id} color={dark?'#A89FFF':'#534AB7'}/></span>
-              <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{n.label}</span>
-              {(pendingCounts[n.id]||0)>0&&<span style={{minWidth:16,height:16,borderRadius:8,background:'#D85A30',color:'#fff',fontSize:9,fontWeight:700,display:'inline-flex',alignItems:'center',justifyContent:'center',padding:'0 3px',flexShrink:0}}>{pendingCounts[n.id]}</span>}
+            <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDept(null);setPage(n.id);}}
+              className="sh-nav-item"
+              style={{
+                background: page===n.id ? (dark?'rgba(83,74,183,0.45)':'rgba(83,74,183,0.10)') : 'transparent',
+                color: page===n.id ? (dark?'#E8E5FF':'#3C3489') : undefined,
+                fontWeight: page===n.id ? 600 : 400,
+                borderLeft: `2px solid ${page===n.id?'#534AB7':'transparent'}`,
+                boxShadow: page===n.id ? (dark?'0 0 20px rgba(83,74,183,0.3), inset 0 0 0 0.5px rgba(168,159,255,0.2)':'0 0 12px rgba(83,74,183,0.10)') : 'none',
+                borderRadius: '0 8px 8px 0',
+                margin: '1px 8px 1px 0',
+                width: 'calc(100% - 8px)',
+                transition: 'all 0.2s ease',
+              }}>
+              {n.icon && <i className={`ti ${n.icon}`} style={{fontSize:15,opacity:page===n.id?1:0.5,flexShrink:0}} aria-hidden="true" />}
+              {n.label}
             </button>
           ))}
         </nav>
@@ -885,101 +1151,57 @@ export default function DashboardPage(){
           <button onClick={logout} style={{width:'100%',background:'transparent',color:t.muted,border:'none',borderRadius:8,padding:'6px 12px',fontSize:12,cursor:'pointer',marginTop:4}}>Sign out</button>
         </div>
       </div>
-      </div>
 
       {/* Main */}
-      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,maxWidth:'100%',overflow:'hidden'}}>
-        {/* Trial banner */}
-        {subscription&&subscription.status==='trial'&&(
-          <div style={{background:subscription.days_remaining<=5?'#D85A30':subscription.days_remaining<=14?'#BA7517':'#534AB7',color:'#fff',padding:'8px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:12,fontWeight:500,gap:12}}>
-            <div style={{display:'flex',alignItems:'center',gap:12,flex:1}}>
-              <span style={{opacity:0.9}}>Free trial</span>
-              {countdown?(
-                <span style={{fontFamily:'monospace',fontWeight:700,fontSize:13,letterSpacing:'0.5px',background:'rgba(0,0,0,0.2)',padding:'2px 10px',borderRadius:6}}>
-                  {String(countdown.d).padStart(2,'0')}d {String(countdown.h).padStart(2,'0')}h {String(countdown.m).padStart(2,'0')}m {String(countdown.s).padStart(2,'0')}s
-                </span>
-              ):(
-                <span>{subscription.days_remaining} day{subscription.days_remaining!==1?'s':''} remaining</span>
-              )}
-            </div>
-            <button onClick={()=>setPage('subscription')} style={{background:'rgba(255,255,255,0.2)',color:'#fff',border:'1px solid rgba(255,255,255,0.4)',borderRadius:6,padding:'4px 12px',fontSize:11,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>Upgrade now</button>
-          </div>
-        )}
+      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,background:t.bg}}>
         {/* Topbar */}
-        <div style={{background:dark?'rgba(6,4,20,0.92)':'rgba(255,255,255,0.88)',backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',borderBottom:`0.5px solid ${t.navBorder}`,padding:isMobile?'0 12px':'0 20px',height:'56px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky' as const,top:0,zIndex:30,flexShrink:0,width:'100%',boxSizing:'border-box' as const,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
+        <div style={{background:t.nav,borderBottom:`0.5px solid ${t.navBorder}`,padding:'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
-            {isMobile&&(
-              <button onClick={()=>setSidebarOpen(v=>!v)} aria-label="Toggle menu"
-                style={{background:'transparent',border:'none',cursor:'pointer',padding:'6px',display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center',width:40,height:40,flexShrink:0,position:'relative' as const}}>
-                <span style={{position:'absolute' as const,width:22,height:2,background:brand,borderRadius:2,
-                  transform:sidebarOpen?'rotate(45deg)':'translateY(-7px)',
-                  transition:'transform 300ms cubic-bezier(0.4,0,0.2,1)'}}/>
-                <span style={{position:'absolute' as const,width:22,height:2,background:brand,borderRadius:2,
-                  opacity:sidebarOpen?0:1,
-                  transition:'opacity 300ms ease'}}/>
-                <span style={{position:'absolute' as const,width:22,height:2,background:brand,borderRadius:2,
-                  transform:sidebarOpen?'rotate(-45deg)':'translateY(7px)',
-                  transition:'transform 300ms cubic-bezier(0.4,0,0.2,1)'}}/>
-              </button>
-            )}
+            {isMobile&&<button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,color:'#534AB7',padding:'0 4px',lineHeight:1}}>☰</button>}
             <div>
-              <span style={{fontSize:isMobile?13:15,fontWeight:600,color:t.text,letterSpacing:'-0.01em',whiteSpace:'nowrap' as const,overflow:'hidden',textOverflow:'ellipsis'}}>{navItems.find(n=>n.id===page)?.label}</span>
-              {!isMobile&&<span style={{fontSize:12,color:t.muted,marginLeft:10}}>{new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>}
+              <span style={{fontSize:14,fontWeight:500,color:t.text}}>{navItems.find(n=>n.id===page)?.label}</span>
+              {!isMobile&&<span suppressHydrationWarning style={{fontSize:11,color:t.muted,marginLeft:10}}>{new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>}
               {userName&&userName!=='General'&&<span style={{fontSize:12,color:'#534AB7',marginLeft:isMobile?6:10}}>· {greeting()}, {userName.split(' ')[0]}</span>}
             </div>
           </div>
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            {!isMobile&&<button onClick={()=>{}} style={{display:'flex',alignItems:'center',gap:6,background:t.input,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 12px',fontSize:12,color:t.muted,cursor:'pointer'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Search</button>}
-            {!isMobile&&<button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,background:'#534AB7',color:'#fff',border:'none',borderRadius:8,padding:'6px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add member</button>}
-            <NotificationBell dark={dark}/>
-            <button onClick={()=>setDark(v=>!v)} style={{width:32,height:32,background:t.purpleBg,border:'none',borderRadius:8,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:dark?'#A89FFF':'#534AB7'}}>
-              {dark?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}
-            </button>
-            <div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'#1D9E75',fontWeight:500}}>
-              <span style={{width:6,height:6,borderRadius:'50%',background:'#1D9E75',display:'inline-block'}}/>Live
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            {!isMobile&&!dark&&(<div style={{display:'flex',background:t.cardInner,border:`0.5px solid ${t.border}`,borderRadius:20,padding:2,gap:2}}><button onClick={()=>setSidebarStyle('light')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='light'?'#534AB7':'transparent',color:sidebarStyle==='light'?'#fff':t.muted,fontFamily:'inherit'}}>Light sidebar</button><button onClick={()=>setSidebarStyle('dark')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='dark'?'#534AB7':'transparent',color:sidebarStyle==='dark'?'#fff':t.muted,fontFamily:'inherit'}}>Dark sidebar</button></div>)}
+            <button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Search</button>
+            <button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:'none',background:'#534AB7',color:'#fff',fontSize:11,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>Add member</button>
+            <NotificationBell dark={dark} /><div onClick={()=>setDark(v=>!v)} style={{width:32,height:32,borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:t.sub}}>{dark?<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}</div>
+            <div style={{display:'flex',alignItems:'center',gap:5,fontSize:12,color:'#1D9E75'}}>
+              <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',display:'inline-block'}}/>Live
             </div>
-            <div style={{width:32,height:32,borderRadius:'50%',background:brand,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:11,fontWeight:600,color:'#3C3489'}}>{userName?userName.slice(0,2).toUpperCase():'GO'}</div>
+            <div style={{width:32,height:32,borderRadius:'50%',background:'#CECBF6',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:500,color:'#3C3489'}}>{userName?userName.slice(0,2).toUpperCase():'GO'}</div>
           </div>
         </div>
 
-        <div style={{flex:1,padding:'20px',overflowY:'auto',background:'transparent',maxWidth:'100%',transition:'opacity 0.18s ease, transform 0.18s ease',opacity:pageVisible?1:0,transform:pageVisible?'translateY(0)':'translateY(8px)'}}>
+        <div style={{flex:1,padding:'20px',overflowY:'auto',background:t.bg,maxWidth:'100%'}}>
 
           {/* ══ DASHBOARD ══ */}
           {page==='dashboard'&&(
             <div>
-              <div style={{background:t.tealBg,borderRadius:8,padding:'8px 12px',marginBottom:14,overflow:'hidden',display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#085041'}}>
+              <div style={{background:t.tealBg,borderRadius:8,padding:'8px 14px',marginBottom:18,display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#085041'}}>
                 <span>●</span>
                 <span>Attendance session live &mdash; <strong>{fmt(kpi?.today_present)}</strong> check-ins · <strong>{kpi?.today_cells_reported??'—'}/{kpi?.today_cells_total??'—'}</strong> cells reported</span>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14,marginBottom:20}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10,marginBottom:18}}>
                 {[
-                  {label:'Total members',value:'1,147',delta:'+23 this month',page:'members' as NavPage,
-                   bg:dark?'linear-gradient(135deg,rgba(83,74,183,0.18),rgba(83,74,183,0.04))':'linear-gradient(135deg,rgba(83,74,183,0.09),rgba(83,74,183,0.02))',ac:dark?'#A89FFF':'#534AB7',
-                   icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M21 20c0-2.8-1.8-5-4-5.5"/></svg>},
-                  {label:"Today's check-ins",value:fmt(kpi?.today_present),delta:`${kpi?.today_cells_reported??'—'}/${kpi?.today_cells_total??'—'} cells in`,page:'attendance' as NavPage,
-                   bg:dark?'linear-gradient(135deg,rgba(45,212,170,0.15),rgba(45,212,170,0.03))':'linear-gradient(135deg,rgba(29,158,117,0.08),rgba(29,158,117,0.02))',ac:dark?'#2DD4AA':'#1D9E75',
-                   icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>},
-                  {label:'YTD giving',value:kpi?fmtNGN(kpi.ytd_giving_ngn):'—',delta:'+12% vs last year',page:'giving' as NavPage,
-                   bg:dark?'linear-gradient(135deg,rgba(252,211,77,0.14),rgba(252,211,77,0.03))':'linear-gradient(135deg,rgba(186,117,23,0.09),rgba(186,117,23,0.02))',ac:dark?'#FCD34D':'#BA7517',
-                   icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v2m0 6v2M9.5 9.5c0-1.1.9-2 2-2h1.5a2 2 0 0 1 0 4H11a2 2 0 0 0 0 4h1.5a2 2 0 0 0 2-2"/></svg>},
-                  {label:'Active cells',value:fmt(kpi?.active_cells),delta:'3 fellowships',page:'cells' as NavPage,
-                   bg:dark?'linear-gradient(135deg,rgba(248,113,113,0.14),rgba(248,113,113,0.03))':'linear-gradient(135deg,rgba(216,90,48,0.09),rgba(216,90,48,0.02))',ac:dark?'#F87171':'#D85A30',
-                   icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v4M8.5 17.5 12 11l3.5 6.5"/></svg>},
+                  {label:'Total members',value:'1,147',delta:'+23 this month',page:'members' as NavPage},
+                  {label:"Today's check-ins",value:fmt(kpi?.today_present),delta:`${kpi?.today_cells_reported??'—'}/${kpi?.today_cells_total??'—'} cells in`,page:'attendance' as NavPage},
+                  {label:'YTD giving',value:kpi?fmtNGN(kpi.ytd_giving_ngn):'—',delta:'+12% vs last year',page:'giving' as NavPage},
+                  {label:'Active cells',value:fmt(kpi?.active_cells),delta:'3 fellowships',page:'cells' as NavPage},
                 ].map(m=>(
-                  <div key={m.label} onClick={()=>{setPageVisible(false);setTimeout(()=>{setPage(m.page);setTimeout(()=>setPageVisible(true),20);},150);}}
-                    style={{...card({padding:'18px 20px'}),cursor:'pointer',background:m.bg,border:`0.5px solid ${dark?'rgba(255,255,255,0.06)':'rgba(83,74,183,0.09)'}`}}
-                    onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=dark?'0 8px 40px rgba(83,74,183,0.2)':'0 8px 32px rgba(83,74,183,0.1)';}}
-                    onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='';}}>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
-                      <div style={{fontSize:10,color:m.ac,fontWeight:600,letterSpacing:'0.06em',textTransform:'uppercase' as const,opacity:0.8}}>{m.label}</div>
-                      <div style={{color:m.ac,opacity:0.65,transition:'opacity 0.15s'}}>{m.icon}</div>
-                    </div>
-                    <div style={{fontSize:28,fontWeight:700,color:t.text,lineHeight:1,fontVariantNumeric:'tabular-nums',letterSpacing:'-0.03em',marginBottom:8}}>{m.value}</div>
-                    <div style={{fontSize:11,color:m.ac,fontWeight:500}}>{m.delta}</div>
+                  <div key={m.label} onClick={()=>setPage(m.page)} style={{...card(),cursor:'pointer'}}
+                    onMouseEnter={e=>e.currentTarget.style.boxShadow='0 2px 8px rgba(83,74,183,0.15)'}
+                    onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
+                    <div style={{fontSize:11,color:t.sub,marginBottom:4}}>{m.label}</div>
+                    <div style={{fontSize:26,fontWeight:600,color:t.text,lineHeight:1.1}}>{m.value}</div>
+                    <div style={{fontSize:11,color:'#1D9E75',marginTop:3}}>{m.delta}</div>
                   </div>
                 ))}
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:14}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:14,marginBottom:14}}>
                 <div onClick={()=>setPage('attendance')} style={{...card(),cursor:'pointer'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
                     <span style={{fontSize:13,fontWeight:500,color:t.text}}>Attendance trend (8 Sundays)</span>
@@ -987,10 +1209,10 @@ export default function DashboardPage(){
                   </div>
                   <ResponsiveContainer width="100%" height={100}>
                     <BarChart data={[{w:'W1',s1:378,s2:241},{w:'W2',s1:391,s2:248},{w:'W3',s1:383,s2:243},{w:'W4',s1:402,s2:256},{w:'W5',s1:418,s2:261},{w:'W6',s1:411,s2:258},{w:'W7',s1:445,s2:278},{w:'W8',s1:458,s2:289}]} margin={{top:2,right:0,left:-30,bottom:0}}>
-                      <XAxis dataKey="w" tick={{fontSize:10,fill:t.chartAxis,fontFamily:'Inter,sans-serif'}} tickLine={false} axisLine={false}/>
+                      <XAxis dataKey="w" tick={{fontSize:9,fill:t.chartAxis}} tickLine={false} axisLine={false}/>
                       <YAxis hide/><Tooltip contentStyle={{fontSize:11,borderRadius:6,border:'1px solid #e5e7eb'}}/>
-                      <Bar dataKey="s1" name="Svc 1" fill="#534AB7" radius={[5,5,0,0]}/>
-                      <Bar dataKey="s2" name="Svc 2" fill="#AFA9EC" radius={[5,5,0,0]}/>
+                      <Bar dataKey="s1" name="Svc 1" fill="#534AB7" radius={[2,2,0,0]}/>
+                      <Bar dataKey="s2" name="Svc 2" fill="#AFA9EC" radius={[2,2,0,0]}/>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1012,7 +1234,7 @@ export default function DashboardPage(){
                   )}
                 </div>
               </div>
-              <div style={{display:'grid',gap:14}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr 1fr',gap:14}}>
                 <div onClick={()=>setPage('departments')} style={{...card(),cursor:'pointer'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:12}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Top departments</span><span style={{fontSize:12,color:t.purple}}>View all →</span></div>
                   {DEPTS.slice(0,5).map(d=>{const b=bc(d.badge);return(
@@ -1055,11 +1277,11 @@ export default function DashboardPage(){
                     <div style={{fontSize:13,fontWeight:500,color:t.text}}>Membership Growth Goals</div>
                     <div style={{fontSize:11,color:t.muted,marginTop:2}}>Current: 1,147 members</div>
                   </div>
-                  <button onClick={()=>setEditGoals(v=>!v)} style={{background:t.purpleBg,color:t.purpleText,border:'none',borderRadius:8,padding:'5px 12px',fontSize:12,cursor:'pointer',fontWeight:500}}>
+                  <button onClick={()=>setEditGoals(v=>!v)} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'5px 12px',fontSize:12,cursor:'pointer',fontWeight:500}}>
                     {editGoals?'Save':'Set Goals'}
                   </button>
                 </div>
-                <div style={{display:'grid',gap:14}}>
+                <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:14}}>
                   {[
                     {label:'Q3 Target (Sep 2026)',key:'q3' as const,color:'#534AB7',bg:'#EEEDFE'},
                     {label:'Year-End Target (Dec 2026)',key:'dec' as const,color:'#1D9E75',bg:'#E1F5EE'},
@@ -1072,7 +1294,7 @@ export default function DashboardPage(){
                         <div style={{fontSize:11,color:g.color,fontWeight:500,marginBottom:6}}>{g.label}</div>
                         {editGoals?(
                           <input type="number" value={goals[g.key]}
-                            onChange={e=>setGoals(v=>({...v,[g.key]:parseInt(e.target.value)||0}))}
+                            onChange={e=>{const updated={...goals,[g.key]:parseInt(e.target.value)||0};setGoals(updated);if(typeof window!=='undefined'){try{localStorage.setItem('shepherd_goals',JSON.stringify(updated));}catch{}}}}
                             style={{fontSize:20,fontWeight:600,color:g.color,background:'transparent',border:'none',borderBottom:`1px solid ${g.color}`,outline:'none',width:'100%',marginBottom:8}}/>
                         ):(
                           <div style={{fontSize:24,fontWeight:600,color:g.color,marginBottom:6}}>{goals[g.key].toLocaleString()}</div>
@@ -1094,230 +1316,38 @@ export default function DashboardPage(){
 
           {/* ══ ATTENDANCE ══ */}
           {page==='attendance'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <div className="range-btns">
-                  {rangeOpts.map(r=>(
-                    <button key={r} onClick={()=>setCellRange(r)}
-                      style={{padding:'5px 12px',borderRadius:20,border:'1px solid',cursor:'pointer',fontSize:12,fontWeight:cellRange===r?500:400,background:cellRange===r?'#534AB7':t.cardInner,borderColor:cellRange===r?'#534AB7':'#E5E7EB',color:cellRange===r?'#fff':t.textSec}}>
-                      {rangeLabel(r)}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={()=>exportCSV(cellTrend(CELLS_DATA[0],cellRange).map(d=>({Week:d.w,Service1:d.v,Service2:Math.floor(d.v*0.63)})),'attendance_export')}
-                  style={{background:t.purpleBg,color:t.purpleText,border:'none',borderRadius:8,padding:'6px 12px',fontSize:12,cursor:'pointer',fontWeight:500}}>⬇ Export CSV</button>
-              </div>
-              <div style={card()}>
-                <div style={{fontSize:13,fontWeight:500,marginBottom:4}}>Overall Attendance Trend</div>
-                <div style={{fontSize:11,color:t.muted,marginBottom:12}}>All fellowships combined · {rangeLabel(cellRange as TimeRange)}</div>
-                <ResponsiveContainer width="100%" height={240}>
-                  <LineChart data={cellTrend(CELLS_DATA[3],cellRange)} margin={{top:5,right:10,left:-20,bottom:0}}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                    <XAxis dataKey="w" tick={{fontSize:10,fill:t.chartAxis,fontFamily:'Inter,sans-serif'}} interval={Math.floor(cellTrend(CELLS_DATA[0],cellRange).length/8)}/>
-                    <YAxis tick={{fontSize:10,fill:t.chartAxis,fontFamily:'Inter,sans-serif'}} domain={['auto','auto']}/>
-                    <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText,border:`1px solid ${t.chartTipBorder}`,boxShadow:dark?'0 8px 32px rgba(0,0,0,0.8)':'0 4px 24px rgba(0,0,0,0.12)',padding:'10px 14px',borderRadius:10,fontSize:12}}/>
-                    <Line type="monotone" dataKey="v" name="Attendance" stroke="#534AB7" strokeWidth={2.5} dot={false}/>
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-              <div style={{display:'grid',gap:12}}>
-                {[{name:'Youth Fellowship',cells:12,avg:347,trend:'+8%',s1:198,s2:124,absent:25},{name:'Women Fellowship',cells:15,avg:289,trend:'+5%',s1:164,s2:103,absent:22},{name:'Men Fellowship',cells:8,avg:198,trend:'+11%',s1:112,s2:71,absent:15}].map(f=>(
-                  <div key={f.name} onClick={()=>setAttDrill(attDrill===f.name?null:f.name)} style={{...card(),cursor:'pointer',border:attDrill===f.name?'0.5px solid #534AB7':`0.5px solid ${t.border}`}}>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                      <div style={{fontSize:11,color:t.sub,marginBottom:4}}>{f.name}</div>
-                      <span style={{fontSize:10,color:'#534AB7'}}>{attDrill===f.name?'▲':'▼'} drill</span>
-                    </div>
-                    <div style={{fontSize:22,fontWeight:500,color:t.text}}>{f.avg}</div>
-                    <div style={{display:'flex',justifyContent:'space-between',marginTop:4}}>
-                      <span style={{fontSize:11,color:t.muted}}>{f.cells} cells</span>
-                      <span style={{fontSize:11,color:'#1D9E75',fontWeight:500}}>{f.trend}</span>
-                    </div>
-                    {attDrill===f.name&&(
-                      <div style={{marginTop:12,paddingTop:10,borderTop:`0.5px solid ${t.navBorder}`}}>
-                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:8}}>
-                          {[{l:'Service 1',v:f.s1},{l:'Service 2',v:f.s2},{l:'Absent',v:f.absent}].map(s=>(
-                            <div key={s.l} style={{background:t.cardInner,borderRadius:6,padding:'6px 8px',textAlign:'center'}}>
-                              <div style={{fontSize:16,fontWeight:500,color:s.l==='Absent'?'#D85A30':'#374151'}}>{s.v}</div>
-                              <div style={{fontSize:10,color:t.muted}}>{s.l}</div>
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{fontSize:11,color:t.sub}}>Click Cell Ministry tab to see per-cell breakdown</div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div style={card()}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>CYDF - Children & Youth Development Fellowship</div>
-                  <span style={{fontSize:11,background:t.purpleBg,color:t.purpleText,padding:'2px 8px',borderRadius:10}}>300 total</span>
-                </div>
-                <div style={{display:'grid',gap:12,marginBottom:12}}>
-                  <div style={{background:t.purpleBg,borderRadius:10,padding:'16px'}}>
-                    <div style={{fontSize:11,color:'#534AB7',marginBottom:6,fontWeight:500}}>Children (Ages 0–12)</div>
-                    <div style={{fontSize:28,fontWeight:600,color:t.text,color:'#3C3489',marginBottom:4}}>180</div>
-                    <div style={{fontSize:11,color:'#7F77DD',marginBottom:8}}>Tracked in demographic profile only</div>
-                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                      {[{label:'Boys',value:94},{label:'Girls',value:86},{label:'Under 5',value:42},{label:'Ages 6–12',value:138}].map(s=>(
-                        <div key={s.label} style={{display:'flex',justifyContent:'space-between',fontSize:11}}>
-                          <span style={{color:'#7F77DD'}}>{s.label}</span>
-                          <span style={{fontWeight:500,color:'#3C3489'}}>{s.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div style={{background:t.tealBg,borderRadius:10,padding:'16px'}}>
-                    <div style={{fontSize:11,color:'#0F6E56',marginBottom:6,fontWeight:500}}>Teenagers (Ages 13–17)</div>
-                    <div style={{fontSize:28,fontWeight:600,color:t.text,color:'#085041',marginBottom:4}}>120</div>
-                    <div style={{fontSize:11,color:'#1D9E75',marginBottom:8}}>Sunday fellowship attendance tracked</div>
-                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                      {[{label:'Male',value:61},{label:'Female',value:59},{label:'Last Sunday',value:98},{label:'Avg Attendance',value:'82%'}].map(s=>(
-                        <div key={s.label} style={{display:'flex',justifyContent:'space-between',fontSize:11}}>
-                          <span style={{color:'#1D9E75'}}>{s.label}</span>
-                          <span style={{fontWeight:500,color:'#085041'}}>{s.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div style={{background:t.cardInner,borderRadius:10,border:`1px solid ${t.border}`,padding:'10px 12px',fontSize:12,color:t.sub}}>
-                  Note: Children are tracked under their parents cell. Teenagers attend the dedicated Sunday Youth Fellowship. Neither group is included in the 1,147 active adult member count.
-                </div>
-              </div>
-              <div style={card()}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>Absentee Report - Last Sunday</div>
-                  <button onClick={()=>exportCSV([{Member:'Bro. Ikenna Obi',Cell:'Peace Cell',Fellowship:'Women',LeaderInformed:'Yes'},{Member:'Sis. Chidinma Eze',Cell:'Tabernacle Cell',Fellowship:'Women',LeaderInformed:'No'}],'absentees_export')}
-                    style={{background:t.purpleBg,color:t.purpleText,border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export</button>
-                </div>
-                <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Member','Cell','Fellowship','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
-                  <tbody>
-                    {[{name:'Bro. Ikenna Obi',cell:'Peace Cell',fel:'Women',inf:'Yes'},{name:'Sis. Chidinma Eze',cell:'Tabernacle Cell',fel:'Women',inf:'No'},{name:'Bro. Uche Nwosu',cell:'Burning Bush Cell',fel:'Youth',inf:'Yes'},{name:'Sis. Ada Okafor',cell:'Graceland Cell',fel:'Women',inf:'No'},{name:'Bro. Emeka Chukwu',cell:'Dominion Cell',fel:'Men',inf:'Yes'}].map(r=>(
-                      <tr key={r.name} style={{borderBottom:`0.5px solid ${t.border}`}}>
-                        <td style={{padding:'8px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{r.name}</td>
-                        <td style={{padding:'8px 8px',color:t.sub}}>{r.cell}</td>
-                        <td style={{padding:'8px 8px',color:t.sub}}>{r.fel}</td>
-                        <td style={{padding:'8px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:r.inf==='Yes'?'#E1F5EE':'#FAECE7',color:r.inf==='Yes'?'#085041':'#993C1D'}}>{r.inf}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* ══ GIVING ══ */}
+            <PastorAttendance dark={dark} t={t} />
+          )}          {/* ══ GIVING ══ */}
           {page==='giving'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <div style={{display:'flex',gap:6}}>
-                  {['6m','1y','2y','5y'].map(r=>(
-                    <button key={r} onClick={()=>setGivingRange(r)}
-                      style={{padding:'5px 12px',borderRadius:20,border:'1px solid',cursor:'pointer',fontSize:12,fontWeight:givingRange===r?500:400,background:givingRange===r?brand:t.input,borderColor:givingRange===r?'#534AB7':'#E5E7EB',color:givingRange===r?'#fff':t.textSec}}>
-                      {r==='6m'?'6 Months':r==='1y'?'1 Year':r==='2y'?'2 Years':'5 Years'}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={()=>exportCSV(givingSlice(givingRange).map(d=>({Period:d.p,Tithe:d.t,Offering:d.o,Special:d.s,Total:d.t+d.o+d.s})),'giving_export')}
-                  style={{background:t.purpleBg,color:t.purpleText,border:'none',borderRadius:8,padding:'6px 12px',fontSize:12,cursor:'pointer',fontWeight:500}}>⬇ Export CSV</button>
-              </div>
-              <div style={card()}>
-                <div style={{fontSize:13,fontWeight:500,marginBottom:4}}>Monthly Giving - The Comforters House Global</div>
-                <div style={{fontSize:11,color:t.muted,marginBottom:8}}>{givingSlice(givingRange).length} months · Tithe, Offering & Special</div>
-                {/* Legend */}
-                <div style={{display:'flex',gap:14,marginBottom:12,flexWrap:'wrap'}}>
-                  {[{color:'#534AB7',label:'Tithe'},{color:'#1D9E75',label:'Offering'},{color:'#BA7517',label:'Special'}].map(l=>(
-                    <div key={l.label} style={{display:'flex',alignItems:'center',gap:5,fontSize:12}}>
-                      <div style={{width:10,height:10,borderRadius:2,background:l.color,flexShrink:0}}/>
-                      <span style={{color:dark?'#E5E7EB':'#374151'}}>{l.label}</span>
-                    </div>
-                  ))}
-                </div>
-                {/* Scrollable chart container on mobile */}
-                <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch' as const,width:'100%',background:t.card}}>
-                  <div style={{minWidth: givingSlice(givingRange).length > 6 ? Math.max(givingSlice(givingRange).length * 52, 320) : '100%'}}>
-                    <BarChart width={Math.max(givingSlice(givingRange).length * 52, isMobile?320:600)} height={240} data={givingSlice(givingRange)} margin={{top:5,right:10,left:10,bottom:0}}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                      <XAxis dataKey="p" tick={{fontSize:10,fill:t.chartAxis,fontFamily:'Inter,sans-serif'}} interval={0} angle={givingSlice(givingRange).length>8?-35:0} textAnchor={givingSlice(givingRange).length>8?'end':'middle'} height={givingSlice(givingRange).length>8?40:20}/>
-                      <YAxis tick={{fontSize:10,fill:t.chartAxis,fontFamily:'Inter,sans-serif'}} tickFormatter={v=>`₦${(v/1000000).toFixed(1)}M`} width={45}/>
-                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText,border:`1px solid ${t.chartTipBorder}`,boxShadow:dark?'0 8px 32px rgba(0,0,0,0.8)':'0 4px 24px rgba(0,0,0,0.12)',padding:'10px 14px',borderRadius:10,fontSize:12}} formatter={(v:number,n:string)=>[fmtNGN(v),n==='t'?'Tithe':n==='o'?'Offering':'Special']}/>
-                      <Bar dataKey="t" name="Tithe" fill="#534AB7" radius={[5,5,0,0]}/>
-                      <Bar dataKey="o" name="Offering" fill="#1D9E75" radius={[5,5,0,0]}/>
-                      <Bar dataKey="s" name="Special" fill="#BA7517" radius={[5,5,0,0]}/>
-                    </BarChart>
-                  </div>
-                </div>
-                <div style={{fontSize:10,color:t.muted,textAlign:'center',marginTop:4}}>← Swipe to see more →</div>
-              </div>
-              <div style={{display:'grid',gap:10}}>
-                {[{label:'YTD Tithe',value:'₦7.82M'},{label:'YTD Offering',value:'₦5.56M'},{label:'YTD Special',value:'₦613k'},{label:'Per Member (avg)',value:'₦12.2k'},{label:'Best Month',value:'Dec 2025'},{label:'5-Year Growth',value:'+129%'},{label:'Tithe %',value:'75%'},{label:'Dec 25 Peak',value:'₦3.75M'}].map(s=>(
-                  <div key={s.label} style={card({padding:'10px 12px'})}>
-                    <div style={{fontSize:10,color:t.sub,marginBottom:3}}>{s.label}</div>
-                    <div style={{fontSize:16,fontWeight:600,color:t.text}}>{s.value}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={card()}>
-                <div style={{fontSize:13,fontWeight:500,marginBottom:16}}>Giving Breakdown by Type</div>
-                <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:16}}>
-                  <PieChart width={220} height={220}>
-                    <Pie data={GIVING_PIE} cx={105} cy={105} outerRadius={90} innerRadius={40} dataKey="value" stroke="none">
-                      {GIVING_PIE.map((e,i)=><Cell key={i} fill={e.color}/>)}
-                    </Pie>
-                    <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText,border:`1px solid ${t.chartTipBorder}`,boxShadow:dark?'0 8px 32px rgba(0,0,0,0.8)':'0 4px 24px rgba(0,0,0,0.12)',padding:'10px 14px',borderRadius:10,fontSize:12}} formatter={(v:number,n:string)=>[`${v}%`,n]}/>
-                  </PieChart>
-                  <div style={{width:'100%'}}>
-                    {GIVING_PIE.map(g=>(
-                      <div key={g.name} style={{marginBottom:12}}>
-                        <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:4}}>
-                          <div style={{display:'flex',alignItems:'center',gap:8}}>
-                            <div style={{width:12,height:12,borderRadius:3,background:g.color,flexShrink:0}}/>
-                            <span style={{color:dark?'#E5E7EB':'#374151',fontWeight:500}}>{g.name}</span>
-                          </div>
-                          <span style={{color:dark?'#E5E7EB':'#374151',fontWeight:600}}>{g.value}%</span>
-                        </div>
-                        <div style={{height:8,background:dark?'#1A1740':'#F3F4F6',borderRadius:4,overflow:'hidden'}}>
-                          <div style={{height:'100%',width:`${g.value}%`,background:g.color,borderRadius:4}}/>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <PastorGiving dark={dark} t={t} />
           )}
-
           {/* ══ MEMBERS ══ */}
           {page==='members'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
                 {[
-                  {label:'Total Members',value:'1,147',sub:'All statuses',color:dark?'#A89FFF':'#534AB7',bg:dark?'rgba(168,159,255,0.12)':'rgba(83,74,183,0.07)'},
-                  {label:'Active Members',value:'1,089',sub:'Regularly attending',color:dark?'#2DD4AA':'#1D9E75',bg:dark?'rgba(45,212,170,0.12)':'rgba(29,158,117,0.07)'},
-                  {label:'New This Month',value:'23',sub:'June 2026',color:dark?'#FCD34D':'#BA7517',bg:dark?'rgba(252,211,77,0.12)':'rgba(186,117,23,0.07)'},
-                  {label:'CYDF Combined',value:'300',sub:'180 children · 120 teens',color:dark?'#F87171':'#D85A30',bg:dark?'rgba(248,113,113,0.12)':'rgba(216,90,48,0.07)'},
+                  {label:'Total Members',value:'1,147',sub:'All statuses'},
+                  {label:'Active Members',value:'1,089',sub:'Regularly attending'},
+                  {label:'New This Month',value:'23',sub:'June 2026'},
+                  {label:'CYDF Combined',value:'300',sub:'180 children · 120 teens'},
                 ].map(s=>(
-                  <div key={s.label} style={{...card({padding:'18px 20px'}),background:s.bg,border:`0.5px solid ${dark?'rgba(255,255,255,0.06)':'rgba(83,74,183,0.08)'}`}}>
-                    <div style={{fontSize:10,color:s.color,opacity:0.8,fontWeight:600,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:10}}>{s.label}</div>
-                    <div style={{fontSize:28,fontWeight:700,color:t.text,lineHeight:1,marginBottom:6}}>{s.value}</div>
-                    <div style={{fontSize:11,color:s.color,fontWeight:500}}>{s.sub}</div>
+                  <div key={s.label} style={card()}>
+                    <div style={{fontSize:11,color:t.sub,marginBottom:4}}>{s.label}</div>
+                    <div style={{fontSize:22,fontWeight:500,color:t.text}}>{s.value}</div>
+                    <div style={{fontSize:11,color:t.muted,marginTop:2}}>{s.sub}</div>
                   </div>
                 ))}
               </div>
-              <div style={{display:'grid',gap:14}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:14}}>
                 <div style={card()}>
                   <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Member Growth - 2026</div>
                   <ResponsiveContainer width="100%" height={160}>
-                    <AreaChart data={[{m:'Jan',n:1040},{m:'Feb',n:1058},{m:'Mar',n:1075},{m:'Apr',n:1098},{m:'May',n:1124},{m:'Jun',n:1147}]} margin={{top:5,right:10,left:-20,bottom:0}}>
-                      <defs><linearGradient id="mgGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#534AB7" stopOpacity={0.25}/><stop offset="95%" stopColor="#534AB7" stopOpacity={0}/></linearGradient></defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke={t.chartGrid} vertical={false}/>
-                      <XAxis dataKey="m" tick={{fontSize:11,fill:t.chartAxis,fontFamily:'Inter,sans-serif'}} tickLine={false} axisLine={false}/>
-                      <YAxis tick={{fontSize:10,fill:t.chartAxis,fontFamily:'Inter,sans-serif'}} domain={[1000,1200]} tickLine={false} axisLine={false}/>
-                      <Tooltip contentStyle={{background:t.chartTip,border:`0.5px solid ${t.chartTipBorder}`,borderRadius:12,fontSize:12,color:t.chartTipText,boxShadow:'0 8px 24px rgba(0,0,0,0.12)',padding:'10px 14px'}}/>
-                      <Area type="monotone" dataKey="n" name="Members" stroke="#534AB7" strokeWidth={2.5} fill="url(#mgGrad)" dot={false} activeDot={{r:5,fill:'#534AB7',stroke:'#fff',strokeWidth:2}}/>
-                    </AreaChart>
+                    <LineChart data={[{m:'Jan',n:1040},{m:'Feb',n:1058},{m:'Mar',n:1075},{m:'Apr',n:1098},{m:'May',n:1124},{m:'Jun',n:1147}]} margin={{top:5,right:10,left:-20,bottom:0}}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+                      <XAxis dataKey="m" tick={{fontSize:11,fill:t.chartAxis}}/><YAxis tick={{fontSize:10,fill:t.chartAxis}} domain={[1000,1200]}/>
+                      <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}}/>
+                      <Line type="monotone" dataKey="n" name="Members" stroke="#534AB7" strokeWidth={2} dot={{fill:'#534AB7',r:3}}/>
+                    </LineChart>
                   </ResponsiveContainer>
                 </div>
                 <div style={card()}>
@@ -1332,7 +1362,7 @@ export default function DashboardPage(){
                   ))}
                 </div>
               </div>
-              <div style={{display:'grid',gap:14}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:14}}>
                 <div style={card()}>
                   <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Gender Distribution</div>
                   <div style={{display:'flex',alignItems:'center',gap:16}}>
@@ -1365,7 +1395,7 @@ export default function DashboardPage(){
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
                   <div style={{fontSize:13,fontWeight:500,color:t.text}}>Recent Additions</div>
-                  <button onClick={()=>exportCSV(NEW_MEMBERS,'new_members_export')} style={{background:t.purpleBg,color:t.purpleText,border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export CSV</button>
+                  <button onClick={()=>exportCSV(NEW_MEMBERS,'new_members_export')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export CSV</button>
                 </div>
                 <div style={{overflowX:'auto'}}>
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
@@ -1388,22 +1418,25 @@ export default function DashboardPage(){
                 </div>
               </div>
 
+              {/* Member Approval Panel - M1 */}
+              <MemberApprovalPanel t={t} dark={dark} />
+
               {/* Full Member Database */}
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
                   <div style={{fontSize:13,fontWeight:500,color:t.text}}>Full Member Database — 1,147 members</div>
-                  <button onClick={()=>exportCSV(ALL_MEMBERS,'full_member_database')} style={{background:t.purpleBg,color:t.purpleText,border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export All</button>
+                  <button onClick={()=>exportCSV(ALL_MEMBERS,'full_member_database')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export All</button>
                 </div>
                 <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
                   <input value={memberSearch} onChange={e=>setMemberSearch(e.target.value)} placeholder="Search by name..." style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 10px',fontSize:12,outline:'none',flex:1,minWidth:160,background:t.input,color:t.text}}/>
                   {['all','Youth','Women','Men','Active','Inactive'].map(f=>(
                     <button key={f} onClick={()=>setMemberFilter(f)}
-                      style={{padding:'5px 10px',borderRadius:20,border:'1px solid',cursor:'pointer',fontSize:11,fontWeight:memberFilter===f?500:400,background:memberFilter===f?'#534AB7':t.cardInner,borderColor:memberFilter===f?'#534AB7':'#E5E7EB',color:memberFilter===f?'#fff':'#6B7280'}}>
+                      style={{padding:'5px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:memberFilter===f?500:400,background:memberFilter===f?'#534AB7':t.cardInner,borderColor:memberFilter===f?'#534AB7':'#E5E7EB',color:memberFilter===f?'#fff':'#6B7280'}}>
                       {f==='all'?'All':f}
                     </button>
                   ))}
                 </div>
-                <div style={{overflowX:'auto',maxHeight:isMobile?320:400,overflowY:'auto',WebkitOverflowScrolling:'touch' as const}}>
+                <div style={{overflowX:'auto',maxHeight:400,overflowY:'auto'}}>
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
                     <thead style={{position:'sticky',top:0,background:t.card}}>
                       <tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>
@@ -1453,7 +1486,7 @@ export default function DashboardPage(){
                       <td style={{padding:'10px 10px',color:t.sub}}>{d.cat}</td>
                       <td style={{padding:'10px 10px',color:dark?'#E5E7EB':'#374151'}}>{d.leader}</td>
                       <td style={{padding:'10px 10px',color:dark?'#E5E7EB':'#374151'}}>{d.count}</td>
-                      <td style={{padding:'10px 10px'}}>{d.absent>0?<span style={{background:t.coralBg,color:t.coralText,fontSize:11,padding:'2px 8px',borderRadius:10}}>{d.absent} absent</span>:<span style={{background:t.tealBg,color:t.tealText,fontSize:11,padding:'2px 8px',borderRadius:10}}>Full attendance</span>}</td>
+                      <td style={{padding:'10px 10px'}}>{d.absent>0?<span style={{background:'#FAECE7',color:'#993C1D',fontSize:11,padding:'2px 8px',borderRadius:10}}>{d.absent} absent</span>:<span style={{background:'#E1F5EE',color:'#085041',fontSize:11,padding:'2px 8px',borderRadius:10}}>Full attendance</span>}</td>
                       <td style={{padding:'10px 10px'}}><span style={{background:b.bg,color:b.c,fontSize:11,padding:'2px 8px',borderRadius:10}}>Active</span></td>
                     </tr>
                   );})}
@@ -1463,13 +1496,13 @@ export default function DashboardPage(){
           )}
           {page==='departments'&&selectedDept&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <button onClick={()=>setSelectedDept(null)} style={{alignSelf:'flex-start',background:t.purpleBg,color:t.purpleText,border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to Departments</button>
+              <button onClick={()=>setSelectedDept(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to Departments</button>
               <div style={card()}>
                 <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:2}}>{selectedDept.name}</div>
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Category: {selectedDept.cat} · Leader: {selectedDept.leader} · {selectedDept.count} total members · {selectedDept.absent} absent last Sunday</div>
-                <div style={{display:'grid',gap:10,marginBottom:16}}>
+                <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:10,marginBottom:16}}>
                   {[{label:'Total Members',value:selectedDept.count},{label:'Present Last Sunday',value:selectedDept.count-selectedDept.absent},{label:'Absent',value:selectedDept.absent}].map(s=>(
-                    <div key={s.label} style={{background:t.cardInner,borderRadius:10,border:`1px solid ${t.border}`,padding:'10px 12px'}}><div style={{fontSize:10,color:t.sub,marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500,color:t.text}}>{s.value}</div></div>
+                    <div key={s.label} style={{background:t.cardInner,borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,color:t.sub,marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500,color:t.text}}>{s.value}</div></div>
                   ))}
                 </div>
                 <div style={{fontSize:12,fontWeight:500,color:dark?'#E5E7EB':'#374151',marginBottom:8}}>Full Member Roster — {selectedDept.count} members</div>
@@ -1499,37 +1532,21 @@ export default function DashboardPage(){
           {/* ══ CELLS ══ */}
           {page==='cells'&&!selectedCell&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-                <div>
-                  <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>{churchStruct.tier2} Ministry</div>
-                  <div style={{fontSize:12,color:t.muted,marginTop:2}}>{churchStruct.structureType==='cell_church'?'Cell-based structure':churchStruct.structureType==='zonal'?'Zonal structure':churchStruct.structureType==='campus'?'Multi-campus structure':churchStruct.structureType==='department'?'Department-based structure':'Church structure'} · Led by {churchStruct.tier2Head}s</div>
-                </div>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
-                {[
-                  {label:'Total Active Cells',value:String((dbCells||CELLS_DATA).length),color:t.purple,bg:t.purpleBg},
-                  {label:'Rising',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='rising').length),color:'#1D9E75',bg:'#E1F5EE'},
-                  {label:'Need Attention',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='alert'||c.status==='watch').length),color:'#D85A30',bg:'#FAECE7'},
-                  {label:'Avg Attendance',value:'78%',color:'#BA7517',bg:'#FAEEDA'},
-                ].map(s=>(
-                  <div key={s.label} style={{...card({padding:'16px 18px'}),background:s.bg,cursor:'pointer'}}
-                    onMouseEnter={e=>e.currentTarget.style.transform='translateY(-1px)'}
-                    onMouseLeave={e=>e.currentTarget.style.transform='none'}>
-                    <div style={{fontSize:11,color:s.color,marginBottom:6,fontWeight:500,textTransform:'uppercase' as const,letterSpacing:'0.04em'}}>{s.label}</div>
-                    <div style={{fontSize:28,fontWeight:700,color:s.color,lineHeight:1}}>{s.value}</div>
-                  </div>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
+                {[{label:'Total Active Cells',value:String((dbCells||CELLS_DATA).length)},{label:'Rising',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='rising').length)},{label:'Need Attention',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='alert'||c.status==='watch').length)},{label:'Avg Attendance Rate',value:'78%'}].map(s=>(
+                  <div key={s.label} style={card({padding:'10px 12px'})}><div style={{fontSize:11,color:t.sub,marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500,color:t.text}}>{s.value}</div></div>
                 ))}
               </div>
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
                   <div style={{fontSize:13,fontWeight:500,color:t.text}}>All 35 Cells - click any cell to drill down</div>
                   <button onClick={()=>exportCSV((dbCells||CELLS_DATA).map(c=>({Cell:c.cell,Fellowship:c.fel,Leader:c.leader,Members:c.members,AvgAttendance:c.avg,Rate:`${c.rate}%`,Trend:c.trend,Status:c.status})),'cells_export')}
-                    style={{background:t.purpleBg,color:t.purpleText,border:'none',borderRadius:8,padding:'5px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export CSV</button>
+                    style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'5px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export CSV</button>
                 </div>
-                <div style={{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap' as const}}>
+                <div style={{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'}}>
                   {[{key:'all',label:'All 35'},{key:'rising',label:'Rising'},{key:'stable',label:'Stable'},{key:'watch',label:'Watch'},{key:'alert',label:'Intervention'},{key:'Youth',label:'Youth'},{key:'Women',label:'Women'},{key:'Men',label:'Men'}].map(f=>(
                     <button key={f.key} onClick={()=>setCellFilter(f.key)}
-                      style={{padding:'4px 10px',borderRadius:20,border:'1px solid',cursor:'pointer',fontSize:11,fontWeight:cellFilter===f.key?500:400,
+                      style={{padding:'4px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:cellFilter===f.key?500:400,
                         background:cellFilter===f.key?(f.key==='alert'?'#FAECE7':f.key==='watch'?'#FAEEDA':f.key==='rising'?'#E1F5EE':'#EEEDFE'):'transparent',
                         borderColor:cellFilter===f.key?(f.key==='alert'?'#D85A30':f.key==='watch'?'#BA7517':f.key==='rising'?'#1D9E75':'#534AB7'):'#E5E7EB',
                         color:cellFilter===f.key?(f.key==='alert'?'#993C1D':f.key==='watch'?'#633806':f.key==='rising'?'#085041':'#3C3489'):'#6B7280'}}>
@@ -1564,28 +1581,28 @@ export default function DashboardPage(){
           )}
           {page==='cells'&&selectedCell&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <button onClick={()=>setSelectedCell(null)} style={{alignSelf:'flex-start',background:t.purpleBg,color:t.purpleText,border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to Cells</button>
+              <button onClick={()=>setSelectedCell(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to Cells</button>
               <div style={card()}>
                 <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:2}}>{selectedCell.cell}</div>
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} Fellowship · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
-                {!selectedCell.members_list&&<div style={{fontSize:12,color:t.muted,marginBottom:12,padding:'8px 12px',background:t.cardInner,borderRadius:10,border:`1px solid ${t.border}`}}>Connect live database to see individual member roster for this cell.</div>}
+                {!selectedCell.members_list&&<div style={{fontSize:12,color:t.muted,marginBottom:12,padding:'8px 12px',background:t.cardInner,borderRadius:8}}>Connect live database to see individual member roster for this cell.</div>}
                 <div style={{display:'flex',gap:6,marginBottom:14}}>
                   {rangeOpts.map(r=>(
                     <button key={r} onClick={()=>setCellRange(r)}
-                      style={{padding:'4px 10px',borderRadius:20,border:'1px solid',cursor:'pointer',fontSize:11,fontWeight:cellRange===r?500:400,background:cellRange===r?'#534AB7':t.cardInner,borderColor:cellRange===r?'#534AB7':'#E5E7EB',color:cellRange===r?'#fff':t.textSec}}>
+                      style={{padding:'4px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:cellRange===r?500:400,background:cellRange===r?'#534AB7':t.cardInner,borderColor:cellRange===r?'#534AB7':'#E5E7EB',color:cellRange===r?'#fff':t.sub}}>
                       {rangeLabel(r)}
                     </button>
                   ))}
                 </div>
-                <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch' as const,width:'100%',background:t.card}}>
+                <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch',background:t.card}}>
                   <ResponsiveContainer width="100%" height={200} minWidth={300}>
                     <LineChart data={cellTrend(selectedCell,cellRange)} margin={{top:5,right:10,left:-20,bottom:0}}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                      <XAxis dataKey="w" tick={{fontSize:10,fill:t.chartAxis,fontFamily:'Inter,sans-serif'}} interval={Math.floor(cellTrend(selectedCell,cellRange).length/6)}/>
-                      <YAxis tick={{fontSize:10,fill:t.chartAxis,fontFamily:'Inter,sans-serif'}} domain={[0,'auto']} width={32}/>
-                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText,border:`1px solid ${t.chartTipBorder}`,boxShadow:dark?'0 8px 32px rgba(0,0,0,0.8)':'0 4px 24px rgba(0,0,0,0.12)',padding:'10px 14px',borderRadius:10,fontSize:12}}/>
-                      <Line type="monotone" dataKey="v" name="Attendance" stroke={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'} strokeWidth={2.5} dot={false}/>
-                    </AreaChart>
+                      <XAxis dataKey="w" tick={{fontSize:9,fill:t.chartAxis}} interval={Math.floor(cellTrend(selectedCell,cellRange).length/6)}/>
+                      <YAxis tick={{fontSize:9,fill:t.chartAxis}} domain={[0,'auto']} width={32}/>
+                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}}/>
+                      <Line type="monotone" dataKey="v" name="Attendance" stroke={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'} strokeWidth={2} dot={false}/>
+                    </LineChart>
                   </ResponsiveContainer>
                 </div>
               </div>
@@ -1593,7 +1610,7 @@ export default function DashboardPage(){
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
                   <div style={{fontSize:13,fontWeight:500,color:t.text}}>Cell Members - Last Sunday Attendance</div>
                   <button onClick={()=>exportCSV((selectedCell.members_list||[]).map((n,i)=>({Name:n,Status:i<selectedCell.avg?'Present':'Absent',LeaderInformed:i>=selectedCell.avg?(i%2===0?'Yes':'No'):'N/A'})),`${selectedCell.cell.replace(/ /g,'_')}_members`)}
-                    style={{background:t.purpleBg,color:t.purpleText,border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export</button>
+                    style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export</button>
                 </div>
                 <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
                   <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Last Sunday','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
@@ -1648,7 +1665,7 @@ export default function DashboardPage(){
                 <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
                   {['Monthly attendance report for June 2026','YTD giving analysis and projections','Cell performance review with intervention recommendations','Membership growth analysis and conversion trends','Plan a realistic membership budget for all 35 cells based on current trends','Which 3 cells need immediate pastoral intervention and why?'].map(q=>(
                     <button key={q} onClick={()=>{setChatOpen(true);setChatInput(q);}}
-                      style={{background:t.purpleBg,color:t.purpleText,border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,cursor:'pointer',fontWeight:500,textAlign:'left'}}>
+                      style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,cursor:'pointer',fontWeight:500,textAlign:'left'}}>
                       {q}
                     </button>
                   ))}
@@ -1666,99 +1683,244 @@ export default function DashboardPage(){
             </div>
           )}
 
-          {page==='settings'&&(<ChurchSettingsPanel t={t} dark={dark}/>)}
-          {page==='subscription'&&(<SubscriptionPanel t={t} dark={dark}/>)}
-          {page==='admin'&&(<AdminRedirect/>)}
-          {page==='service_planner'&&(<ServicePlannerPage t={t} dark={dark} screenWidth={screenWidth||1280}/>)}
-          {page==='events'&&(<EventsPage t={t} dark={dark} screenWidth={screenWidth||1280}/>)}
-          {page==='workforce'&&(<WorkforceIntelligencePage t={t} dark={dark} screenWidth={screenWidth||1280}/>)}
           {page==='recognition'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:16}}>
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              {/* Header */}
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <div><div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Recognition Centre</div>
-                <div style={{fontSize:12,color:t.muted,marginTop:2}}>Leaderboard, badges, performance tiers and commendations</div></div>
+                <div>
+                  <div style={{fontSize:15,fontWeight:700,color:t.text}}>Recognition Centre</div>
+                  <div style={{fontSize:12,color:t.muted,marginTop:2}}>SLA performance, badges and leaderboards — updated every Monday</div>
+                </div>
+                <button onClick={() => setShowAlertOnly((v:boolean)=>!v)}
+                  style={{background: showAlertOnly ? '#993C1D' : '#FAECE7',color: showAlertOnly ? '#fff' : '#993C1D',border:'0.5px solid rgba(216,90,48,0.2)',borderRadius:8,padding:'7px 14px',fontSize:12,cursor:'pointer',fontWeight:600}}>
+                  {showAlertOnly ? '✕ All leaders' : '⚠ Needs Attention'}
+                </button>
               </div>
-              {/* Performance Tiers */}
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
-                {[{tier:'Platinum',icon:'🏆',count:2,color:'#7B61FF',bg:'#EEF0FF',req:'95%+ attendance, 3+ months'},
-                  {tier:'Gold',icon:'⭐',count:7,color:'#BA7517',bg:'#FAEEDA',req:'85-94% attendance'},
-                  {tier:'Silver',icon:'🥈',count:18,color:'#6B7280',bg:'#F3F4F6',req:'75-84% attendance'},
-                  {tier:'Bronze',icon:'🥉',count:8,color:'#D85A30',bg:'#FAECE7',req:'Below 75%'},
-                ].map(tier=>(
-                  <div key={tier.tier} style={{background:tier.bg,borderRadius:12,padding:'16px',border:`0.5px solid rgba(0,0,0,0.06)`}}>
-                    <div style={{fontSize:22,marginBottom:6}}>{tier.icon}</div>
-                    <div style={{fontSize:22,fontWeight:700,color:tier.color}}>{tier.count}</div>
-                    <div style={{fontSize:12,fontWeight:600,color:tier.color}}>{tier.tier}</div>
-                    <div style={{fontSize:10,color:tier.color,opacity:0.7,marginTop:2}}>{tier.req}</div>
-                  </div>
-                ))}
-              </div>
-              {/* Leaderboard + Commend */}
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-                <div style={card({padding:0,overflow:'hidden'})}>
-                  <div style={{padding:'14px 18px',borderBottom:`0.5px solid ${t.border}`,fontSize:13,fontWeight:600,color:t.text}}>Cell Leader Leaderboard</div>
+
+              {/* Performance tiers legend */}
+              <div style={{...card(),padding:'12px 16px'}}>
+                <div style={{fontSize:11,fontWeight:600,color:t.muted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:10}}>Performance tiers</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
                   {[
-                    {rank:1,name:'Bro. Emeka Okafor',cell:'Glory House Cell',score:97,badge:'🏆',trend:'+18%'},
-                    {rank:2,name:'Sis. Chioma Uzoma',cell:'Zion Cell',score:94,badge:'⭐',trend:'+7%'},
-                    {rank:3,name:'Bro. Tunde Adeleke',cell:'Power House Cell',score:91,badge:'⭐',trend:'+12%'},
-                    {rank:4,name:'Sis. Adaeze Nwosu',cell:'Covenant Cell',score:88,badge:'⭐',trend:'+5%'},
-                    {rank:5,name:'Bro. Felix Okeke',cell:'Victory Cell',score:85,badge:'🥈',trend:'+3%'},
-                    {rank:6,name:'Sis. Funmi Adeyemi',cell:'Grace Cell',score:82,badge:'🥈',trend:'+2%'},
-                  ].map((leader,i)=>(
-                    <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 18px',borderBottom:i<5?`0.5px solid ${t.border}`:'none'}}>
-                      <div style={{width:24,height:24,borderRadius:'50%',background:leader.rank<=3?'#FAEEDA':t.input,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:leader.rank<=3?'#BA7517':t.muted,flexShrink:0}}>{leader.rank}</div>
-                      <div style={{flex:1}}>
-                        <div style={{fontSize:13,fontWeight:500,color:t.text}}>{leader.name}</div>
-                        <div style={{fontSize:11,color:t.muted}}>{leader.cell}</div>
+                    {tier:'Crown of Excellence',range:'95–100%',bg:'#FAEEDA',c:'#633806'},
+                    {tier:'Elite Shepherd',range:'90–94%',bg:'#EEEDFE',c:'#3C3489'},
+                    {tier:'Faithful Steward',range:'75–89%',bg:'#E1F5EE',c:'#085041'},
+                    {tier:'Consistent Servant',range:'60–74%',bg:'#F3F4F6',c:'#374151'},
+                    {tier:'Needs Improvement',range:'45–59%',bg:'#FAEEDA',c:'#993C1D'},
+                    {tier:'Requires Pastoral Review',range:'Below 45%',bg:'#FAECE7',c:'#993C1D'},
+                  ].map(t2=>(
+                    <div key={t2.tier} style={{background:t2.bg,borderRadius:8,padding:'6px 12px',fontSize:11}}>
+                      <span style={{color:t2.c,fontWeight:600}}>{t2.tier}</span>
+                      <span style={{color:t2.c,opacity:0.7,marginLeft:6}}>{t2.range}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Top Cell Leaders */}
+              <div style={card()}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Top Cell Leaders</div>
+                <div style={{overflowX:'auto'}}>
+                  <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                    <thead>
+                      <tr style={{borderBottom:`0.5px solid ${t.border}`}}>
+                        {['Rank','Leader','Cell','Fellowship','SLA Score','Attendance','Growth','Accuracy','Overall','Tier','Badges'].map(h=>(
+                          <th key={h} style={{textAlign:'left',padding:'8px 10px',fontSize:10,color:t.muted,fontWeight:500,textTransform:'uppercase',letterSpacing:'0.4px',whiteSpace:'nowrap'}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(showAlertOnly
+                        ? CELLS_DATA.filter(c=>c.status==='alert'||c.status==='watch')
+                        : [...CELLS_DATA].sort((a,b)=>{
+                            const score=(x:typeof CELLS_DATA[0])=>x.status==='rising'?92:x.status==='stable'?78:x.status==='watch'?55:35;
+                            return score(b)-score(a);
+                          }).slice(0,15)
+                      ).map((c,i)=>{
+                        const slaScore=c.status==='rising'?92:c.status==='stable'?78:c.status==='watch'?61:45;
+                        const tier=slaScore>=95?'Crown of Excellence':slaScore>=90?'Elite Shepherd':slaScore>=75?'Faithful Steward':slaScore>=60?'Consistent Servant':'Needs Improvement';
+                        const tierColor=slaScore>=90?{bg:'#EEEDFE',c:'#3C3489'}:slaScore>=75?{bg:'#E1F5EE',c:'#085041'}:slaScore>=60?{bg:'#F3F4F6',c:'#374151'}:{bg:'#FAEEDA',c:'#993C1D'};
+                        return(
+                          <tr key={c.cell} style={{borderBottom:`0.5px solid ${t.border}`}}>
+                            <td style={{padding:'10px 10px',fontWeight:700,color:i===0?'#BA7517':i===1?t.muted:t.sub}}>{i+1}</td>
+                            <td style={{padding:'10px 10px',fontWeight:500,color:t.text,whiteSpace:'nowrap'}}>{c.leader}</td>
+                            <td style={{padding:'10px 10px',color:t.sub,whiteSpace:'nowrap'}}>{c.cell}</td>
+                            <td style={{padding:'10px 10px',color:t.sub}}>{c.fel}</td>
+                            <td style={{padding:'10px 10px',fontWeight:600,color:slaScore>=75?t.teal:t.coral}}>{slaScore}%</td>
+                            <td style={{padding:'10px 10px',color:t.text}}>{c.rate}%</td>
+                            <td style={{padding:'10px 10px',color:c.trend.startsWith('+')?t.teal:t.coral,fontWeight:500}}>{c.trend}</td>
+                            <td style={{padding:'10px 10px',color:t.teal}}>98%</td>
+                            <td style={{padding:'10px 10px',fontWeight:700,color:slaScore>=75?t.teal:t.coral}}>{Math.round((slaScore*0.4)+(c.rate*0.3)+(80*0.2)+(98*0.1))}%</td>
+                            <td style={{padding:'10px 10px'}}><span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:tierColor.bg,color:tierColor.c,fontWeight:500,whiteSpace:'nowrap'}}>{tier}</span></td>
+                            <td style={{padding:'10px 10px'}}>
+                              <div style={{display:'flex',gap:4}}>
+                                {slaScore>=90&&<span title="Unbroken — 12 consecutive on-time" style={{fontSize:14}}>🏆</span>}
+                                {c.rate>=85&&<span title="Fellowship Excellence" style={{fontSize:14}}>⭐</span>}
+                                {c.trend.startsWith('+')&&parseInt(c.trend)>=10&&<span title="Soul Winner" style={{fontSize:14}}>🌱</span>}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Top Fellowship Heads */}
+              <div style={card()}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Fellowship Heads</div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
+                  {[
+                    {name:'Youth Fellowship',score:88,attendance:82,growth:'+12%',sla:'A',tier:'Faithful Steward',tierBg:'#E1F5EE',tierC:'#085041'},
+                    {name:'Women Fellowship',score:79,attendance:76,growth:'+7%',sla:'A+',tier:'Faithful Steward',tierBg:'#E1F5EE',tierC:'#085041'},
+                    {name:'Men Fellowship',score:71,attendance:74,growth:'+5%',sla:'B',tier:'Consistent Servant',tierBg:'#F3F4F6',tierC:'#374151'},
+                  ].map(f=>(
+                    <div key={f.name} style={{background:t.cardInner,borderRadius:10,padding:'14px 16px',border:`0.5px solid ${t.border}`}}>
+                      <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:8}}>{f.name}</div>
+                      <div style={{fontSize:26,fontWeight:700,color:f.score>=80?t.teal:t.amber,marginBottom:4}}>{f.score}%</div>
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:8}}>
+                        <span style={{color:t.muted}}>Attendance: {f.attendance}%</span>
+                        <span style={{color:t.teal,fontWeight:500}}>{f.growth}</span>
                       </div>
-                      <span style={{fontSize:14}}>{leader.badge}</span>
-                      <div style={{textAlign:'right' as const}}>
-                        <div style={{fontSize:14,fontWeight:700,color:t.purple}}>{leader.score}</div>
-                        <div style={{fontSize:10,color:'#1D9E75'}}>{leader.trend}</div>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                        <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:f.tierBg,color:f.tierC,fontWeight:500}}>{f.tier}</span>
+                        <span style={{fontSize:12,fontWeight:700,color:f.score>=80?t.teal:t.amber}}>SLA: {f.sla}</span>
                       </div>
                     </div>
                   ))}
                 </div>
-                <div style={{display:'flex',flexDirection:'column',gap:12}}>
-                  {/* Needs improvement */}
-                  <div style={card({padding:0,overflow:'hidden'})}>
-                    <div style={{padding:'12px 16px',borderBottom:`0.5px solid ${t.border}`,fontSize:13,fontWeight:600,color:'#D85A30'}}>Needs Improvement</div>
-                    {[
-                      {name:'Bro. Moses Eze',cell:'Dominion Cell',rate:'54%',weeks:3},
-                      {name:'Bro. Elijah Adeleke',cell:'Fortress Cell',rate:'50%',weeks:4},
-                    ].map((l,i)=>(
-                      <div key={i} style={{padding:'10px 16px',borderBottom:i===0?`0.5px solid ${t.border}`:'none',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                        <div><div style={{fontSize:12,fontWeight:500,color:t.text}}>{l.name}</div><div style={{fontSize:10,color:t.muted}}>{l.cell} · {l.weeks} weeks below target</div></div>
-                        <span style={{fontSize:12,fontWeight:700,color:'#D85A30'}}>{l.rate}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Send commendation */}
-                  <CommendLeadersPanel t={t} dark={dark}/>
+              </div>
+
+              {/* Badge showcase */}
+              <div style={card()}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Badge System</div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
+                  {[
+                    {icon:'⏰',name:'On Time',desc:'4 consecutive on-time submissions',cat:'Promptness'},
+                    {icon:'🕐',name:'Clockwork',desc:'8 consecutive on-time submissions',cat:'Promptness'},
+                    {icon:'⚡',name:'Unbroken',desc:'12 consecutive on-time — full quarter',cat:'Promptness'},
+                    {icon:'🏆',name:'Legendary',desc:'52 consecutive on-time — full year',cat:'Promptness'},
+                    {icon:'👁',name:'Sharp Eye',desc:'Zero disputed submissions in a month',cat:'Accuracy'},
+                    {icon:'💎',name:'Crystal Clear',desc:'Zero disputes for a full quarter',cat:'Accuracy'},
+                    {icon:'🛡',name:'Ironclad',desc:'Zero disputes pilot to year end',cat:'Accuracy'},
+                    {icon:'🌱',name:'First Harvest',desc:'First new convert in your cell',cat:'Growth'},
+                    {icon:'⭐',name:'Soul Winner',desc:'5 new converts retained',cat:'Growth'},
+                    {icon:'🚀',name:'Multiplier',desc:'Cell membership doubled',cat:'Growth'},
+                    {icon:'❤',name:'Restorer',desc:'5 members restored after absence',cat:'Care'},
+                    {icon:'👑',name:'Crown Carrier',desc:'Crown of Excellence for full quarter',cat:'Leadership'},
+                  ].map(b=>(
+                    <div key={b.name} style={{background:t.cardInner,borderRadius:8,padding:'10px 12px',border:`0.5px solid ${t.border}`}}>
+                      <div style={{fontSize:22,marginBottom:6}}>{b.icon}</div>
+                      <div style={{fontSize:11,fontWeight:600,color:t.text,marginBottom:2}}>{b.name}</div>
+                      <div style={{fontSize:10,color:t.muted,lineHeight:1.4,marginBottom:4}}>{b.desc}</div>
+                      <div style={{fontSize:9,color:t.purple,fontWeight:500,textTransform:'uppercase',letterSpacing:'0.4px'}}>{b.cat}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           )}
+
           {page==='commendation'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Commend Leaders</div>
-              <CommendLeadersPanel t={t} dark={dark}/>
+              <div>
+                <div style={{fontSize:15,fontWeight:700,color:t.text}}>Commend a Leader</div>
+                <div style={{fontSize:12,color:t.muted,marginTop:2}}>Send a personalised notification to any leader. Delivered instantly to their portal.</div>
+              </div>
+
+              <div style={card()}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Select message type</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
+                  {[
+                    {type:'commendation',icon:'⭐',title:'Pastor Commends You',desc:'Celebrate a leader for outstanding performance'},
+                    {type:'meeting',icon:'📅',title:'Meeting Request',desc:'Request a one-on-one meeting with a leader'},
+                    {type:'encouragement',icon:'💛',title:'Pastoral Encouragement',desc:'Send a warm message to a leader who needs support'},
+                    {type:'announcement',icon:'📣',title:'Announcement',desc:'Broadcast to all leaders of a fellowship or department'},
+                  ].map(m=>(
+                    <div key={m.type} style={{background:t.cardInner,borderRadius:10,padding:'14px',border:`0.5px solid ${t.border}`,cursor:'pointer'}}
+                      onMouseEnter={e=>e.currentTarget.style.border=`0.5px solid #534AB7`}
+                      onMouseLeave={e=>e.currentTarget.style.border=`0.5px solid ${t.border}`}>
+                      <div style={{fontSize:22,marginBottom:8}}>{m.icon}</div>
+                      <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:4}}>{m.title}</div>
+                      <div style={{fontSize:11,color:t.muted,lineHeight:1.4}}>{m.desc}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                  <div>
+                    <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Send to</div>
+                    <select style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
+                      <option value="">Select a leader...</option>
+                      {CELLS_DATA.slice(0,10).map(c=>(
+                        <option key={c.cell} value={c.leader}>{c.leader} — {c.cell}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Message</div>
+                    <textarea rows={4} placeholder="Write your message here... The leader will receive this as an in-app notification."
+                      style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none',resize:'none',fontFamily:'inherit'}}/>
+                  </div>
+                  <button style={{background:'#534AB7',color:'#fff',border:'none',borderRadius:10,padding:'12px',fontSize:13,fontWeight:600,cursor:'pointer'}}>
+                    Send notification
+                  </button>
+                </div>
+              </div>
+
+              {/* Recent commendations */}
+              <div style={card()}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:12}}>Recent messages sent</div>
+                {[
+                  {to:'Bro. Emeka Okafor',type:'commendation',msg:'Excellent submission consistency this month. Keep it up!',time:'2 days ago'},
+                  {to:'Sis. Chioma Uzoma',type:'encouragement',msg:'We see your commitment. The church appreciates your dedication.',time:'5 days ago'},
+                  {to:'All Youth Leaders',type:'announcement',msg:'Reminder: Leadership review meeting this Friday at 4pm.',time:'1 week ago'},
+                ].map((r,i)=>(
+                  <div key={i} style={{display:'flex',gap:10,padding:'10px 0',borderBottom:i<2?`0.5px solid ${t.border}`:'none'}}>
+                    <div style={{width:32,height:32,borderRadius:8,background:'#EEEDFE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>
+                      {r.type==='commendation'?'⭐':r.type==='encouragement'?'💛':'📣'}
+                    </div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:12,fontWeight:500,color:t.text}}>{r.to}</div>
+                      <div style={{fontSize:11,color:t.sub,marginTop:2,lineHeight:1.4}}>{r.msg}</div>
+                      <div style={{fontSize:10,color:t.muted,marginTop:3}}>{r.time}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {page==='requisitions'&&(
+            <PastorRequisitions t={t} dark={dark} />
+          )}
+          {page==='validation'&&(
+            <FellowshipValidation t={t} dark={dark} />
+          )}
+          {page==='settings'&&(
+            <ChurchSettingsPanel t={t} dark={dark} />
+          )}
+          {page==='admin'&&(
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',paddingTop:60,flexDirection:'column',gap:16}}>
+              <div style={{fontSize:14,color:t.sub}}>Opening Admin Portal…</div>
+              <script dangerouslySetInnerHTML={{__html:`window.location.href='/admin'`}} />
             </div>
           )}
           {page==='prayer'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Prayer Requests</div>
-              <PrayerRequestPanel dark={dark} t={t}/>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:15,fontWeight:700,color:t.text}}>Prayer Requests</div>
+                  <div style={{fontSize:12,color:t.muted,marginTop:2}}>All prayer requests submitted by cell leaders, fellowship heads, and the care team.</div>
+                </div>
+                <div style={{display:'flex',gap:8}}>
+                  <span style={{fontSize:11,padding:'4px 12px',borderRadius:20,background:t.tealBg,color:t.teal,fontWeight:500,cursor:'pointer'}}>Open</span>
+                  <span style={{fontSize:11,padding:'4px 12px',borderRadius:20,background:t.purpleBg,color:t.purple,fontWeight:500,cursor:'pointer'}}>All</span>
+                </div>
+              </div>
+              <PrayerRequestDashboard t={t} dark={dark} />
             </div>
-          )}
-          {page==='requisitions'&&(
-            <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Requisitions</div>
-              <PastorRequisitions t={t} dark={dark}/>
-            </div>
-          )}
-          {page==='validation'&&(
-            <ApprovalQueuePage t={t} dark={dark} screenWidth={screenWidth||1280}/>
           )}
 
         </div>
@@ -1766,7 +1928,7 @@ export default function DashboardPage(){
 
       {/* ══ AI Chatbox ══ */}
       {chatOpen&&(
-        <div style={{position:'fixed',bottom:0,right:isMobile?0:16,width:isMobile?'100%':380,height:isMobile?'90dvh':520,zIndex:100,background:t.card,borderRadius:isMobile?'14px 14px 0 0':14,border:`0.5px solid ${t.border}`,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',display:'flex',flexDirection:'column',zIndex:50}}>
+        <div style={{position:'fixed',bottom:isMobile?0:16,right:isMobile?0:16,width:isMobile?'100%':380,height:isMobile?'85vh':520,background:t.card,borderRadius:isMobile?'14px 14px 0 0':14,border:`0.5px solid ${t.border}`,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',display:'flex',flexDirection:'column',zIndex:50}}>
           <div style={{padding:'12px 16px',borderBottom:`0.5px solid ${t.navBorder}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div style={{width:28,height:28,borderRadius:'50%',background:'#534AB7',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>[AI]</div>
@@ -1777,7 +1939,7 @@ export default function DashboardPage(){
           <div style={{padding:'7px 12px',borderBottom:`0.5px solid ${t.border}`,display:'flex',gap:4,overflowX:'auto'}}>
             {agentOpts.map(a=>(
               <button key={a.id} onClick={()=>setSelectedAgent(a.id)}
-                style={{whiteSpace:'nowrap',fontSize:11,padding:'3px 8px',borderRadius:20,border:'1px solid',cursor:'pointer',fontWeight:selectedAgent===a.id?500:400,background:selectedAgent===a.id?'#EEEDFE':'transparent',borderColor:selectedAgent===a.id?'#534AB7':t.border,color:selectedAgent===a.id?'#3C3489':'#6B7280'}}>
+                style={{whiteSpace:'nowrap',fontSize:11,padding:'3px 8px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontWeight:selectedAgent===a.id?500:400,background:selectedAgent===a.id?'#EEEDFE':'transparent',borderColor:selectedAgent===a.id?'#534AB7':t.border,color:selectedAgent===a.id?'#3C3489':'#6B7280'}}>
                 {a.label}
               </button>
             ))}
@@ -1785,7 +1947,7 @@ export default function DashboardPage(){
           <div style={{flex:1,overflowY:'auto',padding:'12px 14px',display:'flex',flexDirection:'column',gap:10}}>
             {messages.map((msg,i)=>(
               <div key={i} style={{display:'flex',justifyContent:msg.role==='user'?'flex-end':'flex-start'}}>
-                <div style={{maxWidth:'85%',borderRadius:10,padding:'8px 12px',fontSize:13,background:msg.role==='user'?'#534AB7':(dark?'#1A1740':'#F9FAFB'),color:msg.role==='user'?'#fff':t.text,border:msg.role==='agent'?`0.5px solid ${t.navBorder}`:'none'}}>
+                <div style={{maxWidth:'85%',borderRadius:10,padding:'8px 12px',fontSize:13,background:msg.role==='user'?'#534AB7':(dark?'#1A1740':'#F9FAFB'),color:msg.role==='user'?'#fff':(dark?'#E5E7EB':'#374151'),border:msg.role==='agent'?`0.5px solid ${t.navBorder}`:'none'}}>
                   {msg.role==='agent'&&msg.agent&&<div style={{fontSize:10,fontWeight:500,color:dark?'#A89FFF':'#534AB7',marginBottom:4,textTransform:'uppercase',letterSpacing:'0.05em'}}>{msg.agent}</div>}
                   {msg.loading?<div style={{display:'flex',gap:4,padding:'2px 0'}}>{[0,150,300].map(d=><div key={d} style={{width:6,height:6,borderRadius:'50%',background:t.sub,animation:`bounce 1s infinite ${d}ms`}}/>)}</div>:<p style={{margin:0,lineHeight:1.6,whiteSpace:'pre-wrap'}}>{msg.text}</p>}
                 </div>
@@ -1811,1205 +1973,52 @@ export default function DashboardPage(){
         </div>
       )}
       <style>{`
-  @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap');
-
-  *, *::before, *::after { box-sizing: border-box; }
-  
-  body, #__next { 
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  *{box-sizing:border-box;}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid-2s{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .grid-chart{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+  .grid-goals{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .cells-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .dept-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+  .giving-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .range-btns{display:flex;gap:6px;flex-wrap:wrap;}
+  .filter-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+  @media(max-width:1024px){
+    .grid-4{grid-template-columns:repeat(2,1fr);}
+    .grid-3{grid-template-columns:repeat(2,1fr);}
+    .giving-stats{grid-template-columns:repeat(2,1fr);}
+    .cells-stats{grid-template-columns:repeat(2,1fr);}
   }
-
-  /* Color transitions for dark mode */
-  * { transition: background-color 250ms ease, border-color 250ms ease, color 200ms ease; }
-  button, a { transition: all 150ms ease !important; }
-  img, svg { transition: none !important; }
-
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 3px; height: 3px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #534AB7; border-radius: 99px; }
-  ::-webkit-scrollbar-thumb:hover { background: #4338CA; }
-
-  /* Animations */
-  @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes slideIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
-  @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-
-  .page-enter { animation: fadeUp 200ms ease both; }
-  .sidebar-enter { animation: slideIn 200ms ease both; }
-
-  /* Card hover - desktop only */
-  @media (hover: hover) {
-    .card-interactive:hover {
-      transform: translateY(-2px) !important;
-      box-shadow: 0 8px 32px rgba(83,74,183,0.12) !important;
-    }
+  @media(max-width:768px){
+    .grid-4{grid-template-columns:repeat(2,1fr);gap:8px;}
+    .grid-3{grid-template-columns:1fr;}
+    .grid-2{grid-template-columns:1fr;}
+    .grid-2s{grid-template-columns:1fr;}
+    .grid-chart{grid-template-columns:1fr;}
+    .grid-goals{grid-template-columns:1fr;}
+    .cells-stats{grid-template-columns:repeat(2,1fr);}
+    .dept-stats{grid-template-columns:repeat(2,1fr);}
+    .giving-stats{grid-template-columns:repeat(2,1fr);}
   }
-
-  /* ── Grid System ──────────────────────────────────────────── */
-  .grid-4  { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
-  .grid-3  { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
-  .grid-2  { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-  .grid-2s { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-  .grid-chart { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
-  .grid-goals { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-  .cells-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
-  .dept-stats  { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
-  .giving-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
-
-  /* ── Tables ───────────────────────────────────────────────── */
-  .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-  .table-wrap table { min-width: 480px; }
-  .table-sticky-col { position:sticky; left:0; z-index:1; }
-
-  /* ── Pills / Buttons ──────────────────────────────────────── */
-  .range-btns { display:flex; gap:6px; flex-wrap:wrap; }
-  .filter-btns { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
-  .pill { 
-    display:inline-flex; align-items:center; 
-    height:32px; padding:0 14px; 
-    border-radius:99px; border:1px solid; 
-    font-size:12px; font-weight:500; cursor:pointer;
-    white-space:nowrap;
+  @media(max-width:480px){
+    .grid-4{grid-template-columns:repeat(2,1fr);gap:6px;}
+    .cells-stats{grid-template-columns:repeat(2,1fr);}
+    .giving-stats{grid-template-columns:repeat(2,1fr);}
+    .dept-stats{grid-template-columns:1fr;}
+    .range-btns button{padding:4px 8px!important;font-size:11px!important;}
+    .filter-btns button{padding:3px 7px!important;font-size:10px!important;}
   }
-
-  /* ── Breakpoints ──────────────────────────────────────────── */
-  
-  /* 2560px+ - 4K */
-  @media (min-width:2560px) {
-    .grid-4,.grid-3,.grid-2 { gap:24px; }
-    body { font-size:17px; }
-  }
-
-  /* 1920px+ - Full HD */
-  @media (min-width:1920px) {
-    .grid-4,.grid-3,.grid-2 { gap:20px; }
-  }
-
-  /* ≤1280px - Standard laptops */
-  @media (max-width:1280px) {
-    .grid-4 { gap:14px; }
-  }
-
-  /* ≤1024px - Small laptops / iPad Pro */
-  @media (max-width:1024px) {
-    .grid-4 { grid-template-columns:repeat(2,1fr); }
-    .cells-stats { grid-template-columns:repeat(2,1fr); }
-    .giving-stats { grid-template-columns:repeat(2,1fr); }
-  }
-
-  /* ≤768px - Tablet / large phone */
-  @media (max-width:768px) {
-    .grid-3 { grid-template-columns:1fr; }
-    .grid-chart { grid-template-columns:1fr; }
-    .grid-goals { grid-template-columns:1fr; }
-    .dept-stats { grid-template-columns:repeat(2,1fr); }
-  }
-
-  /* ≤600px - Phone landscape */
-  @media (max-width:600px) {
-    .grid-2 { grid-template-columns:1fr; }
-    .grid-2s { grid-template-columns:1fr; }
-  }
-
-  /* ≤480px - Standard phone */
-  @media (max-width:480px) {
-    .grid-4 { grid-template-columns:1fr 1fr; gap:10px; }
-    .cells-stats { grid-template-columns:1fr 1fr; gap:10px; }
-    .giving-stats { grid-template-columns:1fr 1fr; gap:10px; }
-    .dept-stats { grid-template-columns:1fr 1fr; }
-    .pill { height:36px; }
-    button { min-height:44px; }
-    td, th { padding:12px 8px !important; }
-  }
-
-  /* ≤375px - Small phones */
-  @media (max-width:375px) {
-    .grid-4 { gap:8px; }
-    .grid-3,.grid-2,.grid-2s,.grid-chart,.grid-goals { grid-template-columns:1fr; }
-    .dept-stats { grid-template-columns:1fr; }
-  }
-
-  /* ≤320px - Very small */
-  @media (max-width:320px) {
-    .grid-4 { grid-template-columns:1fr; gap:8px; }
-    .cells-stats,.giving-stats { grid-template-columns:1fr; }
-  }
-
-  /* Touch targets */
-  @media (pointer:coarse) {
-    button { min-height:44px; }
-    tr { min-height:48px; }
-    .pill { height:40px; padding:0 16px; }
-  }
-
-  /* Chart swipe hint */
-  .chart-scroll-hint {
-    font-size:11px; color:#9B9B9B; text-align:center;
-    margin-top:6px; letter-spacing:0.02em;
-  }
-  
-  /* Sidebar mobile overlay */
-  .sidebar-overlay {
-    position:fixed; inset:0; background:rgba(0,0,0,0.4);
-    z-index:40; backdrop-filter:blur(2px);
+  @media(min-width:1400px){
+    .grid-4{gap:16px;}
+    .grid-3{gap:16px;}
+    .grid-2{gap:16px;}
   }
 `}</style>
-    </div>
-  );
-}
-
-// ─── PLACEHOLDER PAGES ────────────────────────────────────────
-// These will be replaced with full implementations
-// For now they render correctly so the build passes
-
-function SubscriptionPanel({t,dark}:{t:Record<string,string>;dark:boolean}) {
-  const [sub,setSub]=React.useState<{plan_tier:string;status:string;days_remaining:number}|null>(null);
-  React.useEffect(()=>{
-    // Countdown timer for trial
-    const countdownInterval = setInterval(() => {
-      const stored = localStorage.getItem('shepherd_trial_end');
-      if (stored) {
-        const end = new Date(stored).getTime();
-        const now = Date.now();
-        const diff = Math.max(0, end - now);
-        const d = Math.floor(diff / 86400000);
-        const h = Math.floor((diff % 86400000) / 3600000);
-        const m = Math.floor((diff % 3600000) / 60000);
-        const s = Math.floor((diff % 60000) / 1000);
-        setCountdown({ d, h, m, s });
-      }
-    }, 1000);
-
-    // Fetch pending counts for nav badges
-    fetch('/api/update/member-additions?scope=all',{credentials:'include'})
-      .then(r=>r.json()).then(({data})=>{
-        const pending=(data?.additions||[]).filter((a:Record<string,unknown>)=>a.status==='pending').length;
-        if(pending>0)setPendingCounts(p=>({...p,validation:pending}));
-      }).catch(()=>{});
-    fetch('/api/prayer-requests',{credentials:'include'})
-      .then(r=>r.json()).then(({data})=>{
-        const open=(data?.requests||[]).length;
-        if(open>0)setPendingCounts(p=>({...p,prayer:open}));
-      }).catch(()=>{});
-    fetch('/api/accounts/requisitions',{credentials:'include'})
-      .then(r=>r.json()).then(({data})=>{
-        const pending=(data?.requisitions||[]).filter((r:Record<string,unknown>)=>r.status==='pending').length;
-        if(pending>0)setPendingCounts(p=>({...p,requisitions:pending}));
-      }).catch(()=>{});
-    fetch('/api/subscription',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setSub(data);}).catch(()=>{});
-  },[]);
-  const PLANS=[
-    {id:'starter',name:'Starter',price:'₦15,000',color:'#1D9E75',colorBg:'#E1F5EE',features:['Up to 500 members','1 location','Up to 20 cells','Basic giving records','Email support']},
-    {id:'growth',name:'Growth',price:'₦35,000',color:'#534AB7',colorBg:'#EEEDFE',badge:'Most popular',features:['Up to 5,000 members','Up to 10 locations','Unlimited cells','Moshe AI agent','Partnership portal','SMS & WhatsApp alerts','Priority support']},
-    {id:'enterprise',name:'Enterprise',price:'Custom',color:'#BA7517',colorBg:'#FAEEDA',features:['Unlimited everything','White-label','API access','Dedicated manager']},
-  ];
-  const cardS=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,...e});
-  const isTrial=sub?.status==='trial';
-  const isExpired=sub?.status==='expired'||(isTrial&&(sub?.days_remaining??0)<=0);
-  return (
-    <div style={{display:'flex',flexDirection:'column',gap:16,maxWidth:860}}>
-      <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Subscription & Billing</div>
-      <div style={{...cardS({padding:'20px 24px'}),background:isExpired?'#FAECE7':isTrial?'#EEEDFE':'#E1F5EE',border:`0.5px solid ${isExpired?'rgba(216,90,48,0.2)':'rgba(83,74,183,0.2)'}`}}>
-        <div style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:6}}>
-          {isExpired?'Trial expired':isTrial?`Free Trial — ${sub?.days_remaining??30} days remaining`:`${PLANS.find(p=>p.id===sub?.plan_tier)?.name||'Growth'} Plan — Active`}
-        </div>
-        <div style={{fontSize:13,color:t.sub}}>
-          {isTrial&&!isExpired&&`You have full Growth plan access during your trial.`}
-          {isExpired&&'Subscribe to restore access.'}
-          {!isTrial&&!isExpired&&'Thank you for subscribing to SHEPHERD.'}
-        </div>
-        {isTrial&&!isExpired&&sub?.days_remaining!==undefined&&(
-          <div style={{marginTop:12,height:6,background:'rgba(83,74,183,0.12)',borderRadius:3,overflow:'hidden'}}>
-            <div style={{height:'100%',width:`${Math.min(100,((30-(sub.days_remaining))/30)*100)}%`,background:sub.days_remaining<=7?'#D85A30':sub.days_remaining<=14?'#BA7517':'#534AB7',borderRadius:3}}/>
-          </div>
-        )}
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
-        {PLANS.map(plan=>{
-          const isCurrent=!isTrial&&!isExpired&&sub?.plan_tier===plan.id;
-          return (
-            <div key={plan.id} style={{...cardS({padding:'18px',display:'flex',flexDirection:'column',gap:0,position:'relative'}),border:`${isCurrent?'1.5px':'0.5px'} solid ${isCurrent?plan.color:t.border}`,background:isCurrent?plan.colorBg:t.card}}>
-              {plan.badge&&<div style={{position:'absolute',top:-10,left:16,background:plan.color,color:'#fff',fontSize:10,fontWeight:700,borderRadius:20,padding:'2px 10px'}}>{plan.badge}</div>}
-              <div style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:4}}>{plan.name}</div>
-              <div style={{fontSize:22,fontWeight:800,color:plan.color,marginBottom:12}}>{plan.price}<span style={{fontSize:12,color:t.muted,fontWeight:400}}>{plan.id!=='enterprise'?'/mo':''}</span></div>
-              <div style={{flex:1,marginBottom:14}}>
-                {plan.features.map((f,i)=><div key={i} style={{display:'flex',gap:7,marginBottom:6,fontSize:11,color:t.sub}}><span style={{color:plan.color}}>✓</span>{f}</div>)}
-              </div>
-              {isCurrent?<div style={{background:plan.colorBg,color:plan.color,borderRadius:8,padding:'9px',fontSize:12,fontWeight:600,textAlign:'center'}}>✓ Current plan</div>
-              :plan.id==='enterprise'?<button onClick={()=>window.open('mailto:enterprise@shepherd.app','_blank')} style={{background:plan.color,color:'#fff',border:'none',borderRadius:8,padding:'10px',fontSize:12,fontWeight:600,cursor:'pointer',width:'100%'}}>Contact us →</button>
-              :<button onClick={()=>{alert('To subscribe, contact support@shepherd.app. Paystack integration coming soon.');}} style={{background:plan.color,color:'#fff',border:'none',borderRadius:8,padding:'10px',fontSize:12,fontWeight:600,cursor:'pointer',width:'100%'}}>{isTrial||isExpired?`Subscribe — ${plan.price}/mo`:`Switch to ${plan.name}`}</button>}
-            </div>
-          );
-        })}
-      </div>
-      <div style={{...cardS({padding:'14px 18px'}),background:t.purpleBg}}>
-        <div style={{fontSize:12,fontWeight:600,color:t.purple,marginBottom:4}}>Secure payments via Paystack</div>
-        <div style={{fontSize:11,color:t.sub}}>Nigerian bank transfers, Verve, Mastercard, USSD. Contact <strong>support@shepherd.app</strong> to subscribe. Self-service Paystack integration coming soon.</div>
-      </div>
-    </div>
-  );
-}
-
-function ChurchSettingsPanel({t,dark}:{t:Record<string,string>;dark:boolean}) {
-  const [activeTab,setActiveTab]=React.useState<'profile'|'structure'|'services'|'team'>('profile');
-  const [churchName,setChurchName]=React.useState('');
-  const [country,setCountry]=React.useState('Nigeria');
-  const [currency,setCurrency]=React.useState('NGN');
-  const [denomination,setDenomination]=React.useState('');
-  const [contactEmail,setContactEmail]=React.useState('');
-  const [contactPhone,setContactPhone]=React.useState('');
-  const [address,setAddress]=React.useState('');
-  const [website,setWebsite]=React.useState('');
-  const [logoUrl,setLogoUrl]=React.useState('');
-  const [structureType,setStructureType]=React.useState('cell_church');
-  const [tier1Label,setTier1Label]=React.useState('Fellowship');
-  const [tier2Label,setTier2Label]=React.useState('Cell');
-  const [tier1HeadLabel,setTier1HeadLabel]=React.useState('Fellowship Head');
-  const [tier2HeadLabel,setTier2HeadLabel]=React.useState('Cell Leader');
-  const [serviceDays,setServiceDays]=React.useState<string[]>(['Sunday']);
-  const [saving,setSaving]=React.useState(false);
-  const [saved,setSaved]=React.useState(false);
-  const [config,setConfig]=React.useState<Record<string,unknown>>({});
-  const [users,setUsers]=React.useState<{id:string;full_name:string;email:string;role:string}[]>([]);
-
-  React.useEffect(()=>{
-    fetch('/api/settings/church-config',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
-      if(data?.config){
-        const c=data.config;setConfig(c);setChurchName(c.church_name||'');setCountry(c.country||'Nigeria');setCurrency(c.currency||'NGN');
-        setStructureType(c.structure_type||'cell_church');setTier1Label(c.tier1_label||'Fellowship');setTier2Label(c.tier2_label||'Cell');
-        setTier1HeadLabel(c.tier1_head_label||'Fellowship Head');setTier2HeadLabel(c.tier2_head_label||'Cell Leader');setServiceDays(c.service_days||['Sunday']);setLogoUrl(c.logo_url||'');
-        if(c.church_profile){const p=typeof c.church_profile==='string'?JSON.parse(c.church_profile):c.church_profile;setDenomination(p.denomination||'');setContactEmail(p.contact_email||'');setContactPhone(p.contact_phone||'');setAddress(p.address||'');setWebsite(p.website||'');}
-      }
-    }).catch(()=>{});
-    fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users?select=id,full_name,email,role&order=role.asc`,{headers:{'apikey':process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||'','Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||''}`}}).then(r=>r.json()).then(d=>{if(Array.isArray(d))setUsers(d);}).catch(()=>{});
-  },[]);
-
-  const [origStructure]=React.useState(structureType);
-  const [showStructureWarning,setShowStructureWarning]=React.useState(false);
-
-  async function save(){
-    // Warn if structure type changed
-    if(structureType!==origStructure&&!showStructureWarning){
-      setShowStructureWarning(true);
-      return;
-    }
-    setShowStructureWarning(false);
-    setSaving(true);
-    try{
-      const p=typeof config.church_profile==='string'?JSON.parse(config.church_profile as string):(config.church_profile||{});
-      await fetch('/api/settings/church-config',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',
-        body:JSON.stringify({church_name:churchName,country,currency,structure_type:structureType,tier1_label:tier1Label||null,tier2_label:tier2Label||null,tier1_head_label:tier1HeadLabel,tier2_head_label:tier2HeadLabel,service_days:serviceDays,logo_url:logoUrl||null,
-          church_profile:JSON.stringify({...p,denomination,contact_email:contactEmail,contact_phone:contactPhone,address,website})})});
-      setSaved(true);setTimeout(()=>setSaved(false),3000);
-    }catch{}setSaving(false);
-  }
-
-  const STRUCTURES=[{value:'cell_church',label:'Cell Church',sub:'Fellowship → Cell → Member'},{value:'zonal',label:'Zonal Church',sub:'Zone → District → Cell → Member'},{value:'campus',label:'Multi-Campus',sub:'Campus → Fellowship → Cell → Member'},{value:'department',label:'Department Church',sub:'Department → Unit → Member'},{value:'house_network',label:'House Church Network',sub:'Network → Home Group → Member'},{value:'single',label:'Single Congregation',sub:'Pastor → Member'}];
-  const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const CURRENCIES=[{code:'NGN',label:'₦ Nigerian Naira'},{code:'GHS',label:'GH₵ Ghanaian Cedi'},{code:'KES',label:'KSh Kenyan Shilling'},{code:'ZAR',label:'R South African Rand'},{code:'USD',label:'$ US Dollar'},{code:'GBP',label:'£ British Pound'}];
-  const ROLE_LABELS:Record<string,string>={overseer:'Overseer',pa:'PA',lead_tech:'Lead Tech',fellowship_head:'Fellowship Head',cell_leader:'Cell Leader',department_head:'Dept Head',care_team:'Care Team',accounts:'Accounts',partnership:'Partnership'};
-
-  const cardS=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'18px 20px',...e});
-  const inputS:React.CSSProperties={width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 12px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box' as const};
-  const labelS:React.CSSProperties={fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5,display:'block'};
-
-  return (
-    <div style={{display:'flex',flexDirection:'column',gap:16,maxWidth:800}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <div><div style={{fontSize:19,fontWeight:700,color:t.text}}>Church Settings</div><div style={{fontSize:12,color:t.muted,marginTop:2}}>Manage your church profile, structure, service days and team</div></div>
-        <button onClick={save} disabled={saving} style={{background:saved?t.teal:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'10px 22px',fontSize:13,fontWeight:600,cursor:'pointer',transition:'background 0.2s'}}>{saving?'Saving…':saved?'✓ Saved':'Save changes'}</button>
-      </div>{/* end topbar */}
-
-      {/* Structure change warning modal */}
-      {showStructureWarning&&(
-        <div style={{position:'fixed' as const,inset:0,background:'rgba(0,0,0,0.5)',zIndex:300,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
-          <div style={{background:t.card,borderRadius:16,padding:'28px',maxWidth:440,width:'100%',boxShadow:'0 24px 64px rgba(0,0,0,0.3)',backdropFilter:'blur(20px)'}}>
-            <div style={{fontSize:24,marginBottom:12}}>⚠️</div>
-            <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:8}}>Critical: Structure change</div>
-            <div style={{fontSize:13,color:t.muted,lineHeight:1.7,marginBottom:20}}>Changing your church structure model will affect how all portals display data — fellowship heads, cell leaders, and department heads will see different labels, and existing data mappings may need to be updated.<br/><br/>This cannot be automatically undone. If you are unsure, contact support before proceeding.</div>
-            <div style={{display:'flex',gap:10}}>
-              <button onClick={()=>setShowStructureWarning(false)} style={{flex:1,background:t.input,color:t.sub,border:`0.5px solid ${t.border}`,borderRadius:9,padding:'11px',fontSize:13,cursor:'pointer'}}>Cancel</button>
-              <button onClick={save} style={{flex:1,background:'#D85A30',color:'#fff',border:'none',borderRadius:9,padding:'11px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Yes, change structure</button>
-              <button onClick={()=>{window.open('mailto:support@shepherd.app','_blank');}} style={{flex:1,background:t.purpleBg,color:t.purple,border:`0.5px solid ${t.border}`,borderRadius:9,padding:'11px',fontSize:12,fontWeight:500,cursor:'pointer'}}>Contact support</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div style={{display:'flex',borderBottom:`0.5px solid ${t.border}`}}>
-        {(['profile','structure','services','team'] as const).map(tab=>(
-          <button key={tab} onClick={()=>setActiveTab(tab)} style={{padding:'9px 18px',border:'none',borderBottom:`2px solid ${activeTab===tab?t.purple:'transparent'}`,background:activeTab===tab?t.purpleBg:'transparent',fontSize:12,fontWeight:activeTab===tab?600:400,color:activeTab===tab?t.purple:t.muted,cursor:'pointer',textTransform:'capitalize' as const}}>
-            {tab==='profile'?'Church Profile':tab.charAt(0).toUpperCase()+tab.slice(1)}
-          </button>
-        ))}
-      </div>
-      {activeTab==='profile'&&(
-        <div style={{display:'flex',flexDirection:'column',gap:14}}>
-          <div style={cardS()}>
-            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Identity</div>
-            <div style={{display:'flex',flexDirection:'column',gap:12}}>
-              <div><label style={labelS}>Church name *</label><input value={churchName} onChange={e=>setChurchName(e.target.value)} placeholder="e.g. The Comforters House Global" style={inputS}/></div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-                <div><label style={labelS}>Denomination</label><select value={denomination} onChange={e=>setDenomination(e.target.value)} style={inputS}><option value="">Select…</option>{['Pentecostal / Charismatic','Evangelical','Methodist / Anglican','Catholic','Apostolic / Prophetic','Interdenominational','Other'].map(d=><option key={d} value={d}>{d}</option>)}</select></div>
-                <div><label style={labelS}>Country</label><select value={country} onChange={e=>setCountry(e.target.value)} style={inputS}>{['Nigeria','Ghana','Kenya','South Africa','Uganda','United Kingdom','United States','Other'].map(c=><option key={c} value={c}>{c}</option>)}</select></div>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-                <div><label style={labelS}>Currency</label><select value={currency} onChange={e=>setCurrency(e.target.value)} style={inputS}>{CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.label}</option>)}</select></div>
-                <div><label style={labelS}>Logo URL</label><input value={logoUrl} onChange={e=>setLogoUrl(e.target.value)} placeholder="https://…/logo.png" style={inputS}/></div>
-              </div>
-            </div>
-          </div>
-          <div style={cardS()}>
-            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Contact & Location</div>
-            <div style={{display:'flex',flexDirection:'column',gap:12}}>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-                <div><label style={labelS}>Contact email</label><input value={contactEmail} onChange={e=>setContactEmail(e.target.value)} placeholder="church@example.com" style={inputS}/></div>
-                <div><label style={labelS}>Contact phone</label><input value={contactPhone} onChange={e=>setContactPhone(e.target.value)} placeholder="+234 XXX XXX XXXX" style={inputS}/></div>
-              </div>
-              <div><label style={labelS}>Address</label><input value={address} onChange={e=>setAddress(e.target.value)} placeholder="12 Church Street, Lagos" style={inputS}/></div>
-              <div><label style={labelS}>Website</label><input value={website} onChange={e=>setWebsite(e.target.value)} placeholder="https://yourchurch.org" style={inputS}/></div>
-            </div>
-          </div>
-        </div>
-      )}
-      {activeTab==='structure'&&(
-        <div style={{display:'flex',flexDirection:'column',gap:14}}>
-          <div style={cardS()}>
-            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Structure model</div>
-            <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              {STRUCTURES.map(s=><button key={s.value} onClick={()=>setStructureType(s.value)} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'11px 14px',borderRadius:9,border:`0.5px solid ${structureType===s.value?t.purple:t.border}`,background:structureType===s.value?t.purpleBg:t.input,cursor:'pointer',textAlign:'left' as const}}><div><div style={{fontSize:13,fontWeight:500,color:t.text}}>{s.label}</div><div style={{fontSize:11,color:t.muted,marginTop:2}}>{s.sub}</div></div>{structureType===s.value&&<span style={{width:8,height:8,borderRadius:'50%',background:t.purple}}/>}</button>)}
-            </div>
-          </div>
-          {structureType!=='single'&&<div style={cardS()}>
-            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Label customisation</div>
-            <div style={{display:'flex',flexDirection:'column',gap:12}}>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-                <div><label style={labelS}>Tier 1 name</label><input value={tier1Label} onChange={e=>setTier1Label(e.target.value)} placeholder="e.g. Fellowship" style={inputS}/></div>
-                <div><label style={labelS}>Tier 1 leader title</label><input value={tier1HeadLabel} onChange={e=>setTier1HeadLabel(e.target.value)} placeholder="e.g. Fellowship Head" style={inputS}/></div>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-                <div><label style={labelS}>Tier 2 name</label><input value={tier2Label} onChange={e=>setTier2Label(e.target.value)} placeholder="e.g. Cell" style={inputS}/></div>
-                <div><label style={labelS}>Tier 2 leader title</label><input value={tier2HeadLabel} onChange={e=>setTier2HeadLabel(e.target.value)} placeholder="e.g. Cell Leader" style={inputS}/></div>
-              </div>
-              <div style={{background:t.purpleBg,borderRadius:8,padding:'10px 14px',fontSize:12,color:t.purple}}>Preview: {[tier1Label,tier2Label].filter(Boolean).join(' → ')} → Member</div>
-            </div>
-          </div>}
-        </div>
-      )}
-      {activeTab==='services'&&(
-        <div style={cardS()}>
-          <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Service days</div>
-          <div style={{display:'flex',gap:8,flexWrap:'wrap' as const,marginBottom:16}}>
-            {DAYS.map(day=><button key={day} onClick={()=>setServiceDays(prev=>prev.includes(day)?prev.filter(d=>d!==day):[...prev,day])} style={{padding:'8px 16px',borderRadius:20,border:`0.5px solid ${serviceDays.includes(day)?t.purple:t.border}`,background:serviceDays.includes(day)?t.purple:t.input,color:serviceDays.includes(day)?'#fff':t.sub,fontSize:12,cursor:'pointer'}}>{day}</button>)}
-          </div>
-          <div style={{background:t.purpleBg,borderRadius:8,padding:'10px 14px',fontSize:12,color:t.purple}}>Active: {serviceDays.join(', ')||'None'}</div>
-        </div>
-      )}
-      {activeTab==='team'&&(
-        <div style={{display:'flex',flexDirection:'column',gap:14}}>
-          <div style={cardS({padding:0,overflow:'hidden'})}>
-            <div style={{padding:'14px 18px',borderBottom:`0.5px solid ${t.border}`,fontSize:13,fontWeight:600,color:t.text}}>Team members ({users.length})</div>
-            {users.length===0?<div style={{padding:32,textAlign:'center' as const,color:t.muted,fontSize:13}}>No team members found.</div>:users.map((u,i)=>(
-              <div key={u.id} style={{padding:'12px 18px',borderBottom:i<users.length-1?`0.5px solid ${t.border}`:'none',display:'flex',alignItems:'center',gap:12}}>
-                <div style={{width:34,height:34,borderRadius:'50%',background:t.purpleBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:600,color:t.purple}}>{u.full_name?.slice(0,2).toUpperCase()||'??'}</div>
-                <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500,color:t.text}}>{u.full_name||'Unknown'}</div><div style={{fontSize:11,color:t.muted}}>{u.email}</div></div>
-                <span style={{fontSize:10,padding:'2px 9px',borderRadius:10,fontWeight:600,background:t.purpleBg,color:t.purple}}>{ROLE_LABELS[u.role]||u.role}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{...cardS({padding:'14px 18px'}),background:t.purpleBg}}>
-            <div style={{fontSize:12,fontWeight:600,color:t.purple,marginBottom:6}}>Registration link</div>
-            <div style={{display:'flex',gap:8}}>
-              <div style={{flex:1,background:t.card,border:`0.5px solid ${t.border}`,borderRadius:7,padding:'8px 12px',fontSize:11,color:t.sub,fontFamily:'monospace',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{typeof window!=='undefined'?window.location.origin:''}/register</div>
-              <button onClick={()=>navigator.clipboard.writeText((typeof window!=='undefined'?window.location.origin:'')+'/register')} style={{background:t.purple,color:'#fff',border:'none',borderRadius:7,padding:'8px 14px',fontSize:11,fontWeight:600,cursor:'pointer'}}>Copy</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AdminRedirect() {
-  React.useEffect(()=>{if(typeof window!=='undefined')window.location.href='/admin';},[]);
-  return <div style={{display:'flex',alignItems:'center',justifyContent:'center',paddingTop:80,flexDirection:'column',gap:12}}><div style={{width:32,height:32,border:'3px solid rgba(83,74,183,0.2)',borderTopColor:'#534AB7',borderRadius:'50%',animation:'spin 1s linear infinite'}}/><div style={{fontSize:14,color:'#9890C4'}}>Opening Admin Portal…</div></div>;
-}
-
-function ServicePlannerPage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;screenWidth:number}) {
-  const [plans,setPlans]=React.useState<{id:string;title:string;service_date:string;status:string}[]>([]);
-  const [creating,setCreating]=React.useState(false);
-  const [form,setForm]=React.useState({title:'Sunday Service',service_date:'',service_type:'sunday',theme:''});
-  const [saving,setSaving]=React.useState(false);
-  const [selected,setSelected]=React.useState<{id:string;title:string;service_date:string;status:string}|null>(null);
-  const [items,setItems]=React.useState<{id:string;position:number;title:string;item_type:string;duration_minutes:number;assigned_to_name:string|null;color:string}[]>([]);
-  const [toast,setToast]=React.useState('');
-  const cardS=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,...e});
-  const inp:React.CSSProperties={width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 12px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box' as const};
-
-  const selectedRef=React.useRef<typeof selected>(null);
-  const itemsRef=React.useRef<typeof items>([]);
-  selectedRef.current=selected;
-  itemsRef.current=items;
-
-  React.useEffect(()=>{
-    fetch('/api/service-planner',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
-      if(data?.plans&&data.plans.length>0){
-        setPlans(data.plans);
-        const first=data.plans[0];
-        setSelected(first);
-        fetch(`/api/service-planner/items?plan_id=${first.id}`,{credentials:'include'})
-          .then(r=>r.json()).then(({data:d})=>{if(d?.items)setItems(d.items);}).catch(()=>{});
-      }
-    }).catch(()=>{});
-  },[]);
-
-  // Auto-save items 1.5s after any change — prevents data loss on tab switch
-  React.useEffect(()=>{
-    if(!selected||items.length===0)return;
-    const timer=setTimeout(async()=>{
-      if(!selectedRef.current)return;
-      await fetch('/api/service-planner',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',
-        body:JSON.stringify({id:selectedRef.current.id,items:itemsRef.current.map((item,i)=>({...item,position:i,id:String(item.id).startsWith('new_')?undefined:item.id}))})
-      }).catch(()=>{});
-    },1500);
-    return()=>clearTimeout(timer);
-  },[items,selected]);
-
-  const TYPES=[{v:'prayer',l:'Opening Prayer',c:'#534AB7'},{v:'song',l:'Praise & Worship',c:'#1D9E75'},{v:'announcement',l:'Announcements',c:'#BA7517'},{v:'offering',l:'Tithes & Offering',c:'#D85A30'},{v:'sermon',l:'Sermon',c:'#534AB7'},{v:'item',l:'General Item',c:'#9890C4'},{v:'benediction',l:'Benediction',c:'#534AB7'}];
-
-  async function createPlan(){
-    if(!form.service_date||!form.title)return;
-    setSaving(true);
-    try{
-      const r=await fetch('/api/service-planner',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({...form,items:[]})});
-      const d=await r.json();
-      if(r.ok){setPlans(p=>[d.data.plan,...p]);setSelected(d.data.plan);setCreating(false);setToast('Plan created');setTimeout(()=>setToast(''),3000);}
-    }catch{}setSaving(false);
-  }
-
-  function addItem(type:string){
-    const def=TYPES.find(t=>t.v===type)||TYPES[5];
-    setItems(p=>[...p,{id:`new_${Date.now()}`,position:p.length,title:def.l,item_type:type,duration_minutes:10,assigned_to_name:null,color:def.c}]);
-  }
-
-  async function savePlan(){
-    if(!selected)return;setSaving(true);
-    try{
-      await fetch('/api/service-planner',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id:selected.id,items:items.map((item,i)=>({...item,position:i,id:String(item.id).startsWith('new_')?undefined:item.id}))})});
-      setToast('Plan saved');setTimeout(()=>setToast(''),3000);
-    }catch{}setSaving(false);
-  }
-
-  async function publishPlan(){
-    if(!selected)return;setSaving(true);
-    try{
-      await fetch('/api/service-planner',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id:selected.id,status:'published',items:items.map((item,i)=>({...item,position:i,id:String(item.id).startsWith('new_')?undefined:item.id}))})});
-      setSelected(p=>p?{...p,status:'published'}:p);
-      setToast('Published — all assigned leaders notified');setTimeout(()=>setToast(''),4000);
-    }catch{}setSaving(false);
-  }
-
-  const isWide=screenWidth>=1024;
-  const totalDuration=items.reduce((a,item)=>a+(item.duration_minutes||0),0);
-
-  return (
-    <div style={{display:'flex',flexDirection:'column',gap:16}}>
-      {toast&&<div style={{background:t.teal,color:'#fff',borderRadius:9,padding:'10px 16px',fontSize:13,fontWeight:500}}>✓ {toast}</div>}
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <div><div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Service Planner</div>
-        <div style={{fontSize:12,color:t.muted,marginTop:2}}>Build service programmes, assign roles, publish to all leaders</div></div>
-        <button onClick={()=>setCreating(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'10px 18px',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ New plan</button>
-      </div>
-
-      {creating&&(
-        <div style={cardS({padding:'20px'})}>
-          <div style={{fontSize:14,fontWeight:600,color:t.text,marginBottom:14}}>New service plan</div>
-          <div style={{display:'grid',gridTemplateColumns:isWide?'1fr 1fr 1fr 1fr':'1fr 1fr',gap:12,marginBottom:14}}>
-            <div style={{gridColumn:isWide?'1/3':'1/-1'}}>
-              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5}}>Title</div>
-              <input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} style={inp}/>
-            </div>
-            <div>
-              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5}}>Date *</div>
-              <input type="date" value={form.service_date} onChange={e=>setForm(p=>({...p,service_date:e.target.value}))} min={new Date().toISOString().split('T')[0]} style={inp}/>
-            </div>
-            <div>
-              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5}}>Type</div>
-              <select value={form.service_type} onChange={e=>setForm(p=>({...p,service_type:e.target.value}))} style={inp}>
-                {['sunday','wednesday','friday','special'].map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)} Service</option>)}
-              </select>
-            </div>
-            <div style={{gridColumn:'1/-1'}}>
-              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5}}>Theme / Series (optional)</div>
-              <input value={form.theme} onChange={e=>setForm(p=>({...p,theme:e.target.value}))} placeholder="e.g. The Power of Prayer" style={inp}/>
-            </div>
-          </div>
-          <div style={{display:'flex',gap:10}}>
-            <button onClick={createPlan} disabled={saving||!form.service_date} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'10px 20px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:saving||!form.service_date?0.7:1}}>{saving?'Creating…':'Create plan'}</button>
-            <button onClick={()=>setCreating(false)} style={{background:t.input,color:t.sub,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'10px 16px',fontSize:13,cursor:'pointer'}}>Cancel</button>
-          </div>
-        </div>
-      )}
-
-      <div style={{display:'grid',gridTemplateColumns:isWide?'260px 1fr':'1fr',gap:16}}>
-        <div style={cardS({padding:0,overflow:'hidden'})}>
-          <div style={{padding:'12px 16px',borderBottom:`0.5px solid ${t.border}`,fontSize:12,fontWeight:600,color:t.text}}>Plans ({plans.length})</div>
-          {plans.length===0?(
-            <div style={{padding:'28px 16px',textAlign:'center' as const}}>
-              <div style={{fontSize:13,color:t.muted,marginBottom:12}}>No plans yet.</div>
-              <button onClick={()=>setCreating(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'8px 16px',fontSize:12,fontWeight:600,cursor:'pointer'}}>Create first plan</button>
-            </div>
-          ):plans.map((plan,i)=>(
-            <div key={plan.id} onClick={()=>{setSelected(plan);fetch(`/api/service-planner/items?plan_id=${plan.id}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.items)setItems(data.items);}).catch(()=>{});}}
-              style={{padding:'12px 16px',borderBottom:i<plans.length-1?`0.5px solid ${t.border}`:'none',cursor:'pointer',background:selected?.id===plan.id?t.purpleBg:'transparent',transition:'background 0.12s'}}>
-              <div style={{fontSize:13,fontWeight:500,color:t.text}}>{plan.title}</div>
-              <div style={{fontSize:11,color:t.muted,marginTop:2}}>{plan.service_date?new Date(plan.service_date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</div>
-              <span style={{fontSize:10,fontWeight:600,padding:'1px 7px',borderRadius:8,marginTop:4,display:'inline-block',background:plan.status==='published'?t.tealBg:t.purpleBg,color:plan.status==='published'?t.teal:t.purple}}>{plan.status.toUpperCase()}</span>
-            </div>
-          ))}
-        </div>
-
-        {selected?(
-          <div style={{display:'flex',flexDirection:'column',gap:12}}>
-            <div style={cardS({padding:'16px 18px'})}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap' as const,gap:10}}>
-                <div>
-                  <div style={{fontSize:16,fontWeight:700,color:t.text}}>{selected.title}</div>
-                  <div style={{fontSize:12,color:t.muted}}>{items.length} items · {totalDuration} min total</div>
-                </div>
-                <div style={{display:'flex',gap:8}}>
-                  <button onClick={savePlan} disabled={saving} style={{background:t.purpleBg,color:t.purple,border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}>{saving?'Saving…':'Save'}</button>
-                  {selected.status!=='published'&&<button onClick={publishPlan} disabled={saving} style={{background:t.teal,color:'#fff',border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}>Publish & notify</button>}
-                  {selected.status==='published'&&<span style={{fontSize:12,fontWeight:600,color:t.teal,padding:'8px 14px',background:t.tealBg,borderRadius:8}}>✓ Published</span>}
-                </div>
-              </div>
-            </div>
-            <div style={{display:'flex',gap:8,flexWrap:'wrap' as const}}>
-              {TYPES.map(type=>(
-                <button key={type.v} onClick={()=>addItem(type.v)} style={{padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.border}`,background:t.card,fontSize:12,cursor:'pointer',color:t.sub}}>+ {type.l}</button>
-              ))}
-            </div>
-            {items.length===0?(
-              <div style={cardS({padding:28,textAlign:'center' as const,color:t.muted,fontSize:13})}>Add items above to build the order of service.</div>
-            ):items.map((item,idx)=>{
-              const def=TYPES.find(tp=>tp.v===item.item_type)||TYPES[5];
-              return(
-                <div key={item.id} style={cardS({padding:'14px 16px',borderLeft:`3px solid ${item.color||def.c}`})}>
-                  <div style={{display:'flex',alignItems:'center',gap:10}}>
-                    <span style={{fontSize:11,color:t.muted,minWidth:20,textAlign:'center' as const}}>{idx+1}</span>
-                    <div style={{flex:1,display:'grid',gridTemplateColumns:'1fr 80px',gap:8}}>
-                      <input value={item.title} onChange={e=>setItems(p=>p.map(i=>i.id===item.id?{...i,title:e.target.value}:i))} style={{...inp,fontWeight:600,padding:'7px 10px'}}/>
-                      <div style={{display:'flex',alignItems:'center',gap:4}}>
-                        <input type="number" value={item.duration_minutes} onChange={e=>setItems(p=>p.map(i=>i.id===item.id?{...i,duration_minutes:parseInt(e.target.value)||0}:i))} style={{...inp,width:50,padding:'7px 8px'}} min={1}/>
-                        <span style={{fontSize:11,color:t.muted}}>min</span>
-                      </div>
-                    </div>
-                    <button onClick={()=>setItems(p=>p.filter(i=>i.id!==item.id))} style={{background:'none',border:'none',cursor:'pointer',color:t.muted,fontSize:16,padding:'4px'}}>×</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ):(
-          <div style={cardS({padding:40,textAlign:'center' as const})}>
-            <div style={{width:48,height:48,background:t.purpleBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={t.purple} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
-            </div>
-            <div style={{fontSize:14,fontWeight:600,color:t.text,marginBottom:6}}>Select a plan to edit</div>
-            <div style={{fontSize:12,color:t.muted}}>Choose from the list or create a new plan.</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function EventsPage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;screenWidth:number}) {
-  const cardS=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',border:`0.5px solid ${t.border}`,borderRadius:16,boxShadow:dark?'0 4px 32px rgba(0,0,0,0.3)':'0 4px 24px rgba(83,74,183,0.05)',...e});
-  const inp:React.CSSProperties={width:'100%',border:`0.5px solid ${t.border}`,borderRadius:10,padding:'10px 14px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box' as const};
-  const [events,setEvents]=React.useState<Record<string,unknown>[]>([]);
-  const [creating,setCreating]=React.useState(false);
-  const [saving,setSaving]=React.useState(false);
-  const [selected,setSelected]=React.useState<Record<string,unknown>|null>(null);
-  const [registrations,setRegistrations]=React.useState<Record<string,unknown>[]>([]);
-  const [toast,setToast]=React.useState('');
-  const [form,setForm]=React.useState({title:'',event_date:'',event_type:'programme',start_time:'',location:'',description:'',is_free:true,price:'',capacity:''});
-
-  const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(''),3500);};
-
-  React.useEffect(()=>{
-    fetch('/api/events',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.events)setEvents(data.events);}).catch(()=>{});
-  },[toast]);
-
-  async function createEvent(){
-    if(!form.title||!form.event_date){showToast('Title and date are required');return;}
-    setSaving(true);
-    try{
-      const res=await fetch('/api/events',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
-        body:JSON.stringify({...form,is_free:form.is_free,price:form.is_free?0:parseFloat(form.price)||0,capacity:form.capacity?parseInt(form.capacity):null})});
-      if(res.ok){showToast('Event created');setCreating(false);setForm({title:'',event_date:'',event_type:'programme',start_time:'',location:'',description:'',is_free:true,price:'',capacity:''});}
-      else{const d=await res.json();showToast(d?.error?.message||'Failed to create event');}
-    }catch{showToast('Network error');}setSaving(false);
-  }
-
-  const EVENT_TYPES=['programme','conference','vigil','concert','outreach','training','thanksgiving','dedication','other'];
-  const TYPE_COLOR:Record<string,string>={programme:t.purple,conference:t.amber,vigil:t.purple,outreach:t.teal,training:t.amber,thanksgiving:t.teal,dedication:t.coral,other:t.muted,concert:t.coral};
-
-  return(
-    <div style={{display:'flex',flexDirection:'column',gap:16}}>
-      {toast&&<div style={{background:toast.includes('Failed')||toast.includes('error')?t.coralBg:t.tealBg,color:toast.includes('Failed')||toast.includes('error')?t.coral:t.teal,borderRadius:12,padding:'12px 16px',fontSize:13,fontWeight:500}}>
-        {toast.includes('Failed')||toast.includes('error')?'⚠ ':'✓ '}{toast}</div>}
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <div><div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Events & Programmes</div>
-        <div style={{fontSize:12,color:t.muted,marginTop:2}}>Create events, generate registration links, track attendance</div></div>
-        <button onClick={()=>setCreating(v=>!v)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:10,padding:'10px 18px',fontSize:13,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:7}}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          New event
-        </button>
-      </div>
-
-      {creating&&(
-        <div style={cardS({padding:'24px'})}>
-          <div style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:18}}>Create event</div>
-          <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'1fr 1fr 1fr':'1fr',gap:14,marginBottom:16}}>
-            <div style={{gridColumn:screenWidth>=1024?'1/3':'1/-1'}}>
-              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:6,fontWeight:600}}>Event title *</div>
-              <input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="e.g. December Praise Night" style={inp}/>
-            </div>
-            <div>
-              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:6,fontWeight:600}}>Date *</div>
-              <input type="date" value={form.event_date} onChange={e=>setForm(p=>({...p,event_date:e.target.value}))} min={new Date().toISOString().split('T')[0]} style={inp}/>
-            </div>
-            <div>
-              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:6,fontWeight:600}}>Type</div>
-              <select value={form.event_type} onChange={e=>setForm(p=>({...p,event_type:e.target.value}))} style={inp}>
-                {EVENT_TYPES.map(et=><option key={et} value={et}>{et.charAt(0).toUpperCase()+et.slice(1)}</option>)}
-              </select>
-            </div>
-            <div>
-              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:6,fontWeight:600}}>Start time</div>
-              <input type="time" value={form.start_time} onChange={e=>setForm(p=>({...p,start_time:e.target.value}))} style={inp}/>
-            </div>
-            <div>
-              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:6,fontWeight:600}}>Location</div>
-              <input value={form.location} onChange={e=>setForm(p=>({...p,location:e.target.value}))} placeholder="Main auditorium" style={inp}/>
-            </div>
-            <div>
-              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:6,fontWeight:600}}>Capacity</div>
-              <input type="number" value={form.capacity} onChange={e=>setForm(p=>({...p,capacity:e.target.value}))} placeholder="Leave blank = unlimited" style={inp}/>
-            </div>
-            <div style={{gridColumn:'1/-1'}}>
-              <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.05em',marginBottom:6,fontWeight:600}}>Description</div>
-              <textarea value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} rows={2} placeholder="What to expect…" style={{...inp,resize:'vertical' as const}}/>
-            </div>
-          </div>
-          <div style={{display:'flex',gap:16,alignItems:'center',marginBottom:16}}>
-            <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:t.text,cursor:'pointer'}}>
-              <input type="checkbox" checked={form.is_free} onChange={e=>setForm(p=>({...p,is_free:e.target.checked}))} style={{width:16,height:16}}/>Free entry
-            </label>
-            {!form.is_free&&<div style={{display:'flex',alignItems:'center',gap:8}}>
-              <span style={{fontSize:13,color:t.muted}}>₦</span>
-              <input type="number" value={form.price} onChange={e=>setForm(p=>({...p,price:e.target.value}))} placeholder="Amount" style={{...inp,width:140}}/>
-            </div>}
-          </div>
-          <div style={{display:'flex',gap:10}}>
-            <button onClick={createEvent} disabled={saving||!form.title||!form.event_date}
-              style={{background:t.purple,color:'#fff',border:'none',borderRadius:10,padding:'11px 22px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:saving||!form.title||!form.event_date?0.6:1}}>
-              {saving?'Creating…':'Create event'}
-            </button>
-            <button onClick={()=>setCreating(false)} style={{background:'transparent',color:t.muted,border:`0.5px solid ${t.border}`,borderRadius:10,padding:'11px 18px',fontSize:13,cursor:'pointer'}}>Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {events.length===0&&!creating?(
-        <div style={cardS({padding:'48px',textAlign:'center' as const})}>
-          <div style={{width:56,height:56,background:t.purpleBg,borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 18px'}}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={t.purple} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="16" r="3"/></svg>
-          </div>
-          <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:8}}>No events yet</div>
-          <div style={{fontSize:13,color:t.muted,maxWidth:380,margin:'0 auto 20px',lineHeight:1.7}}>Create your first event. Members register via a public link — no login needed. Track registrations, attendance, and conversion rate.</div>
-          <button onClick={()=>setCreating(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:10,padding:'12px 24px',fontSize:14,fontWeight:600,cursor:'pointer'}}>Create first event</button>
-        </div>
-      ):(
-        <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'repeat(3,1fr)':'1fr',gap:14}}>
-          {events.map(ev=>{
-            const ac=TYPE_COLOR[ev.event_type as string]||t.purple;
-            return(
-              <div key={ev.id as string} style={{...cardS({padding:'0',overflow:'hidden'}),cursor:'pointer'}}
-                onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=dark?'0 8px 40px rgba(83,74,183,0.2)':'0 8px 32px rgba(83,74,183,0.1)';}}
-                onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='';}}>
-                <div style={{height:6,background:ac,opacity:0.8}}/>
-                <div style={{padding:'16px 18px'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:10}}>
-                    <div style={{fontSize:14,fontWeight:600,color:t.text,lineHeight:1.3}}>{ev.title as string}</div>
-                    <span style={{fontSize:10,fontWeight:600,padding:'3px 9px',borderRadius:20,background:t.purpleBg,color:t.purple,whiteSpace:'nowrap' as const,flexShrink:0,textTransform:'capitalize' as const}}>{ev.event_type as string}</span>
-                  </div>
-                  <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:12}}>
-                    <div style={{display:'flex',gap:7,alignItems:'center',fontSize:12,color:t.muted}}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
-                      {ev.event_date?new Date((ev.event_date as string)+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}):'—'}
-                      {ev.start_time&&` · ${ev.start_time}`}
-                    </div>
-                    {(ev.location as string)&&<div style={{display:'flex',gap:7,alignItems:'center',fontSize:12,color:t.muted}}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                      {ev.location as string}
-                    </div>}
-                  </div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                    <div style={{fontSize:12,fontWeight:600,color:ac}}>{ev.is_free?'Free entry':`₦${Number(ev.price).toLocaleString()}`}</div>
-                    <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                      <span style={{fontSize:12,color:t.muted}}>{(ev.registration_count as number)||0} registered</span>
-                      <button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/events/${ev.public_slug}`);showToast('Registration link copied!');}}
-                        style={{background:t.purpleBg,color:t.purple,border:'none',borderRadius:7,padding:'4px 10px',fontSize:10,fontWeight:600,cursor:'pointer'}}>Copy link</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function WorkforceIntelligencePage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;screenWidth:number}) {
-  const [data,setData]=React.useState<Record<string,unknown>|null>(null);
-  const [loading,setLoading]=React.useState(true);
-  const [selectedDept,setSelectedDept]=React.useState<Record<string,unknown>|null>(null);
-  const cardS=(e?:React.CSSProperties):React.CSSProperties=>({
-    background:dark?'rgba(20,14,52,0.82)':'rgba(255,255,255,0.88)',
-    backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',
-    border:`0.5px solid ${dark?'rgba(255,255,255,0.07)':'rgba(83,74,183,0.1)'}`,
-    borderRadius:16,boxShadow:dark?'0 4px 32px rgba(0,0,0,0.4)':'0 4px 24px rgba(83,74,183,0.06)',...e});
-
-  React.useEffect(()=>{
-    fetch('/api/workforce/intelligence',{credentials:'include'})
-      .then(r=>r.json()).then(({data:d})=>{if(d)setData(d);})
-      .catch(()=>{}).finally(()=>setLoading(false));
-  },[]);
-
-  if(loading)return(
-    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:300,flexDirection:'column',gap:14}}>
-      <div style={{width:36,height:36,borderRadius:'50%',border:`2px solid ${t.purpleBg}`,borderTopColor:t.purple,animation:'spin 0.8s linear infinite'}}/>
-      <div style={{fontSize:13,color:t.muted}}>Loading workforce intelligence…</div>
-    </div>
-  );
-
-  const summary=data?.summary as Record<string,number>||{};
-  const deptStats=(data?.department_stats as Record<string,unknown>[])||[];
-  const rankings=(data?.reliability_rankings as Record<string,unknown>[])||[];
-  const overcommitted=(data?.overcommitted as Record<string,unknown>[])||[];
-
-  // DRILL-DOWN VIEW
-  if(selectedDept){
-    const dept=selectedDept;
-    const deptName=dept.name as string;
-    const memberCount=dept.member_count as number||0;
-    const hasRoster=(dept.next_roster_coverage as string)==='scheduled';
-    return(
-      <div style={{display:'flex',flexDirection:'column',gap:16}}>
-        <div style={{display:'flex',alignItems:'center',gap:12}}>
-          <button onClick={()=>setSelectedDept(null)}
-            style={{display:'flex',alignItems:'center',gap:6,background:'transparent',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 12px',fontSize:12,color:t.muted,cursor:'pointer'}}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
-            Workforce
-          </button>
-          <div style={{fontSize:19,fontWeight:700,color:t.text}}>{deptName}</div>
-          <span style={{fontSize:11,padding:'3px 10px',borderRadius:20,background:hasRoster?t.tealBg:t.coralBg,color:hasRoster?t.teal:t.coral,fontWeight:600}}>{hasRoster?'Roster scheduled':'No roster'}</span>
-        </div>
-
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
-          {[
-            {label:'Total members',value:memberCount,color:t.purple,bg:t.purpleBg},
-            {label:'Assigned next Sunday',value:(dept.assigned_next as number)||0,color:t.teal,bg:t.tealBg},
-            {label:'Rosters built',value:(dept.roster_count as number)||0,color:t.amber,bg:t.amberBg},
-            {label:'Last roster',value:(dept.last_roster_date as string)?new Date((dept.last_roster_date as string)+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'Never',color:t.muted,bg:t.purpleBg},
-          ].map((k,i)=>(
-            <div key={i} style={{...cardS({padding:'16px'}),background:k.bg}}>
-              <div style={{fontSize:22,fontWeight:700,color:k.color}}>{k.value}</div>
-              <div style={{fontSize:11,color:k.color,opacity:0.8,marginTop:4}}>{k.label}</div>
-            </div>
-          ))}
-        </div>
-
-        <div style={cardS({padding:0,overflow:'hidden'})}>
-          <div style={{padding:'14px 20px',borderBottom:`0.5px solid ${t.border}`,fontSize:13,fontWeight:600,color:t.text}}>Reliability — top performers</div>
-          {rankings.length===0?(
-            <div style={{padding:32,textAlign:'center' as const,color:t.muted,fontSize:13}}>No roster data yet. Department head needs to publish a roster first.</div>
-          ):rankings.map((r,i)=>{
-            const score=r.reliability_score as number||0;
-            const scoreColor=score>=4?t.teal:score>=2.5?t.amber:t.coral;
-            return(
-              <div key={i} style={{padding:'12px 20px',borderBottom:i<rankings.length-1?`0.5px solid ${t.border}`:'none',display:'flex',alignItems:'center',gap:12}}>
-                <div style={{width:28,height:28,borderRadius:'50%',background:t.purpleBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:t.purple,flexShrink:0}}>{i+1}</div>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>{r.full_name as string}</div>
-                  <div style={{fontSize:11,color:t.muted}}>{r.total_attended as number}/{r.total_assigned as number} services attended</div>
-                </div>
-                <div style={{textAlign:'right' as const}}>
-                  <div style={{fontSize:18,fontWeight:700,color:scoreColor}}>{score.toFixed(1)}</div>
-                  <div style={{fontSize:10,color:scoreColor}}>{score>=4?'Excellent':score>=2.5?'Good':'Needs attention'}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  // MAIN OVERVIEW
-  return(
-    <div style={{display:'flex',flexDirection:'column',gap:16}}>
-      <div>
-        <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Workforce Intelligence</div>
-        <div style={{fontSize:12,color:t.muted,marginTop:2}}>Click any department for full drill-down</div>
-      </div>
-
-      <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'repeat(5,1fr)':'repeat(2,1fr)',gap:12}}>
-        {[
-          {label:'Total volunteers',value:summary.total_workforce||0,color:t.purple,bg:t.purpleBg,
-            svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M21 20c0-2.8-1.8-5-4-5.5"/></svg>},
-          {label:'Departments',value:summary.total_departments||0,color:t.muted,bg:dark?'rgba(255,255,255,0.05)':t.purpleBg,
-            svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><rect x="9" y="13" width="6" height="8"/></svg>},
-          {label:'Scheduled',value:summary.departments_scheduled_next_sunday||0,color:t.teal,bg:t.tealBg,
-            svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20,6 9,17 4,12"/></svg>},
-          {label:'Gaps',value:summary.departments_with_gaps||0,color:(summary.departments_with_gaps||0)>0?t.coral:t.teal,bg:(summary.departments_with_gaps||0)>0?t.coralBg:t.tealBg,
-            svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>},
-          {label:'Overcommitted',value:summary.overcommitted_members||0,color:(summary.overcommitted_members||0)>0?t.amber:t.teal,bg:(summary.overcommitted_members||0)>0?t.amberBg:t.tealBg,
-            svg:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>},
-        ].map((kpi,i)=>(
-          <div key={i} style={{...cardS({padding:'16px'}),background:kpi.bg}}>
-            <div style={{color:kpi.color,marginBottom:8}}>{kpi.svg}</div>
-            <div style={{fontSize:24,fontWeight:700,color:kpi.color}}>{kpi.value}</div>
-            <div style={{fontSize:11,color:kpi.color,opacity:0.8,marginTop:2}}>{kpi.label}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'1fr 1fr':'1fr',gap:14}}>
-        <div style={cardS({padding:0,overflow:'hidden'})}>
-          <div style={{padding:'14px 18px',borderBottom:`0.5px solid ${t.border}`,fontSize:13,fontWeight:600,color:t.text}}>Department coverage — click to drill down</div>
-          {deptStats.length===0?(
-            <div style={{padding:32,textAlign:'center' as const,color:t.muted,fontSize:13}}>No departments found.</div>
-          ):deptStats.map((dept,i)=>{
-            const has=(dept.next_roster_coverage as string)==='scheduled';
-            return(
-              <div key={dept.id as string} onClick={()=>setSelectedDept(dept)} style={{padding:'12px 18px',borderBottom:i<deptStats.length-1?`0.5px solid ${t.border}`:'none',display:'flex',alignItems:'center',gap:12,cursor:'pointer',transition:'all 0.15s ease'}}
-                onMouseEnter={e=>{e.currentTarget.style.background=dark?'rgba(255,255,255,0.04)':'rgba(83,74,183,0.04)';}}
-                onMouseLeave={e=>{e.currentTarget.style.background='transparent';}}>
-                <div style={{width:8,height:8,borderRadius:'50%',background:has?t.teal:t.coral,flexShrink:0,boxShadow:`0 0 6px ${has?t.teal:t.coral}`}}/>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>{dept.name as string}</div>
-                  <div style={{fontSize:11,color:t.muted}}>{dept.member_count as number} members{has?` · ${dept.assigned_next as number} assigned`:' · No roster yet'}</div>
-                </div>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <span style={{fontSize:10,fontWeight:600,padding:'3px 9px',borderRadius:20,background:has?t.tealBg:t.coralBg,color:has?t.teal:t.coral}}>{has?'✓ Scheduled':'No roster'}</span>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9,18 15,12 9,6"/></svg>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div style={cardS({padding:0,overflow:'hidden'})}>
-          <div style={{padding:'14px 18px',borderBottom:`0.5px solid ${t.border}`,fontSize:13,fontWeight:600,color:t.text}}>Reliability rankings</div>
-          {rankings.length===0?(
-            <div style={{padding:32,textAlign:'center' as const,color:t.muted,fontSize:13}}>Publish rosters to see reliability scores.</div>
-          ):rankings.slice(0,6).map((r,i)=>{
-            const score=r.reliability_score as number||0;
-            const scoreColor=score>=4?t.teal:score>=2.5?t.amber:t.coral;
-            return(
-              <div key={i} style={{padding:'10px 18px',borderBottom:i<Math.min(rankings.length,6)-1?`0.5px solid ${t.border}`:'none',display:'flex',alignItems:'center',gap:10}}>
-                <div style={{width:24,height:24,borderRadius:'50%',background:i<3?t.amberBg:t.purpleBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:i<3?t.amber:t.purple,flexShrink:0}}>{i+1}</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:12,fontWeight:500,color:t.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{r.full_name as string}</div>
-                  <div style={{fontSize:10,color:t.muted}}>{r.total_attended as number}/{r.total_assigned as number} attended</div>
-                </div>
-                <div style={{textAlign:'right' as const}}>
-                  <div style={{fontSize:15,fontWeight:700,color:scoreColor}}>{score.toFixed(1)}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CommendLeadersPanel({t, dark}: {t: Record<string,string>; dark: boolean}) {
-  const [leaders, setLeaders] = React.useState<{id:string;full_name:string;role:string;cell_name:string;commendation:string;created_at:string}[]>([]);
-  const [form, setForm] = React.useState({leader_id:'', commendation:'', category:'attendance'});
-  const [users, setUsers] = React.useState<{id:string;full_name:string;role:string}[]>([]);
-  const [saving, setSaving] = React.useState(false);
-  const [success, setSuccess] = React.useState('');
-
-  React.useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users?select=id,full_name,role&role=in.(cell_leader,fellowship_head,department_head)&order=full_name.asc`, {
-      headers: {'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||'', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||''}`}
-    }).then(r=>r.json()).then(d=>{if(Array.isArray(d))setUsers(d);}).catch(()=>{});
-  }, []);
-
-  const cardS = (e?: React.CSSProperties): React.CSSProperties => ({background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '16px 18px', ...e});
-  const CATEGORIES = ['attendance','giving','soul winning','leadership','faithfulness','outstanding service'];
-
-  async function submit() {
-    if (!form.leader_id || !form.commendation.trim()) return;
-    setSaving(true);
-    try {
-      const user = users.find(u => u.id === form.leader_id);
-      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/notifications`, {
-        method: 'POST',
-        headers: {'apikey': process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY||'', 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY||''}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal'},
-        body: JSON.stringify({user_id: form.leader_id, type: 'commendation', read: false, title: '🏆 You have been commended!', body: form.commendation})
-      });
-      setSuccess(`${user?.full_name} has been commended and notified.`);
-      setForm({leader_id:'', commendation:'', category:'attendance'});
-      setTimeout(() => setSuccess(''), 4000);
-    } catch {}
-    setSaving(false);
-  }
-
-  return (
-    <div style={{display:'flex', flexDirection:'column', gap:14}}>
-      {success && <div style={{background:t.tealBg, color:t.teal, borderRadius:9, padding:'10px 16px', fontSize:13, fontWeight:500}}>✓ {success}</div>}
-      <div style={cardS()}>
-        <div style={{fontSize:13, fontWeight:600, color:t.text, marginBottom:14}}>Commend a leader</div>
-        <div style={{display:'flex', flexDirection:'column', gap:12}}>
-          <div>
-            <div style={{fontSize:10, color:t.muted, textTransform:'uppercase' as const, letterSpacing:'0.4px', marginBottom:5}}>Select leader</div>
-            <select value={form.leader_id} onChange={e=>setForm(p=>({...p,leader_id:e.target.value}))}
-              style={{width:'100%', border:`0.5px solid ${t.border}`, borderRadius:8, padding:'9px 12px', fontSize:13, background:t.input, color:t.text, outline:'none'}}>
-              <option value="">Choose a leader…</option>
-              {users.map(u=><option key={u.id} value={u.id}>{u.full_name} ({u.role.replace('_',' ')})</option>)}
-            </select>
-          </div>
-          <div>
-            <div style={{fontSize:10, color:t.muted, textTransform:'uppercase' as const, letterSpacing:'0.4px', marginBottom:5}}>Category</div>
-            <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))}
-              style={{width:'100%', border:`0.5px solid ${t.border}`, borderRadius:8, padding:'9px 12px', fontSize:13, background:t.input, color:t.text, outline:'none'}}>
-              {CATEGORIES.map(c=><option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
-            </select>
-          </div>
-          <div>
-            <div style={{fontSize:10, color:t.muted, textTransform:'uppercase' as const, letterSpacing:'0.4px', marginBottom:5}}>Commendation message</div>
-            <textarea value={form.commendation} onChange={e=>setForm(p=>({...p,commendation:e.target.value}))} rows={4}
-              placeholder="Write your commendation here. This will be sent to the leader as a notification."
-              style={{width:'100%', border:`0.5px solid ${t.border}`, borderRadius:8, padding:'9px 12px', fontSize:13, background:t.input, color:t.text, outline:'none', fontFamily:'inherit', resize:'vertical' as const, boxSizing:'border-box' as const}}/>
-          </div>
-          <button onClick={submit} disabled={saving||!form.leader_id||!form.commendation.trim()}
-            style={{background:t.purple, color:'#fff', border:'none', borderRadius:9, padding:'11px', fontSize:14, fontWeight:600, cursor:'pointer', opacity:saving||!form.leader_id||!form.commendation.trim()?0.6:1}}>
-            {saving?'Sending…':'Send commendation 🏆'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── APPROVAL QUEUE — full chain, all request types ──────────
-function ApprovalQueuePage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;screenWidth:number}) {
-  const [additions,setAdditions]=React.useState<Record<string,unknown>[]>([]);
-  const [userRole,setUserRole]=React.useState('');
-  const [userId,setUserId]=React.useState('');
-  const [loading,setLoading]=React.useState(true);
-  const [processing,setProcessing]=React.useState<Record<string,boolean>>({});
-  const [filter,setFilter]=React.useState<'pending'|'approved'|'rejected'|'all'>('pending');
-  const [revokeId,setRevokeId]=React.useState<string|null>(null);
-  const [revokeReason,setRevokeReason]=React.useState('');
-  const [toast,setToast]=React.useState('');
-  const cardS=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,...e});
-  const showToast=(msg:string)=>{setToast(msg);setTimeout(()=>setToast(''),4000);};
-
-  React.useEffect(()=>{
-    fetch('/api/auth/me',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
-      if(data?.role){setUserRole(data.role);setUserId(data.id);}
-    }).catch(()=>{});
-  },[]);
-
-  React.useEffect(()=>{
-    if(!userRole)return;
-    const isAdmin=['overseer','pa','lead_tech'].includes(userRole);
-    const isFellowship=['fellowship_head'].includes(userRole);
-    const scope=isAdmin?'all':isFellowship?'fellowship':'mine';
-    fetch(`/api/update/member-additions?scope=${scope}`,{credentials:'include'})
-      .then(r=>r.json()).then(({data})=>{if(data?.additions)setAdditions(data.additions);})
-      .catch(()=>{}).finally(()=>setLoading(false));
-  },[userRole,toast]);
-
-  async function act(id:string, action:string, comment?:string){
-    setProcessing(p=>({...p,[id]:true}));
-    try{
-      await fetch('/api/update/member-additions',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id,action,comment:comment||undefined,pastor_revoke_reason:action==='pastor_revoke'?revokeReason:undefined})});
-      showToast(action.includes('approve')?'Approved successfully':'Action completed');
-      setRevokeId(null);setRevokeReason('');
-    }catch{}
-    setProcessing(p=>({...p,[id]:false}));
-  }
-
-  const filtered=additions.filter(a=>{
-    if(filter==='all')return true;
-    if(filter==='pending')return a.status==='pending'||a.l1_status==='pending'||a.l2_status==='pending';
-    return a.status===filter;
-  });
-
-  const isOverseer=userRole==='overseer';
-  const isPA=userRole==='pa';
-  const isFellowshipHead=userRole==='fellowship_head';
-
-  function getActions(a:Record<string,unknown>){
-    if((a.pastor_revoked as boolean))return null;
-    if(isOverseer&&a.status!=='pending')return(
-      <button onClick={()=>setRevokeId(a.id as string)} style={{background:t.coralBg,color:t.coral,border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>Revoke</button>
-    );
-    if(isFellowshipHead&&a.l1_status==='pending')return(
-      <div style={{display:'flex',gap:6}}>
-        <button onClick={()=>act(a.id as string,'l1_approve')} disabled={processing[a.id as string]} style={{background:t.teal,color:'#fff',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id as string]?0.6:1}}>Approve</button>
-        <button onClick={()=>act(a.id as string,'l1_reject')} disabled={processing[a.id as string]} style={{background:t.coralBg,color:t.coral,border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>Decline</button>
-      </div>
-    );
-    if(isPA&&a.l1_status==='approved'&&a.l2_status==='pending')return(
-      <div style={{display:'flex',gap:6}}>
-        <button onClick={()=>act(a.id as string,'l2_approve')} disabled={processing[a.id as string]} style={{background:t.teal,color:'#fff',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id as string]?0.6:1}}>Final approve</button>
-        <button onClick={()=>act(a.id as string,'l2_reject')} disabled={processing[a.id as string]} style={{background:t.coralBg,color:t.coral,border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>Reject</button>
-      </div>
-    );
-    if(isPA&&a.l1_status==='pending')return(
-      <div style={{display:'flex',gap:6}}>
-        <button onClick={()=>act(a.id as string,'l1_approve')} disabled={processing[a.id as string]} style={{background:t.teal,color:'#fff',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id as string]?0.6:1}}>Approve (L1)</button>
-        <button onClick={()=>act(a.id as string,'l1_reject')} disabled={processing[a.id as string]} style={{background:t.coralBg,color:t.coral,border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>Decline</button>
-      </div>
-    );
-    return null;
-  }
-
-  function statusBadge(a:Record<string,unknown>){
-    if(a.pastor_revoked)return{label:'Revoked by Pastor',bg:'#FAECE7',c:'#993C1D'};
-    if(a.status==='approved')return{label:'Approved — Active',bg:'#E1F5EE',c:'#085041'};
-    if(a.status==='rejected')return{label:'Declined',bg:'#FAECE7',c:'#993C1D'};
-    if(a.l1_status==='pending')return{label:'Awaiting L1 approval',bg:'#FAEEDA',c:'#633806'};
-    if(a.l1_status==='approved'&&a.l2_status==='pending')return{label:'Awaiting final approval',bg:'#EEEDFE',c:'#3C3489'};
-    return{label:'Pending',bg:'#FAEEDA',c:'#633806'};
-  }
-
-  return(
-    <div style={{display:'flex',flexDirection:'column',gap:16}}>
-      {toast&&<div style={{background:t.teal,color:'#fff',borderRadius:9,padding:'10px 16px',fontSize:13,fontWeight:500}}>✓ {toast}</div>}
-
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap' as const,gap:10}}>
-        <div>
-          <div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Approve & Validate</div>
-          <div style={{fontSize:12,color:t.muted,marginTop:2}}>All pending member additions, transfers, and requests across the church</div>
-        </div>
-        <div style={{display:'flex',gap:6}}>
-          {(['pending','approved','rejected','all'] as const).map(f=>(
-            <button key={f} onClick={()=>setFilter(f)} style={{padding:'5px 12px',borderRadius:20,border:`0.5px solid ${filter===f?t.purple:t.border}`,background:filter===f?t.purple:'transparent',color:filter===f?'#fff':t.muted,fontSize:11,cursor:'pointer',fontWeight:filter===f?600:400}}>
-              {f.charAt(0).toUpperCase()+f.slice(1)} {f==='pending'&&additions.filter(a=>a.status==='pending').length>0?`(${additions.filter(a=>a.status==='pending').length})`:''}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Summary counts */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
-        {[
-          {label:'Pending',value:additions.filter(a=>a.status==='pending').length,color:t.amber,bg:t.amberBg},
-          {label:'Approved',value:additions.filter(a=>a.status==='approved').length,color:t.teal,bg:t.tealBg},
-          {label:'Declined',value:additions.filter(a=>a.status==='rejected').length,color:t.coral,bg:t.coralBg},
-          {label:'Total requests',value:additions.length,color:t.purple,bg:t.purpleBg},
-        ].map(k=>(
-          <div key={k.label} style={{...cardS({padding:'14px 16px'}),background:k.bg}}>
-            <div style={{fontSize:22,fontWeight:700,color:k.color}}>{k.value}</div>
-            <div style={{fontSize:11,color:k.color,opacity:0.8,marginTop:4}}>{k.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {loading?(
-        <div style={{padding:32,textAlign:'center' as const,color:t.muted,fontSize:13}}>Loading requests…</div>
-      ):filtered.length===0?(
-        <div style={cardS({padding:'40px',textAlign:'center' as const})}>
-          <div style={{width:44,height:44,background:t.purpleBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={t.purple} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9,12 11,14 15,10"/></svg>
-          </div>
-          <div style={{fontSize:14,fontWeight:600,color:t.text,marginBottom:6}}>No {filter} requests</div>
-          <div style={{fontSize:12,color:t.muted}}>When cell leaders, fellowship heads, or department heads submit member additions, they appear here for approval.</div>
-        </div>
-      ):(
-        <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          {filtered.map(a=>{
-            const badge=statusBadge(a);
-            return(
-              <div key={a.id as string} style={cardS({padding:'16px 18px'})}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12,flexWrap:'wrap' as const}}>
-                  <div style={{flex:1}}>
-                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                      <div style={{fontSize:14,fontWeight:600,color:t.text}}>{a.full_name as string}</div>
-                      <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,fontWeight:600,background:badge.bg,color:badge.c}}>{badge.label}</span>
-                    </div>
-                    <div style={{display:'flex',gap:12,flexWrap:'wrap' as const,fontSize:11,color:t.muted}}>
-                      {(a.phone as string)&&<span>📱 {a.phone as string}</span>}
-                      {(a.gender as string)&&<span>· {a.gender as string}</span>}
-                      {(a.occupation as string)&&<span>· {a.occupation as string}</span>}
-                      <span>· Submitted by <strong style={{color:t.sub}}>{a.submitted_by_name as string||'Unknown'}</strong></span>
-                      <span>· {new Date(a.created_at as string).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</span>
-                    </div>
-                    {(a.l1_comment as string)&&<div style={{marginTop:6,fontSize:11,color:t.sub,fontStyle:'italic' as const}}>L1 note: {a.l1_comment as string}</div>}
-                    {(a.l2_comment as string)&&<div style={{marginTop:4,fontSize:11,color:t.sub,fontStyle:'italic' as const}}>Final note: {a.l2_comment as string}</div>}
-                    {(a.pastor_revoke_reason as string)&&<div style={{marginTop:6,fontSize:11,color:t.coral,fontStyle:'italic' as const}}>Pastor revoke reason: {a.pastor_revoke_reason as string}</div>}
-                  </div>
-                  <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
-                    {getActions(a)}
-                  </div>
-                </div>
-                {/* Approval chain tracker */}
-                <div style={{marginTop:12,paddingTop:12,borderTop:`0.5px solid ${t.border}`,display:'flex',gap:6,alignItems:'center'}}>
-                  {[
-                    {label:'Submitted',done:true,color:t.teal},
-                    {label:'L1 Review',done:a.l1_status==='approved',active:a.l1_status==='pending',rejected:a.l1_status==='rejected',color:a.l1_status==='approved'?t.teal:a.l1_status==='rejected'?t.coral:t.amber},
-                    {label:'Final Approval',done:a.l2_status==='approved',active:a.l1_status==='approved'&&a.l2_status==='pending',rejected:a.l2_status==='rejected',color:a.l2_status==='approved'?t.teal:a.l2_status==='rejected'?t.coral:t.amber},
-                    {label:'Active Member',done:a.status==='approved',color:t.teal},
-                  ].map((step,i)=>(
-                    <React.Fragment key={i}>
-                      <div style={{display:'flex',alignItems:'center',gap:4}}>
-                        <div style={{width:16,height:16,borderRadius:'50%',background:(step.done||step.active)?step.color:t.input,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                          {step.done&&<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20,6 9,17 4,12"/></svg>}
-                          {(step as Record<string,unknown>).rejected&&<span style={{fontSize:8,color:'#fff',fontWeight:700}}>✕</span>}
-                        </div>
-                        <span style={{fontSize:10,color:step.done?step.color:t.muted,fontWeight:step.active?600:400}}>{step.label}</span>
-                      </div>
-                      {i<3&&<div style={{flex:1,height:1,background:step.done?t.teal:t.border}}/>}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Revoke modal */}
-      {revokeId&&(
-        <div style={{position:'fixed' as const,inset:0,background:'rgba(0,0,0,0.4)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
-          <div style={{background:t.card,borderRadius:14,padding:'24px',maxWidth:440,width:'100%',boxShadow:'0 8px 32px rgba(0,0,0,0.2)'}}>
-            <div style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:6}}>Revoke member addition</div>
-            <div style={{fontSize:12,color:t.muted,marginBottom:16}}>This action will be logged and all parties notified. A reason is required.</div>
-            <textarea value={revokeReason} onChange={e=>setRevokeReason(e.target.value)} rows={3} placeholder="State your reason for revoking this request…"
-              style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'10px 12px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',resize:'vertical' as const,boxSizing:'border-box' as const,marginBottom:14}}/>
-            <div style={{display:'flex',gap:10}}>
-              <button onClick={()=>act(revokeId,'pastor_revoke')} disabled={!revokeReason.trim()} style={{flex:1,background:t.coral,color:'#fff',border:'none',borderRadius:8,padding:'10px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:!revokeReason.trim()?0.6:1}}>Revoke</button>
-              <button onClick={()=>{setRevokeId(null);setRevokeReason('');}} style={{background:t.input,color:t.sub,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'10px 16px',fontSize:13,cursor:'pointer'}}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

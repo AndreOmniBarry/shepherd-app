@@ -1,4 +1,3 @@
-export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 
 // ── This endpoint scans last Sunday's attendance and creates care leads
