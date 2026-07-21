@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'open';
-    let url = `${SURL}/rest/v1/prayer_requests?order=created_at.desc&limit=50&select=id,request,requester_name,category,status,submitted_by_role,created_at,prayed_at`;
+    let url = `${SURL}/rest/v1/prayer_requests?order=created_at.desc&limit=50&select=id,request,requester_name,category,status,created_at,prayed_at`;
     if (status !== 'all') url += `&status=eq.${status}`;
     const res = await fetch(url, { headers: H() });
     const requests = await res.json();
@@ -42,7 +42,6 @@ export async function POST(req: Request) {
         category: category || 'general', 
         requester_name: requester_name || user.name || 'Anonymous', 
         submitted_by: user.id, 
-        submitted_by_role: user.role, 
         status: 'open' 
       }),
     });
