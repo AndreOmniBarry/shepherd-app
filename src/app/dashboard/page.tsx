@@ -639,6 +639,8 @@ function NavIcon({ id, active, color }: { id: string; active: boolean; color: st
 export default function DashboardPage(){
   const router=useRouter();
   const [page,setPage]=useState<NavPage>('dashboard');
+  const [pageVisible,setPageVisible]=useState(true);
+  const [pendingPage,setPendingPage]=useState<NavPage|null>(null);
   const { width: screenWidth } = useScreenSize();
   const [subscription,setSubscription]=useState<{plan_tier:string;status:string;days_remaining:number;is_active:boolean;trial_ends_at?:string}|null>(null);
   const [countdown,setCountdown]=useState<{d:number;h:number;m:number;s:number}|null>(null);
@@ -857,7 +859,7 @@ export default function DashboardPage(){
         </div>
         <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
           {navItems.map(n=>(
-            <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDept(null);setPage(n.id);if(isMobile)setSidebarOpen(false);}}
+            <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDept(null);setPageVisible(false);setTimeout(()=>{setPage(n.id);setPageVisible(true);},120);if(isMobile)setSidebarOpen(false);}}
               style={{display:'flex',alignItems:'center',gap:10,padding:'0 14px 0 16px',height:'44px',fontSize:13,width:'100%',border:'none',cursor:'pointer',textAlign:'left',background:page===n.id?t.purpleBg:'transparent',color:page===n.id?(dark?'#FFFFFF':'#3C3489'):t.sub,fontWeight:page===n.id?500:400,transition:'background 0.1s'}}>
               <span style={{width:18,flexShrink:0,display:'inline-flex',alignItems:'center',justifyContent:'center'}}><NavIcon id={n.id} active={page===n.id} color={dark?'#A89FFF':'#534AB7'}/></span>
               <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{n.label}</span>
@@ -929,7 +931,7 @@ export default function DashboardPage(){
           </div>
         </div>
 
-        <div style={{flex:1,padding:'20px',overflowY:'auto',background:t.bg,maxWidth:'100%'}}>
+        <div style={{flex:1,padding:'20px',overflowY:'auto',background:t.bg,maxWidth:'100%',transition:'opacity 0.12s ease',opacity:pageVisible?1:0}}>
 
           {/* ══ DASHBOARD ══ */}
           {page==='dashboard'&&(
@@ -2193,7 +2195,16 @@ function ServicePlannerPage({t,dark,screenWidth}:{t:Record<string,string>;dark:b
   const inp:React.CSSProperties={width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 12px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box' as const};
 
   React.useEffect(()=>{
-    fetch('/api/service-planner',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.plans)setPlans(data.plans);}).catch(()=>{});
+    fetch('/api/service-planner',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
+      if(data?.plans&&data.plans.length>0){
+        setPlans(data.plans);
+        // Auto-select most recent plan and load its items
+        const first=data.plans[0];
+        setSelected(first);
+        fetch(`/api/service-planner/items?plan_id=${first.id}`,{credentials:'include'})
+          .then(r=>r.json()).then(({data:d})=>{if(d?.items)setItems(d.items);}).catch(()=>{});
+      }
+    }).catch(()=>{});
   },[]);
 
   const TYPES=[{v:'prayer',l:'Opening Prayer',c:'#534AB7'},{v:'song',l:'Praise & Worship',c:'#1D9E75'},{v:'announcement',l:'Announcements',c:'#BA7517'},{v:'offering',l:'Tithes & Offering',c:'#D85A30'},{v:'sermon',l:'Sermon',c:'#534AB7'},{v:'item',l:'General Item',c:'#9890C4'},{v:'benediction',l:'Benediction',c:'#534AB7'}];
@@ -2252,7 +2263,7 @@ function ServicePlannerPage({t,dark,screenWidth}:{t:Record<string,string>;dark:b
             </div>
             <div>
               <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5}}>Date *</div>
-              <input type="date" value={form.service_date} onChange={e=>setForm(p=>({...p,service_date:e.target.value}))} style={inp}/>
+              <input type="date" value={form.service_date} onChange={e=>setForm(p=>({...p,service_date:e.target.value}))} min={new Date().toISOString().split('T')[0]} style={inp}/>
             </div>
             <div>
               <div style={{fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5}}>Type</div>
@@ -2417,7 +2428,7 @@ function WorkforceIntelligencePage({t,dark,screenWidth}:{t:Record<string,string>
         <div style={cardS({padding:'32px',textAlign:'center' as const})}>
           <div style={{width:48,height:48,background:t.purpleBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={t.purple} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><circle cx="12" cy="12" r="2"/></svg></div>
           <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:6}}>No workforce data yet</div>
-          <div style={{fontSize:13,color:t.muted,maxWidth:400,margin:'0 auto'}}>Department heads need to publish their rosters for workforce intelligence to populate. Prompt them via the departments tab.</div>
+          <div style={{fontSize:13,color:t.muted,maxWidth:400,margin:'0 auto'}}>Department heads need to publish their rosters for workforce intelligence to populate.</div>
         </div>
       ):(
         <div style={cardS({padding:0,overflow:'hidden'})}>
