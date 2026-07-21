@@ -17,7 +17,7 @@ import {
 
 type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; };
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
-type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
+type AgentName = 'moshe';
 type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation'|'settings'|'admin'|'subscription'|'service_planner'|'events'|'workforce';
 type TimeRange = '8w'|'3m'|'6m'|'1y'|'2y'|'5y';
 
@@ -612,8 +612,10 @@ export default function DashboardPage(){
   const router=useRouter();
   const [page,setPage]=useState<NavPage>('dashboard');
   const { width: screenWidth } = useScreenSize();
-  const [subscription,setSubscription]=useState<{plan_tier:string;status:string;days_remaining:number;is_active:boolean}|null>(null);
+  const [subscription,setSubscription]=useState<{plan_tier:string;status:string;days_remaining:number;is_active:boolean;trial_ends_at?:string}|null>(null);
+  const [countdown,setCountdown]=useState<{d:number;h:number;m:number;s:number}|null>(null);
   const [userRole,setUserRole]=useState('');
+  const [pendingCounts,setPendingCounts]=useState<Record<string,number>>({});
   const [kpi,setKpi]=useState<KPI|null>(null);
   const [userName,setUserName]=useState('');
   const [givingRange,setGivingRange]=useState('6m');
@@ -777,29 +779,26 @@ export default function DashboardPage(){
 
   const navItems=[
     {id:'dashboard' as NavPage,icon:'',label:'Dashboard'},
-    {id:'members' as NavPage,icon:'',label:'Members'},
-    {id:'departments' as NavPage,icon:'',label:'Departments'},
-    {id:'attendance' as NavPage,icon:'',label:'Attendance'},
-    {id:'giving' as NavPage,icon:'',label:'Giving'},
-    {id:'cells' as NavPage,icon:'',label:'Cell Ministry'},
-    {id:'reports' as NavPage,icon:'',label:'Reports'},
-    {id:'recognition' as NavPage,icon:'',label:'Recognition'},
-    {id:'prayer' as NavPage,icon:'',label:'Prayer Requests'},
-    {id:'requisitions' as NavPage,icon:'',label:'Requisitions'},
-    {id:'validation' as NavPage,icon:'',label:'Validate Records'},
-    {id:'service_planner' as NavPage,icon:'',label:'Service Planner'},
-    {id:'events' as NavPage,icon:'',label:'Events'},
-    {id:'workforce' as NavPage,icon:'',label:'Workforce'},
-    {id:'subscription' as NavPage,icon:'',label:'Subscription'},
-    {id:'settings' as NavPage,icon:'',label:'Settings'},
+    {id:'members' as NavPage,icon:'ti-users',label:'Members'},
+    {id:'departments' as NavPage,icon:'ti-building-community',label:'Departments'},
+    {id:'attendance' as NavPage,icon:'ti-calendar-check',label:'Attendance'},
+    {id:'giving' as NavPage,icon:'ti-coin',label:'Giving'},
+    {id:'cells' as NavPage,icon:'ti-users-group',label:`${churchConfig.tier2_label||'Cell'} Ministry`},
+    {id:'reports' as NavPage,icon:'ti-chart-bar',label:'Reports'},
+    {id:'recognition' as NavPage,icon:'ti-award',label:'Recognition'},
+    {id:'prayer' as NavPage,icon:'ti-heart',label:'Prayer Requests'},
+    {id:'requisitions' as NavPage,icon:'ti-file-invoice',label:'Requisitions'},
+    {id:'validation' as NavPage,icon:'ti-shield-check',label:'Approve & Validate'},
+    {id:'service_planner' as NavPage,icon:'ti-calendar-event',label:'Service Planner'},
+    {id:'events' as NavPage,icon:'ti-calendar-stats',label:'Events'},
+    {id:'workforce' as NavPage,icon:'ti-id-badge',label:'Workforce'},
+    {id:'subscription' as NavPage,icon:'ti-credit-card',label:'Subscription'},
+    {id:'settings' as NavPage,icon:'ti-settings',label:'Settings'},
     ...(userRole==='lead_tech'?[{id:'admin' as NavPage,icon:'',label:'Admin Portal'}]:[]),
   ];
 
   const agentOpts=[
-    {id:'moshe' as AgentName,label:'Moshe',desc:'Strategy & all domains'},
-    {id:'ktava' as AgentName,label:'Ktava',desc:'Attendance records'},
-    {id:'arkwind' as AgentName,label:'ArkMind',desc:'Giving & financials'},
-    {id:'numbers' as AgentName,label:'NUMB3RS1.2',desc:'Census & demographics'},
+    {id:'moshe' as AgentName,label:'Moshe',desc:'Church Intelligence — ask anything'},
   ];
 
   const rangeOpts:TimeRange[]=['8w','3m','6m','1y','2y','5y'];
@@ -831,8 +830,10 @@ export default function DashboardPage(){
         <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
           {navItems.map(n=>(
             <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDept(null);setPage(n.id);if(isMobile)setSidebarOpen(false);}}
-              style={{display:'flex',alignItems:'center',gap:10,padding:'0 14px 0 16px',height:'44px',fontSize:13,display:'flex',alignItems:'center',width:'100%',border:'none',cursor:'pointer',textAlign:'left',background:page===n.id?t.purpleBg:'transparent',color:page===n.id?(dark?'#FFFFFF':'#3C3489'):t.sub,fontWeight:page===n.id?500:400,transition:'background 0.1s'}}>
-              {n.label}
+              style={{display:'flex',alignItems:'center',gap:10,padding:'0 14px 0 16px',height:'44px',fontSize:12,display:'flex',alignItems:'center',width:'100%',border:'none',cursor:'pointer',textAlign:'left',background:page===n.id?t.purpleBg:'transparent',color:page===n.id?(dark?'#FFFFFF':'#3C3489'):t.sub,fontWeight:page===n.id?500:400,transition:'background 0.1s',borderRadius:6,margin:'1px 6px',width:'calc(100% - 12px)'}}>
+              {n.icon&&<i className={n.icon} style={{fontSize:15,width:18,flexShrink:0,opacity:page===n.id?1:0.7}}/>}
+              <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{n.label}</span>
+              {(pendingCounts[n.id]||0)>0&&<span style={{minWidth:16,height:16,borderRadius:8,background:'#D85A30',color:'#fff',fontSize:9,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',padding:'0 3px',flexShrink:0}}>{pendingCounts[n.id]}</span>}
             </button>
           ))}
         </nav>
@@ -849,9 +850,18 @@ export default function DashboardPage(){
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,maxWidth:'100%',overflow:'hidden'}}>
         {/* Trial banner */}
         {subscription&&subscription.status==='trial'&&(
-          <div style={{background:subscription.days_remaining<=5?'#D85A30':subscription.days_remaining<=14?'#BA7517':'#534AB7',color:'#fff',padding:'8px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:12,fontWeight:500}}>
-            <span>{subscription.days_remaining<=0?'⚠ Your trial has expired. Subscribe to continue.':'⏱ Free trial — '+subscription.days_remaining+' day'+(subscription.days_remaining!==1?'s':'')+' remaining'}</span>
-            <button onClick={()=>setPage('subscription')} style={{background:'rgba(255,255,255,0.2)',color:'#fff',border:'1px solid rgba(255,255,255,0.4)',borderRadius:6,padding:'4px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>View plans</button>
+          <div style={{background:subscription.days_remaining<=5?'#D85A30':subscription.days_remaining<=14?'#BA7517':'#534AB7',color:'#fff',padding:'8px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:12,fontWeight:500,gap:12}}>
+            <div style={{display:'flex',alignItems:'center',gap:12,flex:1}}>
+              <span style={{opacity:0.9}}>Free trial</span>
+              {countdown?(
+                <span style={{fontFamily:'monospace',fontWeight:700,fontSize:13,letterSpacing:'0.5px',background:'rgba(0,0,0,0.2)',padding:'2px 10px',borderRadius:6}}>
+                  {String(countdown.d).padStart(2,'0')}d {String(countdown.h).padStart(2,'0')}h {String(countdown.m).padStart(2,'0')}m {String(countdown.s).padStart(2,'0')}s
+                </span>
+              ):(
+                <span>{subscription.days_remaining} day{subscription.days_remaining!==1?'s':''} remaining</span>
+              )}
+            </div>
+            <button onClick={()=>setPage('subscription')} style={{background:'rgba(255,255,255,0.2)',color:'#fff',border:'1px solid rgba(255,255,255,0.4)',borderRadius:6,padding:'4px 12px',fontSize:11,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>Upgrade now</button>
           </div>
         )}
         {/* Topbar */}
@@ -908,7 +918,7 @@ export default function DashboardPage(){
                     onMouseEnter={e=>e.currentTarget.style.boxShadow='0 2px 8px rgba(83,74,183,0.15)'}
                     onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
                     <div style={{fontSize:11,color:t.sub,marginBottom:4}}>{m.label}</div>
-                    <div style={{fontSize:30,fontWeight:700,color:t.text,lineHeight:1,fontVariantNumeric:'tabular-nums',letterSpacing:'-0.02em'}}>{m.value}</div>
+                    <div style={{fontSize:22,fontWeight:700,color:t.text,lineHeight:1,fontVariantNumeric:'tabular-nums',letterSpacing:'-0.02em'}}>{m.value}</div>
                     <div style={{fontSize:11,color:'#1D9E75',marginTop:3}}>{m.delta}</div>
                   </div>
                 ))}
@@ -1828,6 +1838,37 @@ export default function DashboardPage(){
 function SubscriptionPanel({t,dark}:{t:Record<string,string>;dark:boolean}) {
   const [sub,setSub]=React.useState<{plan_tier:string;status:string;days_remaining:number}|null>(null);
   React.useEffect(()=>{
+    // Countdown timer for trial
+    const countdownInterval = setInterval(() => {
+      const stored = localStorage.getItem('shepherd_trial_end');
+      if (stored) {
+        const end = new Date(stored).getTime();
+        const now = Date.now();
+        const diff = Math.max(0, end - now);
+        const d = Math.floor(diff / 86400000);
+        const h = Math.floor((diff % 86400000) / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        setCountdown({ d, h, m, s });
+      }
+    }, 1000);
+
+    // Fetch pending counts for nav badges
+    fetch('/api/update/member-additions?scope=all',{credentials:'include'})
+      .then(r=>r.json()).then(({data})=>{
+        const pending=(data?.additions||[]).filter((a:Record<string,unknown>)=>a.status==='pending').length;
+        if(pending>0)setPendingCounts(p=>({...p,validation:pending}));
+      }).catch(()=>{});
+    fetch('/api/prayer-requests',{credentials:'include'})
+      .then(r=>r.json()).then(({data})=>{
+        const open=(data?.requests||[]).length;
+        if(open>0)setPendingCounts(p=>({...p,prayer:open}));
+      }).catch(()=>{});
+    fetch('/api/accounts/requisitions',{credentials:'include'})
+      .then(r=>r.json()).then(({data})=>{
+        const pending=(data?.requisitions||[]).filter((r:Record<string,unknown>)=>r.status==='pending').length;
+        if(pending>0)setPendingCounts(p=>({...p,requisitions:pending}));
+      }).catch(()=>{});
     fetch('/api/subscription',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setSub(data);}).catch(()=>{});
   },[]);
   const PLANS=[
@@ -2042,15 +2083,123 @@ function AdminRedirect() {
 }
 
 function ServicePlannerPage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;screenWidth:number}) {
-  return <div style={{padding:40,textAlign:'center' as const,color:t.muted}}><div style={{fontSize:32,marginBottom:12}}>📋</div><div style={{fontSize:16,fontWeight:600,color:t.text,marginBottom:6}}>Service Planner</div><div style={{fontSize:13}}>Build service plans, assign roles, and publish to all leaders. Feature fully active — create your first plan.</div></div>;
+  const cardS = (e?:React.CSSProperties):React.CSSProperties => ({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,...e});
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div><div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Service Planner</div><div style={{fontSize:12,color:t.muted,marginTop:2}}>Build Sunday programmes, assign roles, publish to all leaders</div></div>
+        <button style={{background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'10px 18px',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ New plan</button>
+      </div>
+      <div style={cardS({padding:'32px',textAlign:'center' as const})}>
+        <div style={{width:48,height:48,background:t.purpleBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
+          <i className="ti-calendar-event" style={{fontSize:24,color:t.purple}}/>
+        </div>
+        <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:6}}>No service plans yet</div>
+        <div style={{fontSize:13,color:t.muted,marginBottom:20,maxWidth:400,margin:'0 auto 20px'}}>Create your first service plan. Add items, assign leaders, and publish so every department knows the programme before Sunday.</div>
+        <button style={{background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'12px 24px',fontSize:14,fontWeight:600,cursor:'pointer'}}>Create first plan</button>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'1fr 1fr 1fr':'1fr',gap:12}}>
+        {[{icon:'ti-prayer',title:'Assign prayer leaders',desc:'Assign who leads opening prayer for each service'},{icon:'ti-microphone',title:'Schedule preachers',desc:'Rotate sermon assignments and track who is preaching'},{icon:'ti-users',title:'Coordinate departments',desc:'Music, ushering, media — all coordinated from one plan'}].map((item,i)=>(
+          <div key={i} style={cardS({padding:'16px'})}>
+            <i className={item.icon} style={{fontSize:20,color:t.purple,marginBottom:10,display:'block'}}/>
+            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:4}}>{item.title}</div>
+            <div style={{fontSize:12,color:t.muted}}>{item.desc}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function EventsPage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;screenWidth:number}) {
-  return <div style={{padding:40,textAlign:'center' as const,color:t.muted}}><div style={{fontSize:32,marginBottom:12}}>🗓</div><div style={{fontSize:16,fontWeight:600,color:t.text,marginBottom:6}}>Events & Programmes</div><div style={{fontSize:13}}>Create events, manage registrations, track attendance and conversion.</div></div>;
+  const cardS = (e?:React.CSSProperties):React.CSSProperties => ({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,...e});
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div><div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Events & Programmes</div><div style={{fontSize:12,color:t.muted,marginTop:2}}>Create events, manage registrations, track attendance and conversion</div></div>
+        <button style={{background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'10px 18px',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ New event</button>
+      </div>
+      <div style={cardS({padding:'32px',textAlign:'center' as const})}>
+        <div style={{width:48,height:48,background:t.purpleBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
+          <i className="ti-calendar-stats" style={{fontSize:24,color:t.purple}}/>
+        </div>
+        <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:6}}>No upcoming events</div>
+        <div style={{fontSize:13,color:t.muted,marginBottom:20,maxWidth:400,margin:'0 auto 20px'}}>Create your first event. Members register via a shareable link. You track who registered, who attended, and conversion rate.</div>
+        <button style={{background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'12px 24px',fontSize:14,fontWeight:600,cursor:'pointer'}}>Create first event</button>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'1fr 1fr 1fr':'1fr',gap:12}}>
+        {[{icon:'ti-link',title:'Shareable registration',desc:'Public link — no login needed to register'},{icon:'ti-device-mobile',title:'WhatsApp confirmation',desc:'Automatic confirmation via WhatsApp or SMS'},{icon:'ti-chart-line',title:'Conversion tracking',desc:'Registered vs attended vs walk-in intelligence'}].map((item,i)=>(
+          <div key={i} style={cardS({padding:'16px'})}>
+            <i className={item.icon} style={{fontSize:20,color:t.purple,marginBottom:10,display:'block'}}/>
+            <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:4}}>{item.title}</div>
+            <div style={{fontSize:12,color:t.muted}}>{item.desc}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function WorkforceIntelligencePage({t,dark,screenWidth}:{t:Record<string,string>;dark:boolean;screenWidth:number}) {
-  return <div style={{padding:40,textAlign:'center' as const,color:t.muted}}><div style={{fontSize:32,marginBottom:12}}>👥</div><div style={{fontSize:16,fontWeight:600,color:t.text,marginBottom:6}}>Workforce Intelligence</div><div style={{fontSize:13}}>Department coverage, volunteer reliability, and staffing gap alerts.</div></div>;
+  const [data,setData]=React.useState<Record<string,unknown>|null>(null);
+  const [loading,setLoading]=React.useState(true);
+  const cardS = (e?:React.CSSProperties):React.CSSProperties => ({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,...e});
+
+  React.useEffect(()=>{
+    fetch('/api/workforce/intelligence',{credentials:'include'})
+      .then(r=>r.json()).then(({data:d})=>{if(d)setData(d);})
+      .catch(()=>{}).finally(()=>setLoading(false));
+  },[]);
+
+  if(loading) return <div style={{padding:40,textAlign:'center' as const,color:t.muted,fontSize:13}}>Loading workforce data…</div>;
+
+  const summary = data?.summary as Record<string,number> || {};
+  const deptStats = (data?.department_stats as Record<string,unknown>[]) || [];
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div><div style={{fontSize:19,fontWeight:700,color:t.text,letterSpacing:'-0.3px'}}>Workforce Intelligence</div><div style={{fontSize:12,color:t.muted,marginTop:2}}>Department coverage, volunteer reliability, and staffing gaps</div></div>
+      <div style={{display:'grid',gridTemplateColumns:screenWidth>=1024?'repeat(5,1fr)':'repeat(2,1fr)',gap:12}}>
+        {[
+          {label:'Total volunteers',value:summary.total_workforce||0,color:t.purple,bg:t.purpleBg,icon:'ti-users'},
+          {label:'Departments',value:summary.total_departments||0,color:t.sub,bg:t.input,icon:'ti-building'},
+          {label:'Scheduled',value:summary.departments_scheduled_next_sunday||0,color:t.teal,bg:t.tealBg,icon:'ti-check'},
+          {label:'Gaps',value:summary.departments_with_gaps||0,color:(summary.departments_with_gaps||0)>0?t.coral:t.teal,bg:(summary.departments_with_gaps||0)>0?t.coralBg:t.tealBg,icon:'ti-alert-triangle'},
+          {label:'Overcommitted',value:summary.overcommitted_members||0,color:(summary.overcommitted_members||0)>0?t.amber:t.teal,bg:(summary.overcommitted_members||0)>0?t.amberBg:t.tealBg,icon:'ti-flame'},
+        ].map((kpi,i)=>(
+          <div key={i} style={{...cardS({padding:'16px'}),background:kpi.bg}}>
+            <i className={kpi.icon} style={{fontSize:18,color:kpi.color,marginBottom:8,display:'block'}}/>
+            <div style={{fontSize:22,fontWeight:700,color:kpi.color}}>{kpi.value}</div>
+            <div style={{fontSize:11,color:kpi.color,opacity:0.8}}>{kpi.label}</div>
+          </div>
+        ))}
+      </div>
+      {deptStats.length===0?(
+        <div style={cardS({padding:'32px',textAlign:'center' as const})}>
+          <div style={{width:48,height:48,background:t.purpleBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}><i className="ti-id-badge" style={{fontSize:24,color:t.purple}}/></div>
+          <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:6}}>No workforce data yet</div>
+          <div style={{fontSize:13,color:t.muted,maxWidth:400,margin:'0 auto'}}>Department heads need to publish their rosters for workforce intelligence to populate. Prompt them via the departments tab.</div>
+        </div>
+      ):(
+        <div style={cardS({padding:0,overflow:'hidden'})}>
+          <div style={{padding:'14px 18px',borderBottom:`0.5px solid ${t.border}`,fontSize:13,fontWeight:600,color:t.text}}>Department coverage — upcoming Sunday</div>
+          {deptStats.map((dept,i)=>{
+            const has=(dept.next_roster_coverage as string)==='scheduled';
+            return (
+              <div key={dept.id as string} style={{padding:'12px 18px',borderBottom:i<deptStats.length-1?`0.5px solid ${t.border}`:'none',display:'flex',alignItems:'center',gap:12}}>
+                <div style={{width:8,height:8,borderRadius:'50%',background:has?t.teal:t.coral,flexShrink:0}}/>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>{dept.name as string}</div>
+                  <div style={{fontSize:11,color:t.muted}}>{dept.member_count as number} members{has?` · ${dept.assigned_next} assigned`:''}</div>
+                </div>
+                <span style={{fontSize:10,fontWeight:700,padding:'3px 9px',borderRadius:8,background:has?t.tealBg:t.coralBg,color:has?t.teal:t.coral}}>{has?'Scheduled':'No roster'}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 

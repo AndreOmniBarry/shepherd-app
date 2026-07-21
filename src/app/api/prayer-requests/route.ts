@@ -37,8 +37,21 @@ export async function POST(req: Request) {
     // Save the prayer request
     const prRes = await fetch(`${SURL}/rest/v1/prayer_requests`, {
       method: 'POST', headers: { ...H(), 'Prefer': 'return=representation' },
-      body: JSON.stringify({ request: request.trim(), category: category || 'general', requester_name: requester_name || user.name || 'Anonymous', submitted_by: user.id, submitted_by_role: user.role, status: 'open' }),
+      body: JSON.stringify({ 
+        request: request.trim(), 
+        category: category || 'general', 
+        requester_name: requester_name || user.name || 'Anonymous', 
+        submitted_by: user.id, 
+        submitted_by_role: user.role, 
+        fellowship_id: user.fellowship_id || null,
+        status: 'open' 
+      }),
     });
+    if (!prRes.ok) {
+      const errData = await prRes.json();
+      console.error('[POST prayer-requests] Supabase error:', errData);
+      return NextResponse.json({ data: null, error: { message: 'Failed to save prayer request. Table may not exist.' } }, { status: 500 });
+    }
     const prData = await prRes.json();
     const prayerReq = Array.isArray(prData) ? prData[0] : prData;
 
