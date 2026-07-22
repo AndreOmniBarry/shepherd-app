@@ -13,6 +13,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
+import { DEMO_USER_IDS } from '@/lib/demo-accounts';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'shepherd-dev-secret-change-in-production-minimum-32-chars'
@@ -130,6 +131,16 @@ export async function middleware(req: NextRequest) {
     const res = NextResponse.redirect(loginUrl);
     res.cookies.delete('shepherd_token');
     return res;
+  }
+
+  // Preview/impersonation sessions (fixed demo ids) are look-only — block any
+  // request that isn't a plain read, except the one route that exits preview.
+  const isWrite = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+  if (payload.sub && DEMO_USER_IDS.has(payload.sub) && isWrite && pathname !== '/api/admin/exit-impersonation') {
+    return NextResponse.json(
+      { data: null, error: { message: 'Preview mode is read-only — exit preview to make changes.', code: 'PREVIEW_READ_ONLY' } },
+      { status: 403 }
+    );
   }
 
   const { role, cell_id } = payload;

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 
 interface Props { dark?: boolean; }
 
-const ADMIN_ROLES = ['overseer', 'pa', 'lead_tech'];
+const ADMIN_ROLES = ['overseer', 'lead_tech'];
 const PREVIEW_ROLES: { value: string; label: string; refKind: 'cell' | 'fellowship' | 'department' | null }[] = [
   { value: 'cell_leader', label: 'Cell Leader', refKind: 'cell' },
   { value: 'fellowship_head', label: 'Fellowship Head', refKind: 'fellowship' },

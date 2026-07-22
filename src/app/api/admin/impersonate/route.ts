@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser, signToken } from '@/lib/auth';
+import { DEMO_ID } from '@/lib/demo-accounts';
 import type { Role } from '@/types';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -19,28 +20,17 @@ const PORTAL_PATH: Record<string, string> = {
   care_team: '/care', accounts: '/accounts', partnership: '/partnership',
 };
 
-// Fixed demo-account ids (not tied to any real leader) so every portal's
-// server-side "look up my department_id/cell_id/fellowship_id from the users
-// table" pattern works out of the box, without needing anyone's password.
-// Reused/overwritten on every call rather than piling up rows.
-const DEMO_ID: Record<string, string> = {
-  cell_leader:      '00000000-0000-0000-0000-0000000000d1',
-  fellowship_head:  '00000000-0000-0000-0000-0000000000d2',
-  department_head:  '00000000-0000-0000-0000-0000000000d3',
-  care_team:        '00000000-0000-0000-0000-0000000000d4',
-  accounts:         '00000000-0000-0000-0000-0000000000d5',
-  partnership:      '00000000-0000-0000-0000-0000000000d6',
-};
-
-// Lets overseer/pa/lead_tech preview any scoped portal exactly as that role
+// Lets overseer/lead_tech preview any scoped portal exactly as that role
 // would see it, using a real existing cell/fellowship/department for genuine
 // data — without needing that person's actual login. For demoing progress to
 // a mentor/stakeholder without pestering leaders for their passwords.
+// Read-only: middleware.ts blocks every non-GET request from these fixed
+// demo ids, so a preview session can look but never write real data.
 export async function POST(req: Request) {
   try {
     const user = await getUser(req);
-    if (!user || !['overseer', 'pa', 'lead_tech'].includes(user.role)) {
-      return NextResponse.json({ data: null, error: { message: 'Only the pastor or church admin can preview other portals' } }, { status: 403 });
+    if (!user || !['overseer', 'lead_tech'].includes(user.role)) {
+      return NextResponse.json({ data: null, error: { message: 'Only the overseer or lead tech can preview other portals' } }, { status: 403 });
     }
 
     const { role, ref_id, ref_name } = await req.json() as { role: Role; ref_id?: string; ref_name?: string };
