@@ -100,24 +100,25 @@ export async function POST(req: Request) {
     });
     const data = await res.json();
 
+    // Fetch the lead's current contact_attempts so we increment rather than overwrite
+    const careRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/care_leads?id=eq.${lead_id}&select=assigned_to,contact_attempts&limit=1`,
+      { headers: hdrs() }
+    );
+    const careData = await careRes.json();
+    const currentLead = careData?.[0];
+    const assignedTo = currentLead?.assigned_to;
+
     // Update the care lead contact attempts and last contact
     await fetch(`${SUPABASE_URL}/rest/v1/care_leads?id=eq.${lead_id}`, {
       method: 'PATCH',
       headers: { ...hdrs(), 'Prefer': 'return=minimal' },
       body: JSON.stringify({
-        contact_attempts: 1,
+        contact_attempts: (currentLead?.contact_attempts || 0) + 1,
         last_contact: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }),
     });
-
-    // Notify care team that cell leader has logged a follow-up
-    const careRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/care_leads?id=eq.${lead_id}&select=assigned_to&limit=1`,
-      { headers: hdrs() }
-    );
-    const careData = await careRes.json();
-    const assignedTo = careData?.[0]?.assigned_to;
 
     if (assignedTo) {
       await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {

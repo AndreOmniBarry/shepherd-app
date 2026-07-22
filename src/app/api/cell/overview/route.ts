@@ -16,7 +16,10 @@ export async function GET(req: Request) {
     const user = payloadToAuthUser(payload);
 
     const cell_id = user.cell_id;
-    if (!cell_id) return NextResponse.json({ data: { overview: null }, error: null });
+    // Return top-level null (not { overview: null }) — the success path below returns
+    // { cell, stats, ... } flat, and CellOverview.tsx does `setOverview(data)` directly,
+    // so a nested overview key here would leave `overview` a truthy-but-empty object.
+    if (!cell_id) return NextResponse.json({ data: null, error: null });
 
     // ── 1. Cell info ─────────────────────────────────────────
     const cellRes = await fetch(

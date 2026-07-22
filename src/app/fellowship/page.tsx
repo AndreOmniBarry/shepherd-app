@@ -12,6 +12,7 @@ import {
 
 type Cell = {
   id: string;
+  record_id?: string;
   name: string;
   leader_name: string;
   member_count: number;
@@ -515,11 +516,11 @@ export default function FellowshipHeadPage() {
                   </ResponsiveContainer>
                 </div>
                 {/* Dispute button */}
-                {selectedCell.status === 'submitted' && (
+                {selectedCell.status === 'submitted' && selectedCell.record_id && (
                   <div style={card()}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 8 }}>Flag report inaccuracy</div>
                     <div style={{ fontSize: 12, color: t.sub, marginBottom: 12 }}>If this cell's submission appears inaccurate, raise a dispute for the PA to review. You have 48 hours from submission.</div>
-                    {disputeForm?.record_id === selectedCell.id ? (
+                    {disputeForm?.record_id === selectedCell.record_id ? (
                       <div>
                         <select value={disputeForm.reason} onChange={e => setDisputeForm({ ...disputeForm, reason: e.target.value })}
                           style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, background: t.input, color: t.text, marginBottom: 10, outline: 'none' }}>
@@ -527,7 +528,7 @@ export default function FellowshipHeadPage() {
                           {DISPUTE_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                         </select>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <button onClick={() => disputeForm.reason && raiseDispute(selectedCell.id, disputeForm.reason)}
+                          <button onClick={() => disputeForm.reason && selectedCell.record_id && raiseDispute(selectedCell.record_id, disputeForm.reason)}
                             style={{ flex: 1, background: t.coral, color: '#fff', border: 'none', borderRadius: 8, padding: '9px', fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
                             Submit dispute
                           </button>
@@ -538,7 +539,7 @@ export default function FellowshipHeadPage() {
                         </div>
                       </div>
                     ) : (
-                      <button onClick={() => setDisputeForm({ record_id: selectedCell.id, reason: '' })}
+                      <button onClick={() => setDisputeForm({ record_id: selectedCell.record_id!, reason: '' })}
                         style={{ background: t.coralBg, color: t.coral, border: `0.5px solid rgba(216,90,48,0.2)`, borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
                         Raise dispute
                       </button>
@@ -821,8 +822,8 @@ export default function FellowshipHeadPage() {
                     <select value={disputeForm.record_id} onChange={e => setDisputeForm(p => p ? { ...p, record_id: e.target.value } : p)}
                       style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
                       <option value="">Choose cell…</option>
-                      {cells.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
+                      {cells.filter(c => c.record_id).map(c => (
+                        <option key={c.id} value={c.record_id}>{c.name}</option>
                       ))}
                     </select>
                   </div>

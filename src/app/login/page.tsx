@@ -14,6 +14,10 @@ function rolePortal(role: string): string {
       return '/department';
     case 'cell_leader':
       return '/cell';
+    case 'accounts':
+      return '/accounts';
+    case 'partnership':
+      return '/partnership';
     case 'care_team':
       return '/care';
     default:

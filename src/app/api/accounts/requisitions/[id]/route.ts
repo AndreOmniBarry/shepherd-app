@@ -13,6 +13,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const p = await verifyToken(token);
   if (!p) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
   const user = payloadToAuthUser(p);
+  if (!['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+    return NextResponse.json({ data: null, error: { message: 'Not authorized' } }, { status: 403 });
+  }
 
   const body = await req.json();
   const { status } = body;

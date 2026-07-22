@@ -14,7 +14,11 @@ async function getUser(req: Request) {
   return p ? payloadToAuthUser(p) : null;
 }
 
-export async function GET() {
+const ALLOWED = ['overseer', 'pa', 'lead_tech', 'accounts'];
+
+export async function GET(req: Request) {
+  const user = await getUser(req);
+  if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
   const res = await fetch(`${S}/rest/v1/income_types?order=name.asc&select=id,name,category`, { headers: h() });
   const data = await res.json();
   return NextResponse.json({ data: { types: Array.isArray(data) ? data : [] }, error: null });
@@ -22,7 +26,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const user = await getUser(req);
-  if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
   const body = await req.json();
   const res = await fetch(`${S}/rest/v1/income_types`, {
     method: 'POST',

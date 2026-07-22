@@ -46,16 +46,17 @@ export async function GET(req: Request) {
 
     const attData = svcIds.length > 0 ? await (async () => {
       const attRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/attendance_records?service_id=in.(${svcIds.join(',')})&select=cell_id,present_count,absent_count,submitted_at,sla_grade&order=submitted_at.desc`,
+        `${SUPABASE_URL}/rest/v1/attendance_records?service_id=in.(${svcIds.join(',')})&select=id,cell_id,present_count,absent_count,submitted_at,sla_grade&order=submitted_at.desc`,
         { headers: hdrs }
       );
       return attRes.json();
     })() : [];
-    const attMap: Record<string, { present: number; absent: number; submitted_at: string; sla_grade: string }> = {};
+    const attMap: Record<string, { id: string; present: number; absent: number; submitted_at: string; sla_grade: string }> = {};
     if (Array.isArray(attData)) {
       attData.forEach((a: Record<string, unknown>) => {
         if (a.cell_id && !attMap[a.cell_id as string]) {
           attMap[a.cell_id as string] = {
+            id: a.id as string,
             present: a.present_count as number,
             absent: a.absent_count as number,
             submitted_at: a.submitted_at as string,
@@ -94,6 +95,7 @@ export async function GET(req: Request) {
       const leader = c.leader as Record<string, string> | null;
       return {
         id: c.id,
+        record_id: att?.id,
         name: c.name,
         leader_name: leader?.full_name || 'Unassigned',
         member_count: c.member_count || 0,

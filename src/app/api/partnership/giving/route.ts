@@ -14,9 +14,11 @@ async function getUser(req: Request) {
   return p ? payloadToAuthUser(p) : null;
 }
 
+const ALLOWED = ['overseer', 'pa', 'lead_tech', 'partnership'];
+
 export async function POST(req: Request) {
   const user = await getUser(req);
-  if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
   const body = await req.json();
   const { partner_id, amount, month, status, notes } = body;
   const res = await fetch(`${S}/rest/v1/partnership_giving`, {

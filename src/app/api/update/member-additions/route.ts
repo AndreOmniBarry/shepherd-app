@@ -86,7 +86,7 @@ export async function GET(req: Request) {
     if (!cell_id) return NextResponse.json({ data: { additions: [] }, error: null });
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/member_additions?cell_id=eq.${cell_id}&order=created_at.desc&select=id,full_name,phone,gender,date_of_birth,join_date,status`,
+      `${SUPABASE_URL}/rest/v1/member_additions?cell_id=eq.${cell_id}&order=created_at.desc&select=id,full_name,phone,gender,date_of_birth,join_date,status,created_at`,
       { headers: hdrs() }
     );
     const data = await res.json();

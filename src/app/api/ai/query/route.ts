@@ -190,7 +190,7 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
-    if (user.role !== 'overseer') {
+    if (!['overseer', 'pa', 'lead_tech'].includes(user.role)) {
       return NextResponse.json(
         { data: null, error: { message: 'Overseer access required', code: 'FORBIDDEN' } },
         { status: 403 }

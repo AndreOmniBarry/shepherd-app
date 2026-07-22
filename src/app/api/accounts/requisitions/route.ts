@@ -14,7 +14,11 @@ async function getUser(req: Request) {
   return p ? payloadToAuthUser(p) : null;
 }
 
-export async function GET() {
+const ALLOWED = ['overseer', 'pa', 'lead_tech', 'accounts'];
+
+export async function GET(req: Request) {
+  const user = await getUser(req);
+  if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
   const res = await fetch(
     `${S}/rest/v1/expense_requisitions?order=created_at.desc&limit=100&select=id,title,amount_requested,amount_approved,requested_by_name,status,created_at,notes,expense_categories(name)`,
     { headers: h() }
@@ -29,7 +33,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const user = await getUser(req);
-  if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
   const body = await req.json();
   const { category_id, title, description, amount_requested, requested_by_name, department_id } = body;
   const res = await fetch(`${S}/rest/v1/expense_requisitions`, {

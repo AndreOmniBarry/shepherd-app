@@ -32,9 +32,6 @@ const PUBLIC_PATHS = [
   '/favicon.ico',
   '/manifest.json',
   '/billing-calculator.html',
-
-  '/accounts',
-  '/partnership',
   '/sw.js',
   '/workbox-',
   '/icons/',

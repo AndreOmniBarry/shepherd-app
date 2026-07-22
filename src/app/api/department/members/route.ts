@@ -15,29 +15,32 @@ export async function GET(req: Request) {
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const hdrs = { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` };
 
-    const memberRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/members?id=eq.${user.id}&select=fellowship_id&limit=1`,
-      { headers: hdrs }
-    );
-    const memberData = await memberRes.json();
-    const fellowship_id = memberData?.[0]?.fellowship_id;
-    if (!fellowship_id) return NextResponse.json({ data: { members: [] }, error: null });
+    // Resolve department_id from the users table — this is a department head's own
+    // login account, not a row in `members` (that table has no relation to user ids).
+    const userRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=department_id&limit=1`, { headers: hdrs });
+    const userData = await userRes.json();
+    const department_id = userData?.[0]?.department_id;
+    if (!department_id) return NextResponse.json({ data: { members: [] }, error: null });
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/members?fellowship_id=eq.${fellowship_id}&select=id,full_name,membership_status,cells(name)&order=full_name.asc&limit=500`,
+      `${SUPABASE_URL}/rest/v1/department_members?department_id=eq.${department_id}&select=role,members(id,full_name,phone,membership_status)`,
       { headers: hdrs }
     );
     const data = await res.json();
-    const members = (Array.isArray(data) ? data : []).map((m: Record<string, unknown>) => ({
-      id: m.id,
-      full_name: m.full_name,
-      membership_status: m.membership_status,
-      cell_name: (m.cells as Record<string, string> | null)?.name || 'Unassigned',
-    }));
+    const members = (Array.isArray(data) ? data : []).map((d: Record<string, unknown>) => {
+      const mem = d.members as Record<string, unknown> | null;
+      return {
+        id: mem?.id,
+        full_name: mem?.full_name,
+        phone: mem?.phone,
+        membership_status: mem?.membership_status,
+        role: d.role,
+      };
+    }).filter(mem => mem.id);
 
     return NextResponse.json({ data: { members }, error: null });
   } catch (err) {
-    console.error('[GET /api/fellowship/members]', err);
+    console.error('[GET /api/department/members]', err);
     return NextResponse.json({ data: null, error: { message: 'Failed to load members' } }, { status: 500 });
   }
 }
