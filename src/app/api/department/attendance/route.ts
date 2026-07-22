@@ -24,11 +24,17 @@ function isWithinWindow(serviceDateStr: string): boolean {
   return serviceDate >= cutoff && serviceDate <= now;
 }
 
+async function getDepartmentId(userId: string): Promise<string | null> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=department_id&limit=1`, { headers: hdrs() });
+  const data = await res.json();
+  return data?.[0]?.department_id || null;
+}
+
 export async function POST(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Authentication required' } }, { status: 401 });
-    if (user.role !== 'cell_leader') return NextResponse.json({ data: null, error: { message: 'Cell leaders only' } }, { status: 403 });
+    if (user.role !== 'department_head') return NextResponse.json({ data: null, error: { message: 'Department heads only' } }, { status: 403 });
 
     const body = await req.json();
     const { service_id, entries, visitor_count, absence_reasons } = body;
@@ -37,8 +43,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'service_id and entries are required' } }, { status: 400 });
     }
 
-    const cell_id = user.cell_id;
-    if (!cell_id) return NextResponse.json({ data: null, error: { message: 'No cell assigned to your account' } }, { status: 400 });
+    const department_id = await getDepartmentId(user.id);
+    if (!department_id) return NextResponse.json({ data: null, error: { message: 'No department assigned to your account' } }, { status: 400 });
 
     // ── Validate service is within 7-day window ─────────────────
     // Skip window check for virtual services (auto-created)
@@ -85,7 +91,7 @@ export async function POST(req: Request) {
     let existingRecordId: string | null = null;
     if (!service_id.startsWith('virtual-')) {
       const checkRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/attendance_records?service_id=eq.${service_id}&cell_id=eq.${cell_id}&select=id,is_locked&limit=1`,
+        `${SUPABASE_URL}/rest/v1/department_attendance?service_id=eq.${service_id}&department_id=eq.${department_id}&select=id,is_locked&limit=1`,
         { headers: hdrs() }
       );
       const existing = await checkRes.json();
@@ -131,13 +137,13 @@ export async function POST(req: Request) {
       }
     }
 
-    // ── Insert attendance record ────────────────────────────────
-    const recRes = await fetch(`${SUPABASE_URL}/rest/v1/attendance_records`, {
+    // ── Insert department attendance record ─────────────────────
+    const recRes = await fetch(`${SUPABASE_URL}/rest/v1/department_attendance`, {
       method: 'POST',
       headers: { ...hdrs(), 'Prefer': 'return=representation' },
       body: JSON.stringify({
         service_id: realServiceId,
-        cell_id,
+        department_id,
         submitted_by: user.id,
         present_count,
         absent_count,
@@ -151,7 +157,7 @@ export async function POST(req: Request) {
     const record = Array.isArray(recData) ? recData[0] : recData;
 
     if (!recRes.ok || !record?.id) {
-      console.error('Failed to insert attendance record:', recData);
+      console.error('Failed to insert department attendance record:', recData);
       return NextResponse.json({ data: null, error: { message: 'Failed to save attendance record' } }, { status: 500 });
     }
 
@@ -163,7 +169,7 @@ export async function POST(req: Request) {
         status: e.status,
         absence_reason: e.status === 'absent' ? (absence_reasons?.[e.member_id] || 'unknown') : null,
       }));
-      await fetch(`${SUPABASE_URL}/rest/v1/attendance_entries`, {
+      await fetch(`${SUPABASE_URL}/rest/v1/department_attendance_entries`, {
         method: 'POST',
         headers: { ...hdrs(), 'Prefer': 'return=minimal' },
         body: JSON.stringify(entryRows),
@@ -183,7 +189,7 @@ export async function POST(req: Request) {
     }, { status: 201 });
 
   } catch (err) {
-    console.error('[POST /api/attendance]', err);
+    console.error('[POST /api/department/attendance]', err);
     return NextResponse.json({ data: null, error: { message: 'Failed to submit attendance' } }, { status: 500 });
   }
 }
@@ -198,10 +204,12 @@ export async function GET(req: Request) {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - weeks * 7);
 
-    let url = `${SUPABASE_URL}/rest/v1/attendance_records?submitted_at=gte.${cutoff.toISOString()}&order=submitted_at.desc&limit=200&select=id,service_id,cell_id,present_count,absent_count,visitor_count,submitted_at,sla_grade,services(service_date,service_number),cells(name)`;
+    let url = `${SUPABASE_URL}/rest/v1/department_attendance?submitted_at=gte.${cutoff.toISOString()}&order=submitted_at.desc&limit=200&select=id,service_id,department_id,present_count,absent_count,visitor_count,submitted_at,sla_grade,services(service_date,service_number),departments(name)`;
 
-    if (user.role === 'cell_leader' && user.cell_id) {
-      url += `&cell_id=eq.${user.cell_id}`;
+    if (user.role === 'department_head') {
+      const department_id = await getDepartmentId(user.id);
+      if (!department_id) return NextResponse.json({ data: { records: [] }, error: null });
+      url += `&department_id=eq.${department_id}`;
     }
 
     const res = await fetch(url, { headers: hdrs() });
@@ -209,7 +217,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ data: { records: Array.isArray(data) ? data : [] }, error: null });
 
   } catch (err) {
-    console.error('[GET /api/attendance]', err);
+    console.error('[GET /api/department/attendance]', err);
     return NextResponse.json({ data: null, error: { message: 'Failed to fetch attendance' } }, { status: 500 });
   }
 }

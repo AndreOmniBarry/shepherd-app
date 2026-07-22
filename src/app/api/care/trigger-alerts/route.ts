@@ -48,11 +48,20 @@ export async function POST(req: Request) {
     }
 
     // 2. Get all attendance entries marked absent for this service
-    const absentRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/attendance_entries?status=eq.absent&record_id=in.(select id from attendance_records where service_id=eq.${service.id})&select=member_id,absence_reason`,
+    const recordIdsRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/attendance_records?service_id=eq.${service.id}&select=id`,
       { headers: hdrs() }
     );
-    const absentEntries = await absentRes.json();
+    const recordIdsData = await recordIdsRes.json();
+    const recordIds: string[] = Array.isArray(recordIdsData) ? recordIdsData.map((r: Record<string, string>) => r.id) : [];
+
+    const absentEntries = recordIds.length > 0 ? await (async () => {
+      const absentRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/attendance_entries?status=eq.absent&record_id=in.(${recordIds.join(',')})&select=member_id,absence_reason`,
+        { headers: hdrs() }
+      );
+      return absentRes.json();
+    })() : [];
 
     if (!Array.isArray(absentEntries) || absentEntries.length === 0) {
       return NextResponse.json({

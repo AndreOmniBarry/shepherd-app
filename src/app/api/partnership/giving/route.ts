@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       event: 'partnership_giving_logged',
       actor_name: user.id,
       actor_role: user.role,
-      detail: `Partnership giving logged — \${body.amount?.toLocaleString()}`,
+      detail: `Partnership giving logged — ${Number(body.amount || 0).toLocaleString()}`,
       amount: parseFloat(body.amount) || 0,
     }),
   }).catch(() => {});

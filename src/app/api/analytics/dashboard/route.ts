@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     const headers = { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` };
 
     const [members, activeCells, todayAttendance, ytdGiving, newMembers] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/members?select=membership_status`, { headers }).then(r => r.json()),
+      fetch(`${SUPABASE_URL}/rest/v1/members?select=membership_status,join_date`, { headers }).then(r => r.json()),
       fetch(`${SUPABASE_URL}/rest/v1/cells?is_active=eq.true&select=id`, { headers }).then(r => r.json()),
       fetch(`${SUPABASE_URL}/rest/v1/attendance_records?submitted_at=gte.${getMostRecentSunday()}&select=present_count,visitor_count,cell_id`, { headers }).then(r => r.json()),
       fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${new Date().getFullYear()}-01-01T00:00:00&select=amount,income_type_id,income_types(name,category)`, { headers: hdrs() }).then(r => r.json()),
@@ -38,6 +38,18 @@ export async function GET(req: Request) {
     const ytdTotal = Array.isArray(ytdGiving) ? ytdGiving.reduce((s: number, r: Record<string,number>) => s + Number(r.amount || 0), 0) : 0;
     const newMembersCount = Array.isArray(newMembers) ? newMembers.length : 0;
 
+    // ── Member growth trend — cumulative count at the end of each of the last 6 months ──
+    const growthTrend: { month: string; count: number }[] = [];
+    if (Array.isArray(members)) {
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i, 1);
+        const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+        const count = members.filter((m: Record<string, string>) => m.join_date && new Date(m.join_date) < endOfMonth).length;
+        growthTrend.push({ month: d.toLocaleString('en-US', { month: 'short' }), count });
+      }
+    }
+
     return NextResponse.json({
       data: {
         total_members: totalMembers,
@@ -48,6 +60,7 @@ export async function GET(req: Request) {
         ytd_giving_ngn: Math.round(ytdTotal),
         active_cells: activeCellsCount,
         new_members_month: newMembersCount,
+        growth_trend: growthTrend,
       },
       error: null,
     });

@@ -57,7 +57,7 @@ export async function POST(req: Request) {
       event: 'income_logged',
       actor_name: user.id,
       actor_role: user.role,
-      detail: `Income recorded — \${body.amount?.toLocaleString()}`,
+      detail: `Income recorded — ${Number(body.amount || 0).toLocaleString()}`,
       amount: parseFloat(body.amount) || 0,
     }),
   }).catch(() => {});

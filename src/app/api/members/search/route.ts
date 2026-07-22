@@ -17,14 +17,24 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('q') || '';
 
-    let url = `${SUPABASE_URL}/rest/v1/members?membership_status=eq.active&select=id,full_name,phone&order=full_name.asc&limit=200`;
+    const select = 'id,full_name,phone,membership_status,join_date,cells(name),fellowships(name)';
+    let url = `${SUPABASE_URL}/rest/v1/members?select=${select}&order=join_date.desc.nullslast&limit=200`;
     if (q.length >= 2) {
-      url = `${SUPABASE_URL}/rest/v1/members?membership_status=eq.active&full_name=ilike.*${q}*&select=id,full_name,phone&order=full_name.asc&limit=20`;
+      url = `${SUPABASE_URL}/rest/v1/members?full_name=ilike.*${q}*&select=${select}&order=full_name.asc&limit=50`;
     }
 
     const res = await fetch(url, { headers: hdrs() });
     const data = await res.json();
-    return NextResponse.json({ data: { members: Array.isArray(data) ? data : [] }, error: null });
+    const members = (Array.isArray(data) ? data : []).map((m: Record<string, unknown>) => ({
+      id: m.id,
+      full_name: m.full_name,
+      phone: m.phone,
+      membership_status: m.membership_status,
+      join_date: m.join_date,
+      cell_name: (m.cells as Record<string, string> | null)?.name || null,
+      fellowship_name: (m.fellowships as Record<string, string> | null)?.name || null,
+    }));
+    return NextResponse.json({ data: { members }, error: null });
   } catch (err) {
     return NextResponse.json({ data: null, error: { message: 'Failed to search members' } }, { status: 500 });
   }

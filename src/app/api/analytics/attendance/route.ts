@@ -98,8 +98,8 @@ export async function GET(req: Request) {
       };
     }) : [];
 
-    // ── 7. Sunday trend (8 weeks) ──────────────────────────────
-    const sundayTrend = Array.isArray(sundayServices) ? sundayServices.slice(0, 8).reverse().map((svc: Record<string, string>, i: number) => {
+    // ── 7. Sunday trend (requested range — sundayServices is already bounded by `weeks`) ──
+    const sundayTrend = Array.isArray(sundayServices) ? [...sundayServices].reverse().map((svc: Record<string, string>, i: number) => {
       const records = Array.isArray(cellRecords) ? cellRecords.filter((r: Record<string, string>) => r.service_id === svc.id) : [];
       const present = records.reduce((a: number, r: Record<string, number>) => a + (r.present_count || 0), 0);
       const absent = records.reduce((a: number, r: Record<string, number>) => a + (r.absent_count || 0), 0);
@@ -114,8 +114,8 @@ export async function GET(req: Request) {
       };
     }) : [];
 
-    // ── 8. Midweek trend ──────────────────────────────────────
-    const midweekTrend = Array.isArray(midweekServices) ? midweekServices.slice(0, 8).reverse().map((svc: Record<string, string>, i: number) => {
+    // ── 8. Midweek trend (requested range) ─────────────────────
+    const midweekTrend = Array.isArray(midweekServices) ? [...midweekServices].reverse().map((svc: Record<string, string>, i: number) => {
       const records = Array.isArray(cellRecords) ? cellRecords.filter((r: Record<string, string>) => r.service_id === svc.id) : [];
       const present = records.reduce((a: number, r: Record<string, number>) => a + (r.present_count || 0), 0);
       const absent = records.reduce((a: number, r: Record<string, number>) => a + (r.absent_count || 0), 0);

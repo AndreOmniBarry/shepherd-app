@@ -63,29 +63,16 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'Invalid plan' } }, { status: 400 });
     }
 
-    // TODO: Verify paystack_reference with Paystack API before upgrading
-    // For now, trust the reference and upgrade
-    const existing = await fetch(`${SUPABASE_URL}/rest/v1/church_config?limit=1&select=id`, { headers: hdrs() });
-    const existingData = await existing.json();
-    if (!existingData?.[0]) return NextResponse.json({ data: null, error: { message: 'Church config not found' } }, { status: 404 });
-
-    const id = existingData[0].id;
-    const now = new Date();
-
-    await fetch(`${SUPABASE_URL}/rest/v1/church_config?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify({
-        plan_tier,
-        subscription_status: 'active',
-        subscription_started_at: now.toISOString(),
-        // Extend trial_ends_at to far future so trial checks pass
-        trial_ends_at: new Date(now.getTime() + 3650 * 24 * 60 * 60 * 1000).toISOString(),
-        updated_at: now.toISOString(),
-      }),
-    });
-
-    return NextResponse.json({ data: { upgraded: true, plan_tier }, error: null });
+    // TODO: Verify paystack_reference with the Paystack API before upgrading.
+    // Until that verification is wired up, block self-service upgrades entirely —
+    // trusting a client-supplied reference would let anyone upgrade for free.
+    if (!paystack_reference) {
+      return NextResponse.json({ data: null, error: { message: 'Paystack reference required.' } }, { status: 400 });
+    }
+    return NextResponse.json(
+      { data: null, error: { message: 'Paystack verification required — contact support.' } },
+      { status: 403 }
+    );
   } catch (err) {
     return NextResponse.json({ data: null, error: { message: 'Failed to upgrade' } }, { status: 500 });
   }

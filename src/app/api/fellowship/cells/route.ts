@@ -37,11 +37,20 @@ export async function GET(req: Request) {
     lastSunday.setDate(lastSunday.getDate() - (dayOfWeek === 0 ? 0 : dayOfWeek));
     const sundayStr = lastSunday.toISOString().split('T')[0];
 
-    const attRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/attendance_records?service_id=in.(select id from services where service_date=eq.${sundayStr})&select=cell_id,present_count,absent_count,submitted_at,sla_grade&order=submitted_at.desc`,
+    const svcIdsRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/services?service_date=eq.${sundayStr}&select=id`,
       { headers: hdrs }
     );
-    const attData = await attRes.json();
+    const svcIdsData = await svcIdsRes.json();
+    const svcIds: string[] = Array.isArray(svcIdsData) ? svcIdsData.map((s: Record<string, string>) => s.id) : [];
+
+    const attData = svcIds.length > 0 ? await (async () => {
+      const attRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/attendance_records?service_id=in.(${svcIds.join(',')})&select=cell_id,present_count,absent_count,submitted_at,sla_grade&order=submitted_at.desc`,
+        { headers: hdrs }
+      );
+      return attRes.json();
+    })() : [];
     const attMap: Record<string, { present: number; absent: number; submitted_at: string; sla_grade: string }> = {};
     if (Array.isArray(attData)) {
       attData.forEach((a: Record<string, unknown>) => {

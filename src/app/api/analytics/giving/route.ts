@@ -21,23 +21,31 @@ export async function GET(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const range = searchParams.get('range') || '6m';
+    const RANGE_MONTHS: Record<string, number> = { '8w': 2, '3m': 3, '6m': 6, '1y': 12, '2y': 24, '5y': 60 };
+    const monthsBack = RANGE_MONTHS[range] ?? 6;
+
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
     const yearStart = `${now.getFullYear()}-01-01`;
     const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-    const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay()); 
+    const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
     const weekStartStr = weekStart.toISOString().split('T')[0];
     const prevYearStart = `${now.getFullYear()-1}-01-01`;
     const prevYearEnd = `${now.getFullYear()-1}-12-31`;
+    const rangeStart = new Date(now.getFullYear(), now.getMonth() - monthsBack, now.getDate());
+    const rangeStartStr = rangeStart.toISOString().split('T')[0];
 
-    // Fetch all income records for this year + last year in parallel
-    const [thisYearRes, lastYearRes, typesRes] = await Promise.all([
+    // Fetch all income records for this year + last year + the requested trend range, in parallel
+    const [thisYearRes, lastYearRes, typesRes, rangeRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${yearStart}T00:00:00&order=service_date.desc&limit=2000&select=id,amount,service_date,income_type_id,member_name,notes,created_at,income_types(name,category)`, { headers: h() }),
       fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${prevYearStart}T00:00:00&created_at=lte.${prevYearEnd}T23:59:59&select=amount,service_date,income_type_id,income_types(name,category)`, { headers: h() }),
       fetch(`${SUPABASE_URL}/rest/v1/income_types?is_active=eq.true&order=name.asc&select=id,name,category`, { headers: h() }),
+      fetch(`${SUPABASE_URL}/rest/v1/income_records?service_date=gte.${rangeStartStr}&order=service_date.asc&limit=5000&select=amount,service_date`, { headers: h() }),
     ]);
 
-    const [thisYear, lastYear, types] = await Promise.all([thisYearRes.json(), lastYearRes.json(), typesRes.json()]);
+    const [thisYear, lastYear, types, rangeRecords] = await Promise.all([thisYearRes.json(), lastYearRes.json(), typesRes.json(), rangeRes.json()]);
 
     const records = Array.isArray(thisYear) ? thisYear : [];
     const lastYearRecords = Array.isArray(lastYear) ? lastYear : [];
@@ -92,6 +100,38 @@ export async function GET(req: Request) {
     });
     const weeklyTrend = Object.entries(weeklyMap).map(([key, total], i) => ({ week: `W${i+1}`, date: key, total }));
 
+    // ── Range-driven trend for the chart (weekly for 8w/3m, monthly beyond) ──
+    const rangeData = Array.isArray(rangeRecords) ? rangeRecords : [];
+    let rangeTrend: { label: string; total: number }[] = [];
+    if (range === '8w' || range === '3m') {
+      const weeks = range === '8w' ? 8 : 13;
+      const buckets: number[] = new Array(weeks).fill(0);
+      const bucketStart = new Date(now); bucketStart.setDate(now.getDate() - now.getDay() - (weeks - 1) * 7);
+      rangeData.forEach((r: Record<string, unknown>) => {
+        const d = new Date(r.service_date as string);
+        const diffWeeks = Math.floor((d.getTime() - bucketStart.getTime()) / (7 * 24 * 60 * 60 * 1000));
+        if (diffWeeks >= 0 && diffWeeks < weeks) buckets[diffWeeks] += Number(r.amount || 0);
+      });
+      rangeTrend = buckets.map((total, i) => ({ label: `W${i + 1}`, total }));
+    } else {
+      const monthBuckets: Record<string, number> = {};
+      const monthOrder: string[] = [];
+      for (let i = monthsBack - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthBuckets[key] = 0;
+        monthOrder.push(key);
+      }
+      rangeData.forEach((r: Record<string, unknown>) => {
+        const key = (r.service_date as string || '').substring(0, 7);
+        if (monthBuckets[key] !== undefined) monthBuckets[key] += Number(r.amount || 0);
+      });
+      rangeTrend = monthOrder.map(key => {
+        const d = new Date(`${key}-01T00:00:00`);
+        return { label: d.toLocaleString('en-US', { month: 'short', year: monthsBack > 12 ? '2-digit' : undefined }), total: monthBuckets[key] };
+      });
+    }
+
     // ── By type breakdown ─────────────────────────────────────
     const byType = incomeTypes.map((t: Record<string,string>) => {
       const total = records.filter((r: Record<string,string>) => r.income_type_id === t.id).reduce((s: number, r: Record<string,number>) => s + Number(r.amount||0), 0);
@@ -115,6 +155,8 @@ export async function GET(req: Request) {
         kpi: { ytd: ytdTotal, mtd: mtdTotal, wtd: wtdTotal, today: todayTotal, yoy_growth: yoyGrowth, last_year: lastYearTotal },
         monthly_trend: monthlyTrend,
         weekly_trend: weeklyTrend,
+        range_trend: rangeTrend,
+        range,
         by_type: byType,
         income_types: incomeTypes,
         recent_entries: recentEntries,

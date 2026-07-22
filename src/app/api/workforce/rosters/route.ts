@@ -65,9 +65,12 @@ export async function POST(req: Request) {
       const deptName = deptData?.[0]?.name || 'Department';
       const memberIds = [...new Set((entries || []).map((e: Record<string,unknown>) => e.member_id).filter(Boolean))];
       if (memberIds.length > 0) {
-        const userRes = await fetch(`${SURL}/rest/v1/users?select=id,email`, { headers: H() });
+        // Members and users are separate tables — only member_ids that also have a
+        // users row (same id, i.e. that member has a login account) can be notified.
+        const userRes = await fetch(`${SURL}/rest/v1/users?id=in.(${memberIds.join(',')})&select=id`, { headers: H() });
         const users = await userRes.json();
-        const notifications = (entries || []).filter((e: Record<string,unknown>) => e.member_id).map((e: Record<string,unknown>) => ({
+        const userIds = new Set(Array.isArray(users) ? users.map((u: Record<string,string>) => u.id) : []);
+        const notifications = (entries || []).filter((e: Record<string,unknown>) => e.member_id && userIds.has(e.member_id)).map((e: Record<string,unknown>) => ({
           user_id: e.member_id, type: 'service', read: false,
           title: `You are on the ${deptName} rota`,
           body: `${service_date} · Your role: ${e.role_title}${e.position ? ` — ${e.position}` : ''}. Check My Assignments.`,
