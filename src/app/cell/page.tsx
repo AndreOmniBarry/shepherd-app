@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import NotificationBell from "@/components/NotificationBell";
+import MyAccountButton from "@/components/MyAccountButton";
 import Icon from "@/components/Icon";
 import BirthdayPanel from '@/components/BirthdayPanel';
 import CellOverview from '@/components/CellOverview';
@@ -348,7 +349,7 @@ export default function CellPage() {
             style={{ width: 30, height: 30, borderRadius: 8, border: `0.5px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.muted, fontSize: 14 }}>
             {dark ? '☀' : '◑'}
           </div>
-          <NotificationBell dark={dark} /><button onClick={logout} style={{ background: "transparent", color: t.muted, border: "none", fontSize: 12, cursor: "pointer" }}>Sign out</button>
+          <NotificationBell dark={dark} /><MyAccountButton dark={dark} /><button onClick={logout} style={{ background: "transparent", color: t.muted, border: "none", fontSize: 12, cursor: "pointer" }}>Sign out</button>
         </div>
       </div>
 

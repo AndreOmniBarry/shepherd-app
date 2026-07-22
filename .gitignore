@@ -16,3 +16,7 @@ out/
 
 # Logs
 *.log
+
+# Contains real temporary passwords — never commit
+scripts/leader_accounts_output.csv
+scripts/*_accounts_output.csv
