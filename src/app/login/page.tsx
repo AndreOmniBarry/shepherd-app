@@ -342,7 +342,7 @@ function LoginForm() {
         </div>
       </div>
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
@@ -351,8 +351,8 @@ function LoginForm() {
         * { box-sizing: border-box; }
         @media (max-width: 768px) {
           .login-left { display: none !important; }
-          .login-right { 
-            width: 100% !important; 
+          .login-right {
+            width: 100% !important;
             border-left: none !important;
             padding: 32px 20px !important;
             min-height: 100vh;
@@ -363,7 +363,7 @@ function LoginForm() {
             width: 100% !important;
           }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }

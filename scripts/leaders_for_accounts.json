@@ -1,0 +1,322 @@
+[
+  {
+    "name": "Uzor Echiejile",
+    "email": "uzor.echiejile@shepherd.app",
+    "phone": "08039539013",
+    "role": "overseer",
+    "ref_kind": null,
+    "ref_name": null
+  },
+  {
+    "name": "Udoka Albert",
+    "email": "udoka.albert@shepherd.app",
+    "phone": "80123456789",
+    "role": "pa",
+    "ref_kind": null,
+    "ref_name": null
+  },
+  {
+    "name": "Gift Kessy",
+    "email": "gift.kessy@shepherd.app",
+    "phone": "80123456789",
+    "role": "accounts",
+    "ref_kind": null,
+    "ref_name": null
+  },
+  {
+    "name": "Becky Edos",
+    "email": "becky.edos@shepherd.app",
+    "phone": "08071583369",
+    "role": "partnership",
+    "ref_kind": null,
+    "ref_name": null
+  },
+  {
+    "name": "Nosa Oghene",
+    "email": "nosa.oghene@shepherd.app",
+    "phone": null,
+    "role": "pa",
+    "ref_kind": null,
+    "ref_name": null
+  },
+  {
+    "name": "Valentine Ose",
+    "email": "valentine.ose@shepherd.app",
+    "phone": null,
+    "role": "pa",
+    "ref_kind": null,
+    "ref_name": null
+  },
+  {
+    "name": "Courage Barry",
+    "email": "courage.barry@shepherd.app",
+    "phone": "80123456789",
+    "role": "lead_tech",
+    "ref_kind": null,
+    "ref_name": null
+  },
+  {
+    "name": "Kingsley Osayande",
+    "email": "kingsley.osayande@shepherd.app",
+    "phone": "09037130851",
+    "role": "lead_tech",
+    "ref_kind": null,
+    "ref_name": null
+  },
+  {
+    "name": "Martins Izingha",
+    "email": "martins.izingha@shepherd.app",
+    "phone": null,
+    "role": "lead_tech",
+    "ref_kind": null,
+    "ref_name": null
+  },
+  {
+    "name": "Pst Chris Idubor",
+    "email": "pst.chris.idubor@shepherd.app",
+    "phone": "08078682743",
+    "role": "fellowship_head",
+    "ref_kind": "fellowship",
+    "ref_name": "Youth Fellowship Head"
+  },
+  {
+    "name": "Mr Tunde Adesanyan",
+    "email": "mr.tunde.adesanyan@shepherd.app",
+    "phone": null,
+    "role": "fellowship_head",
+    "ref_kind": "fellowship",
+    "ref_name": "Men's Fellowship Head"
+  },
+  {
+    "name": "Mrs Grace  Napoleon",
+    "email": "mrs.grace.napoleon@shepherd.app",
+    "phone": null,
+    "role": "fellowship_head",
+    "ref_kind": "fellowship",
+    "ref_name": "Women's Fellowship Head"
+  },
+  {
+    "name": "David Osasenaga",
+    "email": "david.osasenaga@shepherd.app",
+    "phone": null,
+    "role": "fellowship_head",
+    "ref_kind": "fellowship",
+    "ref_name": "Teenager's Fellowship Head"
+  },
+  {
+    "name": "Mrs Ehis",
+    "email": "mrs.ehis@shepherd.app",
+    "phone": null,
+    "role": "department_head",
+    "ref_kind": "department",
+    "ref_name": "Protocol Department Head"
+  },
+  {
+    "name": "Daniel Aikhionbare",
+    "email": "daniel.aikhionbare@shepherd.app",
+    "phone": "08057567271",
+    "role": "department_head",
+    "ref_kind": "department",
+    "ref_name": "Music Department Head"
+  },
+  {
+    "name": "Emmanuel Johnson",
+    "email": "emmanuel.johnson@shepherd.app",
+    "phone": "08065318941",
+    "role": "department_head",
+    "ref_kind": "department",
+    "ref_name": "Media Department Head"
+  },
+  {
+    "name": "Shedrach Michael",
+    "email": "shedrach.michael@shepherd.app",
+    "phone": "08143343733",
+    "role": "department_head",
+    "ref_kind": "department",
+    "ref_name": "Lighting Department Head"
+  },
+  {
+    "name": "Rex Uba",
+    "email": "rex.uba@shepherd.app",
+    "phone": "08159707634",
+    "role": "department_head",
+    "ref_kind": "department",
+    "ref_name": "Creative Art Department Head"
+  },
+  {
+    "name": "Kingsley Omole",
+    "email": "kingsley.omole@shepherd.app",
+    "phone": "08143343733",
+    "role": "department_head",
+    "ref_kind": "department",
+    "ref_name": "Prayer Department Leader"
+  },
+  {
+    "name": "Kingsley Osayande",
+    "email": "kingsley.osayande@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Overcomers"
+  },
+  {
+    "name": "Martins Justice Iseghohimen",
+    "email": "martins.justice.iseghohimen@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Praise"
+  },
+  {
+    "name": "Benedicta Omosefe",
+    "email": "benedicta.omosefe@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Hossana"
+  },
+  {
+    "name": "Faithfulness Joan Ehidiamen",
+    "email": "faithfulness.joan.ehidiamen@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Achievers"
+  },
+  {
+    "name": "Precious Idahosa",
+    "email": "precious.idahosa@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Power"
+  },
+  {
+    "name": "Blessing Albert",
+    "email": "blessing.albert@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Glory"
+  },
+  {
+    "name": "Obiageli Joy Okoh",
+    "email": "obiageli.joy.okoh@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Wisdom"
+  },
+  {
+    "name": "Chukwuelozonem Priscilla Oko",
+    "email": "chukwuelozonem.priscilla.oko@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Fluorish"
+  },
+  {
+    "name": "Becky Ighodaro",
+    "email": "becky.ighodaro@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Faith"
+  },
+  {
+    "name": "Eseosa Uwadiae",
+    "email": "eseosa.uwadiae@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Believer"
+  },
+  {
+    "name": "Kelvin Omorotionmwan",
+    "email": "kelvin.omorotionmwan@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Progress"
+  },
+  {
+    "name": "Joseph Imade",
+    "email": "joseph.imade@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Dominion"
+  },
+  {
+    "name": "Esther Ehizienlen",
+    "email": "esther.ehizienlen@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Grace"
+  },
+  {
+    "name": "Deborah Irubor",
+    "email": "deborah.irubor@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Favour"
+  },
+  {
+    "name": "Ehiedu Success",
+    "email": "ehiedu.success@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Excel"
+  },
+  {
+    "name": "Manfred Ebhodaghe",
+    "email": "manfred.ebhodaghe@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Group 3"
+  },
+  {
+    "name": "Kelechi",
+    "email": "kelechi@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Group 6"
+  },
+  {
+    "name": "Smith",
+    "email": "smith@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Group 4"
+  },
+  {
+    "name": "Clem",
+    "email": "clem@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Group 2"
+  },
+  {
+    "name": "Ekwas",
+    "email": "ekwas@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Group 5"
+  },
+  {
+    "name": "Omoh",
+    "email": "omoh@shepherd.app",
+    "phone": null,
+    "role": "cell_leader",
+    "ref_kind": "cell",
+    "ref_name": "Group 1"
+  }
+]

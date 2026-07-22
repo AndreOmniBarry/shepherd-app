@@ -163,7 +163,10 @@ export default function NotificationBell({ dark = false }: NotificationBellProps
           transition: 'all 0.15s ease',
           boxShadow: open ? (dark ? '0 0 12px rgba(83,74,183,0.3)' : '0 0 8px rgba(83,74,183,0.1)') : 'none',
         }}>
-        <i className="ti ti-bell" style={{ fontSize: 16, color: dark ? '#A89FFF' : '#534AB7' }} />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={dark ? '#A89FFF' : '#534AB7'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
         {unread > 0 && (
           <span style={{
             position: 'absolute', top: -3, right: -3,
@@ -220,7 +223,11 @@ export default function NotificationBell({ dark = false }: NotificationBellProps
           <div style={{ overflowY: 'auto', maxHeight: 400 }}>
             {notifications.length === 0 ? (
               <div style={{ padding: '32px 16px', textAlign: 'center' }}>
-                <i className="ti ti-bell-off" style={{ fontSize: 24, color: t.muted, display: 'block', marginBottom: 8 }} />
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={t.muted} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block', margin: '0 auto 8px' }}>
+                  <path d="M8.7 3A6 6 0 0 1 18 8c0 4.4 1.3 6.9 2.3 8.2M6 8a6 6 0 0 0 .17 1.4M18 15.3V16H2s1.6-1.1 2.7-3.9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                  <line x1="2" y1="2" x2="22" y2="22"/>
+                </svg>
                 <div style={{ fontSize: 13, color: t.sub }}>No notifications yet</div>
                 <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>Updates from your portal appear here</div>
               </div>
