@@ -225,6 +225,12 @@ add_leader('Cell Leaders', 'cell_leader', 3, 'cell')
 # FIRST occurrence per email, so processing order here is what decides it.)
 add_leader('Tech', 'lead_tech', None, None)
 
+# Kingsley Osayande is a cell leader, not tech — explicitly drop him from the
+# Tech listing entirely (per church instruction) rather than relying on de-dup
+# ordering to hide it.
+TECH_EXCLUDE = {'kingsley osayande'}
+leaders[:] = [l for l in leaders if not (l['role'] == 'lead_tech' and l['name'].strip().lower() in TECH_EXCLUDE)]
+
 # Fix Pastor & Admins roles individually (this sheet mixes accounts/partnership/pa roles)
 PA_ROLE_MAP = {
     'church admin - pa to bishop': 'pa',

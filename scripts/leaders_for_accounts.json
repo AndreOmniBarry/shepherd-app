@@ -130,7 +130,7 @@
   {
     "name": "Kingsley Osayande",
     "email": "kingsley.osayande@shepherd.app",
-    "phone": null,
+    "phone": "09037130851",
     "role": "cell_leader",
     "ref_kind": "cell",
     "ref_name": "Overcomers"
@@ -299,14 +299,6 @@
     "name": "Courage Barry",
     "email": "courage.barry@shepherd.app",
     "phone": "80123456789",
-    "role": "lead_tech",
-    "ref_kind": null,
-    "ref_name": null
-  },
-  {
-    "name": "Kingsley Osayande",
-    "email": "kingsley.osayande@shepherd.app",
-    "phone": "09037130851",
     "role": "lead_tech",
     "ref_kind": null,
     "ref_name": null
