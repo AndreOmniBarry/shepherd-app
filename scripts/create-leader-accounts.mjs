@@ -98,14 +98,25 @@ async function main() {
   }
   const leaders = [...seen.values()];
 
+  // Supabase's admin "list users" endpoint does NOT reliably support an
+  // ?email= filter — passing one silently returns an arbitrary page of ALL
+  // users instead of a filtered match. Build one authoritative email→id map
+  // up front by paging through every user, instead of trusting that filter
+  // per-leader (which was quietly resetting/re-profiling the wrong account).
+  const emailToId = new Map();
+  for (let page = 1; ; page++) {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=${page}&per_page=1000`, { headers: hdrs() });
+    const data = await res.json();
+    const pageUsers = data?.users || [];
+    for (const u of pageUsers) if (u.email) emailToId.set(u.email.toLowerCase(), u.id);
+    if (pageUsers.length < 1000) break;
+  }
+
   const results = [];
   for (const l of leaders) {
     const password = genPassword();
 
-    // Does an auth user with this email already exist?
-    const existingUsersRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(l.email)}`, { headers: hdrs() });
-    const existingUsers = await existingUsersRes.json();
-    let userId = existingUsers?.users?.[0]?.id;
+    let userId = emailToId.get(l.email.toLowerCase());
     let created = false;
     let passwordSet = false;
 
