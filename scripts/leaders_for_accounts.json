@@ -48,30 +48,6 @@
     "ref_name": null
   },
   {
-    "name": "Courage Barry",
-    "email": "courage.barry@shepherd.app",
-    "phone": "80123456789",
-    "role": "lead_tech",
-    "ref_kind": null,
-    "ref_name": null
-  },
-  {
-    "name": "Kingsley Osayande",
-    "email": "kingsley.osayande@shepherd.app",
-    "phone": "09037130851",
-    "role": "lead_tech",
-    "ref_kind": null,
-    "ref_name": null
-  },
-  {
-    "name": "Martins Izingha",
-    "email": "martins.izingha@shepherd.app",
-    "phone": null,
-    "role": "lead_tech",
-    "ref_kind": null,
-    "ref_name": null
-  },
-  {
     "name": "Pst Chris Idubor",
     "email": "pst.chris.idubor@shepherd.app",
     "phone": "08078682743",
@@ -318,5 +294,29 @@
     "role": "cell_leader",
     "ref_kind": "cell",
     "ref_name": "Group 1"
+  },
+  {
+    "name": "Courage Barry",
+    "email": "courage.barry@shepherd.app",
+    "phone": "80123456789",
+    "role": "lead_tech",
+    "ref_kind": null,
+    "ref_name": null
+  },
+  {
+    "name": "Kingsley Osayande",
+    "email": "kingsley.osayande@shepherd.app",
+    "phone": "09037130851",
+    "role": "lead_tech",
+    "ref_kind": null,
+    "ref_name": null
+  },
+  {
+    "name": "Martins Izingha",
+    "email": "martins.izingha@shepherd.app",
+    "phone": null,
+    "role": "lead_tech",
+    "ref_kind": null,
+    "ref_name": null
   }
 ]

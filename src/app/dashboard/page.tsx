@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import NotificationBell from "@/components/NotificationBell";
+import Icon from "@/components/Icon";
 import PastorAttendance from '@/components/PastorAttendance';
 import PastorGiving from '@/components/PastorGiving';
 import PastorRequisitions from '@/components/PastorRequisitions';
@@ -674,11 +675,13 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
   );
 }
 
-function ChurchSettingsPanel({t, dark}: {t: Record<string,string>; dark: boolean}) {
+function ChurchSettingsPanel({t, dark, onConfigSaved}: {t: Record<string,string>; dark: boolean; onConfigSaved?: (cfg:{structure_type:string;tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string})=>void}) {
   const [config, setConfig] = React.useState<Record<string,unknown>>({});
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<'structure'|'church'|'services'>('structure');
+  const [originalStructureType, setOriginalStructureType] = React.useState('cell_church');
+  const [showStructureConfirm, setShowStructureConfirm] = React.useState(false);
 
   // Form fields
   const [churchName, setChurchName] = React.useState('');
@@ -701,6 +704,7 @@ function ChurchSettingsPanel({t, dark}: {t: Record<string,string>; dark: boolean
           setConfig(c);
           setChurchName(c.church_name || '');
           setStructureType(c.structure_type || 'cell_church');
+          setOriginalStructureType(c.structure_type || 'cell_church');
           setTier1Label(c.tier1_label || '');
           setTier2Label(c.tier2_label || '');
           setTier3Label(c.tier3_label || '');
@@ -713,7 +717,7 @@ function ChurchSettingsPanel({t, dark}: {t: Record<string,string>; dark: boolean
       }).catch(() => {});
   }, []);
 
-  async function save() {
+  async function doSave() {
     setSaving(true);
     try {
       await fetch('/api/settings/church-config', {
@@ -735,8 +739,17 @@ function ChurchSettingsPanel({t, dark}: {t: Record<string,string>; dark: boolean
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+      setOriginalStructureType(structureType);
+      onConfigSaved?.({ structure_type: structureType, tier1_label: tier1Label || null, tier2_label: tier2Label || null, tier1_head_label: tier1HeadLabel, tier2_head_label: tier2HeadLabel, church_name: churchName, currency });
     } catch {}
     setSaving(false);
+  }
+
+  function save() {
+    // Changing the structure model reorganises how fellowships/cells/departments are
+    // reported and displayed across the whole system — confirm before applying it.
+    if (structureType !== originalStructureType) { setShowStructureConfirm(true); return; }
+    doSave();
   }
 
   const STRUCTURES = [
@@ -770,6 +783,23 @@ function ChurchSettingsPanel({t, dark}: {t: Record<string,string>; dark: boolean
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      {showStructureConfirm && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',backdropFilter:'blur(2px)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+          <div style={{background:dark?'#151030':'#fff',borderRadius:16,padding:24,maxWidth:420,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,0.4)'}}>
+            <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:10}}>Change church structure?</div>
+            <div style={{fontSize:13,color:t.muted,lineHeight:1.6,marginBottom:18}}>
+              You are switching from <strong>{STRUCTURES.find(s=>s.value===originalStructureType)?.label||originalStructureType}</strong> to <strong>{STRUCTURES.find(s=>s.value===structureType)?.label||structureType}</strong>.
+              This can alter how fellowships, cells, and departments are organised and reported across the whole system — some tabs and reports may change or disappear immediately. Existing records are not deleted, but how they are grouped and displayed will change right away.
+              Do you still want to proceed, or would you rather contact support first?
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              <button onClick={()=>{setShowStructureConfirm(false);doSave();}} style={{background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'10px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Yes, proceed with the change</button>
+              <button onClick={()=>{setShowStructureConfirm(false);window.open('mailto:support@shepherd.app?subject=Church%20structure%20change','_blank');}} style={{background:t.purpleBg||'#EEEDFE',color:t.purple,border:'none',borderRadius:9,padding:'10px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Contact support first</button>
+              <button onClick={()=>{setShowStructureConfirm(false);setStructureType(originalStructureType);}} style={{background:'transparent',color:t.muted,border:`0.5px solid ${t.border}`,borderRadius:9,padding:'10px',fontSize:13,cursor:'pointer'}}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <div>
           <div style={{fontSize:17,fontWeight:700,color:t.text}}>Church Settings</div>
@@ -879,65 +909,245 @@ function ChurchSettingsPanel({t, dark}: {t: Record<string,string>; dark: boolean
   );
 }
 
-function MemberApprovalPanel({t,dark}:{t:Record<string,string>;dark:boolean}) {
-  const [additions, setAdditions] = React.useState<{id:string;full_name:string;phone:string;gender:string;date_of_birth:string;join_date:string;status:string;submitted_by:string;created_at:string}[]>([]);
-  const [processing, setProcessing] = React.useState<Record<string,boolean>>({});
-  const [done, setDone] = React.useState<Record<string,string>>({});
+type MemberAddition = {id:string;full_name:string;phone:string;email?:string;gender:string;date_of_birth:string;join_date:string;status:string;submitted_by_name?:string;submitted_by_role?:string;source?:string;pastor_revoked?:boolean;pastor_revoke_reason?:string;created_member_id?:string;created_at:string};
 
-  React.useEffect(() => {
-    fetch('/api/update/member-additions', { credentials: 'include' })
+function MemberApprovalPanel({t,dark}:{t:Record<string,string>;dark:boolean}) {
+  const [additions, setAdditions] = React.useState<MemberAddition[]>([]);
+  const [processing, setProcessing] = React.useState<Record<string,boolean>>({});
+  const [revokeTarget, setRevokeTarget] = React.useState<string|null>(null);
+  const [revokeComment, setRevokeComment] = React.useState('');
+  const [filter, setFilter] = React.useState<'pending'|'approved'|'all'>('pending');
+  const [error, setError] = React.useState('');
+
+  function load() {
+    fetch('/api/update/member-additions?scope=review', { credentials: 'include' })
       .then(r => r.json())
       .then(({ data }) => { if (data?.additions) setAdditions(data.additions); })
       .catch(() => {});
-  }, []);
+  }
+  React.useEffect(() => { load(); }, []);
 
-  async function act(id: string, action: 'approve' | 'reject') {
+  async function act(id: string, action: 'approve' | 'reject' | 'revoke', comment?: string) {
     setProcessing(p => ({ ...p, [id]: true }));
+    setError('');
     try {
-      await fetch('/api/update/member-additions', {
+      const res = await fetch('/api/update/member-additions', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ id, action }),
+        body: JSON.stringify({ id, action, comment }),
       });
-      setDone(p => ({ ...p, [id]: action }));
-      setAdditions(prev => prev.filter(a => a.id !== id));
-    } catch {}
+      if (!res.ok) {
+        const e = await res.json().catch(()=>({}));
+        setError(e?.error?.message || 'Action failed.');
+      } else {
+        load();
+        setRevokeTarget(null); setRevokeComment('');
+      }
+    } catch { setError('Network error.'); }
     setProcessing(p => ({ ...p, [id]: false }));
   }
 
-  if (additions.length === 0) return null;
+  const visible = additions.filter(a =>
+    filter === 'all' ? true : filter === 'pending' ? a.status === 'pending' : a.status === 'approved' && !a.pastor_revoked
+  );
 
   return (
     <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'16px 18px',marginBottom:4}}>
-      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
-        <div style={{fontSize:13,fontWeight:600,color:t.text}}>Pending Member Approvals</div>
-        <span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:'#FAEEDA',color:'#633806',fontWeight:600}}>{additions.length}</span>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap' as const,gap:8}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{fontSize:13,fontWeight:600,color:t.text}}>Member Approvals</div>
+          <span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:'#FAEEDA',color:'#633806',fontWeight:600}}>{additions.filter(a=>a.status==='pending').length} pending</span>
+        </div>
+        <div style={{display:'flex',gap:6}}>
+          {(['pending','approved','all'] as const).map(f => (
+            <button key={f} onClick={()=>setFilter(f)} style={{padding:'4px 10px',borderRadius:16,border:'none',fontSize:11,fontWeight:filter===f?600:400,background:filter===f?t.purple:'transparent',color:filter===f?'#fff':t.muted,cursor:'pointer',textTransform:'capitalize' as const}}>{f}</button>
+          ))}
+        </div>
       </div>
-      {additions.map((a,i) => (
-        <div key={a.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:i<additions.length-1?`0.5px solid ${t.border}`:'none',flexWrap:'wrap'}}>
-          <div style={{flex:1,minWidth:140}}>
-            <div style={{fontSize:13,fontWeight:500,color:t.text}}>{a.full_name}</div>
-            <div style={{fontSize:11,color:t.muted}}>{a.phone||'—'} · {a.gender||'—'} · Joined {a.join_date}</div>
+      {error && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12,marginBottom:10}}>{error}</div>}
+      {visible.length === 0 ? (
+        <div style={{fontSize:12,color:t.muted,textAlign:'center' as const,padding:'12px 0'}}>Nothing here.</div>
+      ) : visible.map((a,i) => (
+        <div key={a.id} style={{padding:'10px 0',borderBottom:i<visible.length-1?`0.5px solid ${t.border}`:'none'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap' as const}}>
+            <div style={{flex:1,minWidth:140}}>
+              <div style={{fontSize:13,fontWeight:500,color:t.text}}>{a.full_name}</div>
+              <div style={{fontSize:11,color:t.muted}}>{a.phone||'—'} · Submitted by {a.submitted_by_name||'—'} ({a.submitted_by_role||'—'}) · {new Date(a.created_at).toLocaleDateString()}</div>
+            </div>
+            <div style={{display:'flex',gap:6}}>
+              {a.status==='pending' ? (
+                <>
+                  <button onClick={()=>act(a.id,'approve')} disabled={processing[a.id]}
+                    style={{background:'#1D9E75',color:'#fff',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id]?0.6:1}}>
+                    {processing[a.id]?'…':'Approve'}
+                  </button>
+                  <button onClick={()=>act(a.id,'reject')} disabled={processing[a.id]}
+                    style={{background:'#FAECE7',color:'#993C1D',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id]?0.6:1}}>
+                    Reject
+                  </button>
+                </>
+              ) : a.status==='approved' && !a.pastor_revoked ? (
+                <>
+                  <span style={{fontSize:11,padding:'4px 10px',borderRadius:8,background:'#E1F5EE',color:'#085041',fontWeight:500}}>✓ Live</span>
+                  <button onClick={()=>{setRevokeTarget(a.id);setRevokeComment('');}}
+                    style={{background:'transparent',color:t.coral||'#D85A30',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:500,cursor:'pointer'}}>
+                    Revoke
+                  </button>
+                </>
+              ) : a.pastor_revoked ? (
+                <span style={{fontSize:11,padding:'4px 10px',borderRadius:8,background:'#FAECE7',color:'#993C1D',fontWeight:500}}>Revoked</span>
+              ) : (
+                <span style={{fontSize:11,padding:'4px 10px',borderRadius:8,background:'#FAECE7',color:'#993C1D',fontWeight:500}}>Rejected</span>
+              )}
+            </div>
           </div>
-          <div style={{display:'flex',gap:6}}>
-            {done[a.id] ? (
-              <span style={{fontSize:11,padding:'4px 10px',borderRadius:8,background:done[a.id]==='approve'?'#E1F5EE':'#FAECE7',color:done[a.id]==='approve'?'#085041':'#993C1D',fontWeight:500}}>
-                {done[a.id]==='approve'?'Approved':'Rejected'}
-              </span>
-            ) : (
-              <>
-                <button onClick={()=>act(a.id,'approve')} disabled={processing[a.id]}
-                  style={{background:'#1D9E75',color:'#fff',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id]?0.6:1}}>
-                  {processing[a.id]?'…':'Approve'}
-                </button>
-                <button onClick={()=>act(a.id,'reject')} disabled={processing[a.id]}
-                  style={{background:'#FAECE7',color:'#993C1D',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[a.id]?0.6:1}}>
-                  Reject
-                </button>
-              </>
-            )}
-          </div>
+          {revokeTarget===a.id && (
+            <div style={{marginTop:8,display:'flex',gap:8,alignItems:'center'}}>
+              <input autoFocus value={revokeComment} onChange={e=>setRevokeComment(e.target.value)} placeholder="Reason for revoking (required)…"
+                style={{flex:1,border:`0.5px solid ${t.border}`,borderRadius:7,padding:'7px 10px',fontSize:12,background:t.input,color:t.text,outline:'none'}}/>
+              <button onClick={()=>act(a.id,'revoke',revokeComment)} disabled={!revokeComment.trim()||processing[a.id]}
+                style={{background:'#D85A30',color:'#fff',border:'none',borderRadius:7,padding:'7px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:!revokeComment.trim()?0.5:1}}>
+                Confirm revoke
+              </button>
+              <button onClick={()=>setRevokeTarget(null)} style={{background:'transparent',color:t.muted,border:'none',fontSize:11,cursor:'pointer'}}>Cancel</button>
+            </div>
+          )}
+          {a.pastor_revoked && a.pastor_revoke_reason && (
+            <div style={{marginTop:6,fontSize:11,color:t.muted,fontStyle:'italic'}}>Revoked: {a.pastor_revoke_reason}</div>
+          )}
         </div>
       ))}
+    </div>
+  );
+}
+
+function CreateMemberModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dark:boolean;onClose:()=>void;onCreated:()=>void}) {
+  const [firstName,setFirstName]=React.useState('');
+  const [lastName,setLastName]=React.useState('');
+  const [phone,setPhone]=React.useState('');
+  const [address,setAddress]=React.useState('');
+  const [dobMonth,setDobMonth]=React.useState('');
+  const [dobDay,setDobDay]=React.useState('');
+  const [dobYear,setDobYear]=React.useState('');
+  const [occupation,setOccupation]=React.useState('');
+  const [departmentId,setDepartmentId]=React.useState('');
+  const [departments,setDepartments]=React.useState<{id:string;name:string}[]>([]);
+  const [saving,setSaving]=React.useState(false);
+  const [error,setError]=React.useState('');
+
+  React.useEffect(()=>{
+    fetch('/api/departments/all',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
+      if(data?.departments) setDepartments(data.departments.map((d:{id:string;name:string})=>({id:d.id,name:d.name})));
+    }).catch(()=>{});
+  },[]);
+
+  async function submit(){
+    if(!firstName.trim()||!lastName.trim()){setError('First and last name are required.');return;}
+    setSaving(true);setError('');
+    const date_of_birth = dobYear && dobMonth && dobDay ? `${dobYear}-${dobMonth.padStart(2,'0')}-${dobDay.padStart(2,'0')}` : (dobMonth && dobDay ? `2000-${dobMonth.padStart(2,'0')}-${dobDay.padStart(2,'0')}` : null);
+    try{
+      const res=await fetch('/api/members/create',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+        body:JSON.stringify({full_name:`${firstName.trim()} ${lastName.trim()}`,phone:phone||null,address:address||null,occupation:occupation||null,date_of_birth,department_id:departmentId||null})});
+      if(!res.ok){const e=await res.json();setError(e?.error?.message||'Failed to create member.');setSaving(false);return;}
+      onCreated();onClose();
+    }catch{setError('Network error.');}
+    setSaving(false);
+  }
+
+  const inputS:React.CSSProperties={width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box' as const};
+  const labelS:React.CSSProperties={fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5,display:'block'};
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',backdropFilter:'blur(2px)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={onClose}>
+      <div style={{background:dark?'#151030':'#fff',borderRadius:16,padding:24,maxWidth:440,width:'100%',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.4)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:4}}>Create Member</div>
+        <div style={{fontSize:12,color:t.muted,marginBottom:16}}>Created by you — goes live immediately, no approval needed.</div>
+        {error && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12,marginBottom:12}}>{error}</div>}
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <div><label style={labelS}>First name *</label><input value={firstName} onChange={e=>setFirstName(e.target.value)} style={inputS}/></div>
+            <div><label style={labelS}>Last name *</label><input value={lastName} onChange={e=>setLastName(e.target.value)} style={inputS}/></div>
+          </div>
+          <div><label style={labelS}>Phone</label><input value={phone} onChange={e=>setPhone(e.target.value)} style={inputS}/></div>
+          <div><label style={labelS}>Address</label><input value={address} onChange={e=>setAddress(e.target.value)} style={inputS}/></div>
+          <div>
+            <label style={labelS}>Date of birth (day &amp; month matter most, for birthdays)</label>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+              <input value={dobDay} onChange={e=>setDobDay(e.target.value.replace(/\D/g,'').slice(0,2))} placeholder="Day" style={inputS}/>
+              <select value={dobMonth} onChange={e=>setDobMonth(e.target.value)} style={inputS}>
+                <option value="">Month</option>
+                {['01','02','03','04','05','06','07','08','09','10','11','12'].map((mNum,i)=><option key={mNum} value={mNum}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i]}</option>)}
+              </select>
+              <input value={dobYear} onChange={e=>setDobYear(e.target.value.replace(/\D/g,'').slice(0,4))} placeholder="Year (optional)" style={inputS}/>
+            </div>
+          </div>
+          <div><label style={labelS}>Occupation</label><input value={occupation} onChange={e=>setOccupation(e.target.value)} style={inputS}/></div>
+          <div>
+            <label style={labelS}>Department (if any)</label>
+            <select value={departmentId} onChange={e=>setDepartmentId(e.target.value)} style={inputS}>
+              <option value="">None</option>
+              {departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+          <div style={{display:'flex',gap:8,marginTop:6}}>
+            <button onClick={submit} disabled={saving} style={{flex:1,background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'11px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:saving?0.6:1}}>{saving?'Creating…':'Create member'}</button>
+            <button onClick={onClose} style={{background:'transparent',color:t.muted,border:`0.5px solid ${t.border}`,borderRadius:9,padding:'11px 16px',fontSize:13,cursor:'pointer'}}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateCellModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dark:boolean;onClose:()=>void;onCreated:()=>void}) {
+  const [name,setName]=React.useState('');
+  const [fellowshipId,setFellowshipId]=React.useState('');
+  const [targetSize,setTargetSize]=React.useState('');
+  const [fellowships,setFellowships]=React.useState<{id:string;name:string}[]>([]);
+  const [saving,setSaving]=React.useState(false);
+  const [error,setError]=React.useState('');
+
+  React.useEffect(()=>{
+    fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/fellowships?select=id,name&order=name.asc`,{
+      headers:{'apikey':process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||'','Authorization':`Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||''}`}
+    }).then(r=>r.json()).then(d=>{if(Array.isArray(d))setFellowships(d);}).catch(()=>{});
+  },[]);
+
+  async function submit(){
+    if(!name.trim()){setError('Cell name is required.');return;}
+    setSaving(true);setError('');
+    try{
+      const res=await fetch('/api/cells/create',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+        body:JSON.stringify({name:name.trim(),fellowship_id:fellowshipId||null,target_size:targetSize||null})});
+      if(!res.ok){const e=await res.json();setError(e?.error?.message||'Failed to create cell.');setSaving(false);return;}
+      onCreated();onClose();
+    }catch{setError('Network error.');}
+    setSaving(false);
+  }
+
+  const inputS:React.CSSProperties={width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box' as const};
+  const labelS:React.CSSProperties={fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5,display:'block'};
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',backdropFilter:'blur(2px)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={onClose}>
+      <div style={{background:dark?'#151030':'#fff',borderRadius:16,padding:24,maxWidth:400,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,0.4)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:16}}>Create Cell</div>
+        {error && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12,marginBottom:12}}>{error}</div>}
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          <div><label style={labelS}>Cell name *</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Overcomers" style={inputS}/></div>
+          <div>
+            <label style={labelS}>Fellowship</label>
+            <select value={fellowshipId} onChange={e=>setFellowshipId(e.target.value)} style={inputS}>
+              <option value="">None</option>
+              {fellowships.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          </div>
+          <div><label style={labelS}>Target size (optional)</label><input value={targetSize} onChange={e=>setTargetSize(e.target.value.replace(/\D/g,''))} style={inputS}/></div>
+          <div style={{display:'flex',gap:8,marginTop:6}}>
+            <button onClick={submit} disabled={saving} style={{flex:1,background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'11px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:saving?0.6:1}}>{saving?'Creating…':'Create cell'}</button>
+            <button onClick={onClose} style={{background:'transparent',color:t.muted,border:`0.5px solid ${t.border}`,borderRadius:9,padding:'11px 16px',fontSize:13,cursor:'pointer'}}>Cancel</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -946,7 +1156,7 @@ export default function DashboardPage(){
   const router=useRouter();
   const [page,setPage]=useState<NavPage>('dashboard');
   const [showAlertOnly,setShowAlertOnly]=useState(false);
-  const [churchConfig,setChurchConfig]=React.useState<{tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string}>({tier1_label:'Fellowship',tier2_label:'Cell',tier1_head_label:'Fellowship Head',tier2_head_label:'Cell Leader',church_name:'',currency:'NGN'});
+  const [churchConfig,setChurchConfig]=React.useState<{structure_type:string;tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string}>({structure_type:'cell_church',tier1_label:'Fellowship',tier2_label:'Cell',tier1_head_label:'Fellowship Head',tier2_head_label:'Cell Leader',church_name:'',currency:'NGN'});
   const [kpi,setKpi]=useState<KPI|null>(null);
   const [userName,setUserName]=useState('');
   const [userRole,setUserRole]=useState('');
@@ -956,6 +1166,10 @@ export default function DashboardPage(){
   const [cellFilter,setCellFilter]=useState<string>('all');
   const [memberSearch,setMemberSearch]=useState('');
   const [memberFilter,setMemberFilter]=useState('all');
+  const [membersList,setMembersList]=useState<{id:string;full_name:string;phone:string;membership_status:string;join_date:string|null;cell_name:string|null;fellowship_name:string|null}[]>([]);
+  const [membersLoading,setMembersLoading]=useState(true);
+  const [showCreateMember,setShowCreateMember]=useState(false);
+  const [showCreateCell,setShowCreateCell]=useState(false);
   const [attDrill,setAttDrill]=useState<string|null>(null);
   const [selectedDept,setSelectedDept]=useState<typeof DEPTS[0]|null>(null);
   const [chatOpen,setChatOpen]=useState(false);
@@ -1027,6 +1241,32 @@ export default function DashboardPage(){
     return()=>clearInterval(interval);
   },[]);
 
+  const loadMembers=useCallback(()=>{
+    setMembersLoading(true);
+    const url=memberSearch.trim().length>=2?`/api/members/search?q=${encodeURIComponent(memberSearch.trim())}`:'/api/members/search';
+    fetch(url,{credentials:'include'}).then(r=>r.json()).then(({data})=>{
+      setMembersList(data?.members||[]);
+    }).catch(()=>{}).finally(()=>setMembersLoading(false));
+  },[memberSearch]);
+  useEffect(()=>{
+    const handle=setTimeout(loadMembers, memberSearch?300:0);
+    return()=>clearTimeout(handle);
+  },[loadMembers]);
+
+  function reloadCells(){
+    fetch('/api/cells/all',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
+      if(data?.cells) setDbCells(data.cells);
+    }).catch(()=>{});
+  }
+
+  // Structure changed (or loaded) while viewing the Cell Ministry tab, which no
+  // longer applies — bounce to the dashboard rather than showing a dead tab.
+  useEffect(()=>{
+    if(churchConfig.structure_type!=='cell_church' && page==='cells'){
+      setPage('dashboard');
+    }
+  },[churchConfig.structure_type,page]);
+
   useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:'smooth'});},[messages]);
 
   const sendChat=useCallback(async()=>{
@@ -1093,7 +1333,9 @@ export default function DashboardPage(){
     {id:'departments' as NavPage,icon:'ti-building',label:`${churchConfig.tier1_label?'Fellowships':'Departments'}`},
     {id:'attendance' as NavPage,icon:'ti-calendar-stats',label:'Attendance'},
     {id:'giving' as NavPage,icon:'ti-coin',label:'Giving'},
-    {id:'cells' as NavPage,icon:'ti-circles',label:`${churchConfig.tier2_label||'Cell'} Ministry`},
+    // The Cell Ministry tab only applies to the two-tier fellowship→cell structure —
+    // hidden entirely for zonal/campus/department/house_network/single churches.
+    ...(churchConfig.structure_type==='cell_church'?[{id:'cells' as NavPage,icon:'ti-circles',label:`${churchConfig.tier2_label||'Cell'} Ministry`}]:[]),
     {id:'reports' as NavPage,icon:'ti-chart-bar',label:'Reports'},
     {id:'recognition' as NavPage,icon:'ti-award',label:'Recognition'},
     {id:'commendation' as NavPage,icon:'ti-star',label:'Commend Leaders'},
@@ -1139,7 +1381,7 @@ export default function DashboardPage(){
                 width: 'calc(100% - 8px)',
                 transition: 'all 0.2s ease',
               }}>
-              {n.icon && <i className={`ti ${n.icon}`} style={{fontSize:15,opacity:page===n.id?1:0.5,flexShrink:0}} aria-hidden="true" />}
+              {n.icon && <Icon name={n.icon} size={15} style={{opacity:page===n.id?1:0.5,flexShrink:0}} />}
               {n.label}
             </button>
           ))}
@@ -1418,20 +1660,20 @@ export default function DashboardPage(){
                 </div>
               </div>
 
-              {/* Member Approval Panel - M1 */}
-              <MemberApprovalPanel t={t} dark={dark} />
-
               {/* Full Member Database */}
               <div style={card()}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>Full Member Database — 1,147 members</div>
-                  <button onClick={()=>exportCSV(ALL_MEMBERS,'full_member_database')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export All</button>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12,flexWrap:'wrap' as const,gap:8}}>
+                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>Full Member Database{kpi?` — ${fmt(kpi.total_members)} members`:''}</div>
+                  <div style={{display:'flex',gap:8}}>
+                    <button onClick={()=>setShowCreateMember(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Create Member</button>
+                    <button onClick={()=>exportCSV(membersList.map(m=>({Name:m.full_name,Phone:m.phone,Cell:m.cell_name||'—',Fellowship:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),'full_member_database')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export</button>
+                  </div>
                 </div>
                 <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
                   <input value={memberSearch} onChange={e=>setMemberSearch(e.target.value)} placeholder="Search by name..." style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 10px',fontSize:12,outline:'none',flex:1,minWidth:160,background:t.input,color:t.text}}/>
-                  {['all','Youth','Women','Men','Active','Inactive'].map(f=>(
+                  {['all','active','inactive'].map(f=>(
                     <button key={f} onClick={()=>setMemberFilter(f)}
-                      style={{padding:'5px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:memberFilter===f?500:400,background:memberFilter===f?'#534AB7':t.cardInner,borderColor:memberFilter===f?'#534AB7':'#E5E7EB',color:memberFilter===f?'#fff':'#6B7280'}}>
+                      style={{padding:'5px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:memberFilter===f?500:400,background:memberFilter===f?'#534AB7':t.cardInner,borderColor:memberFilter===f?'#534AB7':'#E5E7EB',color:memberFilter===f?'#fff':'#6B7280',textTransform:'capitalize' as const}}>
                       {f==='all'?'All':f}
                     </button>
                   ))}
@@ -1440,36 +1682,41 @@ export default function DashboardPage(){
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
                     <thead style={{position:'sticky',top:0,background:t.card}}>
                       <tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>
-                        {['Name','Phone','Cell','Fellowship','Joined','Status','Gender','Age'].map(h=>(
+                        {['Name','Phone','Cell','Fellowship','Joined','Status'].map(h=>(
                           <th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap',background:t.card}}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {ALL_MEMBERS
-                        .filter(m=>memberSearch?m.name.toLowerCase().includes(memberSearch.toLowerCase()):true)
-                        .filter(m=>memberFilter==='all'?true:m.fellowship===memberFilter||m.status===memberFilter)
+                      {membersLoading?(
+                        <tr><td colSpan={6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>Loading members…</td></tr>
+                      ):membersList.filter(m=>memberFilter==='all'?true:m.membership_status===memberFilter).length===0?(
+                        <tr><td colSpan={6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>No members found.</td></tr>
+                      ):membersList
+                        .filter(m=>memberFilter==='all'?true:m.membership_status===memberFilter)
                         .map((m,i)=>(
-                        <tr key={i} style={{borderBottom:`0.5px solid ${t.border}`}}>
-                          <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.name}</td>
-                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone}</td>
-                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.cell}</td>
-                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.fellowship}</td>
-                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.joined}</td>
-                          <td style={{padding:'7px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.status==='Active'?'#E1F5EE':'#FAECE7',color:m.status==='Active'?'#085041':'#993C1D'}}>{m.status}</span></td>
-                          <td style={{padding:'7px 8px',color:t.sub}}>{m.gender}</td>
-                          <td style={{padding:'7px 8px',color:t.sub}}>{m.age}</td>
+                        <tr key={m.id||i} style={{borderBottom:`0.5px solid ${t.border}`}}>
+                          <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.full_name}</td>
+                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone||'—'}</td>
+                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.cell_name||'—'}</td>
+                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.fellowship_name||'—'}</td>
+                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.join_date?new Date(m.join_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</td>
+                          <td style={{padding:'7px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.membership_status==='active'?'#E1F5EE':'#FAECE7',color:m.membership_status==='active'?'#085041':'#993C1D',textTransform:'capitalize' as const}}>{m.membership_status}</span></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  <div style={{fontSize:11,color:t.muted,padding:'8px',textAlign:'center'}}>
-                    Showing {ALL_MEMBERS.filter(m=>memberSearch?m.name.toLowerCase().includes(memberSearch.toLowerCase()):true).filter(m=>memberFilter==='all'?true:m.fellowship===memberFilter||m.status===memberFilter).length} of 1,147 members — connect live database for full roster
-                  </div>
+                  {!membersLoading&&(
+                    <div style={{fontSize:11,color:t.muted,padding:'8px',textAlign:'center'}}>
+                      Showing {membersList.filter(m=>memberFilter==='all'?true:m.membership_status===memberFilter).length} member{membersList.length===1?'':'s'}{memberSearch?` matching "${memberSearch}"`:' (capped at 200 — search to find others)'}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           )}
+          {showCreateMember && <CreateMemberModal t={t} dark={dark} onClose={()=>setShowCreateMember(false)} onCreated={()=>{loadMembers();fetch('/api/analytics/dashboard',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setKpi(data);}).catch(()=>{});}}/>}
+          {showCreateCell && <CreateCellModal t={t} dark={dark} onClose={()=>setShowCreateCell(false)} onCreated={reloadCells}/>}
 
           {/* ══ DEPARTMENTS ══ */}
           {page==='departments'&&!selectedDept&&(
@@ -1539,9 +1786,12 @@ export default function DashboardPage(){
               </div>
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>All 35 Cells - click any cell to drill down</div>
-                  <button onClick={()=>exportCSV((dbCells||CELLS_DATA).map(c=>({Cell:c.cell,Fellowship:c.fel,Leader:c.leader,Members:c.members,AvgAttendance:c.avg,Rate:`${c.rate}%`,Trend:c.trend,Status:c.status})),'cells_export')}
-                    style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'5px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export CSV</button>
+                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>All {(dbCells||CELLS_DATA).length} Cells - click any cell to drill down</div>
+                  <div style={{display:'flex',gap:8}}>
+                    <button onClick={()=>setShowCreateCell(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Create Cell</button>
+                    <button onClick={()=>exportCSV((dbCells||CELLS_DATA).map(c=>({Cell:c.cell,Fellowship:c.fel,Leader:c.leader,Members:c.members,AvgAttendance:c.avg,Rate:`${c.rate}%`,Trend:c.trend,Status:c.status})),'cells_export')}
+                      style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'5px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export CSV</button>
+                  </div>
                 </div>
                 <div style={{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'}}>
                   {[{key:'all',label:'All 35'},{key:'rising',label:'Rising'},{key:'stable',label:'Stable'},{key:'watch',label:'Watch'},{key:'alert',label:'Intervention'},{key:'Youth',label:'Youth'},{key:'Women',label:'Women'},{key:'Men',label:'Men'}].map(f=>(
@@ -1896,10 +2146,13 @@ export default function DashboardPage(){
             <PastorRequisitions t={t} dark={dark} />
           )}
           {page==='validation'&&(
-            <FellowshipValidation t={t} dark={dark} />
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              <MemberApprovalPanel t={t} dark={dark} />
+              <FellowshipValidation t={t} dark={dark} />
+            </div>
           )}
           {page==='settings'&&(
-            <ChurchSettingsPanel t={t} dark={dark} />
+            <ChurchSettingsPanel t={t} dark={dark} onConfigSaved={(cfg)=>setChurchConfig(cfg)} />
           )}
           {page==='admin'&&(
             <div style={{display:'flex',alignItems:'center',justifyContent:'center',paddingTop:60,flexDirection:'column',gap:16}}>

@@ -216,10 +216,14 @@ def add_leader(sheet_name, role, ref_col_idx, ref_kind):
 
 add_leader('G.O', 'overseer', None, None)
 add_leader('Pastor & Admins', None, None, None)  # role resolved per-row below (mixed roles in this sheet)
-add_leader('Tech', 'lead_tech', None, None)
 add_leader('Fellowship Heads', 'fellowship_head', 3, 'fellowship')
 add_leader('Dept Heads', 'department_head', 3, 'department')
 add_leader('Cell Leaders', 'cell_leader', 3, 'cell')
+# Tech goes LAST: someone's ministry role (cell leader/fellowship head/dept head)
+# always wins over a tech-team listing when the same person appears in both —
+# tech access is supplementary, not their primary role. (De-dup below keeps the
+# FIRST occurrence per email, so processing order here is what decides it.)
+add_leader('Tech', 'lead_tech', None, None)
 
 # Fix Pastor & Admins roles individually (this sheet mixes accounts/partnership/pa roles)
 PA_ROLE_MAP = {
