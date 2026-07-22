@@ -23,7 +23,8 @@ export async function GET(req: Request) {
   const rows = await res.json();
   const profile = Array.isArray(rows) ? rows[0] : null;
   if (!profile) return NextResponse.json({ data: null, error: { message: 'Profile not found' } }, { status: 404 });
-  return NextResponse.json({ data: { profile }, error: null });
+  const impersonating = /shepherd_admin_token=/.test(req.headers.get('cookie') || '');
+  return NextResponse.json({ data: { profile, impersonating }, error: null });
 }
 
 export async function PATCH(req: Request) {
