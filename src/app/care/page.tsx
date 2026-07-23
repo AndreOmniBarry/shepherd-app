@@ -19,6 +19,8 @@ type Lead = {
   contact_attempts: number;
   last_contact?: string;
   notes?: string;
+  outcome?: string;
+  sla_grade?: string;
 };
 
 type FirstTimer = {
@@ -30,6 +32,16 @@ type FirstTimer = {
   assigned_to?: string;
   status: 'new' | 'contacted' | 'follow_up' | 'converted' | 'declined';
   notes?: string;
+  address?: string;
+  occupation?: string;
+  date_of_birth?: string;
+  would_join?: string;
+  volunteer_interest?: string;
+  prayer_point?: string;
+  cell_id?: string;
+  completed_member_class?: boolean;
+  outcome?: string;
+  sla_grade?: string;
 };
 
 type NavTab = 'queue' | 'first_timers' | 'history' | 'birthdays';
@@ -84,7 +96,7 @@ export default function CareTeamPage() {
   const [selectedTimer, setSelectedTimer] = useState<FirstTimer | null>(null);
   const [updateForm, setUpdateForm] = useState({ status: '', notes: '' });
   const [timerForm, setTimerForm] = useState({ status: '', notes: '' });
-  const [newTimerForm, setNewTimerForm] = useState({ full_name: '', phone: '', how_they_came: '', notes: '' });
+  const [newTimerForm, setNewTimerForm] = useState({ full_name: '', phone: '', how_they_came: '', notes: '', address: '', occupation: '', date_of_birth: '', would_join: '', volunteer_interest: '', prayer_point: '' });
   const [showNewTimer, setShowNewTimer] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
@@ -199,7 +211,7 @@ export default function CareTeamPage() {
       if (res.ok) {
         setSuccess('First timer added');
         setShowNewTimer(false);
-        setNewTimerForm({ full_name: '', phone: '', how_they_came: '', notes: '' });
+        setNewTimerForm({ full_name: '', phone: '', how_they_came: '', notes: '', address: '', occupation: '', date_of_birth: '', would_join: '', volunteer_interest: '', prayer_point: '' });
         fetchFirstTimers();
         setTimeout(() => setSuccess(''), 3000);
       }
@@ -413,12 +425,53 @@ export default function CareTeamPage() {
                       style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
                   </div>
                   <div>
+                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 5 }}>Address</div>
+                    <input value={newTimerForm.address} onChange={e => setNewTimerForm(p => ({ ...p, address: e.target.value }))}
+                      placeholder="Home address"
+                      style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 5 }}>Occupation</div>
+                      <input value={newTimerForm.occupation} onChange={e => setNewTimerForm(p => ({ ...p, occupation: e.target.value }))}
+                        style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 5 }}>Date of birth</div>
+                      <input type="date" value={newTimerForm.date_of_birth} onChange={e => setNewTimerForm(p => ({ ...p, date_of_birth: e.target.value }))}
+                        style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
+                    </div>
+                  </div>
+                  <div>
                     <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 5 }}>How they came</div>
                     <select value={newTimerForm.how_they_came} onChange={e => setNewTimerForm(p => ({ ...p, how_they_came: e.target.value }))}
                       style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
                       <option value="">Select</option>
                       {HOW_THEY_CAME.map(h => <option key={h.value} value={h.value}>{h.label}</option>)}
                     </select>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 5 }}>Would they join the church?</div>
+                    <select value={newTimerForm.would_join} onChange={e => setNewTimerForm(p => ({ ...p, would_join: e.target.value }))}
+                      style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
+                      <option value="">Select</option>
+                      <option value="yes">Yes</option>
+                      <option value="maybe">Maybe</option>
+                      <option value="no">No</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 5 }}>Interested in volunteering? Where?</div>
+                    <input value={newTimerForm.volunteer_interest} onChange={e => setNewTimerForm(p => ({ ...p, volunteer_interest: e.target.value }))}
+                      placeholder="e.g. Media, Ushering, Choir..."
+                      style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 5 }}>Prayer point</div>
+                    <textarea value={newTimerForm.prayer_point} onChange={e => setNewTimerForm(p => ({ ...p, prayer_point: e.target.value }))}
+                      placeholder="Goes straight to the prayer team and pastor"
+                      rows={2}
+                      style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', resize: 'none', fontFamily: 'inherit' }} />
                   </div>
                   <div>
                     <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 5 }}>Notes from initial conversation</div>
@@ -451,6 +504,19 @@ export default function CareTeamPage() {
                 <div style={card()}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4 }}>{selectedTimer.full_name}</div>
                   <div style={{ fontSize: 12, color: t.muted, marginBottom: 16 }}>{selectedTimer.phone} · {HOW_THEY_CAME.find(h => h.value === selectedTimer.how_they_came)?.label || selectedTimer.how_they_came}</div>
+                  {(selectedTimer.address || selectedTimer.occupation || selectedTimer.would_join || selectedTimer.volunteer_interest) && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 14, fontSize: 12, color: t.sub }}>
+                      {selectedTimer.address && <div>Address: {selectedTimer.address}</div>}
+                      {selectedTimer.occupation && <div>Occupation: {selectedTimer.occupation}</div>}
+                      {selectedTimer.would_join && <div>Would join: {selectedTimer.would_join}</div>}
+                      {selectedTimer.volunteer_interest && <div>Volunteer interest: {selectedTimer.volunteer_interest}</div>}
+                    </div>
+                  )}
+                  {selectedTimer.prayer_point && (
+                    <div style={{ background: t.coralBg || '#FAECE7', borderRadius: 8, padding: '10px 13px', marginBottom: 14, fontSize: 12, color: t.text }}>
+                      <strong>Prayer point:</strong> {selectedTimer.prayer_point}
+                    </div>
+                  )}
                   {selectedTimer.notes && (
                     <div style={{ background: t.input, borderRadius: 8, padding: '10px 13px', marginBottom: 14, fontSize: 12, color: t.sub }}>
                       {selectedTimer.notes}

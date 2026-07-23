@@ -20,8 +20,10 @@ export async function GET(req: Request) {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
+    const isAdmin = ['overseer', 'pa', 'lead_tech'].includes(user.role);
+    const scope = isAdmin ? '' : `&assigned_to=eq.${user.id}`;
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/care_leads?assigned_to=eq.${user.id}&order=created_at.desc&limit=100&select=id,member_id,weeks_absent,status,contact_attempts,last_contact,notes,created_at,members(full_name,phone,cells(name),fellowships(name))`,
+      `${SUPABASE_URL}/rest/v1/care_leads?order=created_at.desc&limit=100&select=id,member_id,weeks_absent,status,contact_attempts,last_contact,notes,outcome,sla_grade,assigned_to,created_at,members(full_name,phone,cells(name),fellowships(name))${scope}`,
       { headers: hdrs() }
     );
     const data = await res.json();
@@ -42,6 +44,8 @@ export async function GET(req: Request) {
         contact_attempts: l.contact_attempts || 0,
         last_contact: l.last_contact,
         notes: l.notes,
+        outcome: l.outcome,
+        sla_grade: l.sla_grade,
       };
     });
 

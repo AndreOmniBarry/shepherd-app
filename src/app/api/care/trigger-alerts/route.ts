@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { assignToLeastLoadedCareTeamMember } from '@/lib/care-assignment';
 
 // ── This endpoint scans last Sunday's attendance and creates care leads
 // ── for any member absent 1+ Sunday with no open lead already.
@@ -71,14 +72,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 3. Get care team members for round-robin assignment
-    const careRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?role=eq.care_team&is_active=eq.true&select=id`,
-      { headers: hdrs() }
-    );
-    const careTeam = await careRes.json();
-    const careIds: string[] = Array.isArray(careTeam) ? careTeam.map((u: Record<string, string>) => u.id) : [];
-
     // 4. For each absent member — create care lead if none exists
     for (let i = 0; i < absentEntries.length; i++) {
       const entry = absentEntries[i] as Record<string, string>;
@@ -103,8 +96,8 @@ export async function POST(req: Request) {
         continue;
       }
 
-      // Round-robin assign to care team
-      const assignedTo = careIds.length > 0 ? careIds[i % careIds.length] : null;
+      // Assign to whichever care team member currently has the fewest open items
+      const assignedTo = await assignToLeastLoadedCareTeamMember(SUPABASE_URL, hdrs());
 
       // Create new care lead
       const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/care_leads`, {
