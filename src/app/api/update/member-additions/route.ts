@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { sendSMS, welcomeMessage } from '@/lib/sms';
+import { computeSlaGrade } from '@/lib/sla';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -103,7 +104,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const scope = searchParams.get('scope'); // 'review' = things I can approve; default = my own submissions
 
-    const select = 'id,full_name,phone,email,gender,date_of_birth,join_date,occupation,address,status,l1_status,l2_status,pastor_revoked,pastor_revoke_reason,submitted_by_name,submitted_by_role,source,created_member_id,created_at';
+    const select = 'id,full_name,phone,email,gender,date_of_birth,join_date,occupation,address,status,l1_status,l2_status,l1_approved_at,l2_approved_at,pastor_revoked,pastor_revoke_reason,submitted_by_name,submitted_by_role,source,created_member_id,created_at';
 
     if (scope === 'review') {
       let url = `${SUPABASE_URL}/rest/v1/member_additions?order=created_at.desc&limit=200&select=${select}`;
@@ -124,7 +125,13 @@ export async function GET(req: Request) {
       }
       const res = await fetch(url, { headers: hdrs() });
       const data = await res.json();
-      return NextResponse.json({ data: { additions: Array.isArray(data) ? data : [] }, error: null });
+      // SLA measures how quickly the L1 reviewer (fellowship/dept head) or L2
+      // (admin) actually acted, not the pastor/tech/PA's own workload.
+      const additions = (Array.isArray(data) ? data : []).map((a: Record<string, unknown>) => {
+        const approvedAt = ADMIN_ROLES.includes(user.role) ? a.l2_approved_at : a.l1_approved_at;
+        return { ...a, sla_grade: approvedAt && a.created_at ? computeSlaGrade(a.created_at as string, approvedAt as string) : null };
+      });
+      return NextResponse.json({ data: { additions }, error: null });
     }
 
     // Default: "my submissions" — cell leaders/dept heads/fellowship heads see what they personally submitted

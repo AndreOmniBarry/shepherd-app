@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { computeSlaGrade } from '@/lib/sla';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -22,13 +23,16 @@ export async function GET(req: Request) {
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
   const res = await fetch(
-    `${S}/rest/v1/income_records?service_date=gte.${cutoff.toISOString().split('T')[0]}&order=service_date.desc&limit=200&select=id,amount,member_name,service_date,notes,income_types(name)`,
+    `${S}/rest/v1/income_records?service_date=gte.${cutoff.toISOString().split('T')[0]}&order=service_date.desc&limit=200&select=id,amount,member_name,service_date,notes,created_at,income_types(name)`,
     { headers: h() }
   );
   const data = await res.json();
+  // SLA here measures how promptly the accounts team logged the income after
+  // the service itself — not a payment/approval turnaround.
   const records = (Array.isArray(data) ? data : []).map((r: Record<string, unknown>) => ({
     ...r,
     income_type_name: (r.income_types as Record<string, string> | null)?.name || '',
+    sla_grade: r.service_date && r.created_at ? computeSlaGrade(r.service_date as string, r.created_at as string) : null,
   }));
   return NextResponse.json({ data: { records }, error: null });
 }
@@ -56,7 +60,7 @@ export async function POST(req: Request) {
   const entry = Array.isArray(data) ? data[0] : data;
   fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://shepherd-app-beta.vercel.app'}/api/notify/dispatch`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-internal-secret': 'shepherd-internal-2026' },
+    headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_SECRET || '' },
     body: JSON.stringify({
       event: 'income_logged',
       actor_name: user.id,

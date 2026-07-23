@@ -159,7 +159,7 @@ export async function POST(req: Request) {
 
     // Validate it's an internal call
     const internalSecret = req.headers.get('x-internal-secret');
-    if (internalSecret !== process.env.INTERNAL_SECRET && internalSecret !== 'shepherd-internal-2026') {
+    if (!process.env.INTERNAL_SECRET || internalSecret !== process.env.INTERNAL_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

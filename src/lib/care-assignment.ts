@@ -1,3 +1,5 @@
+export { computeSlaGrade } from '@/lib/sla';
+
 // Smart care-team assignment: whoever currently has the fewest open items
 // (care_leads + first_timers combined) gets the next one. Replaces plain
 // round-robin, which ignores backlog — round-robin alone means someone
@@ -27,16 +29,4 @@ export async function assignToLeastLoadedCareTeamMember(
   });
 
   return careIds.reduce((least, id) => (load[id] < load[least] ? id : least), careIds[0]);
-}
-
-// Basic, honest SLA grade — how fast this was actually resolved, not a
-// predictive "likelihood of conversion" model. A = same day, B = within 3
-// days, C = within a week, D = within two weeks, F = longer or never acted on.
-export function computeSlaGrade(createdAt: string, resolvedAt: string): string {
-  const hours = (new Date(resolvedAt).getTime() - new Date(createdAt).getTime()) / 36e5;
-  if (hours <= 24) return 'A';
-  if (hours <= 72) return 'B';
-  if (hours <= 168) return 'C';
-  if (hours <= 336) return 'D';
-  return 'F';
 }

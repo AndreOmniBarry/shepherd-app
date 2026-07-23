@@ -31,7 +31,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   // Notify accounts admin when pastor approves/rejects
   fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://shepherd-app-beta.vercel.app'}/api/notify/dispatch`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-internal-secret': 'shepherd-internal-2026' },
+    headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_SECRET || '' },
     body: JSON.stringify({
       event: status === 'paid' ? 'requisition_approved' : 'requisition_raised',
       actor_name: user.id,
