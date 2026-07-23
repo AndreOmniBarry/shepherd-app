@@ -100,6 +100,7 @@ export default function CareTeamPage() {
   const [showNewTimer, setShowNewTimer] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const t = {
     bg:        dark ? '#080614' : '#F0EFF8',
@@ -156,6 +157,7 @@ export default function CareTeamPage() {
   async function updateLead() {
     if (!selectedLead || !updateForm.status) return;
     setSaving(true);
+    setActionError('');
     try {
       const res = await fetch(`/api/care/leads/${selectedLead.id}`, {
         method: 'PATCH',
@@ -169,14 +171,18 @@ export default function CareTeamPage() {
         setUpdateForm({ status: '', notes: '' });
         fetchLeads();
         setTimeout(() => setSuccess(''), 3000);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setActionError(json?.error?.message || 'Failed to update lead.');
       }
-    } catch {}
+    } catch { setActionError('Network error — lead was not updated.'); }
     setSaving(false);
   }
 
   async function updateFirstTimer() {
     if (!selectedTimer || !timerForm.status) return;
     setSaving(true);
+    setActionError('');
     try {
       const res = await fetch(`/api/care/first-timers/${selectedTimer.id}`, {
         method: 'PATCH',
@@ -190,14 +196,18 @@ export default function CareTeamPage() {
         setTimerForm({ status: '', notes: '' });
         fetchFirstTimers();
         setTimeout(() => setSuccess(''), 3000);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setActionError(json?.error?.message || 'Failed to update first timer.');
       }
-    } catch {}
+    } catch { setActionError('Network error — first timer was not updated.'); }
     setSaving(false);
   }
 
   async function addFirstTimer() {
     if (!newTimerForm.full_name || !newTimerForm.phone) return;
     setSaving(true);
+    setActionError('');
     try {
       const res = await fetch('/api/care/first-timers', {
         method: 'POST',
@@ -214,8 +224,11 @@ export default function CareTeamPage() {
         setNewTimerForm({ full_name: '', phone: '', how_they_came: '', notes: '', address: '', occupation: '', date_of_birth: '', would_join: '', volunteer_interest: '', prayer_point: '' });
         fetchFirstTimers();
         setTimeout(() => setSuccess(''), 3000);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setActionError(json?.error?.message || 'Failed to add first timer.');
       }
-    } catch {}
+    } catch { setActionError('Network error — first timer was not added.'); }
     setSaving(false);
   }
 
@@ -281,6 +294,12 @@ export default function CareTeamPage() {
         {success && (
           <div style={{ background: t.tealBg, border: `0.5px solid rgba(29,158,117,0.2)`, borderRadius: 9, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: t.teal, fontWeight: 500 }}>
             {success}
+          </div>
+        )}
+        {actionError && (
+          <div style={{ background: t.coralBg, border: `0.5px solid rgba(216,90,48,0.25)`, borderRadius: 9, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: t.coral, fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <span>{actionError}</span>
+            <button onClick={() => setActionError('')} style={{ background: 'transparent', border: 'none', color: t.coral, cursor: 'pointer', fontSize: 15, lineHeight: 1 }}>×</button>
           </div>
         )}
 

@@ -91,7 +91,16 @@ export default function UpdatePage() {
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.json())
-      .then(({ data }) => { if (!data) { router.push('/login'); return; } setLeaderName(data.name || ''); })
+      .then(({ data }) => {
+        if (!data) { router.push('/login'); return; }
+        // Overseer/PA/lead_tech have their own review queue on the Dashboard's
+        // "Validate Records" tab (shows every fellowship/dept head's pending
+        // submissions) — this page only ever shows the logged-in user's own
+        // submissions, which is always empty for admin roles and reads as "my
+        // approved member never showed up anywhere."
+        if (['overseer', 'pa', 'lead_tech'].includes(data.role)) { router.push('/dashboard?page=validation'); return; }
+        setLeaderName(data.name || '');
+      })
       .catch(() => router.push('/login'));
 
     fetch('/api/update/members', { credentials: 'include' })

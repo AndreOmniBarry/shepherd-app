@@ -1,9 +1,18 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
+import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const H = () => ({ 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' });
+const ADMIN_ROLES = ['overseer', 'pa', 'lead_tech'];
+
+async function getUser(req: Request) {
+  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
+  if (!m) return null;
+  const p = await verifyToken(m[1]);
+  return p ? payloadToAuthUser(p) : null;
+}
 
 export async function POST(req: Request) {
   try {
@@ -70,6 +79,10 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   try {
+    const user = await getUser(req);
+    if (!user || !ADMIN_ROLES.includes(user.role)) {
+      return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 403 });
+    }
     const { searchParams } = new URL(req.url);
     const event_id = searchParams.get('event_id');
     if (!event_id) return NextResponse.json({ data: null, error: { message: 'event_id required' } }, { status: 400 });
@@ -82,6 +95,10 @@ export async function GET(req: Request) {
 // Mark attendance
 export async function PATCH(req: Request) {
   try {
+    const user = await getUser(req);
+    if (!user || !ADMIN_ROLES.includes(user.role)) {
+      return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 403 });
+    }
     const { id, attended } = await req.json();
     await fetch(`${SURL}/rest/v1/event_registrations?id=eq.${id}`, { method: 'PATCH', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify({ attended }) });
     return NextResponse.json({ data: { updated: true }, error: null });

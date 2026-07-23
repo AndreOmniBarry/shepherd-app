@@ -14,6 +14,11 @@ export async function GET(req: Request) {
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
+    const ALLOWED_ROLES = ['overseer', 'pa', 'lead_tech', 'fellowship_head', 'department_head', 'cell_leader', 'care_team'];
+    if (!ALLOWED_ROLES.includes(String(payload.role))) {
+      return NextResponse.json({ data: null, error: { message: 'Not authorized to search members' } }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('q') || '';
 

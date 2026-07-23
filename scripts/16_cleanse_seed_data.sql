@@ -28,16 +28,16 @@ WHERE email IN (
 
 -- ── PART 2: diagnostic — find anything outside the Grace Dome import batch ──
 SELECT 'members' AS table_name, date_trunc('minute', created_at) AS batch_minute, count(*)
-FROM members GROUP BY 1 ORDER BY 3 DESC;
+FROM members GROUP BY 2 ORDER BY 3 DESC;
 
 SELECT 'cells' AS table_name, date_trunc('minute', created_at) AS batch_minute, count(*)
-FROM cells GROUP BY 1 ORDER BY 3 DESC;
+FROM cells GROUP BY 2 ORDER BY 3 DESC;
 
 SELECT 'fellowships' AS table_name, date_trunc('minute', created_at) AS batch_minute, count(*)
-FROM fellowships GROUP BY 1 ORDER BY 3 DESC;
+FROM fellowships GROUP BY 2 ORDER BY 3 DESC;
 
 SELECT 'departments' AS table_name, date_trunc('minute', created_at) AS batch_minute, count(*)
-FROM departments GROUP BY 1 ORDER BY 3 DESC;
+FROM departments GROUP BY 2 ORDER BY 3 DESC;
 
 -- Whichever batch_minute has the huge count (hundreds for members, dozens
 -- for cells) is the Grace Dome import. Anything in a different, small batch

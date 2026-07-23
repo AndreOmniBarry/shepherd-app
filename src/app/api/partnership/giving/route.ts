@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { computeSlaGrade } from '@/lib/sla';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -15,6 +16,27 @@ async function getUser(req: Request) {
 }
 
 const ALLOWED = ['overseer', 'pa', 'lead_tech', 'partnership'];
+
+// SLA here measures how promptly partnership logged the giving entry after
+// the month it's attributed to — the same "logged promptly" metric accounts
+// uses for income, so both staff-facing roles are graded the same way.
+export async function GET(req: Request) {
+  const user = await getUser(req);
+  if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 1);
+  const res = await fetch(
+    `${S}/rest/v1/partnership_giving?month=gte.${cutoff.toISOString().split('T')[0]}&order=month.desc&limit=200&select=id,partner_id,amount,month,status,notes,created_at,partners(full_name)`,
+    { headers: h() }
+  );
+  const data = await res.json();
+  const records = (Array.isArray(data) ? data : []).map((r: Record<string, unknown>) => ({
+    ...r,
+    partner_name: (r.partners as Record<string, string> | null)?.full_name || '',
+    sla_grade: r.month && r.created_at ? computeSlaGrade(r.month as string, r.created_at as string) : null,
+  }));
+  return NextResponse.json({ data: { records }, error: null });
+}
 
 export async function POST(req: Request) {
   const user = await getUser(req);

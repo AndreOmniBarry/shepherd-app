@@ -676,6 +676,92 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
   );
 }
 
+function TeamAccessPanel({t}: {t: Record<string,string>}) {
+  const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string}[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [q, setQ] = React.useState('');
+  const [resetting, setResetting] = React.useState<string|null>(null);
+  const [issued, setIssued] = React.useState<{full_name:string;email:string;password:string}|null>(null);
+
+  React.useEffect(() => {
+    fetch('/api/admin/users', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => setUsers(data?.users || []))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function doReset(u: {id:string;full_name:string;email:string}) {
+    setResetting(u.id);
+    try {
+      const res = await fetch('/api/admin/reset-user-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ userId: u.id }),
+      });
+      const json = await res.json();
+      if (res.ok && json.data) setIssued(json.data);
+      else alert(json.error?.message || 'Failed to reset password');
+    } catch { alert('Network error — password was not reset.'); }
+    setResetting(null);
+  }
+
+  const filtered = users.filter(u => !q || u.full_name.toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase()));
+
+  return (
+    <div style={{background:t.card,borderRadius:12,border:`0.5px solid ${t.border}`,padding:'18px 20px',marginTop:14}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+        <div>
+          <div style={{fontSize:16,fontWeight:700,color:t.text}}>Team & Access</div>
+          <div style={{fontSize:12,color:t.sub,marginTop:2}}>Reset a leader&apos;s password on the spot — shown once, right here, so you can read it out to them. Nothing is stored or logged after this screen closes.</div>
+        </div>
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search name or email"
+          style={{width:220,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',fontSize:12,background:t.input,color:t.text,outline:'none',fontFamily:'inherit'}} />
+      </div>
+
+      {issued && (
+        <div style={{background:'rgba(45,212,170,0.1)',border:'0.5px solid rgba(45,212,170,0.3)',borderRadius:9,padding:'12px 14px',marginBottom:14,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
+          <div style={{fontSize:12,color:t.text}}>
+            New password for <strong>{issued.full_name}</strong> ({issued.email}): <span style={{fontFamily:'monospace',fontWeight:700,fontSize:13}}>{issued.password}</span>
+            <div style={{fontSize:11,color:t.sub,marginTop:2}}>Read this to them now — it will not be shown again.</div>
+          </div>
+          <button onClick={()=>setIssued(null)} style={{background:'transparent',border:'none',color:t.sub,cursor:'pointer',fontSize:16}}>×</button>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{fontSize:12,color:t.sub}}>Loading team…</div>
+      ) : (
+        <div style={{maxHeight:360,overflowY:'auto'}}>
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead>
+              <tr>
+                <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Name</th>
+                <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Email</th>
+                <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Role</th>
+                <th style={{textAlign:'right',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(u => (
+                <tr key={u.id} style={{borderTop:`0.5px solid ${t.border}`}}>
+                  <td style={{padding:'8px',fontSize:12,color:t.text}}>{u.full_name}</td>
+                  <td style={{padding:'8px',fontSize:12,color:t.sub}}>{u.email}</td>
+                  <td style={{padding:'8px',fontSize:12,color:t.sub}}>{u.role}</td>
+                  <td style={{padding:'8px',textAlign:'right'}}>
+                    <button onClick={()=>doReset(u)} disabled={resetting===u.id}
+                      style={{background:'transparent',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'5px 11px',fontSize:11,color:t.text,cursor:resetting===u.id?'wait':'pointer',fontFamily:'inherit'}}>
+                      {resetting===u.id?'Resetting…':'Reset password'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ChurchSettingsPanel({t, dark, onConfigSaved}: {t: Record<string,string>; dark: boolean; onConfigSaved?: (cfg:{structure_type:string;tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string})=>void}) {
   const [config, setConfig] = React.useState<Record<string,unknown>>({});
   const [saving, setSaving] = React.useState(false);
@@ -1261,6 +1347,13 @@ export default function DashboardPage(){
   const router=useRouter();
   const [page,setPage]=useState<NavPage>('dashboard');
   React.useEffect(()=>{ if(page==='admin') router.push('/admin'); },[page,router]);
+  // Deep-link support (e.g. /dashboard?page=validation from the /update
+  // redirect for admin roles) — read once on mount, not via useSearchParams,
+  // to avoid forcing a Suspense boundary around the whole page for one param.
+  React.useEffect(()=>{
+    const requested = new URLSearchParams(window.location.search).get('page');
+    if (requested) setPage(requested as NavPage);
+  },[]);
   const [showAlertOnly,setShowAlertOnly]=useState(false);
   const [churchConfig,setChurchConfig]=React.useState<{structure_type:string;tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string}>({structure_type:'cell_church',tier1_label:'Fellowship',tier2_label:'Cell',tier1_head_label:'Fellowship Head',tier2_head_label:'Cell Leader',church_name:'',currency:'NGN'});
   const [kpi,setKpi]=useState<KPI|null>(null);
@@ -1301,6 +1394,13 @@ export default function DashboardPage(){
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [isMobile,setIsMobile]=useState(false);
   const [dbCells,setDbCells]=useState<typeof CELLS_DATA|null>(null);
+  const [leaderOptions,setLeaderOptions]=useState<{id:string;full_name:string;role:string}[]>([]);
+  const [commendType,setCommendType]=useState<'commendation'|'meeting'|'encouragement'|'announcement'>('commendation');
+  const [commendLeader,setCommendLeader]=useState('');
+  const [commendMsg,setCommendMsg]=useState('');
+  const [commendSending,setCommendSending]=useState(false);
+  const [commendError,setCommendError]=useState('');
+  const [sentCommendations,setSentCommendations]=useState<{to:string;type:string;msg:string;time:string}[]>([]);
   const [editGoals,setEditGoals]=useState(false);
   const [liveFeed,setLiveFeed]=useState<{id:string;cell:string;fellowship:string;present:number;absent:number;visitors:number;mins_ago:number}[]>([]);
   const [livePresent,setLivePresent]=useState<number|null>(null);
@@ -1328,6 +1428,7 @@ export default function DashboardPage(){
       window.history.replaceState({}, '', '/dashboard');
     }
     fetch('/api/analytics/dashboard',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setKpi(data);}).catch(()=>{});
+    fetch('/api/members/leaders',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.leaders)setLeaderOptions(data.leaders);}).catch(()=>{});
 
     // Live feed - fetch real submissions and auto-refresh every 30s
     function fetchLive(){
@@ -2229,15 +2330,14 @@ export default function DashboardPage(){
                 <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Select message type</div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
                   {[
-                    {type:'commendation',icon:'⭐',title:'Pastor Commends You',desc:'Celebrate a leader for outstanding performance'},
-                    {type:'meeting',icon:'📅',title:'Meeting Request',desc:'Request a one-on-one meeting with a leader'},
-                    {type:'encouragement',icon:'💛',title:'Pastoral Encouragement',desc:'Send a warm message to a leader who needs support'},
-                    {type:'announcement',icon:'📣',title:'Announcement',desc:'Broadcast to all leaders of a fellowship or department'},
+                    {type:'commendation' as const,icon:'ti-trophy',title:'Pastor Commends You',desc:'Celebrate a leader for outstanding performance'},
+                    {type:'meeting' as const,icon:'ti-calendar-event',title:'Meeting Request',desc:'Request a one-on-one meeting with a leader'},
+                    {type:'encouragement' as const,icon:'ti-heart',title:'Pastoral Encouragement',desc:'Send a warm message to a leader who needs support'},
+                    {type:'announcement' as const,icon:'ti-speakerphone',title:'Announcement',desc:'Broadcast to all leaders of a fellowship or department'},
                   ].map(m=>(
-                    <div key={m.type} style={{background:t.cardInner,borderRadius:10,padding:'14px',border:`0.5px solid ${t.border}`,cursor:'pointer'}}
-                      onMouseEnter={e=>e.currentTarget.style.border=`0.5px solid #534AB7`}
-                      onMouseLeave={e=>e.currentTarget.style.border=`0.5px solid ${t.border}`}>
-                      <div style={{fontSize:22,marginBottom:8}}>{m.icon}</div>
+                    <div key={m.type} onClick={()=>setCommendType(m.type)}
+                      style={{background:commendType===m.type?t.purpleBg:t.cardInner,borderRadius:10,padding:'14px',border:`0.5px solid ${commendType===m.type?'#534AB7':t.border}`,cursor:'pointer'}}>
+                      <div style={{marginBottom:8,color:t.purple}}><Icon name={m.icon} size={20}/></div>
                       <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:4}}>{m.title}</div>
                       <div style={{fontSize:11,color:t.muted,lineHeight:1.4}}>{m.desc}</div>
                     </div>
@@ -2247,20 +2347,36 @@ export default function DashboardPage(){
                 <div style={{display:'flex',flexDirection:'column',gap:10}}>
                   <div>
                     <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Send to</div>
-                    <select style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
+                    <select value={commendLeader} onChange={e=>setCommendLeader(e.target.value)}
+                      style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
                       <option value="">Select a leader...</option>
-                      {(dbCells||[]).slice(0,10).map(c=>(
-                        <option key={c.cell} value={c.leader}>{c.leader} — {c.cell}</option>
+                      {leaderOptions.map(l=>(
+                        <option key={l.id} value={l.id}>{l.full_name} — {l.role.replace('_',' ')}</option>
                       ))}
                     </select>
                   </div>
                   <div>
                     <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Message</div>
-                    <textarea rows={4} placeholder="Write your message here... The leader will receive this as an in-app notification."
+                    <textarea rows={4} value={commendMsg} onChange={e=>setCommendMsg(e.target.value)} placeholder="Write your message here... The leader will receive this as an in-app notification."
                       style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none',resize:'none',fontFamily:'inherit'}}/>
                   </div>
-                  <button style={{background:'#534AB7',color:'#fff',border:'none',borderRadius:10,padding:'12px',fontSize:13,fontWeight:600,cursor:'pointer'}}>
-                    Send notification
+                  {commendError && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12}}>{commendError}</div>}
+                  <button disabled={commendSending||!commendLeader||!commendMsg.trim()} onClick={async()=>{
+                      setCommendSending(true); setCommendError('');
+                      try{
+                        const leader=leaderOptions.find(l=>l.id===commendLeader);
+                        const res=await fetch('/api/recognition/commend',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+                          body:JSON.stringify({leader_id:commendLeader,commendation:commendMsg.trim(),category:commendType})});
+                        const json=await res.json();
+                        if(res.ok){
+                          setSentCommendations(prev=>[{to:leader?.full_name||'Leader',type:commendType,msg:commendMsg.trim(),time:'Just now'},...prev]);
+                          setCommendMsg(''); setCommendLeader('');
+                        } else setCommendError(json.error?.message||'Failed to send.');
+                      }catch{ setCommendError('Network error — message was not sent.'); }
+                      setCommendSending(false);
+                    }}
+                    style={{background:'#534AB7',color:'#fff',border:'none',borderRadius:10,padding:'12px',fontSize:13,fontWeight:600,cursor:commendSending?'wait':'pointer',opacity:!commendLeader||!commendMsg.trim()?0.5:1}}>
+                    {commendSending?'Sending…':'Send notification'}
                   </button>
                 </div>
               </div>
@@ -2268,14 +2384,12 @@ export default function DashboardPage(){
               {/* Recent commendations */}
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:12}}>Recent messages sent</div>
-                {[
-                  {to:'Bro. Emeka Okafor',type:'commendation',msg:'Excellent submission consistency this month. Keep it up!',time:'2 days ago'},
-                  {to:'Sis. Chioma Uzoma',type:'encouragement',msg:'We see your commitment. The church appreciates your dedication.',time:'5 days ago'},
-                  {to:'All Youth Leaders',type:'announcement',msg:'Reminder: Leadership review meeting this Friday at 4pm.',time:'1 week ago'},
-                ].map((r,i)=>(
-                  <div key={i} style={{display:'flex',gap:10,padding:'10px 0',borderBottom:i<2?`0.5px solid ${t.border}`:'none'}}>
-                    <div style={{width:32,height:32,borderRadius:8,background:'#EEEDFE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>
-                      {r.type==='commendation'?'⭐':r.type==='encouragement'?'💛':'📣'}
+                {sentCommendations.length===0 ? (
+                  <div style={{fontSize:12,color:t.muted,textAlign:'center',padding:'12px 0'}}>No messages sent yet this session.</div>
+                ) : sentCommendations.map((r,i)=>(
+                  <div key={i} style={{display:'flex',gap:10,padding:'10px 0',borderBottom:i<sentCommendations.length-1?`0.5px solid ${t.border}`:'none'}}>
+                    <div style={{width:32,height:32,borderRadius:8,background:'#EEEDFE',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,color:'#534AB7'}}>
+                      <Icon name={r.type==='commendation'?'ti-trophy':r.type==='encouragement'?'ti-heart':r.type==='meeting'?'ti-calendar-event':'ti-speakerphone'} size={16}/>
                     </div>
                     <div style={{flex:1}}>
                       <div style={{fontSize:12,fontWeight:500,color:t.text}}>{r.to}</div>
@@ -2299,7 +2413,10 @@ export default function DashboardPage(){
             </div>
           )}
           {page==='settings'&&(
-            <ChurchSettingsPanel t={t} dark={dark} onConfigSaved={(cfg)=>setChurchConfig(cfg)} />
+            <div>
+              <ChurchSettingsPanel t={t} dark={dark} onConfigSaved={(cfg)=>setChurchConfig(cfg)} />
+              {['overseer','pa','lead_tech'].includes(userRole) && <TeamAccessPanel t={t} />}
+            </div>
           )}
           {page==='admin'&&(
             <div style={{display:'flex',alignItems:'center',justifyContent:'center',paddingTop:60,flexDirection:'column',gap:16}}>

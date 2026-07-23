@@ -310,5 +310,13 @@
     "role": "lead_tech",
     "ref_kind": null,
     "ref_name": null
+  },
+  {
+    "name": "Courage Barry",
+    "email": "courage.barry.careteam@shepherd.app",
+    "phone": "80123456789",
+    "role": "care_team",
+    "ref_kind": null,
+    "ref_name": null
   }
 ]

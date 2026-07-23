@@ -23,12 +23,14 @@ const PUBLIC_PATHS = [
   '/login',
   '/register',
   '/setup',
+  '/events/',
   '/api/auth/login',
   '/api/auth/register',
   '/api/register',
   '/api/invites',
   '/api/settings/church-config',
   '/api/subscription',
+  '/api/events/public',
   '/_next',
   '/favicon.ico',
   '/manifest.json',
@@ -40,6 +42,14 @@ const PUBLIC_PATHS = [
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some(p => pathname.startsWith(p));
+}
+
+// The public event landing page only ever submits registrations (POST) to
+// this one route anonymously — GET (registrant list) and PATCH (attendance)
+// still require an authenticated admin, so this can't just be a blanket
+// PUBLIC_PATHS entry.
+function isPublicEventRegistration(pathname: string, method: string): boolean {
+  return pathname === '/api/events/register' && method === 'POST';
 }
 
 // Map role to its home portal
@@ -94,7 +104,7 @@ function allowedPrefixes(role: string): string[] {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (isPublic(pathname)) return NextResponse.next();
+  if (isPublic(pathname) || isPublicEventRegistration(pathname, req.method)) return NextResponse.next();
 
   const tokenFromCookie = req.cookies.get('shepherd_token')?.value;
   const tokenFromHeader = req.headers.get('Authorization')?.replace('Bearer ', '');
