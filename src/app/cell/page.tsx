@@ -429,13 +429,25 @@ export default function CellPage() {
                     const present = attendance[m.id] === 'present';
                     return (
                       <div key={m.id}>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
                         <button onClick={() => toggleAttendance(m.id)}
-                          style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 14px', borderRadius: 9, border: `0.5px solid ${present ? 'rgba(29,158,117,0.2)' : 'rgba(216,90,48,0.2)'}`, cursor: 'pointer', background: present ? t.tealBg : t.coralBg, textAlign: 'left' }}>
+                          style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 14px', borderRadius: 9, border: `0.5px solid ${present ? 'rgba(29,158,117,0.2)' : 'rgba(216,90,48,0.2)'}`, cursor: 'pointer', background: present ? t.tealBg : t.coralBg, textAlign: 'left' }}>
                           <span style={{ fontSize: 13, fontWeight: 500, color: present ? t.teal : t.coral }}>{m.full_name}</span>
                           <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: present ? t.teal : t.coral, color: '#fff', fontWeight: 500 }}>
                             {present ? 'Present' : 'Absent'}
                           </span>
                         </button>
+                        <button onClick={async () => {
+                          const note = window.prompt(`What's wrong with ${m.full_name}'s placement? (sent to your fellowship head)`);
+                          if (!note?.trim()) return;
+                          const res = await fetch('/api/cell/flag-correction', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ member_id: m.id, note: note.trim() }) });
+                          window.alert(res.ok ? 'Flagged for your fellowship head to review.' : 'Failed to flag — try again.');
+                        }}
+                          title="Flag a placement issue with this member"
+                          style={{ padding: '0 10px', borderRadius: 9, border: `0.5px solid ${t.border}`, background: 'transparent', color: t.muted, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                        </button>
+                        </div>
 
                         {/* Absence reason — only shows if absent */}
                         {!present && (

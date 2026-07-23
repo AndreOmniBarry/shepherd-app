@@ -115,3 +115,47 @@ export async function GET(req: Request) {
     return NextResponse.json({ data: null, error: { message: 'Failed to load cells' } }, { status: 500 });
   }
 }
+
+// Fixes wrongly-named cells — fellowship heads only, own fellowship only.
+export async function PATCH(req: Request) {
+  try {
+    const cookie = req.headers.get('cookie') || '';
+    const m = cookie.match(/shepherd_token=([^;]+)/);
+    const token = m?.[1];
+    if (!token) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    const payload = await verifyToken(token);
+    if (!payload) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    const user = payloadToAuthUser(payload);
+    if (user.role !== 'fellowship_head') {
+      return NextResponse.json({ data: null, error: { message: 'Only the fellowship head can rename a cell' } }, { status: 403 });
+    }
+
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const hdrs = { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' };
+
+    const { cell_id, name } = await req.json();
+    if (!cell_id || !name?.trim()) return NextResponse.json({ data: null, error: { message: 'cell_id and name are required' } }, { status: 400 });
+
+    const userRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs });
+    const userData = await userRes.json();
+    const fellowship_id = user.fellowship_id || userData?.[0]?.fellowship_id;
+    if (!fellowship_id) return NextResponse.json({ data: null, error: { message: 'No fellowship assigned to your account' } }, { status: 400 });
+
+    const cellRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${cell_id}&select=id,fellowship_id&limit=1`, { headers: hdrs });
+    const cell = (await cellRes.json())?.[0];
+    if (!cell || cell.fellowship_id !== fellowship_id) {
+      return NextResponse.json({ data: null, error: { message: 'That cell is not in your fellowship' } }, { status: 403 });
+    }
+
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${cell_id}`, {
+      method: 'PATCH', headers: { ...hdrs, Prefer: 'return=minimal' },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    if (!res.ok) return NextResponse.json({ data: null, error: { message: 'Failed to rename cell' } }, { status: 500 });
+    return NextResponse.json({ data: { updated: true }, error: null });
+  } catch (err) {
+    console.error('[PATCH /api/fellowship/cells]', err);
+    return NextResponse.json({ data: null, error: { message: 'Failed to rename cell' } }, { status: 500 });
+  }
+}

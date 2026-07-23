@@ -503,7 +503,17 @@ export default function FellowshipHeadPage() {
               <div>
                 <button onClick={() => setSelectedCell(null)} style={{ background: t.purpleBg, color: t.purple, border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, cursor: 'pointer', marginBottom: 16, fontWeight: 500 }}>← Back to cells</button>
                 <div style={card({ marginBottom: 14 })}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4 }}>{selectedCell.name}</div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                    <input defaultValue={selectedCell.name}
+                      onBlur={async e => {
+                        const newName = e.target.value.trim();
+                        if (!newName || newName === selectedCell.name) return;
+                        const res = await fetch('/api/fellowship/cells', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ cell_id: selectedCell.id, name: newName }) });
+                        if (res.ok) { setCells(cs => cs.map(c => c.id === selectedCell.id ? { ...c, name: newName } : c)); setSelectedCell(sc => sc ? { ...sc, name: newName } : sc); }
+                        else window.alert('Failed to rename cell.');
+                      }}
+                      style={{ fontSize: 15, fontWeight: 700, color: t.text, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '4px 8px', background: t.input, outline: 'none', fontFamily: 'inherit' }} />
+                  </div>
                   <div style={{ fontSize: 12, color: t.sub, marginBottom: 16 }}>Leader: {selectedCell.leader_name} · {selectedCell.member_count} members</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
                     {[
@@ -630,8 +640,8 @@ export default function FellowshipHeadPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
-                    {['Name', 'Cell', 'Status', 'Last seen', ''].map(h => (
-                      <th key={h || 'actions'} style={{ textAlign: 'left', padding: '9px 12px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px', background: t.card }}>{h}</th>
+                    {['Name', 'Cell', 'Status', 'Last seen', '', ''].map((h, hi) => (
+                      <th key={h ? h : `col-${hi}`} style={{ textAlign: 'left', padding: '9px 12px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px', background: t.card }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -646,6 +656,18 @@ export default function FellowshipHeadPage() {
                         </span>
                       </td>
                       <td style={{ padding: '9px 12px', color: t.muted }}>{m.last_seen || '—'}</td>
+                      <td style={{ padding: '9px 12px' }}>
+                        <select defaultValue="" onChange={async e => {
+                          const cellId = e.target.value; if (!cellId) return;
+                          const res = await fetch('/api/fellowship/members', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ member_id: m.id, cell_id: cellId }) });
+                          if (res.ok) { const newCell = cells.find(c => c.id === cellId); setMembers(ms => ms.map(x => x.id === m.id ? { ...x, cell_name: newCell?.name || x.cell_name } : x)); }
+                          else window.alert('Failed to move member.');
+                          e.target.value = '';
+                        }} style={{ fontSize: 11, border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '3px 6px', background: t.input, color: t.sub, outline: 'none' }}>
+                          <option value="">Move to cell...</option>
+                          {cells.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </td>
                       <td style={{ padding: '9px 12px' }}>
                         <button onClick={() => recommendRemoval(m.id, m.full_name)}
                           style={{ background: 'transparent', color: t.coral, border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>

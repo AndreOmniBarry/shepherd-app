@@ -53,6 +53,10 @@ export default function DepartmentHeadPage() {
   const [deptName, setDeptName] = useState('');
   const [leaderName, setLeaderName] = useState('');
   const [members, setMembers] = useState<DeptMember[]>([]);
+  const [showAddExisting, setShowAddExisting] = useState(false);
+  const [addSearch, setAddSearch] = useState('');
+  const [addResults, setAddResults] = useState<{ id: string; full_name: string; phone: string | null; cell_name: string | null }[]>([]);
+  const [addingId, setAddingId] = useState<string | null>(null);
   const [attendance, setAttendance] = useState<Record<string, 'present' | 'absent'>>({});
   const [absenceReasons, setAbsenceReasons] = useState<Record<string, string>>({});
   const [visitorCount, setVisitorCount] = useState(0);
@@ -110,6 +114,26 @@ export default function DepartmentHeadPage() {
       body: JSON.stringify({ member_id: memberId, role }),
     }).catch(() => {});
     loadMembers();
+  }
+
+  useEffect(() => {
+    if (!showAddExisting || addSearch.trim().length < 2) { setAddResults([]); return; }
+    const handle = setTimeout(() => {
+      fetch(`/api/members/search?q=${encodeURIComponent(addSearch.trim())}`, { credentials: 'include' })
+        .then(r => r.json()).then(({ data }) => { if (data?.members) setAddResults(data.members); }).catch(() => {});
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [addSearch, showAddExisting]);
+
+  async function addExistingMember(memberId: string) {
+    setAddingId(memberId);
+    const res = await fetch('/api/department/members', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ member_id: memberId }),
+    });
+    if (res.ok) { loadMembers(); setAddSearch(''); setAddResults([]); }
+    else window.alert('Failed to add member.');
+    setAddingId(null);
   }
 
   async function recommendRemoval(memberId: string, memberName: string) {
@@ -427,11 +451,40 @@ export default function DepartmentHeadPage() {
                 <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{deptName} — Full Roster</div>
                 <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{members.length} members</div>
               </div>
-              <button onClick={() => { window.location.href = '/update'; }}
-                style={{ background: t.purpleBg, color: t.purple, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                + Add member
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => setShowAddExisting(v => !v)}
+                  style={{ background: t.purpleBg, color: t.purple, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  + Add existing member
+                </button>
+                <button onClick={() => { window.location.href = '/update'; }}
+                  style={{ background: 'transparent', color: t.sub, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  + New member
+                </button>
+              </div>
             </div>
+            {showAddExisting && (
+              <div style={{ padding: '14px 16px', borderBottom: `0.5px solid ${t.border}`, background: t.bg }}>
+                <div style={{ fontSize: 12, color: t.muted, marginBottom: 8 }}>Search for a member already in the system to capture them into this department — for people who were missed during setup.</div>
+                <input value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="Search by name (min. 2 characters)..."
+                  style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 12px', fontSize: 12, background: t.card, color: t.text, outline: 'none', marginBottom: 10 }} />
+                {addResults.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {addResults.map(r => (
+                      <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: t.card, borderRadius: 8, padding: '8px 12px', border: `0.5px solid ${t.border}` }}>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{r.full_name}</div>
+                          <div style={{ fontSize: 10, color: t.muted }}>{r.phone || '—'} · {r.cell_name || 'No cell'}</div>
+                        </div>
+                        <button onClick={() => addExistingMember(r.id)} disabled={addingId === r.id}
+                          style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 7, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: addingId === r.id ? 0.6 : 1 }}>
+                          {addingId === r.id ? 'Adding…' : 'Add'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
