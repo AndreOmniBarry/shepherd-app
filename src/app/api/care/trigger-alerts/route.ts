@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 
 // ── This endpoint scans last Sunday's attendance and creates care leads
 // ── for any member absent 1+ Sunday with no open lead already.
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
     // Simple secret key protection
     const body = await req.json().catch(() => ({}));
     const secret = body.secret || req.headers.get('x-cron-secret');
-    if (secret !== process.env.CRON_SECRET && secret !== 'shepherd-cron-2026') {
+    if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -161,18 +162,22 @@ export async function POST(req: Request) {
   }
 }
 
-// GET — manual trigger from dashboard (overseer only)
+// GET — manual trigger from dashboard, overseer/pa/lead_tech only
 export async function GET(req: Request) {
   try {
     const cookie = req.headers.get('cookie') || '';
     const m = cookie.match(/shepherd_token=([^;]+)/);
     if (!m?.[1]) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const payload = await verifyToken(m[1]);
+    const user = payload ? payloadToAuthUser(payload) : null;
+    if (!user || !['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
 
-    // Forward to POST with master secret
     const postReq = new Request(req.url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie: cookie },
-      body: JSON.stringify({ secret: 'shepherd-cron-2026' }),
+      body: JSON.stringify({ secret: process.env.CRON_SECRET }),
     });
     return POST(postReq);
   } catch (err) {

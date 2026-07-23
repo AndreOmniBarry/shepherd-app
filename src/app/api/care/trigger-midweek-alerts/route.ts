@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 
 // ── Midweek absence alert engine
 // ── Runs every Thursday after Wednesday service
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
     const secret = body.secret || req.headers.get('x-cron-secret');
-    if (secret !== process.env.CRON_SECRET && secret !== 'shepherd-cron-2026') {
+    if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -225,10 +226,15 @@ export async function GET(req: Request) {
   const cookie = req.headers.get('cookie') || '';
   const m = cookie.match(/shepherd_token=([^;]+)/);
   if (!m?.[1]) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const payload = await verifyToken(m[1]);
+  const user = payload ? payloadToAuthUser(payload) : null;
+  if (!user || !['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
   const postReq = new Request(req.url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', cookie },
-    body: JSON.stringify({ secret: 'shepherd-cron-2026' }),
+    body: JSON.stringify({ secret: process.env.CRON_SECRET }),
   });
   return POST(postReq);
 }

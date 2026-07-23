@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { sendSMS, welcomeMessage } from '@/lib/sms';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -60,6 +61,8 @@ export async function POST(req: Request) {
         body: JSON.stringify({ department_id, member_id: member.id, role: 'member' }),
       }).catch(() => {});
     }
+
+    if (member.phone) sendSMS(member.phone, welcomeMessage(member.full_name)).catch(() => {});
 
     return NextResponse.json({ data: { member }, error: null }, { status: 201 });
   } catch (err) {

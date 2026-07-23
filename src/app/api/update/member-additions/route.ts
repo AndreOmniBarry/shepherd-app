@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { sendSMS, welcomeMessage } from '@/lib/sms';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -254,6 +255,8 @@ export async function PATCH(req: Request) {
           body: `${record.full_name} is now a live member.`,
         }]),
       }).catch(() => {});
+
+      if (member.phone) sendSMS(member.phone, welcomeMessage(member.full_name)).catch(() => {});
 
       return NextResponse.json({ data: { approved: true, member_id: member.id }, error: null });
     }
