@@ -69,7 +69,7 @@ export async function POST(req: Request) {
         ? await fetch(`${SUPABASE_URL}/rest/v1/users?department_id=eq.${department_id}&role=eq.department_head&select=id`, { headers: hdrs() })
         : null;
     const l1Data = l1Res ? await l1Res.json() : [];
-    const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&select=id`, { headers: hdrs() });
+    const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&select=id`, { headers: hdrs() });
     const adminData = await adminRes.json();
     const notifyIds = [...(Array.isArray(l1Data) ? l1Data.map((u: Record<string,string>) => u.id) : []), ...(Array.isArray(adminData) ? adminData.map((u: Record<string,string>) => u.id) : [])].filter((v, i, a) => a.indexOf(v) === i);
     if (notifyIds.length > 0) {

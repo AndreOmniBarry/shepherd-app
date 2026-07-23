@@ -146,6 +146,13 @@ export default function CellPage() {
   const [cellName, setCellName] = useState('');
   const [leaderName, setLeaderName] = useState('');
   const [dark, setDark] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const t = {
     bg: dark ? '#080614' : '#F0EFF8',
@@ -353,7 +360,7 @@ export default function CellPage() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '20px 16px' }}>
+      <div style={{ maxWidth: isMobile ? 480 : 880, margin: '0 auto', padding: isMobile ? '20px 16px' : '28px 24px' }}>
 
         {/* Tabs */}
         <div style={{ display: 'flex', background: dark?'rgba(255,255,255,0.04)':t.input, borderRadius: 12, padding: 4, marginBottom: 20, border: `0.5px solid ${t.border}`, backdropFilter:'blur(10px)' }}>

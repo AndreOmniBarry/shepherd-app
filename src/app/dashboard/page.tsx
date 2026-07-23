@@ -1154,6 +1154,7 @@ function CreateCellModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dar
 export default function DashboardPage(){
   const router=useRouter();
   const [page,setPage]=useState<NavPage>('dashboard');
+  React.useEffect(()=>{ if(page==='admin') router.push('/admin'); },[page,router]);
   const [showAlertOnly,setShowAlertOnly]=useState(false);
   const [churchConfig,setChurchConfig]=React.useState<{structure_type:string;tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string}>({structure_type:'cell_church',tier1_label:'Fellowship',tier2_label:'Cell',tier1_head_label:'Fellowship Head',tier2_head_label:'Cell Leader',church_name:'',currency:'NGN'});
   const [kpi,setKpi]=useState<KPI|null>(null);
@@ -2156,7 +2157,6 @@ export default function DashboardPage(){
           {page==='admin'&&(
             <div style={{display:'flex',alignItems:'center',justifyContent:'center',paddingTop:60,flexDirection:'column',gap:16}}>
               <div style={{fontSize:14,color:t.sub}}>Opening Admin Portal…</div>
-              <script dangerouslySetInnerHTML={{__html:`window.location.href='/admin'`}} />
             </div>
           )}
           {page==='prayer'&&(
