@@ -1947,7 +1947,7 @@ export default function DashboardPage(){
                         borderColor:cellFilter===f.key?(f.key==='alert'?'#D85A30':f.key==='watch'?'#BA7517':f.key==='rising'?'#1D9E75':'#534AB7'):'#E5E7EB',
                         color:cellFilter===f.key?(f.key==='alert'?'#993C1D':f.key==='watch'?'#633806':f.key==='rising'?'#085041':'#3C3489'):'#6B7280'}}>
                       {f.label}
-                      {f.key!=='all'&&f.key!=='Youth'&&f.key!=='Women'&&f.key!=='Men'&&<span style={{marginLeft:4,fontWeight:400}}>({CELLS_DATA.filter(c=>c.status===f.key).length})</span>}
+                      {f.key!=='all'&&f.key!=='Youth'&&f.key!=='Women'&&f.key!=='Men'&&<span style={{marginLeft:4,fontWeight:400}}>({(dbCells||[]).filter(c=>c.status===f.key).length})</span>}
                     </button>
                   ))}
                 </div>
@@ -2067,8 +2067,8 @@ export default function DashboardPage(){
                   ))}
                 </div>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
-                {[{label:'Export All Attendance',data:CELLS_DATA.map(c=>({Cell:c.cell,Fellowship:c.fel,Avg:c.avg,Rate:`${c.rate}%`,Trend:c.trend})),file:'full_attendance'},{label:'Export Giving Data',data:GIVING_DATA.map(d=>({Period:d.p,Tithe:d.t,Offering:d.o,Special:d.s})),file:'full_giving'},{label:'Export Member List',data:NEW_MEMBERS,file:'member_list'}].map(e=>(
+              <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10}}>
+                {[{label:'Export All Attendance',data:(dbCells||[]).map(c=>({Cell:c.cell,Fellowship:c.fel,Avg:c.avg,Rate:`${c.rate}%`,Trend:c.trend})),file:'full_attendance'},{label:'Export Member List',data:membersList.map(m=>({Name:m.full_name,Phone:m.phone,Cell:m.cell_name||'—',Fellowship:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),file:'member_list'}].map(e=>(
                   <button key={e.label} onClick={()=>exportCSV(e.data,e.file)}
                     style={{...card(),border:'0.5px solid #534AB7',cursor:'pointer',textAlign:'left'}}>
                     <div style={{fontSize:13,fontWeight:500,color:'#3C3489',marginBottom:2}}>⬇ {e.label}</div>
@@ -2127,8 +2127,8 @@ export default function DashboardPage(){
                     </thead>
                     <tbody>
                       {(showAlertOnly
-                        ? CELLS_DATA.filter(c=>c.status==='alert'||c.status==='watch')
-                        : [...CELLS_DATA].sort((a,b)=>{
+                        ? (dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch')
+                        : [...(dbCells||[])].sort((a,b)=>{
                             const score=(x:typeof CELLS_DATA[0])=>x.status==='rising'?92:x.status==='stable'?78:x.status==='watch'?55:35;
                             return score(b)-score(a);
                           }).slice(0,15)
@@ -2249,7 +2249,7 @@ export default function DashboardPage(){
                     <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Send to</div>
                     <select style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
                       <option value="">Select a leader...</option>
-                      {CELLS_DATA.slice(0,10).map(c=>(
+                      {(dbCells||[]).slice(0,10).map(c=>(
                         <option key={c.cell} value={c.leader}>{c.leader} — {c.cell}</option>
                       ))}
                     </select>
