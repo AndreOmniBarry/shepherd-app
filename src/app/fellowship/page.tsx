@@ -249,6 +249,17 @@ export default function FellowshipHeadPage() {
     router.push('/login');
   }
 
+  async function recommendRemoval(memberId: string, memberName: string) {
+    const reason = window.prompt(`Reason for recommending ${memberName}'s removal (sent to the PA for approval):`);
+    if (!reason?.trim()) return;
+    const res = await fetch('/api/update/member-removals', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ member_id: memberId, reason: reason.trim() }),
+    });
+    if (res.ok) window.alert(`Removal recommendation for ${memberName} sent for approval.`);
+    else { const e = await res.json().catch(() => ({})); window.alert(e?.error?.message || 'Failed to submit.'); }
+  }
+
   // ── Computed stats ───────────────────────────────────────────
   // Use members array for accurate count; fall back to cell sum
   const totalMembers = members.length > 0 ? members.length : cells.reduce((a, c) => a + (c.member_count || 0), 0);
@@ -619,8 +630,8 @@ export default function FellowshipHeadPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
-                    {['Name', 'Cell', 'Status', 'Last seen'].map(h => (
-                      <th key={h} style={{ textAlign: 'left', padding: '9px 12px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px', background: t.card }}>{h}</th>
+                    {['Name', 'Cell', 'Status', 'Last seen', ''].map(h => (
+                      <th key={h || 'actions'} style={{ textAlign: 'left', padding: '9px 12px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px', background: t.card }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -635,6 +646,12 @@ export default function FellowshipHeadPage() {
                         </span>
                       </td>
                       <td style={{ padding: '9px 12px', color: t.muted }}>{m.last_seen || '—'}</td>
+                      <td style={{ padding: '9px 12px' }}>
+                        <button onClick={() => recommendRemoval(m.id, m.full_name)}
+                          style={{ background: 'transparent', color: t.coral, border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '4px 9px', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>
+                          Recommend removal
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

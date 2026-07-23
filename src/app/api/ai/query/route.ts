@@ -18,14 +18,6 @@ async function getUser(req: Request) {
   return payloadToAuthUser(payload);
 }
 
-function classifyQuery(query: string): AgentName {
-  const q = query.toLowerCase();
-  if (/giving|tithe|offering|budget|financ|donate|money|ngn|naira|spending/.test(q)) return 'arkwind';
-  if (/member|demographic|age|children|teenager|conversion|how many|census|cydf|population|gender/.test(q)) return 'numbers';
-  if (/attendance|present|absent|sunday|service|cell.*show|show.*cell|who came|who attended/.test(q)) return 'ktava';
-  return 'moshe';
-}
-
 const BASE_RULES = `
 ## IDENTITY
 You are an intelligent church data assistant for The Comforters House Global (SHEP.HERD).
@@ -43,6 +35,13 @@ No "Query Understood", "Date Resolved", "Data Retrieved From" labels.
 Just speak the answer directly and confidently.
 For lists of items use a simple numbered format: 1. Item — detail
 End every data response with one sentence stating your confidence level and a brief reason.
+
+## NEVER STALL
+Never respond with a placeholder like "let me fetch that for you", "give me a moment", or
+"I'll pull that information" as a message on its own. If the question needs data, call
+query_database in that same turn — do not announce that you are about to look something up and
+then stop. If the question does not need data, answer it directly and completely in the same
+turn. Every reply must be either a complete direct answer or a tool call — never a stall.
 
 ## DATE AND TIME
 The current date and time is injected into every message.
@@ -91,26 +90,17 @@ The sql field must contain only raw SQL starting with SELECT or WITH.
 No markdown, no code fences, no comments before the SQL.
 `;
 
-const SYSTEM_PROMPTS: Record<AgentName, string> = {
-  moshe: `You are Moshe, master intelligence agent for The Comforters House Global (SHEP.HERD).
+const MOSHE_PROMPT = `You are Moshe, the church intelligence assistant for The Comforters House Global (SHEP.HERD).
 ${BASE_RULES}
-You have access to all tables. Specialise in cross-domain analysis — attendance trends, giving patterns, member growth, cell health, department breakdowns. When asked which cells need help, query attendance over the last 8 weeks and rank by lowest performance or steepest decline.`,
-
-  ktava: `You are Ktava, attendance records agent for The Comforters House Global (SHEP.HERD).
-${BASE_RULES}
-You specialise in attendance trends, service records, and cell engagement rates.`,
-
-  arkwind: `You are ArkMind, financial intelligence agent for The Comforters House Global (SHEP.HERD).
-${BASE_RULES}
-You specialise in giving summaries, financial trends, per-capita analysis, and YTD reports.
-Format all amounts as NGN with the naira sign. For financial queries always return amount, date, category, and reference ID where available.`,
-
-  numbers: `You are NUMB3RS1.2, census and demographics agent for The Comforters House Global (SHEP.HERD).
-${BASE_RULES}
-You specialise in member counts, demographics, age distribution, and conversion tracking.
-Age bands: 0-12 (children), 13-17 (teenagers), 18-25, 26-35, 36-50, 51+.
-Net growth = new members minus inactive or transferred in same period.`,
-};
+You have access to all tables and handle every domain yourself — attendance trends, service
+records, cell engagement, giving summaries, financial trends, per-capita and YTD analysis, member
+counts, demographics, and conversion tracking.
+Format all amounts as NGN with the naira sign. For financial queries always return amount, date,
+category, and reference ID where available.
+Age bands for demographics: 0-12 (children), 13-17 (teenagers), 18-25, 26-35, 36-50, 51+.
+Net growth = new members minus inactive or transferred in the same period.
+When asked which cells need help, query attendance over the last 8 weeks and rank by lowest
+performance or steepest decline.`;
 
 const DB_TOOL: Anthropic.Tool = {
   name: 'query_database',
@@ -207,8 +197,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const agentName: AgentName = body.agent || classifyQuery(query);
-    const systemPrompt = SYSTEM_PROMPTS[agentName];
+    const agentName: AgentName = 'moshe';
+    const systemPrompt = MOSHE_PROMPT;
 
     const now = new Date();
     const systemDate = now.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Africa/Lagos' });
@@ -234,8 +224,11 @@ export async function POST(req: Request) {
         try {
           emitMeta({ agent: agentName, status: 'thinking' });
 
+          // Tool-call decisions need a model that reliably invokes query_database instead of
+          // replying with a "let me look that up" stall — a smaller/faster model was prone to
+          // exactly that failure mode, so both passes now use the same reliable model.
           const firstResponse = await anthropic.messages.create({
-            model: 'claude-haiku-4-5',
+            model: 'claude-sonnet-4-6',
             max_tokens: 1024,
             system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
             tools: [DB_TOOL],

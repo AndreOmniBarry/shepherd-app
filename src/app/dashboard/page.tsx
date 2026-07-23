@@ -1021,6 +1021,112 @@ function MemberApprovalPanel({t,dark}:{t:Record<string,string>;dark:boolean}) {
   );
 }
 
+type MemberRemoval = {
+  id:string;member_id:string|null;member_name:string;reason:string;
+  recommended_by_name:string|null;recommended_by_role:string|null;
+  status:'pending'|'approved'|'rejected';approved_at:string|null;approval_comment:string|null;
+  pastor_revoked:boolean;pastor_revoke_reason:string|null;created_at:string;
+};
+
+function RemovalApprovalPanel({t,dark,userRole}:{t:Record<string,string>;dark:boolean;userRole:string}) {
+  const [removals,setRemovals]=React.useState<MemberRemoval[]>([]);
+  const [processing,setProcessing]=React.useState<Record<string,boolean>>({});
+  const [revokeTarget,setRevokeTarget]=React.useState<string|null>(null);
+  const [revokeComment,setRevokeComment]=React.useState('');
+  const [filter,setFilter]=React.useState<'pending'|'approved'|'all'>('pending');
+  const [error,setError]=React.useState('');
+
+  function load(){
+    fetch('/api/update/member-removals',{credentials:'include'})
+      .then(r=>r.json()).then(({data})=>{if(data?.removals)setRemovals(data.removals);}).catch(()=>{});
+  }
+  React.useEffect(()=>{load();},[]);
+
+  async function act(id:string,action:'approve'|'reject'|'revoke',comment?:string){
+    setProcessing(p=>({...p,[id]:true}));setError('');
+    try{
+      const res=await fetch('/api/update/member-removals',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id,action,comment})});
+      if(!res.ok){const e=await res.json().catch(()=>({}));setError(e?.error?.message||'Action failed.');}
+      else{load();setRevokeTarget(null);setRevokeComment('');}
+    }catch{setError('Network error.');}
+    setProcessing(p=>({...p,[id]:false}));
+  }
+
+  const visible=removals.filter(r=>filter==='all'?true:filter==='pending'?r.status==='pending':r.status==='approved'&&!r.pastor_revoked);
+
+  return (
+    <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'16px 18px',marginBottom:4}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap' as const,gap:8}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{fontSize:13,fontWeight:600,color:t.text}}>Removal Requests</div>
+          <span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:'#FAEEDA',color:'#633806',fontWeight:600}}>{removals.filter(r=>r.status==='pending').length} pending</span>
+        </div>
+        <div style={{display:'flex',gap:6}}>
+          {(['pending','approved','all'] as const).map(f=>(
+            <button key={f} onClick={()=>setFilter(f)} style={{padding:'4px 10px',borderRadius:16,border:'none',fontSize:11,fontWeight:filter===f?600:400,background:filter===f?t.purple:'transparent',color:filter===f?'#fff':t.muted,cursor:'pointer',textTransform:'capitalize' as const}}>{f}</button>
+          ))}
+        </div>
+      </div>
+      {error && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12,marginBottom:10}}>{error}</div>}
+      {visible.length===0 ? (
+        <div style={{fontSize:12,color:t.muted,textAlign:'center' as const,padding:'12px 0'}}>Nothing here.</div>
+      ) : visible.map((r,i)=>(
+        <div key={r.id} style={{padding:'10px 0',borderBottom:i<visible.length-1?`0.5px solid ${t.border}`:'none'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap' as const}}>
+            <div style={{flex:1,minWidth:180}}>
+              <div style={{fontSize:13,fontWeight:500,color:t.text}}>{r.member_name}</div>
+              <div style={{fontSize:11,color:t.muted}}>Recommended by {r.recommended_by_name||'—'} ({r.recommended_by_role||'—'}) · {new Date(r.created_at).toLocaleDateString()}</div>
+              <div style={{fontSize:11,color:t.sub,marginTop:3,fontStyle:'italic'}}>&ldquo;{r.reason}&rdquo;</div>
+            </div>
+            <div style={{display:'flex',gap:6}}>
+              {r.status==='pending' ? (
+                <>
+                  <button onClick={()=>act(r.id,'approve')} disabled={processing[r.id]}
+                    style={{background:'#D85A30',color:'#fff',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[r.id]?0.6:1}}>
+                    {processing[r.id]?'…':'Approve removal'}
+                  </button>
+                  <button onClick={()=>act(r.id,'reject')} disabled={processing[r.id]}
+                    style={{background:'#E1F5EE',color:'#085041',border:'none',borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:processing[r.id]?0.6:1}}>
+                    Keep member
+                  </button>
+                </>
+              ) : r.status==='approved' && !r.pastor_revoked ? (
+                <>
+                  <span style={{fontSize:11,padding:'4px 10px',borderRadius:8,background:'#FAECE7',color:'#993C1D',fontWeight:500}}>Removed</span>
+                  {userRole==='overseer' && (
+                    <button onClick={()=>{setRevokeTarget(r.id);setRevokeComment('');}}
+                      style={{background:'transparent',color:t.purple,border:`0.5px solid ${t.border}`,borderRadius:7,padding:'5px 12px',fontSize:11,fontWeight:500,cursor:'pointer'}}>
+                      Revoke
+                    </button>
+                  )}
+                </>
+              ) : r.pastor_revoked ? (
+                <span style={{fontSize:11,padding:'4px 10px',borderRadius:8,background:'#E1F5EE',color:'#085041',fontWeight:500}}>Revoked — reinstated</span>
+              ) : (
+                <span style={{fontSize:11,padding:'4px 10px',borderRadius:8,background:'#E1F5EE',color:'#085041',fontWeight:500}}>Kept</span>
+              )}
+            </div>
+          </div>
+          {revokeTarget===r.id && (
+            <div style={{marginTop:8,display:'flex',gap:8,alignItems:'center'}}>
+              <input autoFocus value={revokeComment} onChange={e=>setRevokeComment(e.target.value)} placeholder="Reason for reinstating (required)…"
+                style={{flex:1,border:`0.5px solid ${t.border}`,borderRadius:7,padding:'7px 10px',fontSize:12,background:t.input,color:t.text,outline:'none'}}/>
+              <button onClick={()=>act(r.id,'revoke',revokeComment)} disabled={!revokeComment.trim()||processing[r.id]}
+                style={{background:t.purple,color:'#fff',border:'none',borderRadius:7,padding:'7px 12px',fontSize:11,fontWeight:600,cursor:'pointer',opacity:!revokeComment.trim()?0.5:1}}>
+                Confirm revoke
+              </button>
+              <button onClick={()=>setRevokeTarget(null)} style={{background:'transparent',color:t.muted,border:'none',fontSize:11,cursor:'pointer'}}>Cancel</button>
+            </div>
+          )}
+          {r.pastor_revoked && r.pastor_revoke_reason && (
+            <div style={{marginTop:6,fontSize:11,color:t.muted,fontStyle:'italic'}}>Revoke reason: {r.pastor_revoke_reason}</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CreateMemberModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dark:boolean;onClose:()=>void;onCreated:()=>void}) {
   const [firstName,setFirstName]=React.useState('');
   const [lastName,setLastName]=React.useState('');
@@ -1170,6 +1276,9 @@ export default function DashboardPage(){
   const [membersLoading,setMembersLoading]=useState(true);
   const [showCreateMember,setShowCreateMember]=useState(false);
   const [showCreateCell,setShowCreateCell]=useState(false);
+  const [deleteTarget,setDeleteTarget]=useState<{id:string;name:string}|null>(null);
+  const [deleteConfirmText,setDeleteConfirmText]=useState('');
+  const [deleting,setDeleting]=useState(false);
   const [attDrill,setAttDrill]=useState<string|null>(null);
   const [selectedDept,setSelectedDept]=useState<typeof DEPTS[0]|null>(null);
   const [chatOpen,setChatOpen]=useState(false);
@@ -1252,6 +1361,16 @@ export default function DashboardPage(){
     const handle=setTimeout(loadMembers, memberSearch?300:0);
     return()=>clearTimeout(handle);
   },[loadMembers]);
+
+  async function confirmDeleteMember(){
+    if(!deleteTarget)return;
+    setDeleting(true);
+    try{
+      const res=await fetch(`/api/update/members/${deleteTarget.id}`,{method:'DELETE',credentials:'include'});
+      if(res.ok){setDeleteTarget(null);setDeleteConfirmText('');loadMembers();}
+    }catch{}
+    setDeleting(false);
+  }
 
   function reloadCells(){
     fetch('/api/cells/all',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
@@ -1347,10 +1466,7 @@ export default function DashboardPage(){
   ];
 
   const agentOpts=[
-    {id:'moshe' as AgentName,label:'Moshe',desc:'Strategy & all domains'},
-    {id:'ktava' as AgentName,label:'Ktava',desc:'Attendance records'},
-    {id:'arkwind' as AgentName,label:'ArkMind',desc:'Giving & financials'},
-    {id:'numbers' as AgentName,label:'NUMB3RS1.2',desc:'Census & demographics'},
+    {id:'moshe' as AgentName,label:'Moshe',desc:'Church intelligence — all domains'},
   ];
 
   const rangeOpts:TimeRange[]=['8w','3m','6m','1y','2y','5y'];
@@ -1682,16 +1798,16 @@ export default function DashboardPage(){
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
                     <thead style={{position:'sticky',top:0,background:t.card}}>
                       <tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>
-                        {['Name','Phone','Cell','Fellowship','Joined','Status'].map(h=>(
-                          <th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap',background:t.card}}>{h}</th>
+                        {[...['Name','Phone','Cell','Fellowship','Joined','Status'],...(userRole==='overseer'?['']:[])].map((h,hi)=>(
+                          <th key={h||`action-${hi}`} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap',background:t.card}}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {membersLoading?(
-                        <tr><td colSpan={6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>Loading members…</td></tr>
+                        <tr><td colSpan={userRole==='overseer'?7:6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>Loading members…</td></tr>
                       ):membersList.filter(m=>memberFilter==='all'?true:m.membership_status===memberFilter).length===0?(
-                        <tr><td colSpan={6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>No members found.</td></tr>
+                        <tr><td colSpan={userRole==='overseer'?7:6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>No members found.</td></tr>
                       ):membersList
                         .filter(m=>memberFilter==='all'?true:m.membership_status===memberFilter)
                         .map((m,i)=>(
@@ -1702,6 +1818,14 @@ export default function DashboardPage(){
                           <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.fellowship_name||'—'}</td>
                           <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.join_date?new Date(m.join_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</td>
                           <td style={{padding:'7px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.membership_status==='active'?'#E1F5EE':'#FAECE7',color:m.membership_status==='active'?'#085041':'#993C1D',textTransform:'capitalize' as const}}>{m.membership_status}</span></td>
+                          {userRole==='overseer'&&(
+                            <td style={{padding:'7px 8px'}}>
+                              <button onClick={()=>{setDeleteTarget({id:m.id,name:m.full_name});setDeleteConfirmText('');}}
+                                style={{background:'transparent',color:'#D85A30',border:'0.5px solid rgba(216,90,48,0.3)',borderRadius:6,padding:'4px 9px',fontSize:10,fontWeight:600,cursor:'pointer'}}>
+                                Delete
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -1717,6 +1841,28 @@ export default function DashboardPage(){
           )}
           {showCreateMember && <CreateMemberModal t={t} dark={dark} onClose={()=>setShowCreateMember(false)} onCreated={()=>{loadMembers();fetch('/api/analytics/dashboard',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setKpi(data);}).catch(()=>{});}}/>}
           {showCreateCell && <CreateCellModal t={t} dark={dark} onClose={()=>setShowCreateCell(false)} onCreated={reloadCells}/>}
+          {deleteTarget && (
+            <div style={{position:'fixed',inset:0,background:'rgba(15,10,30,0.6)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}}>
+              <div style={{background:t.card,borderRadius:16,padding:24,maxWidth:420,width:'90%',border:'0.5px solid rgba(216,90,48,0.3)'}}>
+                <div style={{fontSize:15,fontWeight:700,color:'#D85A30',marginBottom:8}}>Permanently delete {deleteTarget.name}?</div>
+                <div style={{fontSize:12,color:t.sub,lineHeight:1.6,marginBottom:14}}>
+                  This immediately and permanently deletes this member and every record tied to them —
+                  department roles, cell links, submission history. <strong>There is no undo and no fallback.</strong> If
+                  you only want to take them off the active roster (reversible), close this and use the removal
+                  request flow instead.
+                </div>
+                <div style={{fontSize:11,color:t.muted,marginBottom:6}}>Type <strong>DELETE</strong> to confirm:</div>
+                <input value={deleteConfirmText} onChange={e=>setDeleteConfirmText(e.target.value)} style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box',marginBottom:16}}/>
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={()=>{setDeleteTarget(null);setDeleteConfirmText('');}} style={{flex:1,background:'transparent',border:`0.5px solid ${t.border}`,color:t.sub,borderRadius:8,padding:'9px',fontSize:12,fontWeight:600,cursor:'pointer'}}>Cancel</button>
+                  <button onClick={confirmDeleteMember} disabled={deleteConfirmText!=='DELETE'||deleting}
+                    style={{flex:1,background:'#D85A30',color:'#fff',border:'none',borderRadius:8,padding:'9px',fontSize:12,fontWeight:600,cursor:'pointer',opacity:(deleteConfirmText!=='DELETE'||deleting)?0.5:1}}>
+                    {deleting?'Deleting…':'Delete permanently'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ══ DEPARTMENTS ══ */}
           {page==='departments'&&!selectedDept&&(
@@ -2148,6 +2294,7 @@ export default function DashboardPage(){
           {page==='validation'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <MemberApprovalPanel t={t} dark={dark} />
+              <RemovalApprovalPanel t={t} dark={dark} userRole={userRole} />
               <FellowshipValidation t={t} dark={dark} />
             </div>
           )}

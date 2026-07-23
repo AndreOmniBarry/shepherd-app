@@ -88,6 +88,41 @@ export default function DepartmentHeadPage() {
     chartTipText: dark ? '#FFFFFF' : '#374151',
   };
 
+  function loadMembers() {
+    fetch('/api/department/members', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => {
+        if (data?.members) {
+          setMembers(data.members);
+          setAttendance(prev => {
+            const init: Record<string, 'present' | 'absent'> = { ...prev };
+            data.members.forEach((m: DeptMember) => { if (!(m.id in init)) init[m.id] = 'present'; });
+            return init;
+          });
+        }
+      })
+      .catch(() => {});
+  }
+
+  async function saveRole(memberId: string, role: string) {
+    await fetch('/api/department/members', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ member_id: memberId, role }),
+    }).catch(() => {});
+    loadMembers();
+  }
+
+  async function recommendRemoval(memberId: string, memberName: string) {
+    const reason = window.prompt(`Reason for recommending ${memberName}'s removal (sent to the PA for approval):`);
+    if (!reason?.trim()) return;
+    const res = await fetch('/api/update/member-removals', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ member_id: memberId, reason: reason.trim() }),
+    });
+    if (res.ok) window.alert(`Removal recommendation for ${memberName} sent for approval.`);
+    else { const e = await res.json().catch(() => ({})); window.alert(e?.error?.message || 'Failed to submit.'); }
+  }
+
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.json())
@@ -98,17 +133,7 @@ export default function DepartmentHeadPage() {
       })
       .catch(() => router.push('/login'));
 
-    fetch('/api/department/members', { credentials: 'include' })
-      .then(r => r.json())
-      .then(({ data }) => {
-        if (data?.members) {
-          setMembers(data.members);
-          const init: Record<string, 'present' | 'absent'> = {};
-          data.members.forEach((m: DeptMember) => { init[m.id] = 'present'; });
-          setAttendance(init);
-        }
-      })
-      .catch(() => {});
+    loadMembers();
 
     fetch('/api/services/recent', { credentials: 'include' })
       .then(r => r.json())
@@ -410,8 +435,8 @@ export default function DepartmentHeadPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
-                  {['Name', 'Role', 'Phone'].map(h => (
-                    <th key={h} style={{ textAlign: 'left', padding: '9px 14px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px', background: t.card }}>{h}</th>
+                  {['Name', 'Role', 'Phone', ''].map(h => (
+                    <th key={h||'actions'} style={{ textAlign: 'left', padding: '9px 14px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px', background: t.card }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -419,12 +444,22 @@ export default function DepartmentHeadPage() {
                 {members.map((m, i) => (
                   <tr key={m.id} style={{ borderBottom: i < members.length - 1 ? `0.5px solid ${t.border}` : 'none' }}>
                     <td style={{ padding: '10px 14px', fontWeight: 500, color: t.text }}>{m.full_name}</td>
-                    <td style={{ padding: '10px 14px', color: t.sub }}>{m.role}</td>
+                    <td style={{ padding: '10px 14px', color: t.sub }}>
+                      <input defaultValue={m.role || ''} placeholder="e.g. Chorister, Alter Protocol..."
+                        onBlur={e => { if (e.target.value.trim() && e.target.value.trim() !== (m.role || '')) saveRole(m.id, e.target.value.trim()); }}
+                        style={{ border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '4px 8px', fontSize: 12, background: t.input || 'transparent', color: t.sub, outline: 'none', width: '100%', maxWidth: 180, fontFamily: 'inherit' }} />
+                    </td>
                     <td style={{ padding: '10px 14px', color: t.muted }}>{m.phone || '—'}</td>
+                    <td style={{ padding: '10px 14px' }}>
+                      <button onClick={() => recommendRemoval(m.id, m.full_name)}
+                        style={{ background: 'transparent', color: '#D85A30', border: '0.5px solid rgba(216,90,48,0.3)', borderRadius: 6, padding: '4px 9px', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>
+                        Recommend removal
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {members.length === 0 && (
-                  <tr><td colSpan={3} style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No roster found. Contact your administrator.</td></tr>
+                  <tr><td colSpan={4} style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No roster found. Contact your administrator.</td></tr>
                 )}
               </tbody>
             </table>
