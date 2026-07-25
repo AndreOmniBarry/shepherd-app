@@ -8,6 +8,8 @@ import PastorGiving from '@/components/PastorGiving';
 import PastorRequisitions from '@/components/PastorRequisitions';
 import FellowshipValidation from '@/components/FellowshipValidation';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
+import ServicePlannerPanel from '@/components/ServicePlannerPanel';
+import EventsPanel from '@/components/EventsPanel';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -19,7 +21,7 @@ import {
 type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; };
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
 type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
-type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation'|'settings'|'admin';
+type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation'|'settings'|'admin'|'workforce'|'service_planner'|'events';
 type TimeRange = '8w'|'3m'|'6m'|'1y'|'2y'|'5y';
 
 // ── Unique cell data with realistic, differentiated trends ─────
@@ -676,18 +678,154 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
   );
 }
 
+type WorkforceData = {
+  summary: {total_workforce:number;total_departments:number;departments_scheduled_next_sunday:number;departments_with_gaps:number;overcommitted_members:number};
+  department_stats: {id:string;name:string;member_count:number;next_roster_date:string|null;next_roster_coverage:string;roster_count:number;last_roster_date:string|null;assigned_next:number}[];
+  overcommitted: {member_id:string;full_name:string;department_count:number}[];
+  reliability_rankings: {member_id:string;full_name:string;reliability_score:number;total_assigned:number;total_attended:number;last_served:string|null}[];
+  next_sunday: string;
+};
+
+function WorkforceIntelligencePanel({t}: {t: Record<string,string>}) {
+  const [data, setData] = React.useState<WorkforceData|null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch('/api/workforce/intelligence', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => setData(data))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div style={{fontSize:12,color:t.sub,padding:20}}>Loading workforce intelligence…</div>;
+  if (!data) return <div style={{fontSize:12,color:t.sub,padding:20}}>Could not load workforce data.</div>;
+
+  const tiles = [
+    {label:'Total Workforce',value:String(data.summary.total_workforce)},
+    {label:'Departments',value:String(data.summary.total_departments)},
+    {label:`Scheduled for ${new Date(data.next_sunday+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`,value:String(data.summary.departments_scheduled_next_sunday)},
+    {label:'Departments With Gaps',value:String(data.summary.departments_with_gaps),alert:data.summary.departments_with_gaps>0},
+    {label:'Overcommitted Members',value:String(data.summary.overcommitted_members),alert:data.summary.overcommitted_members>0},
+  ];
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:14}}>
+      <div>
+        <div style={{fontSize:15,fontWeight:700,color:t.text}}>Workforce Intelligence</div>
+        <div style={{fontSize:12,color:t.muted,marginTop:2}}>Cross-department serving coverage, gaps, and reliability — computed live from actual rosters, not estimates.</div>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:10}}>
+        {tiles.map(s=>(
+          <div key={s.label} style={{background:t.card,border:`0.5px solid ${s.alert?'rgba(216,90,48,0.3)':t.border}`,borderRadius:12,padding:'14px 16px'}}>
+            <div style={{fontSize:20,fontWeight:700,color:s.alert?'#D85A30':t.text}}>{s.value}</div>
+            <div style={{fontSize:11,color:t.muted,marginTop:2}}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'16px 18px'}}>
+        <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:12}}>Department Coverage</div>
+        <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <thead>
+            <tr>
+              <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Department</th>
+              <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Workforce</th>
+              <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Next Service</th>
+              <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.department_stats.map(d=>(
+              <tr key={d.id} style={{borderTop:`0.5px solid ${t.border}`}}>
+                <td style={{padding:'8px',fontSize:12,color:t.text}}>{d.name}</td>
+                <td style={{padding:'8px',fontSize:12,color:t.sub}}>{d.member_count}</td>
+                <td style={{padding:'8px',fontSize:12,color:t.sub}}>{d.next_roster_date ? `${d.next_roster_date} · ${d.assigned_next} assigned` : '—'}</td>
+                <td style={{padding:'8px'}}>
+                  <span style={{fontSize:10,padding:'3px 9px',borderRadius:8,fontWeight:600,background:d.next_roster_coverage==='scheduled'?'#E1F5EE':'#FAECE7',color:d.next_roster_coverage==='scheduled'?'#085041':'#993C1D'}}>
+                    {d.next_roster_coverage==='scheduled'?'Covered':'No roster yet'}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+        <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'16px 18px'}}>
+          <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:12}}>Most Reliable Servers</div>
+          {data.reliability_rankings.length===0 ? (
+            <div style={{fontSize:12,color:t.muted}}>No serving history recorded yet.</div>
+          ) : data.reliability_rankings.map((r,i)=>(
+            <div key={r.member_id} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:i<data.reliability_rankings.length-1?`0.5px solid ${t.border}`:'none'}}>
+              <span style={{fontSize:12,color:t.text}}>{r.full_name}</span>
+              <span style={{fontSize:12,color:t.purple,fontWeight:600}}>{r.reliability_score?.toFixed(1)} · {r.total_attended}/{r.total_assigned}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'16px 18px'}}>
+          <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:12}}>Overcommitted (3+ Departments)</div>
+          {data.overcommitted.length===0 ? (
+            <div style={{fontSize:12,color:t.muted}}>Nobody is currently spread across 3 or more departments.</div>
+          ) : data.overcommitted.map(o=>(
+            <div key={o.member_id} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',fontSize:12}}>
+              <span style={{color:t.text}}>{o.full_name}</span>
+              <span style={{color:t.coral}}>{o.department_count} departments</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const CREATABLE_ROLES: {value:string;label:string;refKind:'cell'|'fellowship'|'department'|null}[] = [
+  {value:'cell_leader',label:'Cell Leader',refKind:'cell'},
+  {value:'fellowship_head',label:'Fellowship Head',refKind:'fellowship'},
+  {value:'department_head',label:'Department Head',refKind:'department'},
+  {value:'care_team',label:'Follow-Up & Care Team',refKind:null},
+  {value:'accounts',label:'Accounts',refKind:null},
+  {value:'partnership',label:'Partnership',refKind:null},
+  {value:'pa',label:'PA / Church Admin',refKind:null},
+  {value:'overseer',label:'Overseer',refKind:null},
+  {value:'lead_tech',label:'Lead Tech',refKind:null},
+];
+
 function TeamAccessPanel({t}: {t: Record<string,string>}) {
   const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string}[]>([]);
+  const [invites, setInvites] = React.useState<{id:string;email:string;full_name:string;role:string;unit_name:string;used:boolean;expired:boolean;created_at:string}[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [q, setQ] = React.useState('');
   const [resetting, setResetting] = React.useState<string|null>(null);
   const [issued, setIssued] = React.useState<{full_name:string;email:string;password:string}|null>(null);
+
+  const [showAdd, setShowAdd] = React.useState(false);
+  const [cellList, setCellList] = React.useState<{id:string;name:string}[]>([]);
+  const [fellowshipList, setFellowshipList] = React.useState<{id:string;name:string}[]>([]);
+  const [deptList, setDeptList] = React.useState<{id:string;name:string}[]>([]);
+  const [newName, setNewName] = React.useState('');
+  const [newEmail, setNewEmail] = React.useState('');
+  const [newRole, setNewRole] = React.useState('cell_leader');
+  const [newRefId, setNewRefId] = React.useState('');
+  const [creating, setCreating] = React.useState(false);
+  const [createError, setCreateError] = React.useState('');
+  const [newLink, setNewLink] = React.useState('');
+  const [copied, setCopied] = React.useState(false);
+
+  function loadInvites() {
+    fetch('/api/invites', { credentials: 'include' }).then(r=>r.json()).then(({data})=>setInvites(data?.invites||[])).catch(()=>{});
+  }
 
   React.useEffect(() => {
     fetch('/api/admin/users', { credentials: 'include' })
       .then(r => r.json())
       .then(({ data }) => setUsers(data?.users || []))
       .finally(() => setLoading(false));
+    loadInvites();
+    fetch('/api/cells/all', { credentials: 'include' }).then(r=>r.json()).then(({data})=>setCellList((data?.cells||[]).map((c:{id:string;cell:string})=>({id:c.id,name:c.cell})))).catch(()=>{});
+    fetch('/api/fellowships/all', { credentials: 'include' }).then(r=>r.json()).then(({data})=>setFellowshipList(data?.fellowships||[])).catch(()=>{});
+    fetch('/api/departments/all', { credentials: 'include' }).then(r=>r.json()).then(({data})=>setDeptList(data?.departments||[])).catch(()=>{});
   }, []);
 
   async function doReset(u: {id:string;full_name:string;email:string}) {
@@ -704,18 +842,113 @@ function TeamAccessPanel({t}: {t: Record<string,string>}) {
     setResetting(null);
   }
 
+  const selectedRoleDef = CREATABLE_ROLES.find(r=>r.value===newRole);
+  const refOptions = selectedRoleDef?.refKind==='cell' ? cellList : selectedRoleDef?.refKind==='fellowship' ? fellowshipList : selectedRoleDef?.refKind==='department' ? deptList : [];
+
+  async function doInvite() {
+    if (!newName.trim() || !newEmail.trim()) { setCreateError('Name and email are required'); return; }
+    if (selectedRoleDef?.refKind && !newRefId) { setCreateError(`Select a ${selectedRoleDef.refKind} to assign them to`); return; }
+    setCreating(true); setCreateError(''); setNewLink('');
+    try {
+      const res = await fetch('/api/invites', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({
+          full_name: newName.trim(), email: newEmail.trim(), role: newRole,
+          cell_id: selectedRoleDef?.refKind==='cell' ? newRefId : null,
+          fellowship_id: selectedRoleDef?.refKind==='fellowship' ? newRefId : null,
+          department_id: selectedRoleDef?.refKind==='department' ? newRefId : null,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.data) {
+        setNewLink(json.data.invite_link);
+        setNewName(''); setNewEmail(''); setNewRefId('');
+        loadInvites();
+      } else setCreateError(json.error?.message || 'Failed to create invite');
+    } catch { setCreateError('Network error — invite was not created.'); }
+    setCreating(false);
+  }
+
+  async function revokeInvite(id: string) {
+    try {
+      await fetch(`/api/invites?id=${id}`, { method: 'DELETE', credentials: 'include' });
+      loadInvites();
+    } catch {}
+  }
+
+  function copyLink() {
+    navigator.clipboard?.writeText(newLink).then(()=>{ setCopied(true); setTimeout(()=>setCopied(false),2000); }).catch(()=>{});
+  }
+
   const filtered = users.filter(u => !q || u.full_name.toLowerCase().includes(q.toLowerCase()) || u.email.toLowerCase().includes(q.toLowerCase()));
+  const pendingInvites = invites.filter(i => !i.used);
 
   return (
     <div style={{background:t.card,borderRadius:12,border:`0.5px solid ${t.border}`,padding:'18px 20px',marginTop:14}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap',gap:8}}>
         <div>
           <div style={{fontSize:16,fontWeight:700,color:t.text}}>Team & Access</div>
-          <div style={{fontSize:12,color:t.sub,marginTop:2}}>Reset a leader&apos;s password on the spot — shown once, right here, so you can read it out to them. Nothing is stored or logged after this screen closes.</div>
+          <div style={{fontSize:12,color:t.sub,marginTop:2}}>Invite a leader missed in the import — they pick their own password from the link. Reset an existing user&apos;s password on the spot, shown once, right here.</div>
         </div>
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search name or email"
-          style={{width:220,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',fontSize:12,background:t.input,color:t.text,outline:'none',fontFamily:'inherit'}} />
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={()=>{setShowAdd(v=>!v);setCreateError('');setNewLink('');}}
+            style={{background:showAdd?t.purpleBg:'#534AB7',color:showAdd?t.purple:'#fff',border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+            {showAdd?'Cancel':'+ Invite team member'}
+          </button>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search name or email"
+            style={{width:200,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',fontSize:12,background:t.input,color:t.text,outline:'none',fontFamily:'inherit'}} />
+        </div>
       </div>
+
+      {showAdd && (
+        <div style={{background:t.cardInner||t.input,borderRadius:10,border:`0.5px solid ${t.border}`,padding:14,marginBottom:14,display:'flex',flexDirection:'column',gap:10}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Full name"
+              style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}} />
+            <input value={newEmail} onChange={e=>setNewEmail(e.target.value)} placeholder="Email" type="email"
+              style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}} />
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:selectedRoleDef?.refKind?'1fr 1fr':'1fr',gap:10}}>
+            <select value={newRole} onChange={e=>{setNewRole(e.target.value);setNewRefId('');}}
+              style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
+              {CREATABLE_ROLES.map(r=>(<option key={r.value} value={r.value}>{r.label}</option>))}
+            </select>
+            {selectedRoleDef?.refKind && (
+              <select value={newRefId} onChange={e=>setNewRefId(e.target.value)}
+                style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
+                <option value="">{`Assign to ${selectedRoleDef.refKind}...`}</option>
+                {refOptions.map(o=>(<option key={o.id} value={o.id}>{o.name}</option>))}
+              </select>
+            )}
+          </div>
+          {createError && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12}}>{createError}</div>}
+          {newLink && (
+            <div style={{background:'rgba(45,212,170,0.1)',border:'0.5px solid rgba(45,212,170,0.3)',borderRadius:9,padding:'10px 12px',display:'flex',alignItems:'center',gap:10}}>
+              <div style={{flex:1,fontSize:11,color:t.text,wordBreak:'break-all',fontFamily:'monospace'}}>{newLink}</div>
+              <button onClick={copyLink} style={{background:'#1D9E75',color:'#fff',border:'none',borderRadius:7,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>{copied?'Copied!':'Copy link'}</button>
+            </div>
+          )}
+          <button onClick={doInvite} disabled={creating}
+            style={{background:'#1D9E75',color:'#fff',border:'none',borderRadius:8,padding:'9px 14px',fontSize:12,fontWeight:600,cursor:creating?'wait':'pointer',alignSelf:'flex-start'}}>
+            {creating?'Sending…':'Generate invite link'}
+          </button>
+        </div>
+      )}
+
+      {pendingInvites.length > 0 && (
+        <div style={{marginBottom:14}}>
+          <div style={{fontSize:11,color:t.muted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Pending invites ({pendingInvites.length})</div>
+          {pendingInvites.map(inv => (
+            <div key={inv.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0',borderBottom:`0.5px solid ${t.border}`,fontSize:12}}>
+              <span style={{color:t.text}}>{inv.full_name} <span style={{color:t.muted}}>— {inv.role.replace('_',' ')}{inv.unit_name!=='—'?` · ${inv.unit_name}`:''}</span></span>
+              <span style={{display:'flex',alignItems:'center',gap:8}}>
+                {inv.expired && <span style={{color:t.coral,fontSize:10}}>Expired</span>}
+                <button onClick={()=>revokeInvite(inv.id)} style={{background:'transparent',border:`0.5px solid ${t.border}`,borderRadius:6,padding:'3px 9px',fontSize:10,color:t.sub,cursor:'pointer'}}>Revoke</button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {issued && (
         <div style={{background:'rgba(45,212,170,0.1)',border:'0.5px solid rgba(45,212,170,0.3)',borderRadius:9,padding:'12px 14px',marginBottom:14,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
@@ -1561,6 +1794,9 @@ export default function DashboardPage(){
     {id:'commendation' as NavPage,icon:'ti-star',label:'Commend Leaders'},
     {id:'prayer' as NavPage,icon:'ti-heart',label:'Prayer Requests'},
     {id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'},
+    {id:'workforce' as NavPage,icon:'ti-user-check',label:'Workforce'},
+    {id:'service_planner' as NavPage,icon:'ti-calendar-check',label:'Service Planner'},
+    {id:'events' as NavPage,icon:'ti-ticket',label:'Events'},
     {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
     {id:'settings' as NavPage,icon:'ti-settings',label:'Settings'},
     ...(userRole === 'lead_tech' ? [{id:'admin' as NavPage,icon:'ti-shield',label:'Admin Portal'}] : []),
@@ -2405,6 +2641,15 @@ export default function DashboardPage(){
           {page==='requisitions'&&(
             <PastorRequisitions t={t} dark={dark} />
           )}
+          {page==='workforce'&&(
+            <WorkforceIntelligencePanel t={t} />
+          )}
+          {page==='service_planner'&&(
+            <ServicePlannerPanel t={t} />
+          )}
+          {page==='events'&&(
+            <EventsPanel t={t} />
+          )}
           {page==='validation'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <MemberApprovalPanel t={t} dark={dark} />
@@ -2415,7 +2660,7 @@ export default function DashboardPage(){
           {page==='settings'&&(
             <div>
               <ChurchSettingsPanel t={t} dark={dark} onConfigSaved={(cfg)=>setChurchConfig(cfg)} />
-              {['overseer','pa','lead_tech'].includes(userRole) && <TeamAccessPanel t={t} />}
+              {userRole==='lead_tech' && <TeamAccessPanel t={t} />}
             </div>
           )}
           {page==='admin'&&(

@@ -143,6 +143,7 @@ export default function CellPage() {
   const [submittedData, setSubmittedData] = useState<{ present: number; absent: number; visitors: number; sla_grade: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
+  const [historyWeeks, setHistoryWeeks] = useState(12);
   const [cellName, setCellName] = useState('');
   const [leaderName, setLeaderName] = useState('');
   const [dark, setDark] = useState(false);
@@ -210,7 +211,7 @@ export default function CellPage() {
 
   useEffect(() => {
     if (tab === 'history') {
-      fetch('/api/attendance?weeks=12', { credentials: 'include' })
+      fetch(`/api/attendance?weeks=${historyWeeks}`, { credentials: 'include' })
         .then(r => r.json())
         .then(({ data }) => {
           if (data?.records) {
@@ -228,7 +229,7 @@ export default function CellPage() {
         })
         .catch(() => {});
     }
-  }, [tab]);
+  }, [tab, historyWeeks]);
 
   function toggleAttendance(id: string) {
     setAttendance(prev => {
@@ -522,7 +523,13 @@ export default function CellPage() {
 
                 {tab === 'history' && (
           <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 14 }}>Last 12 Weeks</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Last {historyWeeks} Weeks</div>
+              <select value={historyWeeks} onChange={e => setHistoryWeeks(Number(e.target.value))}
+                style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '6px 10px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }}>
+                {[4, 8, 12, 26, 52].map(w => (<option key={w} value={w}>{w} weeks</option>))}
+              </select>
+            </div>
             {history.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 32, color: t.muted, fontSize: 13 }}>No submissions yet. Your history will appear here after your first submission.</div>
             ) : (

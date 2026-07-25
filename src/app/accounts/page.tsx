@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
+import FloatingCalculator from '@/components/FloatingCalculator';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 type Member = { id: string; full_name: string; phone: string | null };
@@ -660,6 +661,7 @@ export default function AccountsPage() {
           </div>
         )}
       </div>
+      <FloatingCalculator role="accounts" />
     </div>
   );
 }

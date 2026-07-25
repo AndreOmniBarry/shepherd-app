@@ -3,6 +3,7 @@ import NotificationBell from "@/components/NotificationBell";
 import MyAccountButton from "@/components/MyAccountButton";
 import DeptOverview from '@/components/DeptOverview';
 import BirthdayPanel from '@/components/BirthdayPanel';
+import WorkforceServingTab from '@/components/WorkforceServingTab';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -48,7 +49,7 @@ const SLA_COLORS: Record<string, { bg: string; text: string }> = {
 
 export default function DepartmentHeadPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'roster' | 'birthdays'>('overview');
+  const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'roster' | 'serving' | 'birthdays'>('overview');
   const [dark, setDark] = useState(false);
   const [deptName, setDeptName] = useState('');
   const [leaderName, setLeaderName] = useState('');
@@ -294,6 +295,7 @@ export default function DepartmentHeadPage() {
       {/* Sub-nav */}
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', display: 'flex' }}>
         {[{ id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' }, { id: 'submit', label: 'Attendance', icon: 'ti-calendar-check' }, { id: 'history', label: 'History', icon: 'ti-history' }, { id: 'roster', label: 'Roster', icon: 'ti-list' },
+        { id: 'serving', label: 'Serving', icon: 'ti-user-check' },
         { id: 'birthdays', label: '🎂 Birthdays' }].map(n => (
           <button key={n.id} onClick={() => setTab(n.id as typeof tab)}
             style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: tab === n.id ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', marginBottom: -0.5 }}>
@@ -441,6 +443,10 @@ export default function DepartmentHeadPage() {
 
         {tab === 'birthdays' && (
           <BirthdayPanel dark={dark} t={t} scope="department" showFellowship={false} />
+        )}
+
+        {tab === 'serving' && (
+          <WorkforceServingTab t={t} />
         )}
 
         {/* ROSTER */}

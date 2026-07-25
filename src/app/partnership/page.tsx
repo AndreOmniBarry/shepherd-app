@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
+import FloatingCalculator from '@/components/FloatingCalculator';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 type Band = { id: string; name: string; amount: number; color: string };
@@ -541,6 +542,7 @@ export default function PartnershipPage() {
           </div>
         )}
       </div>
+      <FloatingCalculator role="partnership" />
     </div>
   );
 }

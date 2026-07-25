@@ -1,1 +1,25 @@
+# Environment variables - NEVER commit these
+.env
+.env.local
+.env.production
+.env.development
+
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# OS files
+.DS_Store
+
+# Logs
+*.log
+
+# Python cache
 __pycache__/
+
+# Contains real temporary passwords — never commit
+scripts/leader_accounts_output.csv
+scripts/*_accounts_output.csv

@@ -16,7 +16,9 @@ async function getUser(req: Request) {
 export async function GET(req: Request) {
   try {
     const user = await getUser(req);
-    if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    if (!user || !['overseer','pa','lead_tech'].includes(user.role)) {
+      return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 403 });
+    }
 
     const [deptRes, rosterRes, memberRes, profileRes] = await Promise.all([
       fetch(`${SURL}/rest/v1/departments?select=id,name`, { headers: H() }),
@@ -58,14 +60,17 @@ export async function GET(req: Request) {
 
     // Overcommitted members (in 3+ departments)
     const memberDeptMap: Record<string, string[]> = {};
+    const memberNameMap: Record<string, string> = {};
     allDeptMembers.forEach((dm: Record<string,unknown>) => {
       const mid = dm.member_id as string;
       if (!memberDeptMap[mid]) memberDeptMap[mid] = [];
       memberDeptMap[mid].push(dm.department_id as string);
+      const memberInfo = dm.members as Record<string,string>|null;
+      if (memberInfo?.full_name) memberNameMap[mid] = memberInfo.full_name;
     });
     const overcommitted = Object.entries(memberDeptMap)
       .filter(([, depts]) => depts.length >= 3)
-      .map(([member_id, dept_ids]) => ({ member_id, department_count: dept_ids.length }))
+      .map(([member_id, dept_ids]) => ({ member_id, full_name: memberNameMap[member_id] || 'Unknown', department_count: dept_ids.length }))
       .slice(0, 10);
 
     // Reliability rankings
