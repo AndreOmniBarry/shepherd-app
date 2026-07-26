@@ -26,15 +26,28 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     const body = await req.json();
-    const { full_name, phone, email, date_of_birth, gender } = body;
+    const { full_name, phone, email, date_of_birth, gender, cell_id } = body;
 
-    // Only update allowed fields — never cell_id, fellowship_id, membership_status
     const updateData: Record<string, string | null> = {};
     if (full_name) updateData.full_name = full_name.trim();
     if (phone) updateData.phone = phone.trim();
     if (email) updateData.email = email.trim().toLowerCase();
     if (date_of_birth) updateData.date_of_birth = date_of_birth;
     if (gender) updateData.gender = gender;
+
+    // Migrating a member to a different cell — admin-only (unlike the
+    // fellowship_head version of this action, which is restricted to moving
+    // within their own fellowship), so this can move someone across
+    // fellowships too. Carries the member's fellowship_id along with the
+    // cell's, so the two never end up inconsistent.
+    if (cell_id) {
+      const cellRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${cell_id}&select=id,fellowship_id&limit=1`, { headers: hdrs() });
+      const cellData = await cellRes.json();
+      const cell = cellData?.[0];
+      if (!cell) return NextResponse.json({ data: null, error: { message: 'Cell not found' } }, { status: 404 });
+      updateData.cell_id = cell_id;
+      updateData.fellowship_id = cell.fellowship_id;
+    }
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ data: null, error: { message: 'No fields to update' } }, { status: 400 });
