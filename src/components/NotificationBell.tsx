@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 type Notification = {
   id: string;
-  type: 'system' | 'pastoral' | 'pipeline' | 'dispute' | 'birthday' | 'achievement' | 'sla' | 'attendance' | 'giving';
+  type: 'system' | 'pastoral' | 'pipeline' | 'dispute' | 'birthday' | 'achievement' | 'sla' | 'attendance' | 'giving' | 'commendation' | 'service';
   title: string;
   body: string;
   read: boolean;
@@ -21,6 +21,8 @@ const TYPE_CONFIG: Record<string, { color: string; bg: string; icon: string }> =
   sla:         { color: '#D85A30', bg: '#FAECE7', icon: '⏱' },
   attendance:  { color: '#1D9E75', bg: '#E1F5EE', icon: '✓' },
   giving:      { color: '#534AB7', bg: '#EEEDFE', icon: '₦' },
+  commendation:{ color: '#BA7517', bg: '#FAEEDA', icon: '🏆' },
+  service:     { color: '#534AB7', bg: '#EEEDFE', icon: '📋' },
 };
 
 function timeAgo(dateStr: string): string {

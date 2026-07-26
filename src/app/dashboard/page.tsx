@@ -18,7 +18,7 @@ import {
   CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 
-type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; };
+type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; giving_breakdown?:{name:string;amount:number;pct:number}[]; growth_trend?:{month:string;count:number}[]; gender_distribution?:{name:string;count:number;pct:number}[]; gender_known?:number; age_bands?:{band:string;n:number;p:number}[]; age_known?:number; };
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
 type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
 type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation'|'settings'|'admin'|'workforce'|'service_planner'|'events';
@@ -530,17 +530,6 @@ const ALL_MEMBERS = [
   {name:'Sis. Kemi Ojo',phone:'0808-555-6008',cell:'Burning Bush Cell',fellowship:'Youth',joined:'Aug 27 2023',status:'Active',gender:'Female',age:20},
 ];
 
-const NEW_MEMBERS = [
-  {name:'Blessing Okonkwo',date:'Jun 3 2026',cell:'Glory House Cell',fellowship:'Youth',care:'Bro. Tunde Adeleke',status:'Staying',invited:'Walk-in',phone:'0801-111-2222'},
-  {name:'Chukwudi Eze Jr.',date:'Jun 3 2026',cell:'Covenant Cell',fellowship:'Men',care:'Sis. Ngozi Obi',status:'Staying',invited:'Bro. Emeka Okafor',phone:'0802-222-3333'},
-  {name:'Adaeze Nwachukwu',date:'May 27 2026',cell:'Fountain of Life Cell',fellowship:'Women',care:'Sis. Adaeze Nwosu',status:'Visiting',invited:'Crusade',phone:'0803-333-4444'},
-  {name:'Segun Balogun',date:'May 27 2026',cell:'Champions Cell',fellowship:'Youth',care:'Bro. Segun Afolabi',status:'Staying',invited:'Referral',phone:'0804-444-5555'},
-  {name:'Ngozi Aneke',date:'May 20 2026',cell:'Shalom Cell',fellowship:'Women',care:'Sis. Grace Obi',status:'Staying',invited:'Online',phone:'0805-555-6666'},
-  {name:'Felix Udeh',date:'May 20 2026',cell:'Power House Cell',fellowship:'Men',care:'Bro. Daniel Okafor',status:'Staying',invited:'Walk-in',phone:'0806-666-7777'},
-  {name:'Amaka Obi',date:'May 13 2026',cell:'Peace Cell',fellowship:'Women',care:'Sis. Mercy Nwosu',status:'Visiting',invited:'Bro. Emeka Okafor',phone:'0807-777-8888'},
-  {name:'Kelvin Abara',date:'May 13 2026',cell:'Eagles Cell',fellowship:'Youth',care:'Sis. Funmi Adeyemi',status:'Staying',invited:'Cell outreach',phone:'0808-888-9999'},
-];
-
 const GIVING_DATA = [
   {p:'Jan 21',t:820000,o:590000,s:45000},{p:'Feb 21',t:798000,o:572000,s:32000},{p:'Mar 21',t:912000,o:654000,s:88000},
   {p:'Apr 21',t:881000,o:631000,s:55000},{p:'May 21',t:944000,o:677000,s:102000},{p:'Jun 21',t:921000,o:661000,s:71000},
@@ -798,6 +787,7 @@ function TeamAccessPanel({t}: {t: Record<string,string>}) {
   const [loading, setLoading] = React.useState(true);
   const [q, setQ] = React.useState('');
   const [resetting, setResetting] = React.useState<string|null>(null);
+  const [loggingInAs, setLoggingInAs] = React.useState<string|null>(null);
   const [issued, setIssued] = React.useState<{full_name:string;email:string;password:string}|null>(null);
 
   const [showAdd, setShowAdd] = React.useState(false);
@@ -840,6 +830,19 @@ function TeamAccessPanel({t}: {t: Record<string,string>}) {
       else alert(json.error?.message || 'Failed to reset password');
     } catch { alert('Network error — password was not reset.'); }
     setResetting(null);
+  }
+
+  async function doLoginAs(u: {id:string;full_name:string}) {
+    setLoggingInAs(u.id);
+    try {
+      const res = await fetch('/api/admin/login-as', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ userId: u.id }),
+      });
+      const json = await res.json();
+      if (res.ok && json.data) window.location.href = json.data.path;
+      else { alert(json.error?.message || 'Failed to log in as this user'); setLoggingInAs(null); }
+    } catch { alert('Network error — could not log in as this user.'); setLoggingInAs(null); }
   }
 
   const selectedRoleDef = CREATABLE_ROLES.find(r=>r.value===newRole);
@@ -888,7 +891,7 @@ function TeamAccessPanel({t}: {t: Record<string,string>}) {
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap',gap:8}}>
         <div>
           <div style={{fontSize:16,fontWeight:700,color:t.text}}>Team & Access</div>
-          <div style={{fontSize:12,color:t.sub,marginTop:2}}>Invite a leader missed in the import — they pick their own password from the link. Reset an existing user&apos;s password on the spot, shown once, right here.</div>
+          <div style={{fontSize:12,color:t.sub,marginTop:2}}>Invite a leader missed in the import — they pick their own password from the link. &quot;Log in as&quot; gives you a real, full-access session as anyone (any cell leader, department head, admin) for testing — no password touched. &quot;Exit preview&quot; in your account menu brings you back.</div>
         </div>
         <div style={{display:'flex',gap:8}}>
           <button onClick={()=>{setShowAdd(v=>!v);setCreateError('');setNewLink('');}}
@@ -979,7 +982,11 @@ function TeamAccessPanel({t}: {t: Record<string,string>}) {
                   <td style={{padding:'8px',fontSize:12,color:t.text}}>{u.full_name}</td>
                   <td style={{padding:'8px',fontSize:12,color:t.sub}}>{u.email}</td>
                   <td style={{padding:'8px',fontSize:12,color:t.sub}}>{u.role}</td>
-                  <td style={{padding:'8px',textAlign:'right'}}>
+                  <td style={{padding:'8px',textAlign:'right',whiteSpace:'nowrap'}}>
+                    <button onClick={()=>doLoginAs(u)} disabled={loggingInAs===u.id||!u.id}
+                      style={{background:t.purple,border:'none',borderRadius:7,padding:'5px 11px',fontSize:11,color:'#fff',cursor:loggingInAs===u.id?'wait':'pointer',fontFamily:'inherit',marginRight:6}}>
+                      {loggingInAs===u.id?'Logging in…':'Log in as'}
+                    </button>
                     <button onClick={()=>doReset(u)} disabled={resetting===u.id}
                       style={{background:'transparent',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'5px 11px',fontSize:11,color:t.text,cursor:resetting===u.id?'wait':'pointer',fontFamily:'inherit'}}>
                       {resetting===u.id?'Resetting…':'Reset password'}
@@ -1882,7 +1889,7 @@ export default function DashboardPage(){
               </div>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10,marginBottom:18}}>
                 {[
-                  {label:'Total members',value:'1,147',delta:'+23 this month',page:'members' as NavPage},
+                  {label:'Total members',value:fmt(kpi?.total_members),delta:`+${kpi?.new_members_month??0} this month`,page:'members' as NavPage},
                   {label:"Today's check-ins",value:fmt(kpi?.today_present),delta:`${kpi?.today_cells_reported??'—'}/${kpi?.today_cells_total??'—'} cells in`,page:'attendance' as NavPage},
                   {label:'YTD giving',value:kpi?fmtNGN(kpi.ytd_giving_ngn):'—',delta:'+12% vs last year',page:'giving' as NavPage},
                   {label:'Active cells',value:fmt(kpi?.active_cells),delta:'3 fellowships',page:'cells' as NavPage},
@@ -1941,18 +1948,25 @@ export default function DashboardPage(){
                 </div>
                 <div onClick={()=>setPage('giving')} style={{...card(),cursor:'pointer'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Giving breakdown</span><span style={{fontSize:12,color:t.purple}}>Drill down →</span></div>
-                  <div style={{display:'flex',alignItems:'center',gap:10}}>
-                    <ResponsiveContainer width={80} height={80}>
-                      <PieChart><Pie data={GIVING_PIE} cx={35} cy={35} innerRadius={20} outerRadius={35} dataKey="value" stroke="none">{GIVING_PIE.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie></PieChart>
-                    </ResponsiveContainer>
-                    <div style={{flex:1}}>{GIVING_PIE.map(g=>(
-                      <div key={g.name} style={{display:'flex',alignItems:'center',gap:5,marginBottom:4,fontSize:11}}>
-                        <div style={{width:8,height:8,borderRadius:2,background:g.color,flexShrink:0}}/>
-                        <span style={{color:dark?'#E5E7EB':'#374151',flex:1}}>{g.name}</span>
-                        <span style={{color:t.sub,fontWeight:500}}>{g.value}%</span>
+                  {(()=>{
+                    const palette=['#534AB7','#1D9E75','#BA7517','#D85A30','#2563EB','#9333EA'];
+                    const real=(kpi?.giving_breakdown||[]).map((g,i)=>({name:g.name,value:g.pct,color:palette[i%palette.length]}));
+                    const pieData=real.length>0?real:GIVING_PIE;
+                    return (
+                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                        <ResponsiveContainer width={80} height={80}>
+                          <PieChart><Pie data={pieData} cx={35} cy={35} innerRadius={20} outerRadius={35} dataKey="value" stroke="none">{pieData.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie></PieChart>
+                        </ResponsiveContainer>
+                        <div style={{flex:1}}>{pieData.map(g=>(
+                          <div key={g.name} style={{display:'flex',alignItems:'center',gap:5,marginBottom:4,fontSize:11}}>
+                            <div style={{width:8,height:8,borderRadius:2,background:g.color,flexShrink:0}}/>
+                            <span style={{color:dark?'#E5E7EB':'#374151',flex:1}}>{g.name}</span>
+                            <span style={{color:t.sub,fontWeight:500}}>{g.value}%</span>
+                          </div>
+                        ))}</div>
                       </div>
-                    ))}</div>
-                  </div>
+                    );
+                  })()}
                 </div>
                 <div onClick={()=>setPage('cells')} style={{...card(),cursor:'pointer'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Cell alerts</span><span style={{fontSize:12,color:t.purple}}>View all →</span></div>
@@ -1970,7 +1984,7 @@ export default function DashboardPage(){
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
                   <div>
                     <div style={{fontSize:13,fontWeight:500,color:t.text}}>Membership Growth Goals</div>
-                    <div style={{fontSize:11,color:t.muted,marginTop:2}}>Current: 1,147 members</div>
+                    <div style={{fontSize:11,color:t.muted,marginTop:2}}>Current: {fmt(kpi?.total_members)} members</div>
                   </div>
                   <button onClick={()=>setEditGoals(v=>!v)} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'5px 12px',fontSize:12,cursor:'pointer',fontWeight:500}}>
                     {editGoals?'Save':'Set Goals'}
@@ -1981,7 +1995,7 @@ export default function DashboardPage(){
                     {label:'Q3 Target (Sep 2026)',key:'q3' as const,color:'#534AB7',bg:'#EEEDFE'},
                     {label:'Year-End Target (Dec 2026)',key:'dec' as const,color:'#1D9E75',bg:'#E1F5EE'},
                   ].map(g=>{
-                    const current=1147;
+                    const current=kpi?.total_members||0;
                     const pct=Math.min(100,Math.round((current/goals[g.key])*100));
                     const remaining=Math.max(0,goals[g.key]-current);
                     return(
@@ -2035,19 +2049,20 @@ export default function DashboardPage(){
               </div>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:14}}>
                 <div style={card()}>
-                  <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Member Growth - 2026</div>
+                  <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Member Growth - Last 6 Months</div>
                   <ResponsiveContainer width="100%" height={160}>
-                    <LineChart data={[{m:'Jan',n:1040},{m:'Feb',n:1058},{m:'Mar',n:1075},{m:'Apr',n:1098},{m:'May',n:1124},{m:'Jun',n:1147}]} margin={{top:5,right:10,left:-20,bottom:0}}>
+                    <LineChart data={kpi?.growth_trend||[]} margin={{top:5,right:10,left:-20,bottom:0}}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                      <XAxis dataKey="m" tick={{fontSize:11,fill:t.chartAxis}}/><YAxis tick={{fontSize:10,fill:t.chartAxis}} domain={[1000,1200]}/>
+                      <XAxis dataKey="month" tick={{fontSize:11,fill:t.chartAxis}}/><YAxis tick={{fontSize:10,fill:t.chartAxis}}/>
                       <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}}/>
-                      <Line type="monotone" dataKey="n" name="Members" stroke="#534AB7" strokeWidth={2} dot={{fill:'#534AB7',r:3}}/>
+                      <Line type="monotone" dataKey="count" name="Members" stroke="#534AB7" strokeWidth={2} dot={{fill:'#534AB7',r:3}}/>
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
                 <div style={card()}>
                   <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Conversion Sources</div>
-                  {[{src:'Cell outreach',n:312,p:27},{src:'Walk-in',n:298,p:26},{src:'Referral',n:241,p:21},{src:'Crusade',n:195,p:17},{src:'Online',n:101,p:9}].map(s=>(
+                  <div style={{fontSize:11,color:t.muted,textAlign:'center',padding:'20px 0'}}>Not wired yet — how a member first came to church is only captured on the first-timer&apos;s care card, and isn&apos;t yet linked through to their member record once converted.</div>
+                  {false && [{src:'Cell outreach',n:312,p:27},{src:'Walk-in',n:298,p:26},{src:'Referral',n:241,p:21},{src:'Crusade',n:195,p:17},{src:'Online',n:101,p:9}].map(s=>(
                     <div key={s.src} style={{marginBottom:8}}>
                       <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:3}}>
                         <span style={{color:dark?'#E5E7EB':'#374151'}}>{s.src}</span><span style={{color:t.sub}}>{s.n} ({s.p}%)</span>
@@ -2060,24 +2075,30 @@ export default function DashboardPage(){
               <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:14}}>
                 <div style={card()}>
                   <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Gender Distribution</div>
-                  <div style={{display:'flex',alignItems:'center',gap:16}}>
-                    <ResponsiveContainer width={120} height={120}>
-                      <PieChart><Pie data={[{name:'Male',value:48,color:'#534AB7'},{name:'Female',value:52,color:'#1D9E75'}]} cx={55} cy={55} outerRadius={50} dataKey="value" stroke="none">{[{color:'#534AB7'},{color:'#1D9E75'}].map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie></PieChart>
-                    </ResponsiveContainer>
-                    <div>
-                      {[{label:'Male (18+)',value:'551 members',p:'48%',c:'#534AB7'},{label:'Female (18+)',value:'596 members',p:'52%',c:'#1D9E75'},{label:'Children (0–12)',value:'180',p:'',c:'#BA7517'},{label:'Teenagers (13–17)',value:'120',p:'',c:'#D85A30'}].map(g=>(
-                        <div key={g.label} style={{display:'flex',alignItems:'center',gap:8,marginBottom:7,fontSize:12}}>
-                          <div style={{width:10,height:10,borderRadius:2,background:g.c,flexShrink:0}}/>
-                          <span style={{color:dark?'#E5E7EB':'#374151',flex:1}}>{g.label}</span>
-                          <span style={{fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{g.value} {g.p&&<span style={{color:t.muted,fontWeight:400}}>({g.p})</span>}</span>
-                        </div>
-                      ))}
+                  {(kpi?.gender_known||0)===0 ? (
+                    <div style={{fontSize:11,color:t.muted,textAlign:'center',padding:'20px 0'}}>No members have a gender on file yet — this fills in as profiles are completed.</div>
+                  ) : (
+                    <div style={{display:'flex',alignItems:'center',gap:16}}>
+                      <ResponsiveContainer width={120} height={120}>
+                        <PieChart><Pie data={(kpi?.gender_distribution||[]).map(g=>({name:g.name,value:g.pct}))} cx={55} cy={55} outerRadius={50} dataKey="value" stroke="none">{(kpi?.gender_distribution||[]).map((_,i)=><Cell key={i} fill={['#534AB7','#1D9E75','#BA7517'][i%3]}/>)}</Pie></PieChart>
+                      </ResponsiveContainer>
+                      <div>
+                        {(kpi?.gender_distribution||[]).map((g,i)=>(
+                          <div key={g.name} style={{display:'flex',alignItems:'center',gap:8,marginBottom:7,fontSize:12}}>
+                            <div style={{width:10,height:10,borderRadius:2,background:['#534AB7','#1D9E75','#BA7517'][i%3],flexShrink:0}}/>
+                            <span style={{color:dark?'#E5E7EB':'#374151',flex:1,textTransform:'capitalize'}}>{g.name}</span>
+                            <span style={{fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{g.count} <span style={{color:t.muted,fontWeight:400}}>({g.pct}%)</span></span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
                 <div style={card()}>
                   <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Age Band Distribution</div>
-                  {[{band:'18–25',n:355,p:31},{band:'26–35',n:321,p:28},{band:'36–50',n:275,p:24},{band:'51+',n:195,p:17}].map(a=>(
+                  {(kpi?.age_known||0)===0 ? (
+                    <div style={{fontSize:11,color:t.muted,textAlign:'center',padding:'20px 0'}}>No members have a date of birth on file yet — this fills in as profiles are completed.</div>
+                  ) : (kpi?.age_bands||[]).filter(a=>a.n>0).map(a=>(
                     <div key={a.band} style={{marginBottom:10}}>
                       <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:3}}>
                         <span style={{color:dark?'#E5E7EB':'#374151'}}>{a.band} years</span><span style={{color:t.sub}}>{a.n} members ({a.p}%)</span>
@@ -2090,22 +2111,22 @@ export default function DashboardPage(){
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
                   <div style={{fontSize:13,fontWeight:500,color:t.text}}>Recent Additions</div>
-                  <button onClick={()=>exportCSV(NEW_MEMBERS,'new_members_export')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export CSV</button>
+                  <button onClick={()=>exportCSV(membersList.slice(0,10),'recent_additions_export')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export CSV</button>
                 </div>
                 <div style={{overflowX:'auto'}}>
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Phone','Date Joined','Cell','Fellowship','Care Personnel','Status','How They Came'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Phone','Date Joined','Cell','Fellowship','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
-                      {NEW_MEMBERS.map(m=>(
-                        <tr key={m.name} style={{borderBottom:`0.5px solid ${t.border}`}}>
-                          <td style={{padding:'8px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.name}</td>
-                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone}</td>
-                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.date}</td>
-                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.cell}</td>
-                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.fellowship}</td>
-                          <td style={{padding:'8px 8px',color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.care}</td>
-                          <td style={{padding:'8px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.status==='Staying'?'#E1F5EE':'#FAEEDA',color:m.status==='Staying'?'#085041':'#633806',whiteSpace:'nowrap'}}>{m.status}</span></td>
-                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.invited}</td>
+                      {membersList.length===0 ? (
+                        <tr><td colSpan={6} style={{padding:'16px 8px',color:t.muted,textAlign:'center'}}>No members yet.</td></tr>
+                      ) : membersList.slice(0,10).map(m=>(
+                        <tr key={m.id} style={{borderBottom:`0.5px solid ${t.border}`}}>
+                          <td style={{padding:'8px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.full_name}</td>
+                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone||'—'}</td>
+                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.join_date||'—'}</td>
+                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.cell_name||'—'}</td>
+                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.fellowship_name||'—'}</td>
+                          <td style={{padding:'8px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.membership_status==='active'?'#E1F5EE':'#FAEEDA',color:m.membership_status==='active'?'#085041':'#633806',whiteSpace:'nowrap',textTransform:'capitalize'}}>{m.membership_status}</span></td>
                         </tr>
                       ))}
                     </tbody>
