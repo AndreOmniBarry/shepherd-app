@@ -101,380 +101,6 @@ const CELLS_DATA = [
    history:[7,7,8,8,9,9,10,10,11,11,12,11],members_list:['Bro. Paul Nnamdi','Bro. David Okeke','Bro. Solomon Igwe','Bro. Isaiah Uzoma','Bro. Jeremiah Fashola','Bro. Ezekiel Nnamdi','Bro. Daniel Okeke','Bro. Hosea Igwe','Bro. Amos Uzoma','Bro. Joel Fashola']},
 ];
 
-const DEPTS = [
-  {name:'Music',cat:'Creative Arts',leader:'Bro. Emeka Okafor',count:38,absent:3,badge:'purple',
-   members:[
-    {name:'Bro. Emeka Okafor',role:'Lead',phone:'0801-234-5678',present:true},
-    {name:'Sis. Chidinma Eze',role:'Vocals',phone:'0802-345-6789',present:true},
-    {name:'Bro. Uche Nwosu',role:'Keyboard',phone:'0803-456-7890',present:true},
-    {name:'Sis. Ada Okafor',role:'Vocals',phone:'0804-567-8901',present:true},
-    {name:'Bro. Tobi Akin',role:'Drums',phone:'0805-678-9012',present:true},
-    {name:'Sis. Yetunde Bello',role:'Vocals',phone:'0806-789-0123',present:true},
-    {name:'Bro. Dare Ogun',role:'Bass Guitar',phone:'0807-890-1234',present:true},
-    {name:'Sis. Kemi Ojo',role:'Vocals',phone:'0808-901-2345',present:true},
-    {name:'Bro. Sola Adex',role:'Asst. Lead',phone:'0809-012-3456',present:true},
-    {name:'Sis. Nike Labi',role:'Choir',phone:'0810-123-4567',present:true},
-    {name:'Bro. Gbenga Fash',role:'Guitar',phone:'0811-234-5678',present:true},
-    {name:'Sis. Bisi Cole',role:'Choir',phone:'0812-345-6789',present:true},
-    {name:'Bro. Tayo Adey',role:'Choir',phone:'0813-456-7890',present:true},
-    {name:'Sis. Lola Babs',role:'Choir',phone:'0814-567-8901',present:true},
-    {name:'Bro. Wale Okon',role:'Choir',phone:'0815-678-9012',present:true},
-    {name:'Sis. Funke Ade',role:'Choir',phone:'0816-789-0123',present:true},
-    {name:'Bro. Seun Ayo',role:'Choir',phone:'0817-890-1234',present:true},
-    {name:'Sis. Toyin Olu',role:'Choir',phone:'0818-901-2345',present:true},
-    {name:'Bro. Kunle Ojo',role:'Choir',phone:'0819-012-3456',present:true},
-    {name:'Sis. Shade Labi',role:'Choir',phone:'0820-123-4567',present:true},
-    {name:'Bro. Rotimi Adex',role:'Choir',phone:'0821-234-5678',present:true},
-    {name:'Sis. Taiwo Bello',role:'Choir',phone:'0822-345-6789',present:true},
-    {name:'Bro. Kehinde Akin',role:'Choir',phone:'0823-456-7890',present:true},
-    {name:'Sis. Yemi Okafor',role:'Choir',phone:'0824-567-8901',present:true},
-    {name:'Bro. Biodun Nwosu',role:'Choir',phone:'0825-678-9012',present:true},
-    {name:'Sis. Jumoke Eze',role:'Choir',phone:'0826-789-0123',present:true},
-    {name:'Bro. Lanre Nwa',role:'Choir',phone:'0827-890-1234',present:true},
-    {name:'Sis. Bolanle Okon',role:'Choir',phone:'0828-901-2345',present:true},
-    {name:'Bro. Gbola Ade',role:'Choir',phone:'0829-012-3456',present:true},
-    {name:'Sis. Remi Ogun',role:'Choir',phone:'0830-123-4567',present:true},
-    {name:'Bro. Femi Ojo',role:'Choir',phone:'0831-234-5678',present:true},
-    {name:'Sis. Dupe Labi',role:'Choir',phone:'0832-345-6789',present:true},
-    {name:'Bro. Tunji Adex',role:'Choir',phone:'0833-456-7890',present:true},
-    {name:'Sis. Kike Bello',role:'Choir',phone:'0834-567-8901',present:true},
-    {name:'Bro. Bade Akin',role:'Choir',phone:'0835-678-9012',present:false,informed:'Yes'},
-    {name:'Sis. Lade Okafor',role:'Choir',phone:'0836-789-0123',present:false,informed:'No'},
-    {name:'Bro. Sade Nwosu',role:'Choir',phone:'0837-890-1234',present:false,informed:'Yes'},
-    {name:'Sis. Tope Eze',role:'Choir',phone:'0838-901-2345',present:true},
-  ]},
-  {name:'Ushering & Protocol',cat:'Operations',leader:'Sis. Adaeze Nwosu',count:52,absent:4,badge:'teal',
-   members:[
-    {name:'Sis. Adaeze Nwosu',role:'Lead',phone:'0801-111-0001',present:true},
-    {name:'Sis. Ngozi Obi',role:'Coordinator',phone:'0802-111-0002',present:true},
-    {name:'Sis. Chioma Uzoma',role:'Member',phone:'0803-111-0003',present:true},
-    {name:'Bro. Kelvin Nnamdi',role:'Member',phone:'0804-111-0004',present:true},
-    {name:'Sis. Amaka Igwe',role:'Member',phone:'0805-111-0005',present:true},
-    {name:'Bro. Felix Okeke',role:'Member',phone:'0806-111-0006',present:true},
-    {name:'Bro. Ola Fashola',role:'Member',phone:'0807-111-0007',present:true},
-    {name:'Sis. Bisi Cole',role:'Asst. Lead',phone:'0808-111-0008',present:true},
-    {name:'Bro. Tayo Adey',role:'Member',phone:'0809-111-0009',present:true},
-    {name:'Sis. Lola Babs',role:'Member',phone:'0810-111-0010',present:true},
-    {name:'Bro. Wale Okon',role:'Member',phone:'0811-111-0011',present:true},
-    {name:'Sis. Funke Ade',role:'Member',phone:'0812-111-0012',present:true},
-    {name:'Bro. Seun Ayo',role:'Member',phone:'0813-111-0013',present:true},
-    {name:'Sis. Toyin Olu',role:'Member',phone:'0814-111-0014',present:true},
-    {name:'Bro. Kunle Ojo',role:'Member',phone:'0815-111-0015',present:true},
-    {name:'Sis. Shade Labi',role:'Member',phone:'0816-111-0016',present:true},
-    {name:'Bro. Rotimi Adex',role:'Member',phone:'0817-111-0017',present:true},
-    {name:'Sis. Taiwo Bello',role:'Member',phone:'0818-111-0018',present:true},
-    {name:'Bro. Kehinde Akin',role:'Member',phone:'0819-111-0019',present:true},
-    {name:'Sis. Yemi Okafor',role:'Member',phone:'0820-111-0020',present:true},
-    {name:'Bro. Biodun Nwosu',role:'Member',phone:'0821-111-0021',present:true},
-    {name:'Sis. Jumoke Eze',role:'Member',phone:'0822-111-0022',present:true},
-    {name:'Bro. Lanre Nwa',role:'Member',phone:'0823-111-0023',present:true},
-    {name:'Sis. Bolanle Okon',role:'Member',phone:'0824-111-0024',present:true},
-    {name:'Bro. Gbola Ade',role:'Member',phone:'0825-111-0025',present:true},
-    {name:'Sis. Remi Ogun',role:'Member',phone:'0826-111-0026',present:true},
-    {name:'Bro. Femi Ojo',role:'Member',phone:'0827-111-0027',present:true},
-    {name:'Sis. Dupe Labi',role:'Member',phone:'0828-111-0028',present:true},
-    {name:'Bro. Tunji Adex',role:'Member',phone:'0829-111-0029',present:true},
-    {name:'Sis. Kike Bello',role:'Member',phone:'0830-111-0030',present:true},
-    {name:'Bro. Bade Akin',role:'Member',phone:'0831-111-0031',present:true},
-    {name:'Sis. Lade Okafor',role:'Member',phone:'0832-111-0032',present:true},
-    {name:'Bro. Sade Nwosu',role:'Member',phone:'0833-111-0033',present:true},
-    {name:'Sis. Tope Eze',role:'Member',phone:'0834-111-0034',present:true},
-    {name:'Bro. Yomi Nwa',role:'Member',phone:'0835-111-0035',present:true},
-    {name:'Sis. Joke Okon',role:'Member',phone:'0836-111-0036',present:true},
-    {name:'Bro. Gbola Fash',role:'Member',phone:'0837-111-0037',present:true},
-    {name:'Sis. Remi Ade',role:'Member',phone:'0838-111-0038',present:true},
-    {name:'Bro. Femi Ogun',role:'Member',phone:'0839-111-0039',present:true},
-    {name:'Sis. Dupe Ojo',role:'Member',phone:'0840-111-0040',present:true},
-    {name:'Bro. Tunji Labi',role:'Member',phone:'0841-111-0041',present:true},
-    {name:'Sis. Kike Adex',role:'Member',phone:'0842-111-0042',present:true},
-    {name:'Bro. Bade Bello',role:'Member',phone:'0843-111-0043',present:true},
-    {name:'Sis. Lade Akin',role:'Member',phone:'0844-111-0044',present:true},
-    {name:'Bro. Sade Okafor',role:'Member',phone:'0845-111-0045',present:true},
-    {name:'Sis. Tope Nwosu',role:'Member',phone:'0846-111-0046',present:true},
-    {name:'Bro. Yomi Eze',role:'Member',phone:'0847-111-0047',present:true},
-    {name:'Sis. Joke Nwa',role:'Member',phone:'0848-111-0048',present:false,informed:'Yes'},
-    {name:'Bro. Gbola Okon',role:'Member',phone:'0849-111-0049',present:false,informed:'Yes'},
-    {name:'Sis. Remi Fash',role:'Member',phone:'0850-111-0050',present:false,informed:'No'},
-    {name:'Bro. Femi Ade',role:'Member',phone:'0851-111-0051',present:false,informed:'Yes'},
-    {name:'Sis. Dupe Ogun',role:'Member',phone:'0852-111-0052',present:true},
-  ]},
-  {name:'Media',cat:'Creative Arts',leader:'Bro. Tunde Adeleke',count:29,absent:2,badge:'amber',
-   members:[
-    {name:'Bro. Tunde Adeleke',role:'Lead',phone:'0801-222-0001',present:true},
-    {name:'Sis. Funmi Adey',role:'Coordinator',phone:'0802-222-0002',present:true},
-    {name:'Bro. Segun Ayo',role:'Camera',phone:'0803-222-0003',present:true},
-    {name:'Sis. Lola Babs',role:'Graphics',phone:'0804-222-0004',present:true},
-    {name:'Bro. Wale Okon',role:'Live Stream',phone:'0805-222-0005',present:true},
-    {name:'Sis. Nike Labi',role:'Social Media',phone:'0806-222-0006',present:true},
-    {name:'Bro. Dare Ogun',role:'Asst. Lead',phone:'0807-222-0007',present:true},
-    {name:'Sis. Kemi Ojo',role:'Photography',phone:'0808-222-0008',present:true},
-    {name:'Bro. Sola Adex',role:'Video Edit',phone:'0809-222-0009',present:true},
-    {name:'Sis. Yetunde Bello',role:'Design',phone:'0810-222-0010',present:true},
-    {name:'Bro. Tobi Akin',role:'Camera',phone:'0811-222-0011',present:true},
-    {name:'Sis. Ada Okafor',role:'Social Media',phone:'0812-222-0012',present:true},
-    {name:'Bro. Uche Nwosu',role:'Live Stream',phone:'0813-222-0013',present:true},
-    {name:'Sis. Chidinma Eze',role:'Graphics',phone:'0814-222-0014',present:true},
-    {name:'Bro. Gbenga Fash',role:'Camera',phone:'0815-222-0015',present:true},
-    {name:'Sis. Bisi Cole',role:'Photography',phone:'0816-222-0016',present:true},
-    {name:'Bro. Tayo Adey',role:'Video Edit',phone:'0817-222-0017',present:true},
-    {name:'Sis. Lola Ogun',role:'Design',phone:'0818-222-0018',present:true},
-    {name:'Bro. Wale Ade',role:'Camera',phone:'0819-222-0019',present:true},
-    {name:'Sis. Nike Ojo',role:'Social Media',phone:'0820-222-0020',present:true},
-    {name:'Bro. Dare Labi',role:'Live Stream',phone:'0821-222-0021',present:true},
-    {name:'Sis. Kemi Adex',role:'Graphics',phone:'0822-222-0022',present:true},
-    {name:'Bro. Sola Bello',role:'Photography',phone:'0823-222-0023',present:true},
-    {name:'Sis. Yetunde Akin',role:'Design',phone:'0824-222-0024',present:true},
-    {name:'Bro. Tobi Okafor',role:'Camera',phone:'0825-222-0025',present:true},
-    {name:'Sis. Ada Nwosu',role:'Social Media',phone:'0826-222-0026',present:true},
-    {name:'Bro. Uche Eze',role:'Video Edit',phone:'0827-222-0027',present:true},
-    {name:'Sis. Chidinma Fash',role:'Graphics',phone:'0828-222-0028',present:false,informed:'Yes'},
-    {name:'Bro. Gbenga Cole',role:'Camera',phone:'0829-222-0029',present:false,informed:'No'},
-  ]},
-  {name:'Prayer',cat:'Spiritual',leader:'Sis. Ngozi Obi',count:44,absent:2,badge:'purple',
-   members:[
-    {name:'Sis. Ngozi Obi',role:'Lead',phone:'0801-333-0001',present:true},
-    {name:'Sis. Blessing Nnaji',role:'Coordinator',phone:'0802-333-0002',present:true},
-    {name:'Sis. Joy Okonkwo',role:'Intercessor',phone:'0803-333-0003',present:true},
-    {name:'Sis. Patience Eze',role:'Intercessor',phone:'0804-333-0004',present:true},
-    {name:'Bro. Chukwudi Eze',role:'Intercessor',phone:'0805-333-0005',present:true},
-    {name:'Bro. Ifeanyi Obi',role:'Intercessor',phone:'0806-333-0006',present:true},
-    {name:'Sis. Grace Obi',role:'Intercessor',phone:'0807-333-0007',present:true},
-    {name:'Bro. Moses Eze',role:'Asst. Lead',phone:'0808-333-0008',present:true},
-    {name:'Sis. Mercy Nwosu',role:'Intercessor',phone:'0809-333-0009',present:true},
-    {name:'Bro. Aaron Nwosu',role:'Intercessor',phone:'0810-333-0010',present:true},
-    {name:'Sis. Hope Afolabi',role:'Intercessor',phone:'0811-333-0011',present:true},
-    {name:'Sis. Faith Adeyemi',role:'Intercessor',phone:'0812-333-0012',present:true},
-    {name:'Bro. Daniel Okafor',role:'Intercessor',phone:'0813-333-0013',present:true},
-    {name:'Sis. Ruth Adeleke',role:'Intercessor',phone:'0814-333-0014',present:true},
-    {name:'Bro. Joshua Afolabi',role:'Intercessor',phone:'0815-333-0015',present:true},
-    {name:'Sis. Mary Okeke',role:'Intercessor',phone:'0816-333-0016',present:true},
-    {name:'Bro. Samuel Adeyemi',role:'Intercessor',phone:'0817-333-0017',present:true},
-    {name:'Sis. Sarah Igwe',role:'Intercessor',phone:'0818-333-0018',present:true},
-    {name:'Bro. Paul Nnamdi',role:'Intercessor',phone:'0819-333-0019',present:true},
-    {name:'Sis. Deborah Uzoma',role:'Intercessor',phone:'0820-333-0020',present:true},
-    {name:'Bro. David Okeke',role:'Intercessor',phone:'0821-333-0021',present:true},
-    {name:'Sis. Esther Fashola',role:'Intercessor',phone:'0822-333-0022',present:true},
-    {name:'Bro. Solomon Igwe',role:'Intercessor',phone:'0823-333-0023',present:true},
-    {name:'Sis. Love Nnamdi',role:'Intercessor',phone:'0824-333-0024',present:true},
-    {name:'Bro. Isaiah Uzoma',role:'Intercessor',phone:'0825-333-0025',present:true},
-    {name:'Sis. Miriam Okeke',role:'Intercessor',phone:'0826-333-0026',present:true},
-    {name:'Bro. Jeremiah Fashola',role:'Intercessor',phone:'0827-333-0027',present:true},
-    {name:'Sis. Hannah Igwe',role:'Intercessor',phone:'0828-333-0028',present:true},
-    {name:'Bro. Ezekiel Nnamdi',role:'Intercessor',phone:'0829-333-0029',present:true},
-    {name:'Sis. Naomi Uzoma',role:'Intercessor',phone:'0830-333-0030',present:true},
-    {name:'Bro. Hosea Igwe',role:'Intercessor',phone:'0831-333-0031',present:true},
-    {name:'Sis. Abigail Fashola',role:'Intercessor',phone:'0832-333-0032',present:true},
-    {name:'Bro. Amos Uzoma',role:'Intercessor',phone:'0833-333-0033',present:true},
-    {name:'Sis. Lydia Nnamdi',role:'Intercessor',phone:'0834-333-0034',present:true},
-    {name:'Bro. Joel Fashola',role:'Intercessor',phone:'0835-333-0035',present:true},
-    {name:'Sis. Priscilla Okeke',role:'Intercessor',phone:'0836-333-0036',present:true},
-    {name:'Bro. Micah Nnamdi',role:'Intercessor',phone:'0837-333-0037',present:true},
-    {name:'Sis. Felicia Ada',role:'Intercessor',phone:'0838-333-0038',present:true},
-    {name:'Bro. Nahum Okeke',role:'Intercessor',phone:'0839-333-0039',present:true},
-    {name:'Sis. Elizabeth Igwe',role:'Intercessor',phone:'0840-333-0040',present:true},
-    {name:'Bro. Habakkuk Igwe',role:'Intercessor',phone:'0841-333-0041',present:true},
-    {name:'Sis. Patience Ada',role:'Intercessor',phone:'0842-333-0042',present:true},
-    {name:'Bro. Caleb Nwa',role:'Intercessor',phone:'0843-333-0043',present:false,informed:'Yes'},
-    {name:'Sis. Lydia Okon',role:'Intercessor',phone:'0844-333-0044',present:false,informed:'No'},
-  ]},
-  {name:'Traffic Control',cat:'Operations',leader:'Bro. Segun Afolabi',count:22,absent:1,badge:'teal',
-   members:[
-    {name:'Bro. Segun Afolabi',role:'Lead',phone:'0801-444-0001',present:true},
-    {name:'Bro. Tunde Adeleke',role:'Coordinator',phone:'0802-444-0002',present:true},
-    {name:'Bro. Kelvin Nnamdi',role:'Member',phone:'0803-444-0003',present:true},
-    {name:'Bro. Felix Okeke',role:'Member',phone:'0804-444-0004',present:true},
-    {name:'Bro. Ola Fashola',role:'Member',phone:'0805-444-0005',present:true},
-    {name:'Bro. Daniel Okafor',role:'Member',phone:'0806-444-0006',present:true},
-    {name:'Bro. Moses Eze',role:'Member',phone:'0807-444-0007',present:true},
-    {name:'Bro. Aaron Nwosu',role:'Asst. Lead',phone:'0808-444-0008',present:true},
-    {name:'Bro. Elijah Adeleke',role:'Member',phone:'0809-444-0009',present:true},
-    {name:'Bro. Joshua Afolabi',role:'Member',phone:'0810-444-0010',present:true},
-    {name:'Bro. Samuel Adeyemi',role:'Member',phone:'0811-444-0011',present:true},
-    {name:'Bro. Paul Nnamdi',role:'Member',phone:'0812-444-0012',present:true},
-    {name:'Bro. David Okeke',role:'Member',phone:'0813-444-0013',present:true},
-    {name:'Bro. Solomon Igwe',role:'Member',phone:'0814-444-0014',present:true},
-    {name:'Bro. Isaiah Uzoma',role:'Member',phone:'0815-444-0015',present:true},
-    {name:'Bro. Jeremiah Fashola',role:'Member',phone:'0816-444-0016',present:true},
-    {name:'Bro. Ezekiel Nnamdi',role:'Member',phone:'0817-444-0017',present:true},
-    {name:'Bro. Hosea Igwe',role:'Member',phone:'0818-444-0018',present:true},
-    {name:'Bro. Amos Uzoma',role:'Member',phone:'0819-444-0019',present:true},
-    {name:'Bro. Joel Fashola',role:'Member',phone:'0820-444-0020',present:true},
-    {name:'Bro. Micah Nnamdi',role:'Member',phone:'0821-444-0021',present:true},
-    {name:'Bro. Nahum Okeke',role:'Member',phone:'0822-444-0022',present:false,informed:'Yes'},
-  ]},
-  {name:'Greeters',cat:'Hospitality',leader:'Sis. Funmi Adeyemi',count:31,absent:3,badge:'purple',
-   members:[
-    {name:'Sis. Funmi Adeyemi',role:'Lead',phone:'0801-555-0001',present:true},
-    {name:'Sis. Ada Okafor',role:'Coordinator',phone:'0802-555-0002',present:true},
-    {name:'Sis. Chidinma Eze',role:'Member',phone:'0803-555-0003',present:true},
-    {name:'Sis. Yetunde Bello',role:'Member',phone:'0804-555-0004',present:true},
-    {name:'Sis. Kemi Ojo',role:'Member',phone:'0805-555-0005',present:true},
-    {name:'Sis. Nike Labi',role:'Asst. Lead',phone:'0806-555-0006',present:true},
-    {name:'Sis. Bisi Cole',role:'Member',phone:'0807-555-0007',present:true},
-    {name:'Sis. Tayo Adey',role:'Member',phone:'0808-555-0008',present:true},
-    {name:'Sis. Lola Babs',role:'Member',phone:'0809-555-0009',present:true},
-    {name:'Sis. Wale Okon',role:'Member',phone:'0810-555-0010',present:true},
-    {name:'Sis. Funke Ade',role:'Member',phone:'0811-555-0011',present:true},
-    {name:'Sis. Seun Ayo',role:'Member',phone:'0812-555-0012',present:true},
-    {name:'Sis. Toyin Olu',role:'Member',phone:'0813-555-0013',present:true},
-    {name:'Sis. Kunle Ojo',role:'Member',phone:'0814-555-0014',present:true},
-    {name:'Sis. Shade Labi',role:'Member',phone:'0815-555-0015',present:true},
-    {name:'Sis. Rotimi Adex',role:'Member',phone:'0816-555-0016',present:true},
-    {name:'Sis. Taiwo Bello',role:'Member',phone:'0817-555-0017',present:true},
-    {name:'Sis. Kehinde Akin',role:'Member',phone:'0818-555-0018',present:true},
-    {name:'Sis. Yemi Okafor',role:'Member',phone:'0819-555-0019',present:true},
-    {name:'Sis. Biodun Nwosu',role:'Member',phone:'0820-555-0020',present:true},
-    {name:'Sis. Jumoke Eze',role:'Member',phone:'0821-555-0021',present:true},
-    {name:'Sis. Lanre Nwa',role:'Member',phone:'0822-555-0022',present:true},
-    {name:'Sis. Bolanle Okon',role:'Member',phone:'0823-555-0023',present:true},
-    {name:'Sis. Gbola Ade',role:'Member',phone:'0824-555-0024',present:true},
-    {name:'Sis. Remi Ogun',role:'Member',phone:'0825-555-0025',present:true},
-    {name:'Sis. Femi Ojo',role:'Member',phone:'0826-555-0026',present:true},
-    {name:'Sis. Dupe Labi',role:'Member',phone:'0827-555-0027',present:true},
-    {name:'Sis. Tunji Adex',role:'Member',phone:'0828-555-0028',present:true},
-    {name:'Sis. Kike Bello',role:'Member',phone:'0829-555-0029',present:false,informed:'Yes'},
-    {name:'Sis. Bade Akin',role:'Member',phone:'0830-555-0030',present:false,informed:'No'},
-    {name:'Sis. Lade Okafor',role:'Member',phone:'0831-555-0031',present:false,informed:'Yes'},
-  ]},
-  {name:'Sanctuary Keepers',cat:'Operations',leader:'Bro. Kelvin Nnamdi',count:18,absent:1,badge:'teal',
-   members:[
-    {name:'Bro. Kelvin Nnamdi',role:'Lead',phone:'0801-666-0001',present:true},
-    {name:'Bro. Felix Okeke',role:'Coordinator',phone:'0802-666-0002',present:true},
-    {name:'Bro. Ola Fashola',role:'Member',phone:'0803-666-0003',present:true},
-    {name:'Bro. Daniel Okafor',role:'Asst. Lead',phone:'0804-666-0004',present:true},
-    {name:'Bro. Moses Eze',role:'Member',phone:'0805-666-0005',present:true},
-    {name:'Bro. Aaron Nwosu',role:'Member',phone:'0806-666-0006',present:true},
-    {name:'Bro. Elijah Adeleke',role:'Member',phone:'0807-666-0007',present:true},
-    {name:'Bro. Joshua Afolabi',role:'Member',phone:'0808-666-0008',present:true},
-    {name:'Bro. Samuel Adeyemi',role:'Member',phone:'0809-666-0009',present:true},
-    {name:'Bro. Paul Nnamdi',role:'Member',phone:'0810-666-0010',present:true},
-    {name:'Bro. David Okeke',role:'Member',phone:'0811-666-0011',present:true},
-    {name:'Bro. Solomon Igwe',role:'Member',phone:'0812-666-0012',present:true},
-    {name:'Bro. Isaiah Uzoma',role:'Member',phone:'0813-666-0013',present:true},
-    {name:'Bro. Jeremiah Fashola',role:'Member',phone:'0814-666-0014',present:true},
-    {name:'Bro. Ezekiel Nnamdi',role:'Member',phone:'0815-666-0015',present:true},
-    {name:'Bro. Hosea Igwe',role:'Member',phone:'0816-666-0016',present:true},
-    {name:'Bro. Amos Uzoma',role:'Member',phone:'0817-666-0017',present:true},
-    {name:'Bro. Joel Fashola',role:'Member',phone:'0818-666-0018',present:false,informed:'Yes'},
-  ]},
-  {name:'Security & Maintenance',cat:'Operations',leader:'Bro. Ola Fashola',count:27,absent:2,badge:'amber',
-   members:[
-    {name:'Bro. Ola Fashola',role:'Lead',phone:'0801-777-0001',present:true},
-    {name:'Bro. Daniel Okafor',role:'Coordinator',phone:'0802-777-0002',present:true},
-    {name:'Bro. Moses Eze',role:'Member',phone:'0803-777-0003',present:true},
-    {name:'Bro. Aaron Nwosu',role:'Member',phone:'0804-777-0004',present:true},
-    {name:'Bro. Elijah Adeleke',role:'Asst. Lead',phone:'0805-777-0005',present:true},
-    {name:'Bro. Joshua Afolabi',role:'Member',phone:'0806-777-0006',present:true},
-    {name:'Bro. Samuel Adeyemi',role:'Member',phone:'0807-777-0007',present:true},
-    {name:'Bro. Paul Nnamdi',role:'Member',phone:'0808-777-0008',present:true},
-    {name:'Bro. David Okeke',role:'Member',phone:'0809-777-0009',present:true},
-    {name:'Bro. Solomon Igwe',role:'Member',phone:'0810-777-0010',present:true},
-    {name:'Bro. Isaiah Uzoma',role:'Member',phone:'0811-777-0011',present:true},
-    {name:'Bro. Jeremiah Fashola',role:'Member',phone:'0812-777-0012',present:true},
-    {name:'Bro. Ezekiel Nnamdi',role:'Member',phone:'0813-777-0013',present:true},
-    {name:'Bro. Hosea Igwe',role:'Member',phone:'0814-777-0014',present:true},
-    {name:'Bro. Amos Uzoma',role:'Member',phone:'0815-777-0015',present:true},
-    {name:'Bro. Joel Fashola',role:'Member',phone:'0816-777-0016',present:true},
-    {name:'Bro. Micah Nnamdi',role:'Member',phone:'0817-777-0017',present:true},
-    {name:'Bro. Nahum Okeke',role:'Member',phone:'0818-777-0018',present:true},
-    {name:'Bro. Habakkuk Igwe',role:'Member',phone:'0819-777-0019',present:true},
-    {name:'Bro. Caleb Nwa',role:'Member',phone:'0820-777-0020',present:true},
-    {name:'Bro. Seun Ayo',role:'Member',phone:'0821-777-0021',present:true},
-    {name:'Bro. Tobi Akin',role:'Member',phone:'0822-777-0022',present:true},
-    {name:'Bro. Wale Okon',role:'Member',phone:'0823-777-0023',present:true},
-    {name:'Bro. Kunle Ojo',role:'Member',phone:'0824-777-0024',present:true},
-    {name:'Bro. Rotimi Adex',role:'Member',phone:'0825-777-0025',present:true},
-    {name:'Bro. Kehinde Akin',role:'Member',phone:'0826-777-0026',present:false,informed:'Yes'},
-    {name:'Bro. Biodun Nwosu',role:'Member',phone:'0827-777-0027',present:false,informed:'No'},
-  ]},
-  {name:'Sound Engineers',cat:'Technical',leader:'Bro. Felix Okeke',count:14,absent:1,badge:'purple',
-   members:[
-    {name:'Bro. Felix Okeke',role:'Lead',phone:'0801-888-0001',present:true},
-    {name:'Bro. Ola Fashola',role:'Coordinator',phone:'0802-888-0002',present:true},
-    {name:'Bro. Daniel Okafor',role:'Engineer',phone:'0803-888-0003',present:true},
-    {name:'Bro. Moses Eze',role:'Asst. Lead',phone:'0804-888-0004',present:true},
-    {name:'Bro. Aaron Nwosu',role:'Engineer',phone:'0805-888-0005',present:true},
-    {name:'Bro. Elijah Adeleke',role:'Engineer',phone:'0806-888-0006',present:true},
-    {name:'Bro. Joshua Afolabi',role:'Engineer',phone:'0807-888-0007',present:true},
-    {name:'Bro. Samuel Adeyemi',role:'Engineer',phone:'0808-888-0008',present:true},
-    {name:'Bro. Paul Nnamdi',role:'Engineer',phone:'0809-888-0009',present:true},
-    {name:'Bro. David Okeke',role:'Engineer',phone:'0810-888-0010',present:true},
-    {name:'Bro. Solomon Igwe',role:'Engineer',phone:'0811-888-0011',present:true},
-    {name:'Bro. Isaiah Uzoma',role:'Engineer',phone:'0812-888-0012',present:true},
-    {name:'Bro. Jeremiah Fashola',role:'Engineer',phone:'0813-888-0013',present:true},
-    {name:'Bro. Ezekiel Nnamdi',role:'Engineer',phone:'0814-888-0014',present:false,informed:'Yes'},
-  ]},
-  {name:'Teachers & Educators',cat:'Ministry',leader:'Sis. Chioma Uzoma',count:33,absent:2,badge:'teal',
-   members:[
-    {name:'Sis. Chioma Uzoma',role:'Lead',phone:'0801-999-0001',present:true},
-    {name:'Sis. Amaka Igwe',role:'Coordinator',phone:'0802-999-0002',present:true},
-    {name:'Sis. Ifeoma Ada',role:'Teacher',phone:'0803-999-0003',present:true},
-    {name:'Sis. Nneka Nwa',role:'Teacher',phone:'0804-999-0004',present:true},
-    {name:'Sis. Ada Okafor',role:'Asst. Lead',phone:'0805-999-0005',present:true},
-    {name:'Sis. Nkechi Eze',role:'Teacher',phone:'0806-999-0006',present:true},
-    {name:'Sis. Adaeze Enu',role:'Teacher',phone:'0807-999-0007',present:true},
-    {name:'Bro. Daniel Okafor',role:'Teacher',phone:'0808-999-0008',present:true},
-    {name:'Bro. Moses Eze',role:'Teacher',phone:'0809-999-0009',present:true},
-    {name:'Sis. Grace Obi',role:'Teacher',phone:'0810-999-0010',present:true},
-    {name:'Bro. Samuel Adeyemi',role:'Teacher',phone:'0811-999-0011',present:true},
-    {name:'Sis. Faith Adeyemi',role:'Teacher',phone:'0812-999-0012',present:true},
-    {name:'Bro. David Okeke',role:'Teacher',phone:'0813-999-0013',present:true},
-    {name:'Sis. Hope Afolabi',role:'Teacher',phone:'0814-999-0014',present:true},
-    {name:'Bro. Joshua Afolabi',role:'Teacher',phone:'0815-999-0015',present:true},
-    {name:'Sis. Mercy Nwosu',role:'Teacher',phone:'0816-999-0016',present:true},
-    {name:'Bro. Paul Nnamdi',role:'Teacher',phone:'0817-999-0017',present:true},
-    {name:'Sis. Ruth Adeleke',role:'Teacher',phone:'0818-999-0018',present:true},
-    {name:'Bro. Aaron Nwosu',role:'Teacher',phone:'0819-999-0019',present:true},
-    {name:'Sis. Mary Okeke',role:'Teacher',phone:'0820-999-0020',present:true},
-    {name:'Bro. Elijah Adeleke',role:'Teacher',phone:'0821-999-0021',present:true},
-    {name:'Sis. Sarah Igwe',role:'Teacher',phone:'0822-999-0022',present:true},
-    {name:'Bro. Solomon Igwe',role:'Teacher',phone:'0823-999-0023',present:true},
-    {name:'Sis. Deborah Uzoma',role:'Teacher',phone:'0824-999-0024',present:true},
-    {name:'Bro. Isaiah Uzoma',role:'Teacher',phone:'0825-999-0025',present:true},
-    {name:'Sis. Esther Fashola',role:'Teacher',phone:'0826-999-0026',present:true},
-    {name:'Bro. Jeremiah Fashola',role:'Teacher',phone:'0827-999-0027',present:true},
-    {name:'Sis. Love Nnamdi',role:'Teacher',phone:'0828-999-0028',present:true},
-    {name:'Bro. Ezekiel Nnamdi',role:'Teacher',phone:'0829-999-0029',present:true},
-    {name:'Sis. Miriam Okeke',role:'Teacher',phone:'0830-999-0030',present:true},
-    {name:'Bro. Hosea Igwe',role:'Teacher',phone:'0831-999-0031',present:true},
-    {name:'Sis. Hannah Igwe',role:'Teacher',phone:'0832-999-0032',present:false,informed:'Yes'},
-    {name:'Bro. Amos Uzoma',role:'Teacher',phone:'0833-999-0033',present:false,informed:'No'},
-  ]},
-  {name:'Church Administration',cat:'Admin',leader:'Sis. Amaka Igwe',count:18,absent:1,badge:'purple',
-   members:[
-    {name:'Sis. Amaka Igwe',role:'Lead',phone:'0801-100-0001',present:true},
-    {name:'Sis. Ifeoma Ada',role:'Secretary',phone:'0802-100-0002',present:true},
-    {name:'Sis. Nneka Nwa',role:'Treasurer',phone:'0803-100-0003',present:true},
-    {name:'Sis. Ada Okafor',role:'Admin',phone:'0804-100-0004',present:true},
-    {name:'Bro. Daniel Okafor',role:'Asst. Lead',phone:'0805-100-0005',present:true},
-    {name:'Bro. Moses Eze',role:'Admin',phone:'0806-100-0006',present:true},
-    {name:'Bro. Aaron Nwosu',role:'Admin',phone:'0807-100-0007',present:true},
-    {name:'Sis. Nkechi Eze',role:'Records',phone:'0808-100-0008',present:true},
-    {name:'Sis. Adaeze Enu',role:'Records',phone:'0809-100-0009',present:true},
-    {name:'Bro. Elijah Adeleke',role:'Admin',phone:'0810-100-0010',present:true},
-    {name:'Bro. Joshua Afolabi',role:'Admin',phone:'0811-100-0011',present:true},
-    {name:'Sis. Grace Obi',role:'Admin',phone:'0812-100-0012',present:true},
-    {name:'Bro. Samuel Adeyemi',role:'Admin',phone:'0813-100-0013',present:true},
-    {name:'Sis. Faith Adeyemi',role:'Admin',phone:'0814-100-0014',present:true},
-    {name:'Bro. David Okeke',role:'Admin',phone:'0815-100-0015',present:true},
-    {name:'Sis. Hope Afolabi',role:'Admin',phone:'0816-100-0016',present:true},
-    {name:'Bro. Joshua Afolabi',role:'Admin',phone:'0817-100-0017',present:true},
-    {name:'Sis. Mercy Nwosu',role:'Admin',phone:'0818-100-0018',present:false,informed:'Yes'},
-  ]},
-  {name:'Dev Team & Builders',cat:'Technical',leader:'Bro. Dayo Ogunleye',count:9,absent:0,badge:'amber',
-   members:[
-    {name:'Bro. Dayo Ogunleye',role:'Lead',phone:'0801-200-0001',present:true},
-    {name:'Bro. Tunde Adeleke',role:'Developer',phone:'0802-200-0002',present:true},
-    {name:'Bro. Felix Okeke',role:'Developer',phone:'0803-200-0003',present:true},
-    {name:'Bro. Ola Fashola',role:'Asst. Lead',phone:'0804-200-0004',present:true},
-    {name:'Bro. Daniel Okafor',role:'Developer',phone:'0805-200-0005',present:true},
-    {name:'Bro. Moses Eze',role:'Developer',phone:'0806-200-0006',present:true},
-    {name:'Bro. Aaron Nwosu',role:'Developer',phone:'0807-200-0007',present:true},
-    {name:'Bro. Elijah Adeleke',role:'Developer',phone:'0808-200-0008',present:true},
-    {name:'Bro. Joshua Afolabi',role:'Developer',phone:'0809-200-0009',present:true},
-  ]},
-];
-
 
 
 const ALL_MEMBERS = [
@@ -1613,7 +1239,13 @@ export default function DashboardPage(){
   const [deleteConfirmText,setDeleteConfirmText]=useState('');
   const [deleting,setDeleting]=useState(false);
   const [attDrill,setAttDrill]=useState<string|null>(null);
-  const [selectedDept,setSelectedDept]=useState<typeof DEPTS[0]|null>(null);
+  type DeptRow = {id:string;name:string;leader:string;count:number;absent:number;present:number;rate:number|null;status:string;submitted:boolean};
+  type DeptDetail = {department:{id:string;name:string};members:{id:string;name:string;phone:string|null;role:string;status:string|null}[];last_submission:string|null};
+  const [deptsList,setDeptsList]=useState<DeptRow[]>([]);
+  const [deptsLoading,setDeptsLoading]=useState(true);
+  const [selectedDeptId,setSelectedDeptId]=useState<string|null>(null);
+  const [deptDetail,setDeptDetail]=useState<DeptDetail|null>(null);
+  const [deptDetailLoading,setDeptDetailLoading]=useState(false);
   const [chatOpen,setChatOpen]=useState(false);
   const [chatInput,setChatInput]=useState('');
   const [selectedAgent,setSelectedAgent]=useState<AgentName>('moshe');
@@ -1643,6 +1275,7 @@ export default function DashboardPage(){
   const [sentCommendations,setSentCommendations]=useState<{to:string;type:string;msg:string;time:string}[]>([]);
   const [editGoals,setEditGoals]=useState(false);
   const [liveFeed,setLiveFeed]=useState<{id:string;cell:string;fellowship:string;present:number;absent:number;visitors:number;mins_ago:number}[]>([]);
+  const [weeklyAttendance,setWeeklyAttendance]=useState<{w:string;total:number}[]>([]);
   const [livePresent,setLivePresent]=useState<number|null>(null);
   const [liveCellsReported,setLiveCellsReported]=useState<number|null>(null);
 
@@ -1669,6 +1302,22 @@ export default function DashboardPage(){
     }
     fetch('/api/analytics/dashboard',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setKpi(data);}).catch(()=>{});
     fetch('/api/members/leaders',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.leaders)setLeaderOptions(data.leaders);}).catch(()=>{});
+    fetch('/api/departments/all',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.departments)setDeptsList(data.departments);}).finally(()=>setDeptsLoading(false));
+    fetch('/api/attendance?weeks=8',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
+      const records=data?.records||[];
+      const now=new Date();
+      const buckets:{w:string;total:number}[]=[];
+      for(let i=7;i>=0;i--){
+        const weekStart=new Date(now); weekStart.setDate(now.getDate()-now.getDay()-i*7);
+        const weekEnd=new Date(weekStart); weekEnd.setDate(weekStart.getDate()+7);
+        const total=records.filter((r:{services?:{service_date:string}})=>{
+          const d=r.services?.service_date?new Date(r.services.service_date):null;
+          return d && d>=weekStart && d<weekEnd;
+        }).reduce((s:number,r:{present_count?:number;visitor_count?:number})=>s+(r.present_count||0)+(r.visitor_count||0),0);
+        buckets.push({w:`W${8-i}`,total});
+      }
+      setWeeklyAttendance(buckets);
+    }).catch(()=>{});
 
     // Live feed - fetch real submissions and auto-refresh every 30s
     function fetchLive(){
@@ -1690,6 +1339,12 @@ export default function DashboardPage(){
 
     return()=>clearInterval(interval);
   },[]);
+
+  useEffect(()=>{
+    if(!selectedDeptId){setDeptDetail(null);return;}
+    setDeptDetailLoading(true);
+    fetch(`/api/departments/all?department_id=${selectedDeptId}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setDeptDetail(data);}).finally(()=>setDeptDetailLoading(false));
+  },[selectedDeptId]);
 
   const loadMembers=useCallback(()=>{
     setMembersLoading(true);
@@ -1784,7 +1439,6 @@ export default function DashboardPage(){
     chartBorder: dark?'rgba(168,159,255,0.08)':'rgba(83,74,183,0.10)',
   };
   const card=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:10,padding:'16px 20px',...e});
-  const bc=(b:string)=>b==='teal'?{bg:'#E1F5EE',c:'#085041'}:b==='amber'?{bg:'#FAEEDA',c:'#633806'}:{bg:'#EEEDFE',c:'#3C3489'};
   const ss=(s:string)=>s==='rising'?{bg:'#E1F5EE',c:'#085041'}:s==='stable'?{bg:'#F3F4F6',c:'#374151'}:s==='watch'?{bg:'#FAEEDA',c:'#633806'}:{bg:'#FAECE7',c:'#993C1D'};
 
   const navItems=[
@@ -1891,8 +1545,8 @@ export default function DashboardPage(){
                 {[
                   {label:'Total members',value:fmt(kpi?.total_members),delta:`+${kpi?.new_members_month??0} this month`,page:'members' as NavPage},
                   {label:"Today's check-ins",value:fmt(kpi?.today_present),delta:`${kpi?.today_cells_reported??'—'}/${kpi?.today_cells_total??'—'} cells in`,page:'attendance' as NavPage},
-                  {label:'YTD giving',value:kpi?fmtNGN(kpi.ytd_giving_ngn):'—',delta:'+12% vs last year',page:'giving' as NavPage},
-                  {label:'Active cells',value:fmt(kpi?.active_cells),delta:'3 fellowships',page:'cells' as NavPage},
+                  {label:'YTD giving',value:kpi?fmtNGN(kpi.ytd_giving_ngn):'—',delta:'Year to date',page:'giving' as NavPage},
+                  {label:'Active cells',value:fmt(kpi?.active_cells),delta:`${new Set((dbCells||[]).map(c=>c.fel)).size} fellowships`,page:'cells' as NavPage},
                 ].map(m=>(
                   <div key={m.label} onClick={()=>setPage(m.page)} style={{...card(),cursor:'pointer'}}
                     onMouseEnter={e=>e.currentTarget.style.boxShadow='0 2px 8px rgba(83,74,183,0.15)'}
@@ -1910,11 +1564,10 @@ export default function DashboardPage(){
                     <span style={{fontSize:12,color:t.purple}}>View all →</span>
                   </div>
                   <ResponsiveContainer width="100%" height={100}>
-                    <BarChart data={[{w:'W1',s1:378,s2:241},{w:'W2',s1:391,s2:248},{w:'W3',s1:383,s2:243},{w:'W4',s1:402,s2:256},{w:'W5',s1:418,s2:261},{w:'W6',s1:411,s2:258},{w:'W7',s1:445,s2:278},{w:'W8',s1:458,s2:289}]} margin={{top:2,right:0,left:-30,bottom:0}}>
+                    <BarChart data={weeklyAttendance} margin={{top:2,right:0,left:-30,bottom:0}}>
                       <XAxis dataKey="w" tick={{fontSize:9,fill:t.chartAxis}} tickLine={false} axisLine={false}/>
                       <YAxis hide/><Tooltip contentStyle={{fontSize:11,borderRadius:6,border:'1px solid #e5e7eb'}}/>
-                      <Bar dataKey="s1" name="Svc 1" fill="#534AB7" radius={[2,2,0,0]}/>
-                      <Bar dataKey="s2" name="Svc 2" fill="#AFA9EC" radius={[2,2,0,0]}/>
+                      <Bar dataKey="total" name="Attendance" fill="#534AB7" radius={[2,2,0,0]}/>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1939,12 +1592,14 @@ export default function DashboardPage(){
               <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr 1fr',gap:14}}>
                 <div onClick={()=>setPage('departments')} style={{...card(),cursor:'pointer'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:12}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Top departments</span><span style={{fontSize:12,color:t.purple}}>View all →</span></div>
-                  {DEPTS.slice(0,5).map(d=>{const b=bc(d.badge);return(
-                    <div key={d.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,fontSize:12}}>
+                  {deptsList.length===0 ? (
+                    <div style={{fontSize:12,color:t.muted}}>No departments yet.</div>
+                  ) : [...deptsList].sort((a,b)=>b.count-a.count).slice(0,5).map(d=>(
+                    <div key={d.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,fontSize:12}}>
                       <span style={{color:dark?'#E5E7EB':'#374151'}}>{d.name}</span>
-                      <span style={{background:b.bg,color:b.c,fontSize:11,padding:'2px 8px',borderRadius:10}}>{d.count} members</span>
+                      <span style={{background:'#EEEDFE',color:'#3C3489',fontSize:11,padding:'2px 8px',borderRadius:10}}>{d.count} members</span>
                     </div>
-                  );})}
+                  ))}
                 </div>
                 <div onClick={()=>setPage('giving')} style={{...card(),cursor:'pointer'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Giving breakdown</span><span style={{fontSize:12,color:t.purple}}>Drill down →</span></div>
@@ -2223,60 +1878,62 @@ export default function DashboardPage(){
           )}
 
           {/* ══ DEPARTMENTS ══ */}
-          {page==='departments'&&!selectedDept&&(
+          {page==='departments'&&!selectedDeptId&&(
             <div style={card()}>
               <div style={{fontSize:13,fontWeight:500,marginBottom:14}}>All Departments - click any to expand</div>
+              {deptsLoading ? (
+                <div style={{fontSize:12,color:t.sub,padding:'12px 0'}}>Loading…</div>
+              ) : deptsList.length===0 ? (
+                <div style={{fontSize:12,color:t.muted,padding:'12px 0'}}>No departments yet.</div>
+              ) : (
               <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Department','Category','Leader','Members','Absences','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 10px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
+                <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Department','Leader','Members','Absences','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 10px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
                 <tbody>
-                  {DEPTS.map(d=>{const b=bc(d.badge);return(
-                    <tr key={d.name} onClick={()=>setSelectedDept(d)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
+                  {deptsList.map(d=>(
+                    <tr key={d.id} onClick={()=>setSelectedDeptId(d.id)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
                       onMouseEnter={e=>e.currentTarget.style.background=t.hover}
                       onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                       <td style={{padding:'10px 10px',fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{d.name}</td>
-                      <td style={{padding:'10px 10px',color:t.sub}}>{d.cat}</td>
                       <td style={{padding:'10px 10px',color:dark?'#E5E7EB':'#374151'}}>{d.leader}</td>
                       <td style={{padding:'10px 10px',color:dark?'#E5E7EB':'#374151'}}>{d.count}</td>
-                      <td style={{padding:'10px 10px'}}>{d.absent>0?<span style={{background:'#FAECE7',color:'#993C1D',fontSize:11,padding:'2px 8px',borderRadius:10}}>{d.absent} absent</span>:<span style={{background:'#E1F5EE',color:'#085041',fontSize:11,padding:'2px 8px',borderRadius:10}}>Full attendance</span>}</td>
-                      <td style={{padding:'10px 10px'}}><span style={{background:b.bg,color:b.c,fontSize:11,padding:'2px 8px',borderRadius:10}}>Active</span></td>
+                      <td style={{padding:'10px 10px'}}>{!d.submitted?<span style={{background:'#F3F4F6',color:'#6B7280',fontSize:11,padding:'2px 8px',borderRadius:10}}>No data yet</span>:d.absent>0?<span style={{background:'#FAECE7',color:'#993C1D',fontSize:11,padding:'2px 8px',borderRadius:10}}>{d.absent} absent</span>:<span style={{background:'#E1F5EE',color:'#085041',fontSize:11,padding:'2px 8px',borderRadius:10}}>Full attendance</span>}</td>
+                      <td style={{padding:'10px 10px'}}><span style={{background:d.status==='healthy'?'#E1F5EE':d.status==='alert'?'#FAECE7':d.status==='no_data'?'#F3F4F6':'#FAEEDA',color:d.status==='healthy'?'#085041':d.status==='alert'?'#993C1D':d.status==='no_data'?'#6B7280':'#633806',fontSize:11,padding:'2px 8px',borderRadius:10,textTransform:'capitalize'}}>{d.status.replace('_',' ')}</span></td>
                     </tr>
-                  );})}
+                  ))}
                 </tbody>
               </table>
+              )}
             </div>
           )}
-          {page==='departments'&&selectedDept&&(
+          {page==='departments'&&selectedDeptId&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <button onClick={()=>setSelectedDept(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to Departments</button>
+              <button onClick={()=>setSelectedDeptId(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to Departments</button>
+              {deptDetailLoading || !deptDetail ? (
+                <div style={card()}><div style={{fontSize:12,color:t.sub}}>Loading…</div></div>
+              ) : (
               <div style={card()}>
-                <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:2}}>{selectedDept.name}</div>
-                <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Category: {selectedDept.cat} · Leader: {selectedDept.leader} · {selectedDept.count} total members · {selectedDept.absent} absent last Sunday</div>
-                <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:10,marginBottom:16}}>
-                  {[{label:'Total Members',value:selectedDept.count},{label:'Present Last Sunday',value:selectedDept.count-selectedDept.absent},{label:'Absent',value:selectedDept.absent}].map(s=>(
-                    <div key={s.label} style={{background:t.cardInner,borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,color:t.sub,marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500,color:t.text}}>{s.value}</div></div>
-                  ))}
-                </div>
-                <div style={{fontSize:12,fontWeight:500,color:dark?'#E5E7EB':'#374151',marginBottom:8}}>Full Member Roster — {selectedDept.count} members</div>
+                <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:2}}>{deptDetail.department.name}</div>
+                <div style={{fontSize:12,color:t.sub,marginBottom:14}}>{deptDetail.members.length} total members{deptDetail.last_submission?` · Last submitted ${new Date(deptDetail.last_submission).toLocaleDateString()}`:' · No attendance submitted yet'}</div>
+                <div style={{fontSize:12,fontWeight:500,color:dark?'#E5E7EB':'#374151',marginBottom:8}}>Full Member Roster — {deptDetail.members.length} members</div>
                 <div style={{overflowX:'auto'}}>
                 <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Role','Phone','Last Sunday','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Role','Phone','Last Sunday'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                   <tbody>
-                    {selectedDept.members.map((m:Record<string,unknown>,i:number)=>{
-                      const absent=!m.present;
-                      return(
-                        <tr key={i} style={{borderBottom:`0.5px solid ${t.border}`}}>
-                          <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{String(m.name)}</td>
-                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{String(m.role)}</td>
-                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{String(m.phone)}</td>
-                          <td style={{padding:'7px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:absent?'#FAECE7':'#E1F5EE',color:absent?'#993C1D':'#085041'}}>{absent?'Absent':'Present'}</span></td>
-                          <td style={{padding:'7px 8px'}}>{absent?<span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.informed==='Yes'?'#E1F5EE':'#FAECE7',color:m.informed==='Yes'?'#085041':'#993C1D'}}>{String(m.informed||'No')}</span>:<span style={{fontSize:11,color:t.muted}}>N/A</span>}</td>
-                        </tr>
-                      );
-                    })}
+                    {deptDetail.members.length===0 ? (
+                      <tr><td colSpan={4} style={{padding:'16px 8px',color:t.muted,textAlign:'center'}}>No members on this department&apos;s roster yet.</td></tr>
+                    ) : deptDetail.members.map(m=>(
+                      <tr key={m.id} style={{borderBottom:`0.5px solid ${t.border}`}}>
+                        <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.name}</td>
+                        <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.role}</td>
+                        <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone||'—'}</td>
+                        <td style={{padding:'7px 8px'}}>{m.status?<span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.status==='present'?'#E1F5EE':'#FAECE7',color:m.status==='present'?'#085041':'#993C1D',textTransform:'capitalize'}}>{m.status}</span>:<span style={{fontSize:11,color:t.muted}}>No data</span>}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
                 </div>
               </div>
+              )}
             </div>
           )}
 
@@ -2284,7 +1941,7 @@ export default function DashboardPage(){
           {page==='cells'&&!selectedCell&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
-                {[{label:'Total Active Cells',value:String((dbCells||CELLS_DATA).length)},{label:'Rising',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='rising').length)},{label:'Need Attention',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='alert'||c.status==='watch').length)},{label:'Avg Attendance Rate',value:'78%'}].map(s=>(
+                {[{label:'Total Active Cells',value:String((dbCells||CELLS_DATA).length)},{label:'Rising',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='rising').length)},{label:'Need Attention',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='alert'||c.status==='watch').length)},{label:'Avg Attendance Rate',value:(()=>{const cells=(dbCells||CELLS_DATA);const withRate=cells.filter(c=>c.members>0);return withRate.length>0?`${Math.round(withRate.reduce((s,c)=>s+(c.avg/c.members*100),0)/withRate.length)}%`:'—';})()}].map(s=>(
                   <div key={s.label} style={card({padding:'10px 12px'})}><div style={{fontSize:11,color:t.sub,marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500,color:t.text}}>{s.value}</div></div>
                 ))}
               </div>
@@ -2298,7 +1955,7 @@ export default function DashboardPage(){
                   </div>
                 </div>
                 <div style={{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'}}>
-                  {[{key:'all',label:'All 35'},{key:'rising',label:'Rising'},{key:'stable',label:'Stable'},{key:'watch',label:'Watch'},{key:'alert',label:'Intervention'},{key:'Youth',label:'Youth'},{key:'Women',label:'Women'},{key:'Men',label:'Men'}].map(f=>(
+                  {[{key:'all',label:`All ${(dbCells||CELLS_DATA).length}`},{key:'rising',label:'Rising'},{key:'stable',label:'Stable'},{key:'watch',label:'Watch'},{key:'alert',label:'Intervention'},{key:'Youth',label:'Youth'},{key:'Women',label:'Women'},{key:'Men',label:'Men'}].map(f=>(
                     <button key={f.key} onClick={()=>setCellFilter(f.key)}
                       style={{padding:'4px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:cellFilter===f.key?500:400,
                         background:cellFilter===f.key?(f.key==='alert'?'#FAECE7':f.key==='watch'?'#FAEEDA':f.key==='rising'?'#E1F5EE':'#EEEDFE'):'transparent',
