@@ -27,6 +27,17 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
   const [broadcastResult, setBroadcastResult] = useState<{ sent: number; failed: number; total: number; provider_configured: boolean } | null>(null);
   const [copied, setCopied] = useState(false);
 
+  const [checkinMode, setCheckinMode] = useState<'member'|'visitor'>('member');
+  const [memberQuery, setMemberQuery] = useState('');
+  const [memberResults, setMemberResults] = useState<{id:string;full_name:string;phone:string}[]>([]);
+  const [pickedMember, setPickedMember] = useState<{id:string;full_name:string}|null>(null);
+  const [visitorName, setVisitorName] = useState('');
+  const [visitorPhone, setVisitorPhone] = useState('');
+  const [visitorPrayer, setVisitorPrayer] = useState('');
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkinError, setCheckinError] = useState('');
+  const [checkinSuccess, setCheckinSuccess] = useState('');
+
   function loadEvents() {
     fetch('/api/events', { credentials: 'include' }).then(r => r.json()).then(({ data }) => setEvents(data?.events || [])).finally(() => setLoading(false));
   }
@@ -77,6 +88,43 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
   function copyLink(slug: string) {
     const url = `${window.location.origin}/events/${slug}`;
     navigator.clipboard?.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => {});
+  }
+
+  useEffect(() => {
+    if (memberQuery.trim().length < 2) { setMemberResults([]); return; }
+    const handle = setTimeout(() => {
+      fetch(`/api/members/search?q=${encodeURIComponent(memberQuery.trim())}`, { credentials: 'include' })
+        .then(r => r.json())
+        .then(({ data }) => setMemberResults(data?.members || []))
+        .catch(() => {});
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [memberQuery]);
+
+  async function checkIn() {
+    if (!selected) return;
+    if (checkinMode === 'member' && !pickedMember) { setCheckinError('Select a member first'); return; }
+    if (checkinMode === 'visitor' && !visitorName.trim()) { setCheckinError('Name is required'); return; }
+    setCheckingIn(true); setCheckinError(''); setCheckinSuccess('');
+    try {
+      const res = await fetch('/api/events/checkin', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({
+          event_id: selected.id, is_new_visitor: checkinMode === 'visitor',
+          member_id: pickedMember?.id, full_name: checkinMode === 'visitor' ? visitorName.trim() : pickedMember?.full_name,
+          phone: visitorPhone.trim() || undefined, prayer_point: visitorPrayer.trim() || undefined,
+          how_they_came: 'event',
+        }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setCheckinSuccess(checkinMode==='visitor' ? `${visitorName.trim()} checked in — routed to care team.` : `${pickedMember?.full_name} checked in.`);
+        setPickedMember(null); setMemberQuery(''); setVisitorName(''); setVisitorPhone(''); setVisitorPrayer('');
+        viewRegistrants(selected);
+        setTimeout(() => setCheckinSuccess(''), 4000);
+      } else setCheckinError(json.error?.message || 'Failed to check in');
+    } catch { setCheckinError('Network error — check-in did not go through.'); }
+    setCheckingIn(false);
   }
 
   if (loading) return <div style={{ fontSize: 12, color: t.sub, padding: 20 }}>Loading events…</div>;
@@ -166,12 +214,53 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
               ) : registrants.length === 0 ? (
                 <div style={{ fontSize: 12, color: t.muted }}>No one has registered yet.</div>
               ) : registrants.map(r => (
-                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: `0.5px solid ${t.border}`, fontSize: 12 }}>
-                  <span style={{ color: t.text }}>{r.full_name}</span>
-                  <span style={{ color: t.muted }}>{r.phone}</span>
+                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `0.5px solid ${t.border}`, fontSize: 12 }}>
+                  <span style={{ color: t.text }}>{r.full_name} {!r.is_member && <span style={{fontSize:9,color:t.amber,marginLeft:4}}>VISITOR</span>}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: t.muted }}>{r.phone}</span>
+                    {r.attended && <span style={{fontSize:9,padding:'2px 7px',borderRadius:8,background:t.tealBg,color:t.teal,fontWeight:600}}>Attended</span>}
+                  </span>
                 </div>
               ))}
             </div>
+
+            <div style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Check in an attendee</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {(['member','visitor'] as const).map(m => (
+                <button key={m} onClick={() => { setCheckinMode(m); setCheckinError(''); }}
+                  style={{ background: checkinMode===m?t.purple:'transparent', color: checkinMode===m?'#fff':t.muted, border: `0.5px solid ${t.border}`, borderRadius: 7, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize' }}>
+                  {m==='member'?'Existing member':'New visitor'}
+                </button>
+              ))}
+            </div>
+            {checkinMode==='member' ? (
+              <div style={{ position: 'relative', marginBottom: 8 }}>
+                <input value={pickedMember?pickedMember.full_name:memberQuery} onChange={e=>{setMemberQuery(e.target.value);setPickedMember(null);}} placeholder="Search member by name..."
+                  style={{ width:'100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }} />
+                {!pickedMember && memberResults.length>0 && (
+                  <div style={{ position:'absolute', top:'100%', left:0, right:0, background:t.card, border:`0.5px solid ${t.border}`, borderRadius:8, marginTop:4, zIndex:10, maxHeight:160, overflowY:'auto' }}>
+                    {memberResults.map(m=>(
+                      <div key={m.id} onClick={()=>{setPickedMember(m);setMemberResults([]);}} style={{ padding:'8px 11px', fontSize:12, cursor:'pointer', color:t.text }}>{m.full_name} <span style={{color:t.muted}}>· {m.phone||'—'}</span></div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
+                <input value={visitorName} onChange={e=>setVisitorName(e.target.value)} placeholder="Full name"
+                  style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }} />
+                <input value={visitorPhone} onChange={e=>setVisitorPhone(e.target.value)} placeholder="Phone"
+                  style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }} />
+                <input value={visitorPrayer} onChange={e=>setVisitorPrayer(e.target.value)} placeholder="Prayer point (optional)"
+                  style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }} />
+              </div>
+            )}
+            {checkinError && <div style={{ background: t.coralBg, color: t.coral, borderRadius: 8, padding: '8px 12px', fontSize: 12, marginBottom: 8 }}>{checkinError}</div>}
+            {checkinSuccess && <div style={{ background: t.tealBg, color: t.teal, borderRadius: 8, padding: '8px 12px', fontSize: 12, marginBottom: 8 }}>{checkinSuccess}</div>}
+            <button onClick={checkIn} disabled={checkingIn}
+              style={{ background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', marginBottom: 16 }}>
+              {checkingIn ? 'Checking in…' : 'Check in'}
+            </button>
 
             <div style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Broadcast to all registrants</div>
             <textarea rows={3} value={broadcastMsg} onChange={e => setBroadcastMsg(e.target.value)} placeholder="Message to send via SMS to everyone registered..."
