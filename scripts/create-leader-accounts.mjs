@@ -138,6 +138,14 @@ async function main() {
         method: 'PUT', headers: hdrs(), body: JSON.stringify({ password }),
       });
       passwordSet = resetRes.ok;
+      if (!resetRes.ok) {
+        const errBody = await resetRes.text().catch(() => '');
+        console.error(`  ! Reset failed for ${l.email}: ${resetRes.status} ${errBody}`);
+      }
+      // Small delay so a bulk reset of the whole roster doesn't trip
+      // Supabase Auth's rate limit, which would otherwise fail resets
+      // silently with no password ever landing in the CSV.
+      await new Promise(r => setTimeout(r, 200));
     }
 
     const refId = await findRefId(l.ref_kind, l.ref_name);
