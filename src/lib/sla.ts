@@ -11,3 +11,15 @@ export function computeSlaGrade(createdAt: string, resolvedAt: string): string {
   if (hours <= 336) return 'D';
   return 'F';
 }
+
+// Turns any of the SLA letter grades used across the app (the A+..F- scale
+// from same-day-of-week grading, or the plain A..F scale from computeSlaGrade
+// above) into a 0-100 number so grades from different sources can be
+// averaged and combined into a single composite score.
+const GRADE_SCORES: Record<string, number> = {
+  'A+': 100, 'A': 92, 'B': 80, 'C': 65, 'D': 45, 'F': 25, 'F-': 10,
+};
+export function gradeToScore(grade: string | null | undefined): number | null {
+  if (!grade) return null;
+  return GRADE_SCORES[grade] ?? null;
+}

@@ -109,7 +109,17 @@ export async function GET(req: Request) {
       };
     });
 
-    return NextResponse.json({ data: { cells }, error: null });
+    // Fellowship-wide trend — sum each cell's weekly count at the same
+    // index so the overview chart reflects the whole fellowship, not just
+    // whichever cell happens to be first in the list.
+    const fellowship_trend: { w: string; v: number }[] = [];
+    for (let i = 0; i < 8; i++) {
+      let sum = 0;
+      cells.forEach(c => { const pt = (trendMap[c.id as string] || [])[i]; if (pt) sum += pt.v; });
+      fellowship_trend.push({ w: `W${i + 1}`, v: sum });
+    }
+
+    return NextResponse.json({ data: { cells, fellowship_trend }, error: null });
   } catch (err) {
     console.error('[GET /api/fellowship/cells]', err);
     return NextResponse.json({ data: null, error: { message: 'Failed to load cells' } }, { status: 500 });

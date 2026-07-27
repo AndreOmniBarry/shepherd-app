@@ -16,7 +16,7 @@ export async function POST(req: Request) {
 
     // Fetch and validate invite
     const inviteRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/invites?token=eq.${token}&select=id,email,full_name,role,used,expires_at,cell_id,fellowship_id,department_id&limit=1`,
+      `${SUPABASE_URL}/rest/v1/invites?token=eq.${token}&select=id,email,full_name,role,used,expires_at,cell_id,fellowship_id,department_id,member_id&limit=1`,
       { headers: hdrs() }
     );
     const inviteData = await inviteRes.json();
@@ -61,6 +61,7 @@ export async function POST(req: Request) {
         cell_id: invite.cell_id || null,
         fellowship_id: invite.fellowship_id || null,
         department_id: invite.department_id || null,
+        member_id: invite.member_id || null,
         is_active: true,
       }),
     });

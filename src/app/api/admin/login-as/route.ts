@@ -16,7 +16,7 @@ async function getUser(req: Request) {
 const PORTAL_PATH: Record<string, string> = {
   overseer: '/dashboard', pa: '/dashboard', lead_tech: '/dashboard',
   fellowship_head: '/fellowship', department_head: '/department', cell_leader: '/cell',
-  care_team: '/care', accounts: '/accounts', partnership: '/partnership',
+  care_team: '/care', accounts: '/accounts', partnership: '/partnership', workforce: '/workforce',
 };
 
 // Real, full-access impersonation — any leader, any cell, any department,
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     const { userId } = await req.json();
     if (!userId) return NextResponse.json({ data: null, error: { message: 'userId is required' } }, { status: 400 });
 
-    const profRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=id,email,full_name,role,cell_id,fellowship_id,is_active&limit=1`, { headers: hdrs() });
+    const profRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=id,email,full_name,role,cell_id,fellowship_id,member_id,is_active&limit=1`, { headers: hdrs() });
     const profRows = await profRes.json();
     const target = Array.isArray(profRows) ? profRows[0] : null;
     if (!target) return NextResponse.json({ data: null, error: { message: 'User not found' } }, { status: 404 });
@@ -45,6 +45,7 @@ export async function POST(req: Request) {
     const token = await signToken({
       id: target.id, email: target.email, role: target.role,
       cell_id: target.cell_id || null, fellowship_id: target.fellowship_id || null,
+      member_id: target.member_id || null,
       name: target.full_name,
     });
 

@@ -104,3 +104,22 @@ WHERE created_at >= '2026-06-03 22:09:00+00' AND created_at < '2026-06-03 22:10:
 
 -- ── VERIFY: should return exactly 352 (350 + 1 + 1) ──────────────────────
 SELECT count(*) FROM members;
+
+-- ── PART 5: diagnostic — duplicate / stray fellowships ───────────────────
+-- 12_import_grace_dome_data.sql creates fellowships by exact-name match
+-- ("Men's Fellowship" with an apostrophe). If a fellowship with a slightly
+-- different name ("Men Fellowship", no apostrophe) already existed from
+-- manual setup before the import ran, that WHERE NOT EXISTS check didn't
+-- catch it and you now have two rows for the same real fellowship — one
+-- holding the real cells/members, one empty or partially populated.
+-- This also surfaces CYDF so we can confirm it's genuinely its own row
+-- and not sharing an id with Youth/Men/Women anywhere.
+-- DIAGNOSTIC ONLY — deletes nothing. Share the output and I'll write the
+-- exact merge (reassign cells/members/users to the row you keep, then
+-- delete the empty duplicate) rather than guessing which id survives.
+SELECT f.id, f.name, f.created_at,
+       (SELECT count(*) FROM cells c WHERE c.fellowship_id = f.id) AS cell_count,
+       (SELECT count(*) FROM members m WHERE m.fellowship_id = f.id) AS member_count,
+       (SELECT count(*) FROM users u WHERE u.fellowship_id = f.id AND u.role = 'fellowship_head') AS head_accounts
+FROM fellowships f
+ORDER BY f.name, f.created_at;
