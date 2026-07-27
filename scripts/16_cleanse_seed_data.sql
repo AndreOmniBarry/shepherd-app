@@ -61,3 +61,46 @@ SELECT date_trunc('minute', created_at) AS batch_minute,
 FROM members
 GROUP BY 1
 ORDER BY 2 DESC;
+
+-- ── PART 4: delete the confirmed synthetic batch ─────────────────────────
+-- Your Part 3 results:
+--   2026-06-03 22:09 -> 1,147 rows, gender_filled 1147, dob_filled 1147  <- SYNTHETIC (delete)
+--   2026-07-22 19:06 ->   350 rows, gender_filled 0,    dob_filled 0     <- your real import (keep)
+--   2026-07-22 21:19 ->     1 row,  gender_filled 0,    dob_filled 1     <- real, manually added since (keep)
+--   2026-07-02 22:51 ->     1 row,  gender_filled 0,    dob_filled 0     <- real, manually added since (keep)
+-- The 06-03 batch is the exact "1,147" figure that used to be hardcoded in
+-- the dashboard's placeholder UI before that was fixed — someone seeded it
+-- to match the mockup and it was never cleared. It predates your real
+-- import (07-22) and every row has fabricated gender+DOB, which your real
+-- import process never sets. Clearing dependent references first so the
+-- delete can't fail on a foreign key, then removing the batch itself.
+DELETE FROM event_registrations WHERE member_id IN (
+  SELECT id FROM members WHERE created_at >= '2026-06-03 22:09:00+00' AND created_at < '2026-06-03 22:10:00+00'
+);
+DELETE FROM workforce_roster_entries WHERE member_id IN (
+  SELECT id FROM members WHERE created_at >= '2026-06-03 22:09:00+00' AND created_at < '2026-06-03 22:10:00+00'
+);
+DELETE FROM workforce_profiles WHERE member_id IN (
+  SELECT id FROM members WHERE created_at >= '2026-06-03 22:09:00+00' AND created_at < '2026-06-03 22:10:00+00'
+);
+DELETE FROM department_members WHERE member_id IN (
+  SELECT id FROM members WHERE created_at >= '2026-06-03 22:09:00+00' AND created_at < '2026-06-03 22:10:00+00'
+);
+DELETE FROM department_attendance_entries WHERE member_id IN (
+  SELECT id FROM members WHERE created_at >= '2026-06-03 22:09:00+00' AND created_at < '2026-06-03 22:10:00+00'
+);
+DELETE FROM attendance_entries WHERE member_id IN (
+  SELECT id FROM members WHERE created_at >= '2026-06-03 22:09:00+00' AND created_at < '2026-06-03 22:10:00+00'
+);
+DELETE FROM absence_reports WHERE member_id IN (
+  SELECT id FROM members WHERE created_at >= '2026-06-03 22:09:00+00' AND created_at < '2026-06-03 22:10:00+00'
+);
+UPDATE member_additions SET created_member_id = NULL WHERE created_member_id IN (
+  SELECT id FROM members WHERE created_at >= '2026-06-03 22:09:00+00' AND created_at < '2026-06-03 22:10:00+00'
+);
+
+DELETE FROM members
+WHERE created_at >= '2026-06-03 22:09:00+00' AND created_at < '2026-06-03 22:10:00+00';
+
+-- ── VERIFY: should return exactly 352 (350 + 1 + 1) ──────────────────────
+SELECT count(*) FROM members;
