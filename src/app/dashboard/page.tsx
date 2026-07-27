@@ -1500,7 +1500,7 @@ export default function DashboardPage(){
         </div>
         <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
           {navItems.map(n=>(
-            <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDept(null);setPage(n.id);}}
+            <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDeptId(null);setPage(n.id);}}
               className="sh-nav-item"
               style={{
                 background: page===n.id ? (dark?'rgba(83,74,183,0.45)':'rgba(83,74,183,0.10)') : 'transparent',
