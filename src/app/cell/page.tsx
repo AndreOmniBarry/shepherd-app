@@ -7,6 +7,7 @@ import BirthdayPanel from '@/components/BirthdayPanel';
 import CellOverview from '@/components/CellOverview';
 import CellFollowup from '@/components/CellFollowup';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
+import CellMeetingsTab from '@/components/CellMeetingsTab';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -131,7 +132,7 @@ function AddMembersTab({t, dark}: {t: Record<string,string>; dark: boolean}) {
 
 export default function CellPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'prayer' | 'birthdays' | 'followup' | 'members'>('overview');
+  const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'prayer' | 'birthdays' | 'followup' | 'members' | 'meetings'>('overview');
   const [members, setMembers] = useState<Member[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState('');
@@ -369,6 +370,7 @@ export default function CellPage() {
             { id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' },
             { id: 'submit', label: 'Attendance', icon: 'ti-calendar-check' },
             { id: 'history', label: 'History', icon: 'ti-history' },
+            { id: 'meetings', label: 'Meetings', icon: 'ti-users' },
             { id: 'prayer', label: 'Prayer', icon: 'ti-heart' },
             { id: 'followup', label: 'Follow-up', icon: 'ti-user-check' },
             { id: 'birthdays', label: 'Birthdays', icon: 'ti-cake' },
@@ -519,6 +521,9 @@ export default function CellPage() {
         )}
         {tab === 'members' && (
           <AddMembersTab t={t} dark={dark} />
+        )}
+        {tab === 'meetings' && (
+          <CellMeetingsTab t={t} />
         )}
 
                 {tab === 'history' && (

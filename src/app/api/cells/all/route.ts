@@ -61,6 +61,28 @@ export async function GET(req: Request) {
     );
     const attRecords = await attRes.json();
 
+    // Weekly cell meeting compliance — separate from Sunday/midweek service
+    // attendance. "This week" = logged within the last 7 days.
+    const meetingSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const meetingsRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/cell_meetings?order=meeting_date.desc&select=cell_id,meeting_date,attendance_count,sla_grade`,
+      { headers }
+    );
+    const meetings = await meetingsRes.json();
+    const meetingMap: Record<string, { last_meeting_date: string; this_week: boolean; sla_grade: string | null }> = {};
+    if (Array.isArray(meetings)) {
+      meetings.forEach((mt: Record<string, unknown>) => {
+        const cid = mt.cell_id as string;
+        if (cid && !meetingMap[cid]) {
+          meetingMap[cid] = {
+            last_meeting_date: mt.meeting_date as string,
+            this_week: (mt.meeting_date as string) >= meetingSince,
+            sla_grade: mt.sla_grade as string | null,
+          };
+        }
+      });
+    }
+
     // Build attendance history per cell
     const attMap: Record<string, number[]> = {};
     if (Array.isArray(attRecords)) {
@@ -94,6 +116,7 @@ export async function GET(req: Request) {
         }
       }
 
+      const meeting = meetingMap[cid];
       return {
         id: cid,
         cell: c.name,
@@ -105,6 +128,9 @@ export async function GET(req: Request) {
         trend,
         status,
         history,
+        last_meeting_date: meeting?.last_meeting_date || null,
+        meeting_this_week: meeting?.this_week || false,
+        meeting_sla_grade: meeting?.sla_grade || null,
       };
     }) : [];
 

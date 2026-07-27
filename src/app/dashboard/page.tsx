@@ -1269,7 +1269,7 @@ export default function DashboardPage(){
   const [sidebarStyle,setSidebarStyle]=useState<'light'|'dark'>('light');
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [isMobile,setIsMobile]=useState(false);
-  const [dbCells,setDbCells]=useState<typeof CELLS_DATA|null>(null);
+  const [dbCells,setDbCells]=useState<(typeof CELLS_DATA[number] & {last_meeting_date?:string|null;meeting_this_week?:boolean;meeting_sla_grade?:string|null})[]|null>(null);
   const [leaderOptions,setLeaderOptions]=useState<{id:string;full_name:string;role:string}[]>([]);
   const [commendType,setCommendType]=useState<'commendation'|'meeting'|'encouragement'|'announcement'>('commendation');
   const [commendLeader,setCommendLeader]=useState('');
@@ -2021,7 +2021,7 @@ export default function DashboardPage(){
                 </div>
                 <div className="table-wrap">
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse',minWidth:600}}>
-                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Cell','Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Cell','Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status','Weekly Meeting'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
                       {(dbCells||CELLS_DATA).filter(row=>cellFilter==='all'||(row.status===cellFilter)||(row.fel===cellFilter)).map((row,i)=>{const s=ss(row.status);return(
                         <tr key={i} onClick={()=>setSelectedCell(row)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
@@ -2035,6 +2035,7 @@ export default function DashboardPage(){
                           <td style={{padding:'8px 8px',color:row.rate>=100?'#1D9E75':'#D85A30',fontWeight:500}}>{row.rate}%</td>
                           <td style={{padding:'8px 8px',fontWeight:500,color:row.trend.startsWith('+')?'#1D9E75':'#D85A30'}}>{row.trend}</td>
                           <td style={{padding:'8px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,fontWeight:500,background:s.bg,color:s.c,whiteSpace:'nowrap'}}>{row.status==='alert'?'Intervention':row.status.charAt(0).toUpperCase()+row.status.slice(1)}</span></td>
+                          <td style={{padding:'8px 8px',whiteSpace:'nowrap'}}>{!row.last_meeting_date?<span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:'#F3F4F6',color:'#6B7280'}}>No data yet</span>:row.meeting_this_week?<span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:'#E1F5EE',color:'#085041'}}>Logged this week</span>:<span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:'#FAECE7',color:'#993C1D'}}>Not this week</span>}</td>
                         </tr>
                       );})}
                     </tbody>
