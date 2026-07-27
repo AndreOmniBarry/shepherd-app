@@ -74,6 +74,11 @@ ORDER BY 2 DESC;
 -- import (07-22) and every row has fabricated gender+DOB, which your real
 -- import process never sets. Clearing dependent references first so the
 -- delete can't fail on a foreign key, then removing the batch itself.
+-- This column should already exist from 13_member_extra_columns.sql, but
+-- that script errored out before adding it on your database, so it's
+-- included here too (idempotent — safe either way).
+ALTER TABLE member_additions ADD COLUMN IF NOT EXISTS created_member_id UUID REFERENCES members(id);
+
 DELETE FROM event_registrations WHERE member_id IN (
   SELECT id FROM members WHERE created_at >= '2026-06-03 22:09:00+00' AND created_at < '2026-06-03 22:10:00+00'
 );
