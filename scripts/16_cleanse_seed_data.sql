@@ -44,3 +44,20 @@ FROM departments GROUP BY 2 ORDER BY 3 DESC;
 -- is what needs a closer look — could be legitimate manual additions you've
 -- made since, or leftover test data. Share what these return and I'll give
 -- you an exact, safe delete statement for whatever's actually stray.
+
+-- ── PART 3: is the dashboard showing ~1,000 members really your import? ──
+-- 12_import_grace_dome_data.sql never sets gender or date_of_birth — it
+-- only has name/phone/cell/fellowship. So if the real import is your only
+-- batch of members, gender_filled and dob_filled below should both be ~0.
+-- If instead most rows in a DIFFERENT batch_minute have gender/DOB filled
+-- in, that batch was generated some other way (not your Excel import) and
+-- is exactly what's inflating the member count and driving the age/gender
+-- charts. Run this and share the output — it tells us precisely which
+-- batch to delete.
+SELECT date_trunc('minute', created_at) AS batch_minute,
+       count(*) AS total_rows,
+       count(gender) AS gender_filled,
+       count(date_of_birth) AS dob_filled
+FROM members
+GROUP BY 1
+ORDER BY 2 DESC;
