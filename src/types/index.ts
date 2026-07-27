@@ -5,7 +5,7 @@
 
 // ── DATABASE ROW TYPES ──────────────────────────────────────
 
-export type Role = 'cell_leader' | 'overseer';
+export type Role = 'cell_leader' | 'overseer' | 'workforce';
 
 export type Fellowship = {
   id:          string;
@@ -138,6 +138,7 @@ export type JWTPayload = {
   role:         Role;
   cell_id:      string | null;
   fellowship_id: string | null;
+  member_id?:   string | null;
   iat:          number;
   exp:          number;
 };
@@ -148,6 +149,7 @@ export type AuthUser = {
   role:         Role;
   cell_id:      string | null;
   fellowship_id: string | null;
+  member_id?:   string | null;
   name:         string;
 };
 

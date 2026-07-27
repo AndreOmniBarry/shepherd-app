@@ -104,3 +104,43 @@ WHERE created_at >= '2026-06-03 22:09:00+00' AND created_at < '2026-06-03 22:10:
 
 -- ── VERIFY: should return exactly 352 (350 + 1 + 1) ──────────────────────
 SELECT count(*) FROM members;
+
+-- ── PART 5: diagnostic — duplicate / stray fellowships ───────────────────
+-- 12_import_grace_dome_data.sql creates fellowships by exact-name match
+-- ("Men's Fellowship" with an apostrophe). If a fellowship with a slightly
+-- different name ("Men Fellowship", no apostrophe) already existed from
+-- manual setup before the import ran, that WHERE NOT EXISTS check didn't
+-- catch it and you now have two rows for the same real fellowship — one
+-- holding the real cells/members, one empty or partially populated.
+-- This also surfaces CYDF so we can confirm it's genuinely its own row
+-- and not sharing an id with Youth/Men/Women anywhere.
+-- DIAGNOSTIC ONLY — deletes nothing. Share the output and I'll write the
+-- exact merge (reassign cells/members/users to the row you keep, then
+-- delete the empty duplicate) rather than guessing which id survives.
+SELECT f.id, f.name, f.created_at,
+       (SELECT count(*) FROM cells c WHERE c.fellowship_id = f.id) AS cell_count,
+       (SELECT count(*) FROM members m WHERE m.fellowship_id = f.id) AS member_count,
+       (SELECT count(*) FROM users u WHERE u.fellowship_id = f.id AND u.role = 'fellowship_head') AS head_accounts
+FROM fellowships f
+ORDER BY f.name, f.created_at;
+
+-- ── PART 6: point CYDF's head at the real, independent CYDF fellowship ──
+-- David Osasenaga (david.osasenaga@shepherd.app) was set up as "Teenager's
+-- Fellowship Head" in leaders_for_accounts.json, but you've confirmed he's
+-- actually the CYDF head — and CYDF must stay independent of Men/Women/
+-- Youth, not nested under any of them. The app already has a real CYDF
+-- fellowship id, hardcoded in /api/fellowship/cydf-headcount because it
+-- predates this scripted setup: cb72d6c2-a206-45b9-895c-a26d705d2367.
+-- This only repoints his account — it does not touch any cells or members.
+-- Diagnostic first, so you can see his current fellowship before it changes:
+SELECT u.email, u.full_name, u.fellowship_id AS current_fellowship_id, f.name AS current_fellowship_name
+FROM users u LEFT JOIN fellowships f ON f.id = u.fellowship_id
+WHERE u.email = 'david.osasenaga@shepherd.app';
+
+UPDATE users SET fellowship_id = 'cb72d6c2-a206-45b9-895c-a26d705d2367'
+WHERE email = 'david.osasenaga@shepherd.app';
+
+-- If "Teenager's Fellowship" (whatever he was pointed at before) turns out
+-- to be a real fellowship with its own cells/members distinct from CYDF,
+-- tell me and I'll give you a proper plan for it (new head account, or
+-- merge into CYDF) rather than leaving it orphaned by this update.

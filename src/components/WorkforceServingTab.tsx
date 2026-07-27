@@ -23,6 +23,11 @@ export default function WorkforceServingTab({ t }: { t: Record<string, string> }
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLink, setInviteLink] = useState<{ id: string; link: string } | null>(null);
+  const [inviteError, setInviteError] = useState('');
+  const [inviteSending, setInviteSending] = useState(false);
 
   function load() {
     fetch('/api/department/roster', { credentials: 'include' })
@@ -70,6 +75,21 @@ export default function WorkforceServingTab({ t }: { t: Record<string, string> }
   }
 
   const currentRoster = rosters.find(r => r.service_date === serviceDate);
+
+  async function sendInvite(memberId: string) {
+    if (!inviteEmail.trim()) { setInviteError('Enter an email address'); return; }
+    setInviteSending(true); setInviteError('');
+    try {
+      const res = await fetch('/api/department/roster/invite', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ member_id: memberId, email: inviteEmail.trim() }),
+      });
+      const json = await res.json();
+      if (res.ok) { setInviteLink({ id: memberId, link: json.data.invite_link }); setInviteEmail(''); }
+      else setInviteError(json.error?.message || 'Failed to send invite');
+    } catch { setInviteError('Network error — invite was not sent.'); }
+    setInviteSending(false);
+  }
 
   if (loading) return <div style={{ fontSize: 12, color: t.sub, padding: 20 }}>Loading serving roster…</div>;
 
@@ -144,6 +164,49 @@ export default function WorkforceServingTab({ t }: { t: Record<string, string> }
             <span style={{ color: t.text }}>{r.service_date}</span>
             <span style={{ color: t.muted }}>{r.entries.length} assigned</span>
             <span style={{ color: r.published ? t.teal : t.amber, fontWeight: 600 }}>{r.published ? 'Published' : 'Draft'}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '16px 18px' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Give your team portal access</div>
+        <div style={{ fontSize: 11, color: t.muted, marginBottom: 12 }}>Invite a roster member to log in and see their own schedule — they&apos;ll be able to confirm or decline assignments themselves.</div>
+        {members.length === 0 ? (
+          <div style={{ fontSize: 12, color: t.muted }}>No members on your roster yet.</div>
+        ) : members.map(m => (
+          <div key={m.id} style={{ padding: '8px 0', borderBottom: `0.5px solid ${t.border}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: t.text }}>{m.full_name}</span>
+              {invitingId !== m.id && (
+                <button onClick={() => { setInvitingId(m.id); setInviteEmail(''); setInviteError(''); setInviteLink(null); }}
+                  style={{ background: 'transparent', border: `0.5px solid ${t.border}`, color: t.purple, borderRadius: 7, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                  Invite
+                </button>
+              )}
+            </div>
+            {invitingId === m.id && (
+              <div style={{ marginTop: 8 }}>
+                {inviteLink?.id === m.id ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 11, color: t.teal }}>Invite created — send this link to {m.full_name.split(' ')[0]}:</div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input readOnly value={inviteLink.link} style={{ flex: 1, border: `0.5px solid ${t.border}`, borderRadius: 7, padding: '6px 8px', fontSize: 11, background: t.input, color: t.text }} />
+                      <button onClick={() => navigator.clipboard.writeText(inviteLink.link)} style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 7, padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Copy</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="their email address"
+                      style={{ flex: 1, border: `0.5px solid ${t.border}`, borderRadius: 7, padding: '6px 8px', fontSize: 11, background: t.input, color: t.text, outline: 'none' }} />
+                    <button onClick={() => sendInvite(m.id)} disabled={inviteSending}
+                      style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 7, padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                      {inviteSending ? 'Sending…' : 'Send'}
+                    </button>
+                  </div>
+                )}
+                {inviteError && <div style={{ fontSize: 11, color: t.coral, marginTop: 6 }}>{inviteError}</div>}
+              </div>
+            )}
           </div>
         ))}
       </div>

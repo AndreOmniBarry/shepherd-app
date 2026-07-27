@@ -42,7 +42,9 @@ const MONTHS = [
   { value: '2026-06-01', label: 'June 2026', sundays: 4 },
 ];
 
-type Tab = 'profiles' | 'add_member' | 'attendance';
+type Tab = 'profiles' | 'add_member' | 'attendance' | 'remove_member';
+
+type Removal = { id: string; member_id: string; member_name: string; reason: string; status: string; approval_comment: string | null; created_at: string };
 
 export default function UpdatePage() {
   const router = useRouter();
@@ -54,7 +56,17 @@ export default function UpdatePage() {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
   const [leaderName, setLeaderName] = useState('');
+  const [userRole, setUserRole] = useState('');
   const [unitName, setUnitName] = useState('');
+
+  // Recommend a removal — fellowship/department heads only
+  const [removals, setRemovals] = useState<Removal[]>([]);
+  const [removeSearch, setRemoveSearch] = useState('');
+  const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
+  const [removeReason, setRemoveReason] = useState('');
+  const [removeSubmitting, setRemoveSubmitting] = useState(false);
+  const [removeSuccess, setRemoveSuccess] = useState('');
+  const [removeError, setRemoveError] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'incomplete'>('incomplete');
 
@@ -100,6 +112,13 @@ export default function UpdatePage() {
         // approved member never showed up anywhere."
         if (['overseer', 'pa', 'lead_tech'].includes(data.role)) { router.push('/dashboard?page=validation'); return; }
         setLeaderName(data.name || '');
+        setUserRole(data.role || '');
+        if (['fellowship_head', 'department_head'].includes(data.role)) {
+          fetch('/api/update/member-removals', { credentials: 'include' })
+            .then(r => r.json())
+            .then(({ data }) => { if (data?.removals) setRemovals(data.removals); })
+            .catch(() => {});
+        }
       })
       .catch(() => router.push('/login'));
 
@@ -254,6 +273,7 @@ export default function UpdatePage() {
     { id: 'profiles' as Tab, label: 'Update profiles' },
     { id: 'add_member' as Tab, label: 'Add members' },
     { id: 'attendance' as Tab, label: 'Log past attendance' },
+    ...(['fellowship_head', 'department_head'].includes(userRole) ? [{ id: 'remove_member' as Tab, label: 'Recommend removal' }] : []),
   ];
 
   return (
@@ -589,6 +609,83 @@ export default function UpdatePage() {
             <div style={{ background: t.purpleBg, borderRadius: 10, padding: '12px 14px', border: `0.5px solid rgba(83,74,183,0.15)`, fontSize: 11, color: t.purple, lineHeight: 1.7 }}>
               <strong>How this works:</strong> Enter the number of Sundays each member attended from your cell register. If a member transferred or became inactive during this month, select that from the Status column and enter the date. Your fellowship head will validate these records before they appear on the pastor dashboard. No absence alerts will fire for past months.
             </div>
+          </div>
+        )}
+
+        {/* ── RECOMMEND REMOVAL ── */}
+        {tab === 'remove_member' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4 }}>Recommend a member for removal</div>
+              <div style={{ fontSize: 12, color: t.sub, lineHeight: 1.6 }}>
+                For members who&apos;ve relocated, passed away, or should no longer be on the active roster. This is a recommendation only — the pastor or church admin authorises it before the member is marked inactive.
+              </div>
+            </div>
+
+            <div style={card()}>
+              <div style={{ fontSize: 12, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Find member</div>
+              <input value={removeSearch} onChange={e => { setRemoveSearch(e.target.value); setRemoveTarget(null); }} placeholder="Search by name..."
+                style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
+              {removeSearch.trim().length >= 2 && !removeTarget && (
+                <div style={{ marginBottom: 10 }}>
+                  {members.filter(m => m.full_name.toLowerCase().includes(removeSearch.trim().toLowerCase())).slice(0, 8).map(m => (
+                    <div key={m.id} onClick={() => { setRemoveTarget(m); setRemoveSearch(m.full_name); }}
+                      style={{ padding: '8px 10px', fontSize: 12, color: t.text, cursor: 'pointer', borderRadius: 6 }}
+                      onMouseEnter={e => (e.currentTarget.style.background = t.input)} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                      {m.full_name}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {removeTarget && (
+                <>
+                  <div style={{ fontSize: 12, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Reason</div>
+                  <textarea rows={3} value={removeReason} onChange={e => setRemoveReason(e.target.value)} placeholder="e.g. Relocated to Lagos, no longer attends"
+                    style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', resize: 'none', fontFamily: 'inherit', marginBottom: 10, boxSizing: 'border-box' }} />
+                  {removeError && <div style={{ background: t.coralBg, color: t.coral, borderRadius: 8, padding: '8px 12px', fontSize: 12, marginBottom: 10 }}>{removeError}</div>}
+                  {removeSuccess && <div style={{ background: t.tealBg, color: t.teal, borderRadius: 8, padding: '8px 12px', fontSize: 12, marginBottom: 10 }}>{removeSuccess}</div>}
+                  <button
+                    onClick={async () => {
+                      if (!removeTarget || !removeReason.trim()) return;
+                      setRemoveSubmitting(true); setRemoveError(''); setRemoveSuccess('');
+                      try {
+                        const res = await fetch('/api/update/member-removals', {
+                          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                          body: JSON.stringify({ member_id: removeTarget.id, reason: removeReason.trim() }),
+                        });
+                        const json = await res.json();
+                        if (res.ok) {
+                          setRemoveSuccess('Submitted for approval.'); setRemoveTarget(null); setRemoveSearch(''); setRemoveReason('');
+                          fetch('/api/update/member-removals', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (data?.removals) setRemovals(data.removals); });
+                          setTimeout(() => setRemoveSuccess(''), 3000);
+                        } else setRemoveError(json.error?.message || 'Failed to submit.');
+                      } catch { setRemoveError('Network error — not submitted.'); }
+                      setRemoveSubmitting(false);
+                    }}
+                    disabled={removeSubmitting || !removeReason.trim()}
+                    style={{ background: t.coral, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: removeSubmitting || !removeReason.trim() ? 0.6 : 1 }}>
+                    {removeSubmitting ? 'Submitting…' : 'Submit for approval'}
+                  </button>
+                </>
+              )}
+            </div>
+
+            {removals.length > 0 && (
+              <div style={card()}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 12 }}>Your removal recommendations</div>
+                {removals.map((r, i) => (
+                  <div key={r.id} style={{ padding: '8px 0', borderBottom: i < removals.length - 1 ? `0.5px solid ${t.border}` : 'none' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{r.member_name}</span>
+                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: r.status === 'approved' ? t.tealBg : r.status === 'rejected' ? t.coralBg : t.amberBg, color: r.status === 'approved' ? t.teal : r.status === 'rejected' ? t.coral : t.amber, fontWeight: 500 }}>
+                        {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{r.reason}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

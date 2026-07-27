@@ -10,6 +10,7 @@ import FellowshipValidation from '@/components/FellowshipValidation';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import ServicePlannerPanel from '@/components/ServicePlannerPanel';
 import EventsPanel from '@/components/EventsPanel';
+import CareFollowupPanel from '@/components/CareFollowupPanel';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -21,7 +22,7 @@ import {
 type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; giving_breakdown?:{name:string;amount:number;pct:number}[]; growth_trend?:{month:string;count:number}[]; gender_distribution?:{name:string;count:number;pct:number}[]; gender_known?:number; age_bands?:{band:string;n:number;p:number}[]; age_known?:number; };
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
 type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
-type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'requisitions'|'validation'|'settings'|'admin'|'workforce'|'service_planner'|'events';
+type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'care_followup'|'requisitions'|'validation'|'settings'|'admin'|'workforce'|'service_planner'|'events';
 type TimeRange = '8w'|'3m'|'6m'|'1y'|'2y'|'5y';
 
 // ── Unique cell data with realistic, differentiated trends ─────
@@ -1209,6 +1210,92 @@ function CreateCellModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dar
   );
 }
 
+function MergeCellsModal({t,dark,cells,onClose,onMerged}:{t:Record<string,string>;dark:boolean;cells:{id:string;cell:string;fel:string;members:number}[];onClose:()=>void;onMerged:()=>void}) {
+  const [fellowship,setFellowship]=React.useState('');
+  const [targetId,setTargetId]=React.useState('');
+  const [sourceIds,setSourceIds]=React.useState<Set<string>>(new Set());
+  const [saving,setSaving]=React.useState(false);
+  const [error,setError]=React.useState('');
+  const [result,setResult]=React.useState<{moved_members:number;merged_cells:number}|null>(null);
+
+  const fellowships=Array.from(new Set(cells.map(c=>c.fel))).sort();
+  const inFellowship=cells.filter(c=>c.fel===fellowship);
+
+  function toggleSource(id:string){
+    setSourceIds(prev=>{const next=new Set(prev);if(next.has(id))next.delete(id);else next.add(id);return next;});
+  }
+
+  async function submit(){
+    if(!targetId||sourceIds.size===0){setError('Pick a target cell and at least one cell to merge into it.');return;}
+    setSaving(true);setError('');
+    try{
+      const res=await fetch('/api/admin/cells/merge',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+        body:JSON.stringify({source_cell_ids:Array.from(sourceIds),target_cell_id:targetId})});
+      const json=await res.json();
+      if(res.ok){setResult(json.data);onMerged();}
+      else setError(json.error?.message||'Failed to merge cells.');
+    }catch{setError('Network error.');}
+    setSaving(false);
+  }
+
+  const labelS:React.CSSProperties={fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5,display:'block'};
+  const inputS:React.CSSProperties={width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box' as const};
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',backdropFilter:'blur(2px)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={onClose}>
+      <div style={{background:dark?'#151030':'#fff',borderRadius:16,padding:24,maxWidth:440,width:'100%',maxHeight:'85vh',overflowY:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.4)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:4}}>Merge Cells</div>
+        <div style={{fontSize:11,color:t.muted,marginBottom:16}}>Move every member from one or more cells into a single target cell. The merged cells are deactivated, not deleted — their history stays intact.</div>
+        {error && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12,marginBottom:12}}>{error}</div>}
+        {result ? (
+          <div>
+            <div style={{background:'#E1F5EE',color:'#085041',borderRadius:8,padding:'10px 14px',fontSize:12,marginBottom:16}}>
+              Moved {result.moved_members} member{result.moved_members===1?'':'s'} into the target cell and deactivated {result.merged_cells} cell{result.merged_cells===1?'':'s'}.
+            </div>
+            <button onClick={onClose} style={{width:'100%',background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'11px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Done</button>
+          </div>
+        ) : (
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            <div>
+              <label style={labelS}>Fellowship</label>
+              <select value={fellowship} onChange={e=>{setFellowship(e.target.value);setTargetId('');setSourceIds(new Set());}} style={inputS}>
+                <option value="">Select a fellowship...</option>
+                {fellowships.map(f=><option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+            {fellowship && (
+              <>
+                <div>
+                  <label style={labelS}>Keep this cell (target)</label>
+                  <select value={targetId} onChange={e=>{setTargetId(e.target.value);setSourceIds(prev=>{const next=new Set(prev);next.delete(e.target.value);return next;});}} style={inputS}>
+                    <option value="">Select...</option>
+                    {inFellowship.map(c=><option key={c.id} value={c.id}>{c.cell} ({c.members} members)</option>)}
+                  </select>
+                </div>
+                {targetId && (
+                  <div>
+                    <label style={labelS}>Merge these cells into it</label>
+                    {inFellowship.filter(c=>c.id!==targetId).map(c=>(
+                      <label key={c.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',fontSize:12,color:t.text,cursor:'pointer'}}>
+                        <input type="checkbox" checked={sourceIds.has(c.id)} onChange={()=>toggleSource(c.id)} />
+                        {c.cell} ({c.members} members)
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            <div style={{display:'flex',gap:8,marginTop:6}}>
+              <button onClick={submit} disabled={saving||!targetId||sourceIds.size===0} style={{flex:1,background:t.coral,color:'#fff',border:'none',borderRadius:9,padding:'11px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:saving||!targetId||sourceIds.size===0?0.6:1}}>{saving?'Merging…':'Merge cells'}</button>
+              <button onClick={onClose} style={{background:'transparent',color:t.muted,border:`0.5px solid ${t.border}`,borderRadius:9,padding:'11px 16px',fontSize:13,cursor:'pointer'}}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage(){
   const router=useRouter();
   const [page,setPage]=useState<NavPage>('dashboard');
@@ -1235,6 +1322,7 @@ export default function DashboardPage(){
   const [membersLoading,setMembersLoading]=useState(true);
   const [showCreateMember,setShowCreateMember]=useState(false);
   const [showCreateCell,setShowCreateCell]=useState(false);
+  const [showMergeCells,setShowMergeCells]=useState(false);
   const [deleteTarget,setDeleteTarget]=useState<{id:string;name:string}|null>(null);
   const [deleteConfirmText,setDeleteConfirmText]=useState('');
   const [deleting,setDeleting]=useState(false);
@@ -1269,7 +1357,7 @@ export default function DashboardPage(){
   const [sidebarStyle,setSidebarStyle]=useState<'light'|'dark'>('light');
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [isMobile,setIsMobile]=useState(false);
-  const [dbCells,setDbCells]=useState<(typeof CELLS_DATA[number] & {last_meeting_date?:string|null;meeting_this_week?:boolean;meeting_sla_grade?:string|null})[]|null>(null);
+  const [dbCells,setDbCells]=useState<(typeof CELLS_DATA[number] & {last_meeting_date?:string|null;meeting_this_week?:boolean;meeting_sla_grade?:string|null;submission_sla_score?:number|null;meeting_sla_score?:number|null;accuracy?:number;overall_score?:number})[]|null>(null);
   const [leaderOptions,setLeaderOptions]=useState<{id:string;full_name:string;role:string}[]>([]);
   const [commendType,setCommendType]=useState<'commendation'|'meeting'|'encouragement'|'announcement'>('commendation');
   const [commendLeader,setCommendLeader]=useState('');
@@ -1472,6 +1560,7 @@ export default function DashboardPage(){
     {id:'recognition' as NavPage,icon:'ti-award',label:'Recognition'},
     {id:'commendation' as NavPage,icon:'ti-star',label:'Commend Leaders'},
     {id:'prayer' as NavPage,icon:'ti-heart',label:'Prayer Requests'},
+    {id:'care_followup' as NavPage,icon:'ti-heart-handshake',label:'Care & Follow-up'},
     {id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'},
     {id:'workforce' as NavPage,icon:'ti-user-check',label:'Workforce'},
     {id:'service_planner' as NavPage,icon:'ti-calendar-check',label:'Service Planner'},
@@ -1882,6 +1971,7 @@ export default function DashboardPage(){
           )}
           {showCreateMember && <CreateMemberModal t={t} dark={dark} onClose={()=>setShowCreateMember(false)} onCreated={()=>{loadMembers();fetch('/api/analytics/dashboard',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setKpi(data);}).catch(()=>{});}}/>}
           {showCreateCell && <CreateCellModal t={t} dark={dark} onClose={()=>setShowCreateCell(false)} onCreated={reloadCells}/>}
+          {showMergeCells && <MergeCellsModal t={t} dark={dark} cells={dbCells||[]} onClose={()=>setShowMergeCells(false)} onMerged={reloadCells}/>}
           {deleteTarget && (
             <div style={{position:'fixed',inset:0,background:'rgba(15,10,30,0.6)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}}>
               <div style={{background:t.card,borderRadius:16,padding:24,maxWidth:420,width:'90%',border:'0.5px solid rgba(216,90,48,0.3)'}}>
@@ -2003,6 +2093,7 @@ export default function DashboardPage(){
                   <div style={{fontSize:13,fontWeight:500,color:t.text}}>All {(dbCells||CELLS_DATA).length} Cells - click any cell to drill down</div>
                   <div style={{display:'flex',gap:8}}>
                     <button onClick={()=>setShowCreateCell(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Create Cell</button>
+                    <button onClick={()=>setShowMergeCells(true)} style={{background:'transparent',color:t.coral,border:`0.5px solid ${t.coral}`,borderRadius:8,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>Merge Cells</button>
                     <button onClick={()=>exportCSV((dbCells||CELLS_DATA).map(c=>({Cell:c.cell,Fellowship:c.fel,Leader:c.leader,Members:c.members,AvgAttendance:c.avg,Rate:`${c.rate}%`,Trend:c.trend,Status:c.status})),'cells_export')}
                       style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'5px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export CSV</button>
                   </div>
@@ -2197,29 +2288,27 @@ export default function DashboardPage(){
                     <tbody>
                       {(showAlertOnly
                         ? (dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch')
-                        : [...(dbCells||[])].sort((a,b)=>{
-                            const score=(x:typeof CELLS_DATA[0])=>x.status==='rising'?92:x.status==='stable'?78:x.status==='watch'?55:35;
-                            return score(b)-score(a);
-                          }).slice(0,15)
+                        : [...(dbCells||[])].sort((a,b)=>(b.overall_score??0)-(a.overall_score??0)).slice(0,15)
                       ).map((c,i)=>{
-                        const slaScore=c.status==='rising'?92:c.status==='stable'?78:c.status==='watch'?61:45;
-                        const tier=slaScore>=95?'Crown of Excellence':slaScore>=90?'Elite Shepherd':slaScore>=75?'Faithful Steward':slaScore>=60?'Consistent Servant':'Needs Improvement';
-                        const tierColor=slaScore>=90?{bg:'#EEEDFE',c:'#3C3489'}:slaScore>=75?{bg:'#E1F5EE',c:'#085041'}:slaScore>=60?{bg:'#F3F4F6',c:'#374151'}:{bg:'#FAEEDA',c:'#993C1D'};
+                        const slaScore=c.submission_sla_score;
+                        const overall=c.overall_score??0;
+                        const tier=overall>=95?'Crown of Excellence':overall>=90?'Elite Shepherd':overall>=75?'Faithful Steward':overall>=60?'Consistent Servant':overall>=45?'Needs Improvement':'Requires Pastoral Review';
+                        const tierColor=overall>=90?{bg:'#EEEDFE',c:'#3C3489'}:overall>=75?{bg:'#E1F5EE',c:'#085041'}:overall>=60?{bg:'#F3F4F6',c:'#374151'}:{bg:'#FAEEDA',c:'#993C1D'};
                         return(
                           <tr key={c.cell} style={{borderBottom:`0.5px solid ${t.border}`}}>
                             <td style={{padding:'10px 10px',fontWeight:700,color:i===0?'#BA7517':i===1?t.muted:t.sub}}>{i+1}</td>
                             <td style={{padding:'10px 10px',fontWeight:500,color:t.text,whiteSpace:'nowrap'}}>{c.leader}</td>
                             <td style={{padding:'10px 10px',color:t.sub,whiteSpace:'nowrap'}}>{c.cell}</td>
                             <td style={{padding:'10px 10px',color:t.sub}}>{c.fel}</td>
-                            <td style={{padding:'10px 10px',fontWeight:600,color:slaScore>=75?t.teal:t.coral}}>{slaScore}%</td>
+                            <td style={{padding:'10px 10px',fontWeight:600,color:slaScore==null?t.muted:slaScore>=75?t.teal:t.coral}}>{slaScore==null?'—':`${slaScore}%`}</td>
                             <td style={{padding:'10px 10px',color:t.text}}>{c.rate}%</td>
                             <td style={{padding:'10px 10px',color:c.trend.startsWith('+')?t.teal:t.coral,fontWeight:500}}>{c.trend}</td>
-                            <td style={{padding:'10px 10px',color:t.teal}}>98%</td>
-                            <td style={{padding:'10px 10px',fontWeight:700,color:slaScore>=75?t.teal:t.coral}}>{Math.round((slaScore*0.4)+(c.rate*0.3)+(80*0.2)+(98*0.1))}%</td>
+                            <td style={{padding:'10px 10px',color:t.teal}}>{c.accuracy??100}%</td>
+                            <td style={{padding:'10px 10px',fontWeight:700,color:overall>=75?t.teal:t.coral}}>{overall}%</td>
                             <td style={{padding:'10px 10px'}}><span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:tierColor.bg,color:tierColor.c,fontWeight:500,whiteSpace:'nowrap'}}>{tier}</span></td>
                             <td style={{padding:'10px 10px'}}>
                               <div style={{display:'flex',gap:4}}>
-                                {slaScore>=90&&<span title="Unbroken — 12 consecutive on-time" style={{fontSize:14}}>🏆</span>}
+                                {slaScore!=null&&slaScore>=90&&<span title="Unbroken — 12 consecutive on-time" style={{fontSize:14}}>🏆</span>}
                                 {c.rate>=85&&<span title="Fellowship Excellence" style={{fontSize:14}}>⭐</span>}
                                 {c.trend.startsWith('+')&&parseInt(c.trend)>=10&&<span title="Soul Winner" style={{fontSize:14}}>🌱</span>}
                               </div>
@@ -2236,24 +2325,31 @@ export default function DashboardPage(){
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Fellowship Heads</div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
-                  {[
-                    {name:'Youth Fellowship',score:88,attendance:82,growth:'+12%',sla:'A',tier:'Faithful Steward',tierBg:'#E1F5EE',tierC:'#085041'},
-                    {name:'Women Fellowship',score:79,attendance:76,growth:'+7%',sla:'A+',tier:'Faithful Steward',tierBg:'#E1F5EE',tierC:'#085041'},
-                    {name:'Men Fellowship',score:71,attendance:74,growth:'+5%',sla:'B',tier:'Consistent Servant',tierBg:'#F3F4F6',tierC:'#374151'},
-                  ].map(f=>(
-                    <div key={f.name} style={{background:t.cardInner,borderRadius:10,padding:'14px 16px',border:`0.5px solid ${t.border}`}}>
-                      <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:8}}>{f.name}</div>
-                      <div style={{fontSize:26,fontWeight:700,color:f.score>=80?t.teal:t.amber,marginBottom:4}}>{f.score}%</div>
-                      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:8}}>
-                        <span style={{color:t.muted}}>Attendance: {f.attendance}%</span>
-                        <span style={{color:t.teal,fontWeight:500}}>{f.growth}</span>
-                      </div>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                        <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:f.tierBg,color:f.tierC,fontWeight:500}}>{f.tier}</span>
-                        <span style={{fontSize:12,fontWeight:700,color:f.score>=80?t.teal:t.amber}}>SLA: {f.sla}</span>
-                      </div>
-                    </div>
-                  ))}
+                  {Object.entries((dbCells||[]).reduce((acc:Record<string,NonNullable<typeof dbCells>>,c)=>{(acc[c.fel]=acc[c.fel]||[]).push(c);return acc;},{}))
+                    .map(([name,group])=>{
+                      const n=group.length||1;
+                      const score=Math.round(group.reduce((s,c)=>s+(c.overall_score??0),0)/n);
+                      const attendance=Math.round(group.reduce((s,c)=>s+c.rate,0)/n);
+                      const growthPct=Math.round(group.reduce((s,c)=>s+(parseInt(c.trend)||0),0)/n);
+                      const slaVals=group.map(c=>c.submission_sla_score).filter((v):v is number=>v!=null);
+                      const slaAvg=slaVals.length>0?Math.round(slaVals.reduce((a,b)=>a+b,0)/slaVals.length):null;
+                      const tier=score>=90?'Elite Shepherd':score>=75?'Faithful Steward':score>=60?'Consistent Servant':'Needs Improvement';
+                      const tierColor=score>=90?{bg:'#EEEDFE',c:'#3C3489'}:score>=75?{bg:'#E1F5EE',c:'#085041'}:{bg:'#F3F4F6',c:'#374151'};
+                      return(
+                        <div key={name} style={{background:t.cardInner,borderRadius:10,padding:'14px 16px',border:`0.5px solid ${t.border}`}}>
+                          <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:8}}>{name}</div>
+                          <div style={{fontSize:26,fontWeight:700,color:score>=80?t.teal:t.amber,marginBottom:4}}>{score}%</div>
+                          <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:8}}>
+                            <span style={{color:t.muted}}>Attendance: {attendance}%</span>
+                            <span style={{color:growthPct>=0?t.teal:t.coral,fontWeight:500}}>{growthPct>=0?'+':''}{growthPct}%</span>
+                          </div>
+                          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                            <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:tierColor.bg,color:tierColor.c,fontWeight:500}}>{tier}</span>
+                            <span style={{fontSize:12,fontWeight:700,color:score>=80?t.teal:t.amber}}>SLA: {slaAvg==null?'—':`${slaAvg}%`}</span>
+                          </div>
+                        </div>
+                      );
+                  })}
                 </div>
               </div>
 
@@ -2381,6 +2477,9 @@ export default function DashboardPage(){
           )}
           {page==='events'&&(
             <EventsPanel t={t} />
+          )}
+          {page==='care_followup'&&(
+            <CareFollowupPanel t={t} />
           )}
           {page==='validation'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>

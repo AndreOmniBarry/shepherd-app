@@ -71,6 +71,8 @@ function rolePortal(role: string): string {
       return '/partnership';
     case 'care_team':
       return '/care';
+    case 'workforce':
+      return '/workforce';
     default:
       return '/cell';
   }
@@ -83,7 +85,7 @@ function allowedPrefixes(role: string): string[] {
     case 'pa':
     case 'lead_tech':
       // Full access — can view all portals for troubleshooting
-      return ['/dashboard', '/fellowship', '/department', '/cell', '/care', '/update', '/admin', '/api'];
+      return ['/dashboard', '/fellowship', '/department', '/cell', '/care', '/workforce', '/update', '/admin', '/api'];
     case 'fellowship_head':
       return ['/fellowship', '/update', '/api'];
     case 'department_head':
@@ -96,6 +98,8 @@ function allowedPrefixes(role: string): string[] {
       return ['/partnership', '/update', '/api'];
     case 'care_team':
       return ['/care', '/update', '/api'];
+    case 'workforce':
+      return ['/workforce', '/api'];
     default:
       return ['/cell', '/update', '/api'];
   }

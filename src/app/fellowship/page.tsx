@@ -140,6 +140,7 @@ export default function FellowshipHeadPage() {
   const [fellowshipName, setFellowshipName] = useState('');
   const [leaderName, setLeaderName] = useState('');
   const [cells, setCells] = useState<Cell[]>([]);
+  const [fellowshipTrend, setFellowshipTrend] = useState<{ w: string; v: number }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [givingHistory, setGivingHistory] = useState<GivingEntry[]>([]);
@@ -158,6 +159,10 @@ export default function FellowshipHeadPage() {
   const [givingSuccess, setGivingSuccess] = useState(false);
   const [givingError, setGivingError] = useState('');
   const [disputeForm, setDisputeForm] = useState<{ record_id: string; reason: string } | null>(null);
+  const [showCreateCell, setShowCreateCell] = useState(false);
+  const [newCellName, setNewCellName] = useState('');
+  const [creatingCell, setCreatingCell] = useState(false);
+  const [createCellError, setCreateCellError] = useState('');
 
   // ── Theme ────────────────────────────────────────────────────
   const t = {
@@ -220,6 +225,7 @@ export default function FellowshipHeadPage() {
       .then(r => r.json())
       .then(({ data }) => {
         if (data?.cells) setCells(data.cells);
+        if (data?.fellowship_trend) setFellowshipTrend(data.fellowship_trend);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -483,7 +489,7 @@ export default function FellowshipHeadPage() {
               <div style={card()}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Attendance trend — last 8 weeks</div>
                 <ResponsiveContainer width="100%" height={160}>
-                  <LineChart data={cells[0]?.trend || []} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
+                  <LineChart data={fellowshipTrend} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={t.chartGrid} />
                     <XAxis dataKey="w" tick={{ fontSize: 9, fill: t.chartAxis }} />
                     <YAxis tick={{ fontSize: 9, fill: t.chartAxis }} />
@@ -583,6 +589,42 @@ export default function FellowshipHeadPage() {
                     </div>
                   ))}
                 </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                  <button onClick={() => setShowCreateCell(v => !v)}
+                    style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    {showCreateCell ? 'Cancel' : '+ Create Cell'}
+                  </button>
+                </div>
+                {showCreateCell && (
+                  <div style={{ ...card(), marginBottom: 14 }}>
+                    <div style={{ fontSize: 12, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>New cell name</div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input value={newCellName} onChange={e => setNewCellName(e.target.value)} placeholder="e.g. Overcomers"
+                        style={{ flex: 1, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }} />
+                      <button
+                        onClick={async () => {
+                          if (!newCellName.trim()) { setCreateCellError('Cell name is required'); return; }
+                          setCreatingCell(true); setCreateCellError('');
+                          try {
+                            const res = await fetch('/api/cells/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ name: newCellName.trim() }) });
+                            const json = await res.json();
+                            if (res.ok) {
+                              setNewCellName(''); setShowCreateCell(false);
+                              fetch('/api/fellowship/cells', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (data?.cells) setCells(data.cells); });
+                            } else setCreateCellError(json.error?.message || 'Failed to create cell.');
+                          } catch { setCreateCellError('Network error.'); }
+                          setCreatingCell(false);
+                        }}
+                        disabled={creatingCell}
+                        style={{ background: t.teal, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: creatingCell ? 0.6 : 1 }}>
+                        {creatingCell ? 'Creating…' : 'Create'}
+                      </button>
+                    </div>
+                    {createCellError && <div style={{ fontSize: 11, color: t.coral, marginTop: 8 }}>{createCellError}</div>}
+                  </div>
+                )}
+
                 <div style={{ ...card({ padding: 0 }), overflow: 'hidden' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                     <thead>
