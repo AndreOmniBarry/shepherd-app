@@ -1238,6 +1238,10 @@ export default function DashboardPage(){
   const [deleteTarget,setDeleteTarget]=useState<{id:string;name:string}|null>(null);
   const [deleteConfirmText,setDeleteConfirmText]=useState('');
   const [deleting,setDeleting]=useState(false);
+  const [moveTarget,setMoveTarget]=useState<{id:string;name:string}|null>(null);
+  const [moveCellId,setMoveCellId]=useState('');
+  const [moving,setMoving]=useState(false);
+  const [moveError,setMoveError]=useState('');
   const [attDrill,setAttDrill]=useState<string|null>(null);
   type DeptRow = {id:string;name:string;leader:string;count:number;absent:number;present:number;rate:number|null;status:string;submitted:boolean};
   type DeptDetail = {department:{id:string;name:string};members:{id:string;name:string;phone:string|null;role:string;status:string|null}[];last_submission:string|null};
@@ -1366,6 +1370,20 @@ export default function DashboardPage(){
       if(res.ok){setDeleteTarget(null);setDeleteConfirmText('');loadMembers();}
     }catch{}
     setDeleting(false);
+  }
+
+  async function confirmMove(){
+    if(!moveTarget||!moveCellId)return;
+    setMoving(true);setMoveError('');
+    try{
+      const res=await fetch(`/api/update/members/${moveTarget.id}`,{
+        method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',
+        body:JSON.stringify({cell_id:moveCellId}),
+      });
+      if(res.ok){setMoveTarget(null);setMoveCellId('');loadMembers();}
+      else{const json=await res.json().catch(()=>({}));setMoveError(json?.error?.message||'Failed to move member.');}
+    }catch{setMoveError('Network error — member was not moved.');}
+    setMoving(false);
   }
 
   function reloadCells(){
@@ -1689,12 +1707,16 @@ export default function DashboardPage(){
           {page==='members'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
-                {[
-                  {label:'Total Members',value:'1,147',sub:'All statuses'},
-                  {label:'Active Members',value:'1,089',sub:'Regularly attending'},
-                  {label:'New This Month',value:'23',sub:'June 2026'},
-                  {label:'CYDF Combined',value:'300',sub:'180 children · 120 teens'},
-                ].map(s=>(
+                {(()=>{
+                  const children=kpi?.age_bands?.find(b=>b.band==='0–12')?.n||0;
+                  const teens=kpi?.age_bands?.find(b=>b.band==='13–17')?.n||0;
+                  return [
+                    {label:'Total Members',value:fmt(kpi?.total_members),sub:'All statuses'},
+                    {label:'Active Members',value:fmt(kpi?.active_members),sub:'Regularly attending'},
+                    {label:'New This Month',value:fmt(kpi?.new_members_month),sub:new Date().toLocaleString('en-US',{month:'long',year:'numeric'})},
+                    {label:'CYDF Combined',value:fmt(children+teens),sub:(kpi?.age_known||0)>0?`${children} children · ${teens} teens`:'No DOB data yet'},
+                  ];
+                })().map(s=>(
                   <div key={s.label} style={card()}>
                     <div style={{fontSize:11,color:t.sub,marginBottom:4}}>{s.label}</div>
                     <div style={{fontSize:22,fontWeight:500,color:t.text}}>{s.value}</div>
@@ -1811,16 +1833,16 @@ export default function DashboardPage(){
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
                     <thead style={{position:'sticky',top:0,background:t.card}}>
                       <tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>
-                        {[...['Name','Phone','Cell','Fellowship','Joined','Status'],...(userRole==='overseer'?['']:[])].map((h,hi)=>(
+                        {[...['Name','Phone','Cell','Fellowship','Joined','Status'],...(['overseer','pa','lead_tech'].includes(userRole)?['']:[])].map((h,hi)=>(
                           <th key={h||`action-${hi}`} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap',background:t.card}}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {membersLoading?(
-                        <tr><td colSpan={userRole==='overseer'?7:6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>Loading members…</td></tr>
+                        <tr><td colSpan={['overseer','pa','lead_tech'].includes(userRole)?7:6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>Loading members…</td></tr>
                       ):membersList.filter(m=>memberFilter==='all'?true:m.membership_status===memberFilter).length===0?(
-                        <tr><td colSpan={userRole==='overseer'?7:6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>No members found.</td></tr>
+                        <tr><td colSpan={['overseer','pa','lead_tech'].includes(userRole)?7:6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>No members found.</td></tr>
                       ):membersList
                         .filter(m=>memberFilter==='all'?true:m.membership_status===memberFilter)
                         .map((m,i)=>(
@@ -1831,12 +1853,18 @@ export default function DashboardPage(){
                           <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.fellowship_name||'—'}</td>
                           <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.join_date?new Date(m.join_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</td>
                           <td style={{padding:'7px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.membership_status==='active'?'#E1F5EE':'#FAECE7',color:m.membership_status==='active'?'#085041':'#993C1D',textTransform:'capitalize' as const}}>{m.membership_status}</span></td>
-                          {userRole==='overseer'&&(
-                            <td style={{padding:'7px 8px'}}>
-                              <button onClick={()=>{setDeleteTarget({id:m.id,name:m.full_name});setDeleteConfirmText('');}}
-                                style={{background:'transparent',color:'#D85A30',border:'0.5px solid rgba(216,90,48,0.3)',borderRadius:6,padding:'4px 9px',fontSize:10,fontWeight:600,cursor:'pointer'}}>
-                                Delete
+                          {['overseer','pa','lead_tech'].includes(userRole)&&(
+                            <td style={{padding:'7px 8px',whiteSpace:'nowrap'}}>
+                              <button onClick={()=>{setMoveTarget({id:m.id,name:m.full_name});setMoveCellId('');setMoveError('');}}
+                                style={{background:'transparent',color:t.purple,border:`0.5px solid ${t.border}`,borderRadius:6,padding:'4px 9px',fontSize:10,fontWeight:600,cursor:'pointer',marginRight:6}}>
+                                Move
                               </button>
+                              {userRole==='overseer'&&(
+                                <button onClick={()=>{setDeleteTarget({id:m.id,name:m.full_name});setDeleteConfirmText('');}}
+                                  style={{background:'transparent',color:'#D85A30',border:'0.5px solid rgba(216,90,48,0.3)',borderRadius:6,padding:'4px 9px',fontSize:10,fontWeight:600,cursor:'pointer'}}>
+                                  Delete
+                                </button>
+                              )}
                             </td>
                           )}
                         </tr>
@@ -1871,6 +1899,31 @@ export default function DashboardPage(){
                   <button onClick={confirmDeleteMember} disabled={deleteConfirmText!=='DELETE'||deleting}
                     style={{flex:1,background:'#D85A30',color:'#fff',border:'none',borderRadius:8,padding:'9px',fontSize:12,fontWeight:600,cursor:'pointer',opacity:(deleteConfirmText!=='DELETE'||deleting)?0.5:1}}>
                     {deleting?'Deleting…':'Delete permanently'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {moveTarget && (
+            <div style={{position:'fixed',inset:0,background:'rgba(15,10,30,0.6)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}}>
+              <div style={{background:t.card,borderRadius:16,padding:24,maxWidth:420,width:'90%',border:`0.5px solid ${t.border}`}}>
+                <div style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:8}}>Move {moveTarget.name} to a different cell</div>
+                <div style={{fontSize:12,color:t.sub,lineHeight:1.6,marginBottom:14}}>
+                  Their fellowship updates automatically to match the new cell&apos;s fellowship — this can move
+                  someone across fellowships, not just within one.
+                </div>
+                <select value={moveCellId} onChange={e=>setMoveCellId(e.target.value)}
+                  style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box',marginBottom:16}}>
+                  <option value="">Select a cell...</option>
+                  {(dbCells||[]).map(c=>(<option key={c.id} value={c.id}>{c.cell} — {c.fel}</option>))}
+                </select>
+                {moveError && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12,marginBottom:12}}>{moveError}</div>}
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={()=>{setMoveTarget(null);setMoveCellId('');}} style={{flex:1,background:'transparent',border:`0.5px solid ${t.border}`,color:t.sub,borderRadius:8,padding:'9px',fontSize:12,fontWeight:600,cursor:'pointer'}}>Cancel</button>
+                  <button onClick={confirmMove} disabled={!moveCellId||moving}
+                    style={{flex:1,background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'9px',fontSize:12,fontWeight:600,cursor:'pointer',opacity:(!moveCellId||moving)?0.5:1}}>
+                    {moving?'Moving…':'Move member'}
                   </button>
                 </div>
               </div>
