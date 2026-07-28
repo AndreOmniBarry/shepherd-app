@@ -126,7 +126,8 @@ export async function GET(req: Request) {
   }
 }
 
-// Fixes wrongly-named cells — fellowship heads only, own fellowship only.
+// Fixes wrongly-named cells — fellowship heads (own fellowship only), or
+// lead_tech/pa/overseer (any cell, any fellowship).
 export async function PATCH(req: Request) {
   try {
     const cookie = req.headers.get('cookie') || '';
@@ -136,8 +137,9 @@ export async function PATCH(req: Request) {
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     const user = payloadToAuthUser(payload);
-    if (user.role !== 'fellowship_head') {
-      return NextResponse.json({ data: null, error: { message: 'Only the fellowship head can rename a cell' } }, { status: 403 });
+    const isAdmin = ['overseer', 'pa', 'lead_tech'].includes(user.role);
+    if (!isAdmin && user.role !== 'fellowship_head') {
+      return NextResponse.json({ data: null, error: { message: 'Only the fellowship head or an admin can rename a cell' } }, { status: 403 });
     }
 
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -147,15 +149,17 @@ export async function PATCH(req: Request) {
     const { cell_id, name } = await req.json();
     if (!cell_id || !name?.trim()) return NextResponse.json({ data: null, error: { message: 'cell_id and name are required' } }, { status: 400 });
 
-    const userRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs });
-    const userData = await userRes.json();
-    const fellowship_id = user.fellowship_id || userData?.[0]?.fellowship_id;
-    if (!fellowship_id) return NextResponse.json({ data: null, error: { message: 'No fellowship assigned to your account' } }, { status: 400 });
+    if (!isAdmin) {
+      const userRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs });
+      const userData = await userRes.json();
+      const fellowship_id = user.fellowship_id || userData?.[0]?.fellowship_id;
+      if (!fellowship_id) return NextResponse.json({ data: null, error: { message: 'No fellowship assigned to your account' } }, { status: 400 });
 
-    const cellRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${cell_id}&select=id,fellowship_id&limit=1`, { headers: hdrs });
-    const cell = (await cellRes.json())?.[0];
-    if (!cell || cell.fellowship_id !== fellowship_id) {
-      return NextResponse.json({ data: null, error: { message: 'That cell is not in your fellowship' } }, { status: 403 });
+      const cellRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${cell_id}&select=id,fellowship_id&limit=1`, { headers: hdrs });
+      const cell = (await cellRes.json())?.[0];
+      if (!cell || cell.fellowship_id !== fellowship_id) {
+        return NextResponse.json({ data: null, error: { message: 'That cell is not in your fellowship' } }, { status: 403 });
+      }
     }
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${cell_id}`, {
