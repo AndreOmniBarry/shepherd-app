@@ -1,0 +1,194 @@
+'use client';
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import NotificationBell from '@/components/NotificationBell';
+import MyAccountButton from '@/components/MyAccountButton';
+import Icon from '@/components/Icon';
+
+type Item = { id: string; title: string; date: string; end_date: string | null; type: string; source: 'event' | 'service'; location: string | null; slug: string | null };
+
+const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
+  programme: { bg: '#EEEDFE', text: '#3C3489' },
+  conference: { bg: '#FAEEDA', text: '#633806' },
+  vigil: { bg: '#0F0C20', text: '#A89FFF' },
+  concert: { bg: '#FCEBEB', text: '#A32D2D' },
+  outreach: { bg: '#E1F5EE', text: '#085041' },
+  training: { bg: '#EEEDFE', text: '#3C3489' },
+  thanksgiving: { bg: '#FAEEDA', text: '#633806' },
+  dedication: { bg: '#E1F5EE', text: '#085041' },
+  special: { bg: '#FAECE7', text: '#993C1D' },
+  other: { bg: '#F3F4F6', text: '#374151' },
+};
+
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function ymd(d: Date) { return d.toISOString().split('T')[0]; }
+
+export default function CalendarPage() {
+  const router = useRouter();
+  const [dark, setDark] = useState(false);
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+
+  const t = {
+    bg: dark ? '#080614' : '#F0EFF8', card: dark ? '#13102A' : '#FFFFFF',
+    border: dark ? 'rgba(168,159,255,0.1)' : 'rgba(83,74,183,0.12)',
+    text: dark ? '#E8E5FF' : '#1A1040', sub: dark ? 'rgba(232,229,255,0.6)' : '#5A5180',
+    muted: dark ? 'rgba(232,229,255,0.35)' : '#9990CC', input: dark ? '#0F0C20' : '#F7F6FF',
+    purple: dark ? '#A89FFF' : '#534AB7', purpleBg: dark ? '#1A1A2E' : '#EEEDFE',
+    teal: dark ? '#2DD4AA' : '#1D9E75', tealBg: dark ? '#0D2620' : '#E1F5EE',
+    navBg: dark ? '#0A0618' : '#FFFFFF', navBorder: dark ? 'rgba(168,159,255,0.08)' : 'rgba(83,74,183,0.12)',
+  };
+
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (!data) router.push('/login'); }).catch(() => router.push('/login'));
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    const from = new Date(cursor); from.setDate(from.getDate() - 35);
+    const to = new Date(cursor); to.setMonth(to.getMonth() + 2);
+    fetch(`/api/calendar?from=${ymd(from)}&to=${ymd(to)}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => setItems(data?.items || []))
+      .finally(() => setLoading(false));
+  }, [cursor]);
+
+  const itemsByDay = useMemo(() => {
+    const map: Record<string, Item[]> = {};
+    items.forEach(it => {
+      const start = new Date(it.date + 'T00:00:00');
+      const end = it.end_date ? new Date(it.end_date + 'T00:00:00') : start;
+      const cur = new Date(start);
+      while (cur <= end) { const k = ymd(cur); (map[k] = map[k] || []).push(it); cur.setDate(cur.getDate() + 1); }
+    });
+    return map;
+  }, [items]);
+
+  const upcoming = useMemo(() => {
+    const today = ymd(new Date());
+    return items.filter(it => (it.end_date || it.date) >= today).slice(0, 8);
+  }, [items]);
+
+  // Build the 6-week grid for the current month
+  const gridStart = useMemo(() => {
+    const d = new Date(cursor); d.setDate(d.getDate() - d.getDay());
+    return d;
+  }, [cursor]);
+  const weeks: Date[][] = [];
+  for (let w = 0; w < 6; w++) {
+    const row: Date[] = [];
+    for (let d = 0; d < 7; d++) { const day = new Date(gridStart); day.setDate(gridStart.getDate() + w * 7 + d); row.push(day); }
+    weeks.push(row);
+  }
+
+  const todayStr = ymd(new Date());
+
+  return (
+    <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>
+      <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 24, height: 24, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'absolute', width: 3, height: 17, background: '#A89FFF', borderRadius: 2 }} />
+            <div style={{ position: 'absolute', width: 12, height: 3, background: '#A89FFF', borderRadius: 2 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.purple, letterSpacing: '0.5px' }}>SHEP.HERD</div>
+            <div style={{ fontSize: 10, color: t.muted }}>Church Calendar</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <NotificationBell dark={dark} /><MyAccountButton dark={dark} />
+          <div onClick={() => setDark(v => !v)} style={{ width: 30, height: 30, borderRadius: 8, border: `0.5px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.muted, fontSize: 14 }}>
+            {dark ? '☀' : '◑'}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>{MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}</div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => setCursor(c => { const d = new Date(c); d.setMonth(d.getMonth() - 1); return d; })}
+              style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 8, width: 30, height: 30, cursor: 'pointer', color: t.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+            <button onClick={() => setCursor(() => { const d = new Date(); d.setDate(1); return d; })}
+              style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '0 12px', cursor: 'pointer', color: t.text, fontSize: 12 }}>Today</button>
+            <button onClick={() => setCursor(c => { const d = new Date(c); d.setMonth(d.getMonth() + 1); return d; })}
+              style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 8, width: 30, height: 30, cursor: 'pointer', color: t.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+          </div>
+        </div>
+
+        <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)' }}>
+            {DAY_NAMES.map(d => (
+              <div key={d} style={{ padding: '8px 6px', fontSize: 10, color: t.muted, fontWeight: 600, textTransform: 'uppercase', textAlign: 'center', borderBottom: `0.5px solid ${t.border}` }}>{d}</div>
+            ))}
+          </div>
+          {weeks.map((row, wi) => (
+            <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)' }}>
+              {row.map(day => {
+                const key = ymd(day);
+                const inMonth = day.getMonth() === cursor.getMonth();
+                const dayItems = itemsByDay[key] || [];
+                return (
+                  <div key={key} onClick={() => setSelectedDay(key)}
+                    style={{ minHeight: 76, padding: '6px 6px', borderRight: `0.5px solid ${t.border}`, borderBottom: `0.5px solid ${t.border}`, cursor: 'pointer', background: key === selectedDay ? t.purpleBg : 'transparent', opacity: inMonth ? 1 : 0.35 }}>
+                    <div style={{ fontSize: 11, fontWeight: key === todayStr ? 700 : 400, color: key === todayStr ? '#fff' : t.text, background: key === todayStr ? t.purple : 'transparent', width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 3 }}>
+                      {day.getDate()}
+                    </div>
+                    {dayItems.slice(0, 2).map(it => {
+                      const c = TYPE_COLORS[it.type] || TYPE_COLORS.other;
+                      return <div key={it.id} style={{ fontSize: 9, background: c.bg, color: c.text, borderRadius: 4, padding: '1px 4px', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.title}</div>;
+                    })}
+                    {dayItems.length > 2 && <div style={{ fontSize: 9, color: t.muted }}>+{dayItems.length - 2} more</div>}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {selectedDay && (itemsByDay[selectedDay]?.length || 0) > 0 && (
+          <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>{selectedDay}</div>
+            {itemsByDay[selectedDay].map(it => {
+              const c = TYPE_COLORS[it.type] || TYPE_COLORS.other;
+              return (
+                <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `0.5px solid ${t.border}` }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{it.title}</div>
+                    {it.location && <div style={{ fontSize: 11, color: t.muted, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="ti-map-pin" size={11} /> {it.location}</div>}
+                  </div>
+                  <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, background: c.bg, color: c.text, fontWeight: 600, textTransform: 'capitalize' }}>{it.type}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>Upcoming</div>
+          {loading ? (
+            <div style={{ fontSize: 12, color: t.sub }}>Loading…</div>
+          ) : upcoming.length === 0 ? (
+            <div style={{ fontSize: 12, color: t.muted }}>Nothing scheduled yet.</div>
+          ) : upcoming.map(it => {
+            const c = TYPE_COLORS[it.type] || TYPE_COLORS.other;
+            return (
+              <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `0.5px solid ${t.border}` }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{it.title}</div>
+                  <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{it.date}{it.end_date && it.end_date !== it.date ? ` – ${it.end_date}` : ''}{it.location ? ` · ${it.location}` : ''}</div>
+                </div>
+                <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, background: c.bg, color: c.text, fontWeight: 600, textTransform: 'capitalize' }}>{it.type}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
