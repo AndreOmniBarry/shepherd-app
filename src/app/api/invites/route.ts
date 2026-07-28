@@ -92,8 +92,10 @@ export async function POST(req: Request) {
     const data = await res.json();
     const invite = Array.isArray(data) ? data[0] : data;
 
-    if (!invite?.id) {
-      return NextResponse.json({ data: null, error: { message: 'Failed to create invite' } }, { status: 500 });
+    if (!res.ok || !invite?.id) {
+      console.error('[POST /api/invites] Supabase error:', res.status, JSON.stringify(data));
+      const detail = data?.message || data?.hint || data?.details;
+      return NextResponse.json({ data: null, error: { message: detail ? `Failed to create invite: ${detail}` : 'Failed to create invite' } }, { status: 500 });
     }
 
     // Build invite link

@@ -34,6 +34,7 @@ const PATHS: Record<string, ReactNode> = {
   'ti-clock': <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></>,
   'ti-check': <><path d="M20 6 9 17l-5-5"/></>,
   'ti-search': <><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
+  'ti-arrow-left': <><line x1="5" y1="12" x2="19" y2="12"/><polyline points="11,6 5,12 11,18"/></>,
 };
 
 export default function Icon({ name, size = 15, style, className }: { name?: string; size?: number; style?: CSSProperties; className?: string }) {

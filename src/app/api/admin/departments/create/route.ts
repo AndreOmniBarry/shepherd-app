@@ -28,7 +28,11 @@ export async function POST(req: Request) {
     });
     const data = await res.json();
     const department = Array.isArray(data) ? data[0] : data;
-    if (!department?.id) return NextResponse.json({ data: null, error: { message: 'Failed to create department' } }, { status: 500 });
+    if (!res.ok || !department?.id) {
+      console.error('[POST /api/admin/departments/create] Supabase error:', res.status, JSON.stringify(data));
+      const detail = data?.message || data?.hint || data?.details;
+      return NextResponse.json({ data: null, error: { message: detail ? `Failed to create department: ${detail}` : 'Failed to create department' } }, { status: 500 });
+    }
     return NextResponse.json({ data: { department }, error: null }, { status: 201 });
   } catch (err) {
     console.error('[POST /api/admin/departments/create]', err);
