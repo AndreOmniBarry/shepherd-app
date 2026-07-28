@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import Icon from '@/components/Icon';
 
 const C = {
   purple: '#534AB7', purpleBg: '#EEEDFE', purpleDark: '#3C3489',
@@ -18,13 +19,12 @@ type Event = {
   registration_open: boolean; status: string; registration_count: number;
 };
 
-const TYPE_ICONS: Record<string,string> = { programme: '📋', conference: '🎤', vigil: '🕯', concert: '🎶', outreach: '🌍', training: '📚', thanksgiving: '🙏', dedication: '👶', other: '⭐' };
-
 export default function EventPage() {
   const params = useParams();
   const slug = params?.slug as string;
 
   const [event, setEvent] = useState<Event | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ full_name: '', phone: '', email: '', whatsapp: '', preferred_comms: 'whatsapp' });
   const [submitting, setSubmitting] = useState(false);
@@ -39,6 +39,10 @@ export default function EventPage() {
       .then(({ data }) => { if (data?.event) setEvent(data.event); })
       .catch(() => {})
       .finally(() => setLoading(false));
+    fetch('/api/settings/church-config')
+      .then(r => r.json())
+      .then(({ data }) => { if (data?.config?.logo_url) setLogoUrl(data.config.logo_url); })
+      .catch(() => {});
   }, [slug]);
 
   async function register() {
@@ -67,7 +71,7 @@ export default function EventPage() {
   if (!event) return (
     <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, sans-serif' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
+        <div style={{ color: C.muted, marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Icon name="ti-search" size={32} /></div>
         <div style={{ fontSize: 16, fontWeight: 600, color: C.text }}>Event not found</div>
         <div style={{ fontSize: 13, color: C.muted, marginTop: 6 }}>This event may have been removed or the link is incorrect.</div>
       </div>
@@ -92,8 +96,8 @@ export default function EventPage() {
         {event.banner_url ? (
           <img src={event.banner_url} alt={event.title} style={{ width: '100%', borderRadius: 16, marginBottom: 24, objectFit: 'cover', maxHeight: 280 }} />
         ) : (
-          <div style={{ width: '100%', height: 180, borderRadius: 16, marginBottom: 24, background: `linear-gradient(135deg, ${C.purpleDark}, ${C.purple})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 64 }}>
-            {TYPE_ICONS[event.event_type] || '⭐'}
+          <div style={{ width: '100%', height: 180, borderRadius: 16, marginBottom: 24, background: `linear-gradient(135deg, ${C.purpleDark}, ${C.purple})`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {logoUrl ? <img src={logoUrl} alt="" style={{ maxHeight: 90, maxWidth: '60%', objectFit: 'contain' }} /> : <Icon name="ti-calendar-event" size={56} style={{ color: '#fff' }} />}
           </div>
         )}
 
@@ -114,14 +118,14 @@ export default function EventPage() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
                 {[
-                  { icon: '📅', label: new Date(event.event_date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) },
-                  ...(event.start_time ? [{ icon: '🕐', label: `${event.start_time}${event.end_time ? ` – ${event.end_time}` : ''}` }] : []),
-                  ...(event.location ? [{ icon: '📍', label: event.location }] : []),
-                  { icon: '🎟', label: event.is_free ? 'Free entry' : `₦${Number(event.price).toLocaleString('en-NG')}` },
-                  ...(event.capacity ? [{ icon: '👥', label: `${event.registration_count} registered${event.capacity ? ` / ${event.capacity} capacity` : ''}` }] : []),
+                  { icon: 'ti-calendar-event', label: new Date(event.event_date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) },
+                  ...(event.start_time ? [{ icon: 'ti-clock', label: `${event.start_time}${event.end_time ? ` – ${event.end_time}` : ''}` }] : []),
+                  ...(event.location ? [{ icon: 'ti-map-pin', label: event.location }] : []),
+                  { icon: 'ti-ticket', label: event.is_free ? 'Free entry' : `₦${Number(event.price).toLocaleString('en-NG')}` },
+                  ...(event.capacity ? [{ icon: 'ti-users', label: `${event.registration_count} registered${event.capacity ? ` / ${event.capacity} capacity` : ''}` }] : []),
                 ].map((item, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, color: C.sub }}>
-                    <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
+                    <span style={{ flexShrink: 0, color: C.purple }}><Icon name={item.icon} size={16} /></span>
                     <span>{item.label}</span>
                   </div>
                 ))}
@@ -167,7 +171,7 @@ export default function EventPage() {
               <div>
                 <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 6 }}>Preferred confirmation method</div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  {[{ val: 'whatsapp', label: '📱 WhatsApp' }, { val: 'sms', label: '💬 SMS' }, { val: 'both', label: '📱+💬 Both' }, { val: 'none', label: 'None' }].map(opt => (
+                  {[{ val: 'whatsapp', label: 'WhatsApp' }, { val: 'sms', label: 'SMS' }, { val: 'both', label: 'Both' }, { val: 'none', label: 'None' }].map(opt => (
                     <button key={opt.val} onClick={() => setForm(p => ({ ...p, preferred_comms: opt.val }))}
                       style={{ flex: 1, padding: '9px 6px', borderRadius: 9, border: `1px solid ${form.preferred_comms === opt.val ? C.purple : C.border}`, background: form.preferred_comms === opt.val ? C.purpleBg : C.bg, fontSize: 11, fontWeight: form.preferred_comms === opt.val ? 600 : 400, color: form.preferred_comms === opt.val ? C.purple : C.sub, cursor: 'pointer' }}>
                       {opt.label}
@@ -199,7 +203,13 @@ export default function EventPage() {
 
         {step === 'done' && (
           <div style={{ background: C.white, borderRadius: 16, border: `0.5px solid ${C.border}`, padding: '40px 24px', textAlign: 'center' as const }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+            {logoUrl ? (
+              <img src={logoUrl} alt="" style={{ height: 56, marginBottom: 16, objectFit: 'contain' }} />
+            ) : (
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: C.tealBg, color: C.teal, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <Icon name="ti-check" size={28} />
+              </div>
+            )}
             <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 8 }}>You're registered!</div>
             <div style={{ fontSize: 14, color: C.sub, lineHeight: 1.6, marginBottom: 20 }}>{success}</div>
             <div style={{ background: C.purpleBg, borderRadius: 10, padding: '14px', fontSize: 13, color: C.purple, fontWeight: 500 }}>

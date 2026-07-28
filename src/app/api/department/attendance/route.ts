@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { computeSlaGrade } from '@/lib/sla';
 
 async function getUser(req: Request) {
   const cookie = req.headers.get('cookie') || '';
@@ -15,12 +16,14 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const hdrs = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
 
-// ── 7-day rolling window check ─────────────────────────────────
+const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+// ── 30-day rolling window check ────────────────────────────────
 function isWithinWindow(serviceDateStr: string): boolean {
   const serviceDate = new Date(serviceDateStr + 'T00:00:00');
   const now = new Date();
   const cutoff = new Date();
-  cutoff.setDate(now.getDate() - 7);
+  cutoff.setDate(now.getDate() - 30);
   return serviceDate >= cutoff && serviceDate <= now;
 }
 
@@ -37,105 +40,79 @@ export async function POST(req: Request) {
     if (user.role !== 'department_head') return NextResponse.json({ data: null, error: { message: 'Department heads only' } }, { status: 403 });
 
     const body = await req.json();
-    const { service_id, entries, visitor_count, absence_reasons } = body;
+    const { service_date, entries, visitor_count, absence_reasons } = body;
 
-    if (!service_id || !entries?.length) {
-      return NextResponse.json({ data: null, error: { message: 'service_id and entries are required' } }, { status: 400 });
+    if (!service_date || !entries?.length) {
+      return NextResponse.json({ data: null, error: { message: 'service_date and entries are required' } }, { status: 400 });
     }
 
     const department_id = await getDepartmentId(user.id);
     if (!department_id) return NextResponse.json({ data: null, error: { message: 'No department assigned to your account' } }, { status: 400 });
 
-    // ── Validate service is within 7-day window ─────────────────
-    // Skip window check for virtual services (auto-created)
-    if (!service_id.startsWith('virtual-')) {
-      const svcRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/services?id=eq.${service_id}&select=id,service_date&limit=1`,
-        { headers: hdrs() }
-      );
-      const svcData = await svcRes.json();
-      const svc = svcData?.[0];
-      if (!svc) return NextResponse.json({ data: null, error: { message: 'Service not found' } }, { status: 404 });
-      if (!isWithinWindow(svc.service_date)) {
-        return NextResponse.json({ data: null, error: { message: 'Submission window has closed for this service. Contact your administrator.' } }, { status: 403 });
+    if (!isWithinWindow(service_date)) {
+      return NextResponse.json({ data: null, error: { message: 'That date is outside the submission window. Contact your administrator.' } }, { status: 403 });
+    }
+
+    // Find or create the services row for this exact date — reuse an
+    // already-sanctioned date (regular or special-day, e.g. a vigil)
+    // as-is and skip the day-of-week check entirely; that check only
+    // exists to stop backdating to an arbitrary, never-sanctioned day.
+    const existingSvcRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.1&select=id&limit=1`,
+      { headers: hdrs() }
+    );
+    const existingSvc = await existingSvcRes.json();
+    let realServiceId: string | null = existingSvc?.[0]?.id || null;
+
+    if (!realServiceId) {
+      // Server derives the real day-of-week and cross-checks against the
+      // church's own configured service days — universal, works whatever
+      // weekdays this church actually picked.
+      const [y, mo, d] = service_date.split('-').map(Number);
+      const dateObj = new Date(y, mo - 1, d);
+      const dayName = DAY_NAMES[dateObj.getDay()];
+
+      const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?select=service_days&limit=1`, { headers: hdrs() });
+      const cfgData = await cfgRes.json();
+      const serviceDays: string[] = cfgData?.[0]?.service_days?.length ? cfgData[0].service_days : ['Sunday'];
+      if (!serviceDays.includes(dayName)) {
+        return NextResponse.json({ data: null, error: { message: `${dayName} isn't one of your church's configured service days (${serviceDays.join(', ')}). If this is a special program, ask an admin to add it first under Service Planner.` } }, { status: 400 });
       }
+      const service_type = dayName === 'Sunday' ? 'sunday' : 'midweek';
+
+      const insertSvcRes = await fetch(`${SUPABASE_URL}/rest/v1/services`, {
+        method: 'POST', headers: { ...hdrs(), 'Prefer': 'return=representation' },
+        body: JSON.stringify({ service_date, service_number: 1, service_type, notes: 'Auto-created on first submission' }),
+      });
+      const insertedSvc = await insertSvcRes.json();
+      realServiceId = Array.isArray(insertedSvc) && insertedSvc[0]?.id ? insertedSvc[0].id : null;
+      if (!realServiceId) {
+        const retryRes = await fetch(`${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.1&select=id&limit=1`, { headers: hdrs() });
+        const retryData = await retryRes.json();
+        realServiceId = retryData?.[0]?.id || null;
+      }
+      if (!realServiceId) return NextResponse.json({ data: null, error: { message: 'Could not create or find service record' } }, { status: 500 });
+    }
+
+    // ── Check for duplicate submission ─────────────────────────
+    const checkRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/department_attendance?service_id=eq.${realServiceId}&department_id=eq.${department_id}&select=id,is_locked&limit=1`,
+      { headers: hdrs() }
+    );
+    const existing = await checkRes.json();
+    if (existing?.[0]?.is_locked) {
+      return NextResponse.json({ data: null, error: { message: 'Attendance locked by administrator' } }, { status: 409 });
+    }
+    if (existing?.[0]) {
+      return NextResponse.json({ data: null, error: { message: 'Attendance already submitted for this service' } }, { status: 409 });
     }
 
     const present_count = entries.filter((e: Record<string, string>) => e.status === 'present').length;
     const absent_count = entries.filter((e: Record<string, string>) => e.status === 'absent').length;
-
-    // ── SLA timestamp calculation ──────────────────────────────
-    const now = new Date();
-    const submittedAt = now.toISOString();
-
-    // Determine SLA grade based on submission time relative to service
-    // We calculate this based on day of week: Sunday=0, Monday=1, etc.
-    const dayOfWeek = now.getDay();
-    const hour = now.getHours();
-    let sla_grade = 'F';
-    if (dayOfWeek === 0) {
-      sla_grade = hour <= 23 ? 'A+' : 'A+'; // Sunday = A+
-    } else if (dayOfWeek === 1) {
-      sla_grade = hour < 6 ? 'A' : 'B'; // Monday before 6am = A, after = B
-    } else if (dayOfWeek === 2) {
-      sla_grade = 'C'; // Tuesday = C
-    } else if (dayOfWeek === 3) {
-      sla_grade = 'D'; // Wednesday = D
-    } else if (dayOfWeek === 4 || dayOfWeek === 5) {
-      sla_grade = 'F'; // Thursday/Friday = F
-    } else if (dayOfWeek === 6) {
-      sla_grade = 'F-'; // Saturday = highest negative
-    }
-
-    // ── Check for duplicate submission ─────────────────────────
-    let existingRecordId: string | null = null;
-    if (!service_id.startsWith('virtual-')) {
-      const checkRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/department_attendance?service_id=eq.${service_id}&department_id=eq.${department_id}&select=id,is_locked&limit=1`,
-        { headers: hdrs() }
-      );
-      const existing = await checkRes.json();
-      if (existing?.[0]?.is_locked) {
-        return NextResponse.json({ data: null, error: { message: 'Attendance locked by administrator' } }, { status: 409 });
-      }
-      if (existing?.[0]) {
-        return NextResponse.json({ data: null, error: { message: 'Attendance already submitted for this service' } }, { status: 409 });
-      }
-    }
-
-    // ── Handle virtual service — insert real service first ─────
-    let realServiceId = service_id;
-    if (service_id.startsWith('virtual-')) {
-      const parts = service_id.replace('virtual-', '').split('-');
-      const serviceNum = parts.pop();
-      const serviceDate = parts.join('-');
-      const insertSvcRes = await fetch(`${SUPABASE_URL}/rest/v1/services`, {
-        method: 'POST',
-        headers: { ...hdrs(), 'Prefer': 'return=representation' },
-        body: JSON.stringify({
-          service_date: serviceDate,
-          service_number: parseInt(serviceNum || '1'),
-          service_type: 'Sunday Service',
-          notes: 'Auto-created on first submission',
-        }),
-      });
-      const insertedSvc = await insertSvcRes.json();
-      if (Array.isArray(insertedSvc) && insertedSvc[0]?.id) {
-        realServiceId = insertedSvc[0].id;
-      } else {
-        // Service might already exist — fetch it
-        const fetchSvcRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/services?service_date=eq.${serviceDate}&service_number=eq.${serviceNum}&select=id&limit=1`,
-          { headers: hdrs() }
-        );
-        const fetchedSvc = await fetchSvcRes.json();
-        if (fetchedSvc?.[0]?.id) {
-          realServiceId = fetchedSvc[0].id;
-        } else {
-          return NextResponse.json({ data: null, error: { message: 'Could not create or find service record' } }, { status: 500 });
-        }
-      }
-    }
+    const submittedAt = new Date().toISOString();
+    // Universal, day-independent — same computeSlaGrade used everywhere
+    // else, instead of a lookup table tied to specific weekdays.
+    const sla_grade = computeSlaGrade(`${service_date}T00:00:00`, submittedAt);
 
     // ── Insert department attendance record ─────────────────────
     const recRes = await fetch(`${SUPABASE_URL}/rest/v1/department_attendance`, {

@@ -3,6 +3,7 @@ import NotificationBell from "@/components/NotificationBell";
 import MyAccountButton from "@/components/MyAccountButton";
 import CareOverview from '@/components/CareOverview';
 import BirthdayPanel from '@/components/BirthdayPanel';
+import CareEventsTab from '@/components/CareEventsTab';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -44,7 +45,7 @@ type FirstTimer = {
   sla_grade?: string;
 };
 
-type NavTab = 'queue' | 'first_timers' | 'history' | 'birthdays';
+type NavTab = 'queue' | 'first_timers' | 'history' | 'birthdays' | 'events';
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
   new:          { bg: '#EEEDFE', text: '#3C3489', label: 'New' },
@@ -248,6 +249,7 @@ export default function CareTeamPage() {
     { id: 'first_timers' as NavTab, label: `First timers${newTimers.length > 0 ? ` (${newTimers.length})` : ''}` },
     { id: 'history' as NavTab, label: 'History', icon: 'ti-history' },
     { id: 'birthdays' as NavTab, label: 'Birthdays', icon: 'ti-cake' },
+    { id: 'events' as NavTab, label: 'Events', icon: 'ti-calendar-event' },
   ];
 
   return (
@@ -592,6 +594,13 @@ export default function CareTeamPage() {
         {tab === 'birthdays' && (
           <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 0' }}>
             <BirthdayPanel dark={dark} t={t} scope="all" showFellowship={true} />
+          </div>
+        )}
+
+        {/* ── EVENTS ── */}
+        {tab === 'events' && (
+          <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 0' }}>
+            <CareEventsTab t={t} />
           </div>
         )}
 

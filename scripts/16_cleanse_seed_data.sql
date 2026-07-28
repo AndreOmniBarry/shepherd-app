@@ -247,3 +247,15 @@ SELECT c.name, c.is_active, (SELECT count(*) FROM members m WHERE m.cell_id = c.
 FROM cells c
 WHERE c.fellowship_id = 'b63b7285-ce63-4685-87ed-498c6d7c1035'
 ORDER BY c.is_active DESC, c.name;
+
+-- ── PART 10: diagnostic — duplicate departments (e.g. "Protocol" vs
+-- "Ushering & Protocol") ──────────────────────────────────────────────
+-- Same species of bug as the Men's/Women's fellowship duplicates —
+-- DIAGNOSTIC ONLY, deletes nothing. Share the output and I'll write the
+-- exact merge once I see which one holds the real roster/head account.
+SELECT d.id, d.name, d.created_at,
+       (SELECT count(*) FROM department_members dm WHERE dm.department_id = d.id) AS member_count,
+       (SELECT count(*) FROM users u WHERE u.department_id = d.id AND u.role = 'department_head') AS head_accounts,
+       (SELECT count(*) FROM workforce_rosters wr WHERE wr.department_id = d.id) AS roster_count
+FROM departments d
+ORDER BY d.name, d.created_at;

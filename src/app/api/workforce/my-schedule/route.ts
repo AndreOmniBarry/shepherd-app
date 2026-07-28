@@ -85,6 +85,23 @@ export async function PATCH(req: Request) {
       body: JSON.stringify({ confirmed }),
     });
 
+    // Reliability tracking — confirming is the closest signal we have to
+    // "actually served," since there's no separate workforce attendance
+    // log. Recompute the 0-10 score from real assigned/attended counts
+    // rather than leaving it at whatever default it was created with.
+    const profRes = await fetch(`${SURL}/rest/v1/workforce_profiles?member_id=eq.${user.member_id}&select=id,total_services_assigned,total_services_attended&limit=1`, { headers: H() });
+    const profData = await profRes.json();
+    const profile = profData?.[0];
+    if (profile) {
+      const assigned = profile.total_services_assigned || 0;
+      const attended = confirmed ? (profile.total_services_attended || 0) + 1 : profile.total_services_attended || 0;
+      const reliability_score = assigned > 0 ? Math.round((attended / assigned) * 10 * 10) / 10 : 5.0;
+      await fetch(`${SURL}/rest/v1/workforce_profiles?id=eq.${profile.id}`, {
+        method: 'PATCH', headers: { ...H(), Prefer: 'return=minimal' },
+        body: JSON.stringify({ total_services_attended: attended, reliability_score, last_served: confirmed ? new Date().toISOString().split('T')[0] : profile.last_served, updated_at: new Date().toISOString() }),
+      });
+    }
+
     return NextResponse.json({ data: { updated: true }, error: null });
   } catch (err) {
     console.error('[PATCH /api/workforce/my-schedule]', err);

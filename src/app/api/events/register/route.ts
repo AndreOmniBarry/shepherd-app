@@ -77,10 +77,25 @@ export async function POST(req: Request) {
   } catch { return NextResponse.json({ data: null, error: { message: 'Registration failed' } }, { status: 500 }); }
 }
 
+// Read-only visibility for the teams that actually plan around
+// registrant numbers — care/follow-up, and whichever department handles
+// protocol/ushering (checked by name since it isn't its own role).
+async function canViewRegistrants(user: { id: string; role: string } | null): Promise<boolean> {
+  if (!user) return false;
+  if (ADMIN_ROLES.includes(user.role) || user.role === 'care_team') return true;
+  if (user.role === 'department_head') {
+    const res = await fetch(`${SURL}/rest/v1/users?id=eq.${user.id}&select=departments(name)`, { headers: H() });
+    const data = await res.json();
+    const deptName = (data?.[0]?.departments as { name?: string } | null)?.name || '';
+    return /protocol|ushering/i.test(deptName);
+  }
+  return false;
+}
+
 export async function GET(req: Request) {
   try {
     const user = await getUser(req);
-    if (!user || !ADMIN_ROLES.includes(user.role)) {
+    if (!(await canViewRegistrants(user))) {
       return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 403 });
     }
     const { searchParams } = new URL(req.url);
