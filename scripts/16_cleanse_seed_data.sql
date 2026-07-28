@@ -259,3 +259,39 @@ SELECT d.id, d.name, d.created_at,
        (SELECT count(*) FROM workforce_rosters wr WHERE wr.department_id = d.id) AS roster_count
 FROM departments d
 ORDER BY d.name, d.created_at;
+
+-- ── PART 11: merge confirmed duplicate departments ───────────────────────
+-- Unlike Men's/Women's fellowship, real data landed on BOTH sides here,
+-- inconsistently — Prayer's 5 real members are on "Prayer" but its head
+-- account is on "Prayer Department Leader". Moving both members and head
+-- accounts onto whichever side is being kept, then deleting the emptied
+-- duplicate. Departments have no is_active flag to soft-disable like
+-- cells do, so these are hard deletes — safe here because every row being
+-- removed is confirmed empty by the Part 10 counts above.
+UPDATE department_members SET department_id = '1d256e62-5c07-4b51-af03-83a26b0eae81' WHERE department_id = '084e785c-a8a2-40e6-be80-bda80a7fe54a';
+UPDATE users SET department_id = '1d256e62-5c07-4b51-af03-83a26b0eae81' WHERE department_id = '084e785c-a8a2-40e6-be80-bda80a7fe54a';
+UPDATE workforce_profiles SET primary_department_id = '1d256e62-5c07-4b51-af03-83a26b0eae81' WHERE primary_department_id = '084e785c-a8a2-40e6-be80-bda80a7fe54a';
+DELETE FROM departments WHERE id = '084e785c-a8a2-40e6-be80-bda80a7fe54a'; -- Music Department -> Music
+
+UPDATE department_members SET department_id = '61581739-71ea-4506-9413-213ac2c45a0c' WHERE department_id = 'e616d65b-bac8-48e5-8061-7655f9217042';
+UPDATE users SET department_id = '61581739-71ea-4506-9413-213ac2c45a0c' WHERE department_id = 'e616d65b-bac8-48e5-8061-7655f9217042';
+UPDATE workforce_profiles SET primary_department_id = '61581739-71ea-4506-9413-213ac2c45a0c' WHERE primary_department_id = 'e616d65b-bac8-48e5-8061-7655f9217042';
+DELETE FROM departments WHERE id = 'e616d65b-bac8-48e5-8061-7655f9217042'; -- Media Department -> Media
+
+UPDATE department_members SET department_id = 'bf9034a4-01d3-43c2-b72e-7f5dc2064994' WHERE department_id = 'a5f30fbb-f7c1-46f7-9ef7-da9014d759c4';
+UPDATE users SET department_id = 'bf9034a4-01d3-43c2-b72e-7f5dc2064994' WHERE department_id = 'a5f30fbb-f7c1-46f7-9ef7-da9014d759c4';
+UPDATE workforce_profiles SET primary_department_id = 'bf9034a4-01d3-43c2-b72e-7f5dc2064994' WHERE primary_department_id = 'a5f30fbb-f7c1-46f7-9ef7-da9014d759c4';
+DELETE FROM departments WHERE id = 'a5f30fbb-f7c1-46f7-9ef7-da9014d759c4'; -- Prayer Department Leader -> Prayer (its head account moves too)
+
+UPDATE department_members SET department_id = '687bff3c-da85-4ecb-80d6-dac0b3f70053' WHERE department_id = '1f93f86e-ec2b-4a71-a3ee-1a8bc473626e';
+UPDATE users SET department_id = '687bff3c-da85-4ecb-80d6-dac0b3f70053' WHERE department_id = '1f93f86e-ec2b-4a71-a3ee-1a8bc473626e';
+UPDATE workforce_profiles SET primary_department_id = '687bff3c-da85-4ecb-80d6-dac0b3f70053' WHERE primary_department_id = '1f93f86e-ec2b-4a71-a3ee-1a8bc473626e';
+DELETE FROM departments WHERE id = '1f93f86e-ec2b-4a71-a3ee-1a8bc473626e'; -- Protocol Department -> Ushering & Protocol
+
+-- Verify — should show 4 fewer departments, with the surviving rows'
+-- member/head counts unchanged or increased (never decreased)
+SELECT d.id, d.name,
+       (SELECT count(*) FROM department_members dm WHERE dm.department_id = d.id) AS member_count,
+       (SELECT count(*) FROM users u WHERE u.department_id = d.id AND u.role = 'department_head') AS head_accounts
+FROM departments d
+ORDER BY d.name;
