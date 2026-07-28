@@ -31,6 +31,9 @@ const PATHS: Record<string, ReactNode> = {
   'ti-x': <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
   'ti-ticket': <><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><line x1="9" y1="7" x2="9" y2="17"/></>,
   'ti-map-pin': <><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></>,
+  'ti-clock': <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></>,
+  'ti-check': <><path d="M20 6 9 17l-5-5"/></>,
+  'ti-search': <><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
 };
 
 export default function Icon({ name, size = 15, style, className }: { name?: string; size?: number; style?: CSSProperties; className?: string }) {

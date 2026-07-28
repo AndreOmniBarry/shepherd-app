@@ -10,10 +10,33 @@ import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import CellMeetingsTab from '@/components/CellMeetingsTab';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 
 type Member = { id: string; full_name: string; membership_status: string; };
-type Service = { id: string; service_date: string; service_number: number; service_type?: string; label?: string; is_midweek?: boolean; };
 type HistoryRecord = { id: string; service_date: string; service_number: number; present_count: number; absent_count: number; visitor_count: number; submitted_at: string; sla_grade?: string; };
+
+const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+function dayNameOf(dateStr: string): string {
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  return DAY_NAMES[new Date(y, mo - 1, d).getDay()];
+}
+
+// Most recent date (today or earlier) whose weekday is one of the
+// church's configured service days — used only as a sensible default for
+// the date picker, not to restrict what can be picked.
+function mostRecentServiceDay(serviceDays: string[]): string {
+  const today = new Date();
+  const days = serviceDays.length ? serviceDays : ['Sunday'];
+  for (let back = 0; back < 14; back++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - back);
+    if (days.includes(DAY_NAMES[d.getDay()])) {
+      return d.toISOString().split('T')[0];
+    }
+  }
+  return today.toISOString().split('T')[0];
+}
 
 const ABSENCE_REASONS = [
   { value: 'informed', label: 'Informed in advance' },
@@ -132,10 +155,10 @@ function AddMembersTab({t, dark}: {t: Record<string,string>; dark: boolean}) {
 
 export default function CellPage() {
   const router = useRouter();
+  const { config: churchConfig } = useChurchConfigStandalone();
   const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'prayer' | 'birthdays' | 'followup' | 'members' | 'meetings'>('overview');
   const [members, setMembers] = useState<Member[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [selectedService, setSelectedService] = useState('');
+  const [serviceDate, setServiceDate] = useState('');
   const [attendance, setAttendance] = useState<Record<string, 'present' | 'absent'>>({});
   const [absenceReasons, setAbsenceReasons] = useState<Record<string, string>>({});
   const [visitorCount, setVisitorCount] = useState(0);
@@ -199,16 +222,13 @@ export default function CellPage() {
       })
       .catch(() => {});
 
-    fetch('/api/services/recent', { credentials: 'include' })
-      .then(r => r.json())
-      .then(({ data }) => {
-        if (data?.services?.length) {
-          setServices(data.services);
-          setSelectedService(data.services[0].id);
-        }
-      })
-      .catch(() => {});
   }, [router]);
+
+  // Default to the most recent configured service day once church config
+  // loads — the leader can still change it to any date within the window.
+  useEffect(() => {
+    if (!serviceDate) setServiceDate(mostRecentServiceDay(churchConfig.service_days));
+  }, [churchConfig.service_days, serviceDate]);
 
   useEffect(() => {
     if (tab === 'history') {
@@ -251,8 +271,14 @@ export default function CellPage() {
   const absentCount = Object.values(attendance).filter(s => s === 'absent').length;
   const absentMembers = members.filter(m => attendance[m.id] === 'absent');
 
+  const serviceDayName = serviceDate ? dayNameOf(serviceDate) : '';
+  const isValidServiceDay = !serviceDate || (churchConfig.service_days || ['Sunday']).includes(serviceDayName);
+
   async function submit() {
-    if (!selectedService) { setError('Please select a service.'); return; }
+    if (!serviceDate) { setError('Please select a date.'); return; }
+    // Not blocked client-side even if the day looks off — a special
+    // program (vigil, convention) an admin already added under Service
+    // Planner is valid on any date. The server has the final say.
 
     // Validate absence reasons
     const missingReasons = absentMembers.filter(m => !absenceReasons[m.id]);
@@ -270,7 +296,7 @@ export default function CellPage() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          service_id: selectedService,
+          service_date: serviceDate,
           entries,
           visitor_count: visitorCount,
           absence_reasons: absenceReasons,
@@ -390,20 +416,19 @@ export default function CellPage() {
         {tab === 'submit' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* Service selector */}
+            {/* Service date */}
             <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Select Service</div>
-              {services.length === 0 ? (
-                <div style={{ fontSize: 13, color: t.coral, padding: '8px 0' }}>No services available in the last 7 days. Contact your administrator.</div>
-              ) : (
-                <select value={selectedService} onChange={e => setSelectedService(e.target.value)}
-                  style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 13, outline: 'none', background: t.input, color: t.text, cursor: 'pointer' }}>
-                  {services.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.label || (() => { const [yr,mo,dy] = s.service_date.split('-').map(Number); return new Date(yr, mo-1, dy).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + (s.service_type === 'midweek' ? ' — Midweek Service' : ' — Sunday Service'); })()}
-                    </option>
-                  ))}
-                </select>
+              <div style={{ fontSize: 10, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Service date</div>
+              <input type="date" value={serviceDate} max={new Date().toISOString().split('T')[0]}
+                onChange={e => setServiceDate(e.target.value)}
+                style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 13, outline: 'none', background: t.input, color: t.text }} />
+              <div style={{ fontSize: 11, color: t.muted, marginTop: 6 }}>
+                {serviceDate ? `${serviceDayName}, ${(() => { const [yr,mo,dy] = serviceDate.split('-').map(Number); return new Date(yr, mo-1, dy).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); })()}` : ''}
+              </div>
+              {serviceDate && !isValidServiceDay && (
+                <div style={{ fontSize: 11, color: t.amber, marginTop: 6 }}>
+                  {serviceDayName} isn&apos;t one of your church&apos;s regular service days ({(churchConfig.service_days || ['Sunday']).join(', ')}). Only continue if this is a special program an admin has already added.
+                </div>
               )}
             </div>
 
@@ -503,8 +528,8 @@ export default function CellPage() {
             )}
 
             {/* Submit button */}
-            <button onClick={submit} disabled={loading || !selectedService || services.length === 0}
-              style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 12, padding: '15px', fontSize: 14, fontWeight: 700, cursor: loading ? 'wait' : 'pointer', opacity: loading || !selectedService ? 0.6 : 1, letterSpacing: '0.3px' }}>
+            <button onClick={submit} disabled={loading || !serviceDate}
+              style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 12, padding: '15px', fontSize: 14, fontWeight: 700, cursor: loading ? 'wait' : 'pointer', opacity: loading || !serviceDate ? 0.6 : 1, letterSpacing: '0.3px' }}>
               {loading ? 'Submitting...' : `Submit — ${presentCount} Present · ${absentCount} Absent`}
             </button>
           </div>

@@ -82,7 +82,7 @@ export async function POST(req: Request) {
       const deptRes = await fetch(`${SURL}/rest/v1/departments?id=eq.${department_id}&select=name&limit=1`, { headers: H() });
       const deptData = await deptRes.json();
       const deptName = deptData?.[0]?.name || 'Department';
-      const memberIds = [...new Set((entries as Record<string,unknown>[]).map(e => e.member_id).filter(Boolean))];
+      const memberIds = [...new Set((entries as Record<string,unknown>[]).map(e => e.member_id).filter(Boolean))] as string[];
       if (memberIds.length > 0) {
         const userRes = await fetch(`${SURL}/rest/v1/users?id=in.(${memberIds.join(',')})&select=id`, { headers: H() });
         const users = await userRes.json();
@@ -96,6 +96,27 @@ export async function POST(req: Request) {
           await fetch(`${SURL}/rest/v1/notifications`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(notifications) });
         }
       }
+
+      // Reliability tracking — this is the one place a member actually
+      // gets assigned to a service, so it's the one place
+      // total_services_assigned should grow. Without this, "Most Reliable
+      // Servers" on Workforce Intelligence never moves off its default.
+      await Promise.all(memberIds.map(async (memberId) => {
+        const profRes = await fetch(`${SURL}/rest/v1/workforce_profiles?member_id=eq.${memberId}&select=id,total_services_assigned,total_services_attended&limit=1`, { headers: H() });
+        const profData = await profRes.json();
+        const existing = profData?.[0];
+        if (existing) {
+          await fetch(`${SURL}/rest/v1/workforce_profiles?id=eq.${existing.id}`, {
+            method: 'PATCH', headers: { ...H(), Prefer: 'return=minimal' },
+            body: JSON.stringify({ total_services_assigned: (existing.total_services_assigned || 0) + 1, primary_department_id: department_id, updated_at: new Date().toISOString() }),
+          });
+        } else {
+          await fetch(`${SURL}/rest/v1/workforce_profiles`, {
+            method: 'POST', headers: { ...H(), Prefer: 'return=minimal' },
+            body: JSON.stringify({ member_id: memberId, primary_department_id: department_id, total_services_assigned: 1, total_services_attended: 0 }),
+          });
+        }
+      }));
     }
 
     return NextResponse.json({ data: { roster }, error: null }, { status: 201 });

@@ -7,6 +7,27 @@ import WorkforceServingTab from '@/components/WorkforceServingTab';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
+
+const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+function dayNameOf(dateStr: string): string {
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  return DAY_NAMES[new Date(y, mo - 1, d).getDay()];
+}
+
+function mostRecentServiceDay(serviceDays: string[]): string {
+  const today = new Date();
+  const days = serviceDays.length ? serviceDays : ['Sunday'];
+  for (let back = 0; back < 14; back++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - back);
+    if (days.includes(DAY_NAMES[d.getDay()])) {
+      return d.toISOString().split('T')[0];
+    }
+  }
+  return today.toISOString().split('T')[0];
+}
 
 type DeptMember = {
   id: string;
@@ -49,6 +70,7 @@ const SLA_COLORS: Record<string, { bg: string; text: string }> = {
 
 export default function DepartmentHeadPage() {
   const router = useRouter();
+  const { config: churchConfig } = useChurchConfigStandalone();
   const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'roster' | 'serving' | 'birthdays'>('overview');
   const [dark, setDark] = useState(false);
   const [deptName, setDeptName] = useState('');
@@ -61,8 +83,7 @@ export default function DepartmentHeadPage() {
   const [attendance, setAttendance] = useState<Record<string, 'present' | 'absent'>>({});
   const [absenceReasons, setAbsenceReasons] = useState<Record<string, string>>({});
   const [visitorCount, setVisitorCount] = useState(0);
-  const [services, setServices] = useState<{ id: string; service_date: string; service_number: number }[]>([]);
-  const [selectedService, setSelectedService] = useState('');
+  const [serviceDate, setServiceDate] = useState('');
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -160,16 +181,13 @@ export default function DepartmentHeadPage() {
 
     loadMembers();
 
-    fetch('/api/services/recent', { credentials: 'include' })
-      .then(r => r.json())
-      .then(({ data }) => {
-        if (data?.services?.length) {
-          setServices(data.services);
-          setSelectedService(data.services[0].id);
-        }
-      })
-      .catch(() => {});
   }, [router]);
+
+  // Default to the most recent configured service day once church config
+  // loads — the head can still change it to any date within the window.
+  useEffect(() => {
+    if (!serviceDate) setServiceDate(mostRecentServiceDay(churchConfig.service_days));
+  }, [churchConfig.service_days, serviceDate]);
 
   useEffect(() => {
     if (tab === 'history') {
@@ -203,8 +221,11 @@ export default function DepartmentHeadPage() {
   const absentCount = Object.values(attendance).filter(s => s === 'absent').length;
   const absentMembers = members.filter(m => attendance[m.id] === 'absent');
 
+  const serviceDayName = serviceDate ? dayNameOf(serviceDate) : '';
+  const isValidServiceDay = !serviceDate || (churchConfig.service_days || ['Sunday']).includes(serviceDayName);
+
   async function submit() {
-    if (!selectedService) { setError('Please select a service.'); return; }
+    if (!serviceDate) { setError('Please select a date.'); return; }
     const missing = absentMembers.filter(m => !absenceReasons[m.id]);
     if (missing.length > 0) {
       setError(`Select absence reason for: ${missing.map(m => m.full_name.split(' ')[0]).join(', ')}`);
@@ -218,7 +239,7 @@ export default function DepartmentHeadPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ service_id: selectedService, entries, absence_reasons: absenceReasons }),
+        body: JSON.stringify({ service_date: serviceDate, entries, absence_reasons: absenceReasons }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -313,17 +334,20 @@ export default function DepartmentHeadPage() {
         {/* SUBMIT */}
         {tab === 'submit' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* Service */}
+            {/* Service date */}
             <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Select Service</div>
-              <select value={selectedService} onChange={e => setSelectedService(e.target.value)}
-                style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 13, outline: 'none', background: t.input, color: t.text }}>
-                {services.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {new Date(s.service_date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} — Service {s.service_number}
-                  </option>
-                ))}
-              </select>
+              <div style={{ fontSize: 10, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Service date</div>
+              <input type="date" value={serviceDate} max={new Date().toISOString().split('T')[0]}
+                onChange={e => setServiceDate(e.target.value)}
+                style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 13, outline: 'none', background: t.input, color: t.text }} />
+              <div style={{ fontSize: 11, color: t.muted, marginTop: 6 }}>
+                {serviceDate ? `${serviceDayName}, ${(() => { const [yr,mo,dy] = serviceDate.split('-').map(Number); return new Date(yr, mo-1, dy).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); })()}` : ''}
+              </div>
+              {serviceDate && !isValidServiceDay && (
+                <div style={{ fontSize: 11, color: t.amber, marginTop: 6 }}>
+                  {serviceDayName} isn&apos;t one of your church&apos;s regular service days ({(churchConfig.service_days || ['Sunday']).join(', ')}). Only continue if this is a special program an admin has already added.
+                </div>
+              )}
             </div>
 
             {/* Summary */}
@@ -386,8 +410,8 @@ export default function DepartmentHeadPage() {
 
             {error && <div style={{ background: t.coralBg, borderRadius: 9, border: `0.5px solid rgba(216,90,48,0.3)`, padding: '11px 14px', fontSize: 13, color: t.coral }}>{error}</div>}
 
-            <button onClick={submit} disabled={loading || !selectedService}
-              style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 12, padding: '15px', fontSize: 14, fontWeight: 700, cursor: loading ? 'wait' : 'pointer', opacity: loading || !selectedService ? 0.6 : 1 }}>
+            <button onClick={submit} disabled={loading || !serviceDate}
+              style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 12, padding: '15px', fontSize: 14, fontWeight: 700, cursor: loading ? 'wait' : 'pointer', opacity: loading || !serviceDate ? 0.6 : 1 }}>
               {loading ? 'Submitting...' : `Submit — ${presentCount} Present · ${absentCount} Absent`}
             </button>
           </div>
