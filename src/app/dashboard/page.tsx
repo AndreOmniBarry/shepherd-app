@@ -1158,6 +1158,42 @@ function CreateMemberModal({t,dark,onClose,onCreated}:{t:Record<string,string>;d
   );
 }
 
+function CreateDepartmentModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dark:boolean;onClose:()=>void;onCreated:()=>void}) {
+  const [name,setName]=React.useState('');
+  const [saving,setSaving]=React.useState(false);
+  const [error,setError]=React.useState('');
+
+  async function submit(){
+    if(!name.trim()){setError('Department name is required.');return;}
+    setSaving(true);setError('');
+    try{
+      const res=await fetch('/api/admin/departments/create',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({name:name.trim()})});
+      if(!res.ok){const e=await res.json();setError(e?.error?.message||'Failed to create department.');setSaving(false);return;}
+      onCreated();onClose();
+    }catch{setError('Network error.');}
+    setSaving(false);
+  }
+
+  const inputS:React.CSSProperties={width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box' as const};
+  const labelS:React.CSSProperties={fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5,display:'block'};
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',backdropFilter:'blur(2px)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={onClose}>
+      <div style={{background:dark?'#151030':'#fff',borderRadius:16,padding:24,maxWidth:400,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,0.4)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:16}}>Create Department</div>
+        {error && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12,marginBottom:12}}>{error}</div>}
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          <div><label style={labelS}>Department name *</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Sound Engineers" style={inputS}/></div>
+          <div style={{display:'flex',gap:8,marginTop:6}}>
+            <button onClick={submit} disabled={saving} style={{flex:1,background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'11px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:saving?0.6:1}}>{saving?'Creating…':'Create department'}</button>
+            <button onClick={onClose} style={{background:'transparent',color:t.muted,border:`0.5px solid ${t.border}`,borderRadius:9,padding:'11px 16px',fontSize:13,cursor:'pointer'}}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CreateCellModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dark:boolean;onClose:()=>void;onCreated:()=>void}) {
   const [name,setName]=React.useState('');
   const [fellowshipId,setFellowshipId]=React.useState('');
@@ -1323,6 +1359,15 @@ export default function DashboardPage(){
   const [showCreateMember,setShowCreateMember]=useState(false);
   const [showCreateCell,setShowCreateCell]=useState(false);
   const [showMergeCells,setShowMergeCells]=useState(false);
+  const [showCreateDept,setShowCreateDept]=useState(false);
+  const [deptAddSearch,setDeptAddSearch]=useState('');
+  const [deptAddResults,setDeptAddResults]=useState<{id:string;full_name:string}[]>([]);
+  const [deptInviteName,setDeptInviteName]=useState('');
+  const [deptInviteEmail,setDeptInviteEmail]=useState('');
+  const [deptInvitePhone,setDeptInvitePhone]=useState('');
+  const [deptInviteLink,setDeptInviteLink]=useState('');
+  const [deptInviteError,setDeptInviteError]=useState('');
+  const [deptInviteSending,setDeptInviteSending]=useState(false);
   const [deleteTarget,setDeleteTarget]=useState<{id:string;name:string}|null>(null);
   const [deleteConfirmText,setDeleteConfirmText]=useState('');
   const [deleting,setDeleting]=useState(false);
@@ -1478,6 +1523,14 @@ export default function DashboardPage(){
     fetch('/api/cells/all',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
       if(data?.cells) setDbCells(data.cells);
     }).catch(()=>{});
+  }
+
+  function reloadDeptsList(){
+    fetch('/api/departments/all',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.departments)setDeptsList(data.departments);});
+  }
+  function reloadDeptDetail(){
+    if(!selectedDeptId)return;
+    fetch(`/api/departments/all?department_id=${selectedDeptId}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setDeptDetail(data);});
   }
 
   // Structure changed (or loaded) while viewing the Cell Ministry tab, which no
@@ -1973,6 +2026,7 @@ export default function DashboardPage(){
           {showCreateMember && <CreateMemberModal t={t} dark={dark} onClose={()=>setShowCreateMember(false)} onCreated={()=>{loadMembers();fetch('/api/analytics/dashboard',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setKpi(data);}).catch(()=>{});}}/>}
           {showCreateCell && <CreateCellModal t={t} dark={dark} onClose={()=>setShowCreateCell(false)} onCreated={reloadCells}/>}
           {showMergeCells && <MergeCellsModal t={t} dark={dark} cells={dbCells||[]} onClose={()=>setShowMergeCells(false)} onMerged={reloadCells}/>}
+          {showCreateDept && <CreateDepartmentModal t={t} dark={dark} onClose={()=>setShowCreateDept(false)} onCreated={reloadDeptsList}/>}
           {deleteTarget && (
             <div style={{position:'fixed',inset:0,background:'rgba(15,10,30,0.6)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}}>
               <div style={{background:t.card,borderRadius:16,padding:24,maxWidth:420,width:'90%',border:'0.5px solid rgba(216,90,48,0.3)'}}>
@@ -2024,7 +2078,10 @@ export default function DashboardPage(){
           {/* ══ DEPARTMENTS ══ */}
           {page==='departments'&&!selectedDeptId&&(
             <div style={card()}>
-              <div style={{fontSize:13,fontWeight:500,marginBottom:14}}>All Departments - click any to expand</div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+                <div style={{fontSize:13,fontWeight:500}}>All Departments - click any to expand</div>
+                <button onClick={()=>setShowCreateDept(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Create Department</button>
+              </div>
               {deptsLoading ? (
                 <div style={{fontSize:12,color:t.sub,padding:'12px 0'}}>Loading…</div>
               ) : deptsList.length===0 ? (
@@ -2055,28 +2112,100 @@ export default function DashboardPage(){
               {deptDetailLoading || !deptDetail ? (
                 <div style={card()}><div style={{fontSize:12,color:t.sub}}>Loading…</div></div>
               ) : (
+              <>
               <div style={card()}>
                 <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:2}}>{deptDetail.department.name}</div>
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>{deptDetail.members.length} total members{deptDetail.last_submission?` · Last submitted ${new Date(deptDetail.last_submission).toLocaleDateString()}`:' · No attendance submitted yet'}</div>
                 <div style={{fontSize:12,fontWeight:500,color:dark?'#E5E7EB':'#374151',marginBottom:8}}>Full Member Roster — {deptDetail.members.length} members</div>
                 <div style={{overflowX:'auto'}}>
                 <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Role','Phone','Last Sunday'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Role','Phone','Last Sunday',''].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                   <tbody>
                     {deptDetail.members.length===0 ? (
-                      <tr><td colSpan={4} style={{padding:'16px 8px',color:t.muted,textAlign:'center'}}>No members on this department&apos;s roster yet.</td></tr>
+                      <tr><td colSpan={5} style={{padding:'16px 8px',color:t.muted,textAlign:'center'}}>No members on this department&apos;s roster yet.</td></tr>
                     ) : deptDetail.members.map(m=>(
                       <tr key={m.id} style={{borderBottom:`0.5px solid ${t.border}`}}>
                         <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.name}</td>
                         <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.role}</td>
                         <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone||'—'}</td>
                         <td style={{padding:'7px 8px'}}>{m.status?<span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.status==='present'?'#E1F5EE':'#FAECE7',color:m.status==='present'?'#085041':'#993C1D',textTransform:'capitalize'}}>{m.status}</span>:<span style={{fontSize:11,color:t.muted}}>No data</span>}</td>
+                        <td style={{padding:'7px 8px'}}>
+                          <button onClick={async()=>{
+                            if(!confirm(`Remove ${m.name} from ${deptDetail.department.name}?`))return;
+                            await fetch(`/api/admin/departments/members?department_id=${selectedDeptId}&member_id=${m.id}`,{method:'DELETE',credentials:'include'});
+                            reloadDeptDetail();reloadDeptsList();
+                          }} style={{background:'transparent',border:'none',color:t.coral,fontSize:11,cursor:'pointer'}}>Remove</button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 </div>
               </div>
+
+              <div style={card()}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:10}}>Add a member to this department</div>
+                <div style={{position:'relative'}}>
+                  <input value={deptAddSearch} onChange={e=>{
+                      setDeptAddSearch(e.target.value);
+                      const q=e.target.value.trim();
+                      if(q.length<2){setDeptAddResults([]);return;}
+                      fetch(`/api/members/search?q=${encodeURIComponent(q)}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>setDeptAddResults(data?.members||[])).catch(()=>{});
+                    }} placeholder="Search member by name..."
+                    style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none',boxSizing:'border-box'}} />
+                  {deptAddResults.length>0 && (
+                    <div style={{position:'absolute',top:'100%',left:0,right:0,background:t.card,border:`0.5px solid ${t.border}`,borderRadius:8,marginTop:4,zIndex:10,maxHeight:180,overflowY:'auto'}}>
+                      {deptAddResults.map((mm:{id:string;full_name:string})=>(
+                        <div key={mm.id} onClick={async()=>{
+                            await fetch('/api/admin/departments/members',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({department_id:selectedDeptId,member_id:mm.id})});
+                            setDeptAddSearch('');setDeptAddResults([]);reloadDeptDetail();reloadDeptsList();
+                          }} style={{padding:'8px 11px',fontSize:12,cursor:'pointer',color:t.text}}>{mm.full_name}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={card()}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:4}}>Invite a Head of Department</div>
+                <div style={{fontSize:11,color:t.muted,marginBottom:10}}>Creates a one-time invite link for a new department_head account, scoped to {deptDetail.department.name}.</div>
+                {deptInviteLink ? (
+                  <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                    <div style={{fontSize:11,color:t.teal}}>Invite created — send this link:</div>
+                    <div style={{display:'flex',gap:6}}>
+                      <input readOnly value={deptInviteLink} style={{flex:1,border:`0.5px solid ${t.border}`,borderRadius:7,padding:'8px 10px',fontSize:11,background:t.input,color:t.text}} />
+                      <button onClick={()=>navigator.clipboard.writeText(deptInviteLink)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:7,padding:'8px 14px',fontSize:11,fontWeight:600,cursor:'pointer'}}>Copy</button>
+                      <button onClick={()=>{setDeptInviteLink('');setDeptInviteName('');setDeptInviteEmail('');setDeptInvitePhone('');}} style={{background:'transparent',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'8px 14px',fontSize:11,cursor:'pointer',color:t.muted}}>Done</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:8}}>
+                      <input value={deptInviteName} onChange={e=>setDeptInviteName(e.target.value)} placeholder="Full name"
+                        style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 10px',fontSize:12,background:t.input,color:t.text,outline:'none'}} />
+                      <input value={deptInviteEmail} onChange={e=>setDeptInviteEmail(e.target.value)} placeholder="Email"
+                        style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 10px',fontSize:12,background:t.input,color:t.text,outline:'none'}} />
+                      <input value={deptInvitePhone} onChange={e=>setDeptInvitePhone(e.target.value)} placeholder="Phone (optional)"
+                        style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 10px',fontSize:12,background:t.input,color:t.text,outline:'none'}} />
+                    </div>
+                    {deptInviteError && <div style={{fontSize:11,color:t.coral,marginBottom:8}}>{deptInviteError}</div>}
+                    <button onClick={async()=>{
+                        if(!deptInviteName.trim()||!deptInviteEmail.trim()){setDeptInviteError('Name and email are required');return;}
+                        setDeptInviteSending(true);setDeptInviteError('');
+                        try{
+                          const res=await fetch('/api/invites',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({email:deptInviteEmail.trim(),full_name:deptInviteName.trim(),role:'department_head',department_id:selectedDeptId})});
+                          const json=await res.json();
+                          if(res.ok){setDeptInviteLink(json.data.invite_link);reloadDeptsList();}
+                          else setDeptInviteError(json.error?.message||'Failed to create invite');
+                        }catch{setDeptInviteError('Network error.');}
+                        setDeptInviteSending(false);
+                      }} disabled={deptInviteSending} style={{background:t.teal,color:'#fff',border:'none',borderRadius:8,padding:'9px 16px',fontSize:12,fontWeight:600,cursor:'pointer',opacity:deptInviteSending?0.6:1}}>
+                      {deptInviteSending?'Creating…':'Create invite'}
+                    </button>
+                  </>
+                )}
+              </div>
+              </>
               )}
             </div>
           )}
