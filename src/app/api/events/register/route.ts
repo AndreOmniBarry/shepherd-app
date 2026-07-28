@@ -17,15 +17,26 @@ async function getUser(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { event_id, full_name, phone, email, whatsapp, preferred_comms, member_id } = body;
+    const { event_id, full_name, phone, email, whatsapp, preferred_comms, member_id, attending_days, guest_type, companion_count, expectations } = body;
     if (!event_id || !full_name || !phone) return NextResponse.json({ data: null, error: { message: 'Event, name and phone are required' } }, { status: 400 });
 
     // Check event exists and registration is open
-    const evRes = await fetch(`${SURL}/rest/v1/church_events?id=eq.${event_id}&select=id,title,event_date,start_time,location,registration_open,capacity,is_free,whatsapp_confirmation,sms_confirmation&limit=1`, { headers: H() });
+    const evRes = await fetch(`${SURL}/rest/v1/church_events?id=eq.${event_id}&select=id,title,event_date,end_date,start_time,location,registration_open,capacity,is_free,whatsapp_confirmation,sms_confirmation&limit=1`, { headers: H() });
     const evData = await evRes.json();
     const event = evData?.[0];
     if (!event) return NextResponse.json({ data: null, error: { message: 'Event not found' } }, { status: 404 });
-    if (!event.registration_open) return NextResponse.json({ data: null, error: { message: 'Registration is closed for this event' } }, { status: 400 });
+    const lastDay = event.end_date || event.event_date;
+    const today = new Date().toISOString().split('T')[0];
+    if (!event.registration_open || lastDay < today) return NextResponse.json({ data: null, error: { message: 'Registration is closed for this event' } }, { status: 400 });
+
+    // If multi-day, validate every selected day actually falls in range —
+    // never trust the client to only send valid dates.
+    let validatedDays: string[] | null = null;
+    if (event.end_date && event.end_date > event.event_date) {
+      const selected = Array.isArray(attending_days) ? attending_days : [];
+      validatedDays = selected.filter((d: string) => d >= event.event_date && d <= event.end_date);
+      if (validatedDays.length === 0) return NextResponse.json({ data: null, error: { message: 'Select at least one day you\'ll be attending' } }, { status: 400 });
+    }
 
     // Check capacity
     if (event.capacity) {
@@ -42,7 +53,12 @@ export async function POST(req: Request) {
     // Register
     const regRes = await fetch(`${SURL}/rest/v1/event_registrations`, {
       method: 'POST', headers: { ...H(), 'Prefer': 'return=representation' },
-      body: JSON.stringify({ event_id, full_name, phone, email: email || null, whatsapp: whatsapp || phone, preferred_comms: preferred_comms || 'whatsapp', is_member: !!member_id, member_id: member_id || null, payment_status: event.is_free ? 'free' : 'pending', registered_at: new Date().toISOString() }),
+      body: JSON.stringify({
+        event_id, full_name, phone, email: email || null, whatsapp: whatsapp || phone, preferred_comms: preferred_comms || 'whatsapp',
+        is_member: !!member_id, member_id: member_id || null, payment_status: event.is_free ? 'free' : 'pending', registered_at: new Date().toISOString(),
+        attending_days: validatedDays, guest_type: ['member', 'minister', 'guest'].includes(guest_type) ? guest_type : 'member',
+        companion_count: Math.max(0, parseInt(companion_count) || 0), expectations: expectations?.trim() || null,
+      }),
     });
     const regData = await regRes.json();
     const registration = Array.isArray(regData) ? regData[0] : regData;
@@ -101,7 +117,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const event_id = searchParams.get('event_id');
     if (!event_id) return NextResponse.json({ data: null, error: { message: 'event_id required' } }, { status: 400 });
-    const res = await fetch(`${SURL}/rest/v1/event_registrations?event_id=eq.${event_id}&order=registered_at.desc&select=id,full_name,phone,whatsapp,email,is_member,preferred_comms,payment_status,attended,registered_at`, { headers: H() });
+    const res = await fetch(`${SURL}/rest/v1/event_registrations?event_id=eq.${event_id}&order=registered_at.desc&select=id,full_name,phone,whatsapp,email,is_member,preferred_comms,payment_status,attended,registered_at,attending_days,guest_type,companion_count,expectations`, { headers: H() });
     const registrations = await res.json();
     return NextResponse.json({ data: { registrations: Array.isArray(registrations) ? registrations : [] }, error: null });
   } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
