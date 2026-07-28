@@ -3,11 +3,15 @@ import { useState, useEffect } from 'react';
 import Icon from '@/components/Icon';
 
 type ChurchEvent = {
-  id: string; title: string; event_type: string; event_date: string; start_time: string | null;
+  id: string; title: string; event_type: string; event_date: string; end_date: string | null; start_time: string | null;
   location: string | null; is_free: boolean; price: number; capacity: number | null;
   public_slug: string; registration_open: boolean; status: string; registration_count: number;
 };
-type Registrant = { id: string; full_name: string; phone: string; email: string | null; is_member: boolean; payment_status: string; attended: boolean; registered_at: string };
+type Registrant = {
+  id: string; full_name: string; phone: string; email: string | null; is_member: boolean; payment_status: string; attended: boolean; registered_at: string;
+  attending_days: string[] | null; guest_type: string; companion_count: number; expectations: string | null;
+};
+type EventStats = ChurchEvent & { registrations: number; attended: number; expected_headcount: number; attendance_rate: number };
 
 const EVENT_TYPES = ['programme','conference','vigil','concert','outreach','training','thanksgiving','dedication','other'];
 
@@ -15,9 +19,13 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
   const [events, setEvents] = useState<ChurchEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
-  const [form, setForm] = useState({ title: '', event_date: '', event_type: 'programme', start_time: '', location: '', is_free: true, price: '', capacity: '' });
+  const [form, setForm] = useState({ title: '', event_date: '', end_date: '', event_type: 'programme', start_time: '', location: '', is_free: true, price: '', capacity: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [view, setView] = useState<'manage' | 'analytics'>('manage');
+  const [eventStats, setEventStats] = useState<EventStats[]>([]);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [closingId, setClosingId] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<ChurchEvent | null>(null);
   const [registrants, setRegistrants] = useState<Registrant[]>([]);
@@ -41,24 +49,45 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
   function loadEvents() {
     fetch('/api/events', { credentials: 'include' }).then(r => r.json()).then(({ data }) => setEvents(data?.events || [])).finally(() => setLoading(false));
   }
+  function loadStats() {
+    setStatsLoading(true);
+    fetch('/api/events/analytics', { credentials: 'include' }).then(r => r.json()).then(({ data }) => setEventStats(data?.events || [])).finally(() => setStatsLoading(false));
+  }
   useEffect(() => { loadEvents(); }, []);
+  useEffect(() => { if (view === 'analytics') loadStats(); }, [view]);
 
   async function createEvent() {
     if (!form.title.trim() || !form.event_date) { setError('Title and date are required'); return; }
+    if (form.end_date && form.end_date < form.event_date) { setError('End date cannot be before the start date'); return; }
     setSaving(true); setError('');
     try {
       const res = await fetch('/api/events', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ ...form, price: form.is_free ? 0 : Number(form.price) || 0, capacity: form.capacity ? Number(form.capacity) : null }),
+        body: JSON.stringify({ ...form, end_date: form.end_date || null, price: form.is_free ? 0 : Number(form.price) || 0, capacity: form.capacity ? Number(form.capacity) : null }),
       });
       const json = await res.json();
       if (res.ok) {
         setShowNew(false);
-        setForm({ title: '', event_date: '', event_type: 'programme', start_time: '', location: '', is_free: true, price: '', capacity: '' });
+        setForm({ title: '', event_date: '', end_date: '', event_type: 'programme', start_time: '', location: '', is_free: true, price: '', capacity: '' });
         loadEvents();
       } else setError(json.error?.message || 'Failed to create event');
     } catch { setError('Network error — event was not created.'); }
     setSaving(false);
+  }
+
+  async function toggleRegistration(ev: ChurchEvent) {
+    setClosingId(ev.id);
+    try {
+      const res = await fetch('/api/events', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ id: ev.id, registration_open: !ev.registration_open }),
+      });
+      if (res.ok) {
+        loadEvents();
+        if (selected?.id === ev.id) setSelected(s => s ? { ...s, registration_open: !ev.registration_open } : s);
+      }
+    } catch {}
+    setClosingId(null);
   }
 
   function viewRegistrants(ev: ChurchEvent) {
@@ -136,18 +165,38 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
           <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Events</div>
           <div style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>Create programmes, share the public registration link, and message everyone who signed up.</div>
         </div>
-        <button onClick={() => setShowNew(v => !v)} style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-          {showNew ? 'Cancel' : '+ New event'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', background: t.input, borderRadius: 8, border: `0.5px solid ${t.border}`, overflow: 'hidden' }}>
+            {(['manage', 'analytics'] as const).map(v => (
+              <button key={v} onClick={() => setView(v)}
+                style={{ padding: '8px 14px', border: 'none', background: view === v ? t.purple : 'transparent', color: view === v ? '#fff' : t.sub, fontSize: 11, fontWeight: view === v ? 600 : 400, cursor: 'pointer', textTransform: 'capitalize' }}>
+                {v}
+              </button>
+            ))}
+          </div>
+          {view === 'manage' && (
+            <button onClick={() => setShowNew(v => !v)} style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              {showNew ? 'Cancel' : '+ New event'}
+            </button>
+          )}
+        </div>
       </div>
 
-      {showNew && (
+      {showNew && view === 'manage' && (
         <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
             <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Event title"
               style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }} />
-            <input type="date" value={form.event_date} onChange={e => setForm(f => ({ ...f, event_date: e.target.value }))}
-              style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }} />
+            <div>
+              <div style={{ fontSize: 9, color: t.muted, marginBottom: 3 }}>Start date</div>
+              <input type="date" value={form.event_date} onChange={e => setForm(f => ({ ...f, event_date: e.target.value }))}
+                style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 9, color: t.muted, marginBottom: 3 }}>End date (multi-day — optional)</div>
+              <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
+                style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', boxSizing: 'border-box' }} />
+            </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
             <select value={form.event_type} onChange={e => setForm(f => ({ ...f, event_type: e.target.value }))}
@@ -177,6 +226,7 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
         </div>
       )}
 
+      {view === 'manage' && (
       <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 1fr' : '1fr', gap: 14 }}>
         <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>All Events</div>
@@ -187,16 +237,21 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
               style={{ padding: '10px 0', borderBottom: `0.5px solid ${t.border}`, cursor: 'pointer', background: selected?.id === ev.id ? t.purpleBg : 'transparent' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{ev.title}</div>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{ev.title}{!ev.registration_open && <span style={{ fontSize: 9, color: t.coral, marginLeft: 6, fontWeight: 600 }}>CLOSED</span>}</div>
                   <div style={{ fontSize: 11, color: t.muted, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Icon name="ti-calendar-event" size={11} /> {ev.event_date}{ev.location ? <><Icon name="ti-map-pin" size={11} /> {ev.location}</> : null}
+                    <Icon name="ti-calendar-event" size={11} /> {ev.event_date}{ev.end_date && ev.end_date !== ev.event_date ? ` – ${ev.end_date}` : ''}{ev.location ? <><Icon name="ti-map-pin" size={11} /> {ev.location}</> : null}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: t.purple }}>{ev.registration_count}{ev.capacity ? `/${ev.capacity}` : ''}</div>
-                  <button onClick={e => { e.stopPropagation(); copyLink(ev.public_slug); }} style={{ background: 'transparent', border: 'none', color: t.sub, fontSize: 10, cursor: 'pointer', marginTop: 2 }}>
-                    {copied ? 'Copied!' : 'Copy link'}
-                  </button>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                    <button onClick={e => { e.stopPropagation(); copyLink(ev.public_slug); }} style={{ background: 'transparent', border: 'none', color: t.sub, fontSize: 10, cursor: 'pointer' }}>
+                      {copied ? 'Copied!' : 'Copy link'}
+                    </button>
+                    <button onClick={e => { e.stopPropagation(); toggleRegistration(ev); }} disabled={closingId === ev.id} style={{ background: 'transparent', border: 'none', color: ev.registration_open ? t.coral : t.teal, fontSize: 10, cursor: 'pointer' }}>
+                      {closingId === ev.id ? '…' : ev.registration_open ? 'Collapse link' : 'Reopen link'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -214,12 +269,26 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
               ) : registrants.length === 0 ? (
                 <div style={{ fontSize: 12, color: t.muted }}>No one has registered yet.</div>
               ) : registrants.map(r => (
-                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `0.5px solid ${t.border}`, fontSize: 12 }}>
-                  <span style={{ color: t.text }}>{r.full_name} {!r.is_member && <span style={{fontSize:9,color:t.amber,marginLeft:4}}>VISITOR</span>}</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: t.muted }}>{r.phone}</span>
-                    {r.attended && <span style={{fontSize:9,padding:'2px 7px',borderRadius:8,background:t.tealBg,color:t.teal,fontWeight:600}}>Attended</span>}
-                  </span>
+                <div key={r.id} style={{ padding: '6px 0', borderBottom: `0.5px solid ${t.border}`, fontSize: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: t.text }}>
+                      {r.full_name}
+                      {!r.is_member && <span style={{fontSize:9,color:t.amber,marginLeft:4}}>VISITOR</span>}
+                      {r.guest_type === 'minister' && <span style={{fontSize:9,color:t.purple,marginLeft:4,fontWeight:600}}>MINISTER</span>}
+                      {r.companion_count > 0 && <span style={{fontSize:10,color:t.muted,marginLeft:4}}>+{r.companion_count}</span>}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ color: t.muted }}>{r.phone}</span>
+                      {r.attended && <span style={{fontSize:9,padding:'2px 7px',borderRadius:8,background:t.tealBg,color:t.teal,fontWeight:600}}>Attended</span>}
+                    </span>
+                  </div>
+                  {(r.attending_days?.length || r.expectations) && (
+                    <div style={{ fontSize: 10, color: t.muted, marginTop: 2 }}>
+                      {r.attending_days?.length ? `Attending: ${r.attending_days.join(', ')}` : ''}
+                      {r.attending_days?.length && r.expectations ? ' · ' : ''}
+                      {r.expectations ? `"${r.expectations}"` : ''}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -279,6 +348,43 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
           </div>
         )}
       </div>
+      )}
+
+      {view === 'analytics' && (
+        <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Event History &amp; Analytics</div>
+          <div style={{ fontSize: 11, color: t.muted, marginBottom: 14 }}>Registration-to-attendance for every program, oldest gaps first — use this to compare a recurring program (e.g. this year&apos;s convention vs last year&apos;s).</div>
+          {statsLoading ? (
+            <div style={{ fontSize: 12, color: t.sub }}>Loading…</div>
+          ) : eventStats.length === 0 ? (
+            <div style={{ fontSize: 12, color: t.muted }}>No events yet.</div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
+                    {['Event', 'Date', 'Registered', 'Expected headcount', 'Attended', 'Attendance rate'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {eventStats.map(ev => (
+                    <tr key={ev.id} style={{ borderBottom: `0.5px solid ${t.border}` }}>
+                      <td style={{ padding: '8px 10px', color: t.text, fontWeight: 500 }}>{ev.title}</td>
+                      <td style={{ padding: '8px 10px', color: t.sub }}>{ev.event_date}{ev.end_date && ev.end_date !== ev.event_date ? ` – ${ev.end_date}` : ''}</td>
+                      <td style={{ padding: '8px 10px', color: t.text }}>{ev.registrations}</td>
+                      <td style={{ padding: '8px 10px', color: t.text }}>{ev.expected_headcount}</td>
+                      <td style={{ padding: '8px 10px', color: t.text }}>{ev.attended}</td>
+                      <td style={{ padding: '8px 10px', color: ev.attendance_rate >= 60 ? t.teal : ev.attendance_rate > 0 ? t.amber : t.muted, fontWeight: 600 }}>{ev.registrations > 0 ? `${ev.attendance_rate}%` : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

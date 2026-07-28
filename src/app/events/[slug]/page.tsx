@@ -14,9 +14,9 @@ const C = {
 
 type Event = {
   id: string; title: string; description: string; event_type: string;
-  event_date: string; start_time: string; end_time: string; location: string;
+  event_date: string; end_date: string | null; start_time: string; end_time: string; location: string;
   is_free: boolean; price: number; capacity: number; banner_url: string;
-  registration_open: boolean; status: string; registration_count: number;
+  registration_open: boolean; ended: boolean; days: string[]; status: string; registration_count: number;
 };
 
 export default function EventPage() {
@@ -26,7 +26,8 @@ export default function EventPage() {
   const [event, setEvent] = useState<Event | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ full_name: '', phone: '', email: '', whatsapp: '', preferred_comms: 'whatsapp' });
+  const [form, setForm] = useState({ full_name: '', phone: '', email: '', whatsapp: '', preferred_comms: 'whatsapp', guest_type: 'member', companion_count: '0', expectations: '' });
+  const [attendingDays, setAttendingDays] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -36,7 +37,7 @@ export default function EventPage() {
     if (!slug) return;
     fetch(`/api/events/public?slug=${slug}`)
       .then(r => r.json())
-      .then(({ data }) => { if (data?.event) setEvent(data.event); })
+      .then(({ data }) => { if (data?.event) { setEvent(data.event); setAttendingDays(data.event.days || []); } })
       .catch(() => {})
       .finally(() => setLoading(false));
     fetch('/api/settings/church-config')
@@ -47,11 +48,12 @@ export default function EventPage() {
 
   async function register() {
     if (!form.full_name.trim() || !form.phone.trim()) { setError('Full name and phone are required'); return; }
+    if ((event?.days?.length || 0) > 0 && attendingDays.length === 0) { setError("Select at least one day you'll be attending"); return; }
     setSubmitting(true); setError('');
     try {
       const res = await fetch('/api/events/register', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, event_id: event!.id }),
+        body: JSON.stringify({ ...form, attending_days: attendingDays, event_id: event!.id }),
       });
       const d = await res.json();
       if (res.ok) {
@@ -79,7 +81,11 @@ export default function EventPage() {
   );
 
   const isFull = event.capacity ? event.registration_count >= event.capacity : false;
-  const canRegister = event.registration_open && !isFull && event.status !== 'cancelled';
+  const canRegister = event.registration_open && !isFull && event.status !== 'cancelled' && !event.ended;
+  const isMultiDay = !!event.end_date && event.end_date !== event.event_date;
+  const dateLabel = isMultiDay
+    ? `${new Date(event.event_date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })} – ${new Date(event.end_date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
+    : new Date(event.event_date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, fontFamily: 'var(--font-inter, Inter, sans-serif)' }}>
@@ -111,14 +117,14 @@ export default function EventPage() {
                     {event.event_type}
                   </span>
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 10, whiteSpace: 'nowrap', background: event.status === 'cancelled' ? C.coralBg : isFull ? C.amberBg : C.tealBg, color: event.status === 'cancelled' ? C.coral : isFull ? C.amber : C.teal }}>
-                  {event.status === 'cancelled' ? 'Cancelled' : isFull ? 'Fully booked' : 'Open'}
+                <span style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 10, whiteSpace: 'nowrap', background: event.status === 'cancelled' || event.ended ? C.coralBg : isFull ? C.amberBg : C.tealBg, color: event.status === 'cancelled' || event.ended ? C.coral : isFull ? C.amber : C.teal }}>
+                  {event.status === 'cancelled' ? 'Cancelled' : event.ended ? 'Registration closed' : isFull ? 'Fully booked' : 'Open'}
                 </span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
                 {[
-                  { icon: 'ti-calendar-event', label: new Date(event.event_date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) },
+                  { icon: 'ti-calendar-event', label: dateLabel },
                   ...(event.start_time ? [{ icon: 'ti-clock', label: `${event.start_time}${event.end_time ? ` – ${event.end_time}` : ''}` }] : []),
                   ...(event.location ? [{ icon: 'ti-map-pin', label: event.location }] : []),
                   { icon: 'ti-ticket', label: event.is_free ? 'Free entry' : `₦${Number(event.price).toLocaleString('en-NG')}` },
@@ -144,7 +150,7 @@ export default function EventPage() {
             )}
             {!canRegister && event.status !== 'cancelled' && (
               <div style={{ background: C.amberBg, border: `0.5px solid rgba(186,117,23,0.2)`, borderRadius: 12, padding: '14px 18px', textAlign: 'center', fontSize: 13, color: C.amber, fontWeight: 500 }}>
-                {isFull ? 'This event is fully booked.' : 'Registration is currently closed.'}
+                {isFull ? 'This event is fully booked.' : event.ended ? 'This program has ended — registration is closed.' : 'Registration is currently closed.'}
               </div>
             )}
           </>
@@ -168,6 +174,48 @@ export default function EventPage() {
                 </div>
               ))}
 
+              {isMultiDay && (
+                <div>
+                  <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 6 }}>Which day(s) will you attend? *</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {(event.days || []).map(d => (
+                      <label key={d} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: C.text, cursor: 'pointer', border: `1px solid ${attendingDays.includes(d) ? C.purple : C.border}`, borderRadius: 9, padding: '9px 12px', background: attendingDays.includes(d) ? C.purpleBg : C.bg }}>
+                        <input type="checkbox" checked={attendingDays.includes(d)}
+                          onChange={() => setAttendingDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])} />
+                        {new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 6 }}>Are you a</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[{ val: 'member', label: 'Member' }, { val: 'minister', label: 'Minister' }, { val: 'guest', label: 'Guest' }].map(opt => (
+                    <button key={opt.val} onClick={() => setForm(p => ({ ...p, guest_type: opt.val }))}
+                      style={{ flex: 1, padding: '9px 6px', borderRadius: 9, border: `1px solid ${form.guest_type === opt.val ? C.purple : C.border}`, background: form.guest_type === opt.val ? C.purpleBg : C.bg, fontSize: 11, fontWeight: form.guest_type === opt.val ? 600 : 400, color: form.guest_type === opt.val ? C.purple : C.sub, cursor: 'pointer' }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {form.guest_type === 'minister' && <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>Lets us reserve appropriate seating for you.</div>}
+              </div>
+
+              <div>
+                <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 6 }}>Coming with anyone else?</div>
+                <input type="number" min={0} value={form.companion_count} onChange={e => setForm(p => ({ ...p, companion_count: e.target.value }))}
+                  placeholder="Number of people joining you (0 if coming alone)"
+                  style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 9, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit' }} />
+              </div>
+
+              <div>
+                <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 6 }}>Expectations or special requests (optional)</div>
+                <textarea rows={3} value={form.expectations} onChange={e => setForm(p => ({ ...p, expectations: e.target.value }))}
+                  placeholder="Anything you're hoping for, or need us to know"
+                  style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 9, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit', resize: 'none' as const }} />
+              </div>
+
               <div>
                 <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 6 }}>Preferred confirmation method</div>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -189,8 +237,8 @@ export default function EventPage() {
                 )}
               </div>
 
-              <button onClick={register} disabled={submitting || !form.full_name.trim() || !form.phone.trim()}
-                style={{ width: '100%', background: C.purple, color: C.white, border: 'none', borderRadius: 11, padding: '14px', fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: submitting || !form.full_name.trim() || !form.phone.trim() ? 0.7 : 1 }}>
+              <button onClick={register} disabled={submitting || !form.full_name.trim() || !form.phone.trim() || (isMultiDay && attendingDays.length === 0)}
+                style={{ width: '100%', background: C.purple, color: C.white, border: 'none', borderRadius: 11, padding: '14px', fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: submitting || !form.full_name.trim() || !form.phone.trim() || (isMultiDay && attendingDays.length === 0) ? 0.7 : 1 }}>
                 {submitting ? 'Submitting…' : event.is_free ? 'Complete registration' : `Pay ₦${Number(event.price).toLocaleString('en-NG')} & Register`}
               </button>
 
