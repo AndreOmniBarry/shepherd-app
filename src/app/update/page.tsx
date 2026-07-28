@@ -42,9 +42,11 @@ const MONTHS = [
   { value: '2026-06-01', label: 'June 2026', sundays: 4 },
 ];
 
-type Tab = 'profiles' | 'add_member' | 'attendance' | 'remove_member';
+type Tab = 'profiles' | 'add_member' | 'attendance' | 'remove_member' | 'cell_edit';
 
 type Removal = { id: string; member_id: string; member_name: string; reason: string; status: string; approval_comment: string | null; created_at: string };
+
+type FellowshipCell = { id: string; name: string; leader_name: string; member_count: number };
 
 export default function UpdatePage() {
   const router = useRouter();
@@ -67,6 +69,23 @@ export default function UpdatePage() {
   const [removeSubmitting, setRemoveSubmitting] = useState(false);
   const [removeSuccess, setRemoveSuccess] = useState('');
   const [removeError, setRemoveError] = useState('');
+
+  // Cell Edit — fellowship_head only
+  const [fellowshipCells, setFellowshipCells] = useState<FellowshipCell[]>([]);
+  const [newCellName, setNewCellName] = useState('');
+  const [creatingCell, setCreatingCell] = useState(false);
+  const [cellError, setCellError] = useState('');
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [collapseTarget, setCollapseTarget] = useState('');
+  const [collapseSources, setCollapseSources] = useState<Set<string>>(new Set());
+  const [collapsing, setCollapsing] = useState(false);
+  const [collapseResult, setCollapseResult] = useState<{ moved_members: number; merged_cells: number } | null>(null);
+  const [moveMemberSearch, setMoveMemberSearch] = useState('');
+  const [moveMemberTarget, setMoveMemberTarget] = useState<Member | null>(null);
+  const [moveMemberCellId, setMoveMemberCellId] = useState('');
+  const [moving, setMoving] = useState(false);
+  const [moveError, setMoveError] = useState('');
+  const [moveSuccess, setMoveSuccess] = useState('');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'incomplete'>('incomplete');
 
@@ -117,6 +136,12 @@ export default function UpdatePage() {
           fetch('/api/update/member-removals', { credentials: 'include' })
             .then(r => r.json())
             .then(({ data }) => { if (data?.removals) setRemovals(data.removals); })
+            .catch(() => {});
+        }
+        if (data.role === 'fellowship_head') {
+          fetch('/api/fellowship/cells', { credentials: 'include' })
+            .then(r => r.json())
+            .then(({ data }) => { if (data?.cells) setFellowshipCells(data.cells); })
             .catch(() => {});
         }
       })
@@ -274,7 +299,16 @@ export default function UpdatePage() {
     { id: 'add_member' as Tab, label: 'Add members' },
     { id: 'attendance' as Tab, label: 'Log past attendance' },
     ...(['fellowship_head', 'department_head'].includes(userRole) ? [{ id: 'remove_member' as Tab, label: 'Recommend removal' }] : []),
+    ...(userRole === 'fellowship_head' ? [{ id: 'cell_edit' as Tab, label: 'Cell Edit' }] : []),
   ];
+
+  function reloadFellowshipCells() {
+    fetch('/api/fellowship/cells', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (data?.cells) setFellowshipCells(data.cells); });
+  }
+
+  function reloadMembers() {
+    fetch('/api/update/members', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (data?.members) setMembers(data.members); });
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>
@@ -686,6 +720,165 @@ export default function UpdatePage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── CELL EDIT ── */}
+        {tab === 'cell_edit' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4 }}>Cell Edit</div>
+              <div style={{ fontSize: 12, color: t.sub, lineHeight: 1.6 }}>Create, rename, or collapse cells in your fellowship, and move members between them. Member creation and removal have their own tabs above.</div>
+            </div>
+
+            {/* Cell list + rename */}
+            <div style={card()}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 12 }}>Your cells</div>
+              {fellowshipCells.length === 0 ? (
+                <div style={{ fontSize: 12, color: t.muted }}>No cells yet.</div>
+              ) : fellowshipCells.map((c, i) => (
+                <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: i < fellowshipCells.length - 1 ? `0.5px solid ${t.border}` : 'none' }}>
+                  {renamingId === c.id ? (
+                    <input defaultValue={c.name} autoFocus
+                      onBlur={async e => {
+                        const newName = e.target.value.trim();
+                        setRenamingId(null);
+                        if (!newName || newName === c.name) return;
+                        const res = await fetch('/api/fellowship/cells', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ cell_id: c.id, name: newName }) });
+                        if (res.ok) reloadFellowshipCells();
+                        else window.alert('Failed to rename cell.');
+                      }}
+                      style={{ fontSize: 12, fontWeight: 500, color: t.text, border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '4px 8px', background: t.input, outline: 'none', fontFamily: 'inherit' }} />
+                  ) : (
+                    <div>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{c.name}</span>
+                      <span style={{ fontSize: 11, color: t.muted, marginLeft: 8 }}>{c.member_count} members · {c.leader_name}</span>
+                    </div>
+                  )}
+                  {renamingId !== c.id && (
+                    <button onClick={() => setRenamingId(c.id)} style={{ background: 'transparent', border: 'none', color: t.purple, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Rename</button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Create cell */}
+            <div style={card()}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 10 }}>Create a new cell</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={newCellName} onChange={e => setNewCellName(e.target.value)} placeholder="e.g. Overcomers"
+                  style={{ flex: 1, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }} />
+                <button
+                  onClick={async () => {
+                    if (!newCellName.trim()) { setCellError('Cell name is required'); return; }
+                    setCreatingCell(true); setCellError('');
+                    try {
+                      const res = await fetch('/api/cells/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ name: newCellName.trim() }) });
+                      const json = await res.json();
+                      if (res.ok) { setNewCellName(''); reloadFellowshipCells(); } else setCellError(json.error?.message || 'Failed to create cell.');
+                    } catch { setCellError('Network error.'); }
+                    setCreatingCell(false);
+                  }}
+                  disabled={creatingCell}
+                  style={{ background: t.teal, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: creatingCell ? 0.6 : 1 }}>
+                  {creatingCell ? 'Creating…' : 'Create'}
+                </button>
+              </div>
+              {cellError && <div style={{ fontSize: 11, color: t.coral, marginTop: 8 }}>{cellError}</div>}
+            </div>
+
+            {/* Collapse cells */}
+            <div style={card()}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>Collapse cells into one</div>
+              <div style={{ fontSize: 11, color: t.muted, marginBottom: 10 }}>Move every member from the checked cells into the kept cell. The checked cells are deactivated, not deleted.</div>
+              {collapseResult ? (
+                <div style={{ background: t.tealBg, color: t.teal, borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
+                  Moved {collapseResult.moved_members} member{collapseResult.moved_members === 1 ? '' : 's'} and deactivated {collapseResult.merged_cells} cell{collapseResult.merged_cells === 1 ? '' : 's'}.
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', marginBottom: 4 }}>Keep this cell</div>
+                    <select value={collapseTarget} onChange={e => { setCollapseTarget(e.target.value); setCollapseSources(s => { const next = new Set(s); next.delete(e.target.value); return next; }); }}
+                      style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
+                      <option value="">Select...</option>
+                      {fellowshipCells.map(c => <option key={c.id} value={c.id}>{c.name} ({c.member_count} members)</option>)}
+                    </select>
+                  </div>
+                  {collapseTarget && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', marginBottom: 4 }}>Collapse these into it</div>
+                      {fellowshipCells.filter(c => c.id !== collapseTarget).map(c => (
+                        <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', fontSize: 12, color: t.text, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={collapseSources.has(c.id)} onChange={() => setCollapseSources(s => { const next = new Set(s); if (next.has(c.id)) next.delete(c.id); else next.add(c.id); return next; })} />
+                          {c.name} ({c.member_count} members)
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    onClick={async () => {
+                      if (!collapseTarget || collapseSources.size === 0) return;
+                      setCollapsing(true);
+                      try {
+                        const res = await fetch('/api/admin/cells/merge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ source_cell_ids: Array.from(collapseSources), target_cell_id: collapseTarget }) });
+                        const json = await res.json();
+                        if (res.ok) { setCollapseResult(json.data); reloadFellowshipCells(); reloadMembers(); }
+                        else window.alert(json.error?.message || 'Failed to collapse cells.');
+                      } catch { window.alert('Network error.'); }
+                      setCollapsing(false);
+                    }}
+                    disabled={collapsing || !collapseTarget || collapseSources.size === 0}
+                    style={{ background: t.coral, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: collapsing || !collapseTarget || collapseSources.size === 0 ? 0.6 : 1 }}>
+                    {collapsing ? 'Collapsing…' : 'Collapse cells'}
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Move a member */}
+            <div style={card()}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 10 }}>Move a member to a different cell</div>
+              <input value={moveMemberSearch} onChange={e => { setMoveMemberSearch(e.target.value); setMoveMemberTarget(null); setMoveSuccess(''); }} placeholder="Search member by name..."
+                style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', marginBottom: 10, boxSizing: 'border-box' }} />
+              {moveMemberSearch.trim().length >= 2 && !moveMemberTarget && (
+                <div style={{ marginBottom: 10 }}>
+                  {members.filter(m => m.full_name.toLowerCase().includes(moveMemberSearch.trim().toLowerCase())).slice(0, 8).map(m => (
+                    <div key={m.id} onClick={() => { setMoveMemberTarget(m); setMoveMemberSearch(m.full_name); }}
+                      style={{ padding: '8px 10px', fontSize: 12, color: t.text, cursor: 'pointer', borderRadius: 6 }}
+                      onMouseEnter={e => (e.currentTarget.style.background = t.input)} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                      {m.full_name}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {moveMemberTarget && (
+                <>
+                  <select value={moveMemberCellId} onChange={e => setMoveMemberCellId(e.target.value)}
+                    style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, background: t.input, color: t.text, outline: 'none', marginBottom: 10 }}>
+                    <option value="">Move to cell...</option>
+                    {fellowshipCells.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  {moveError && <div style={{ fontSize: 11, color: t.coral, marginBottom: 10 }}>{moveError}</div>}
+                  {moveSuccess && <div style={{ fontSize: 11, color: t.teal, marginBottom: 10 }}>{moveSuccess}</div>}
+                  <button
+                    onClick={async () => {
+                      if (!moveMemberTarget || !moveMemberCellId) return;
+                      setMoving(true); setMoveError(''); setMoveSuccess('');
+                      try {
+                        const res = await fetch('/api/fellowship/members', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ member_id: moveMemberTarget.id, cell_id: moveMemberCellId }) });
+                        if (res.ok) { setMoveSuccess('Moved.'); setMoveMemberTarget(null); setMoveMemberSearch(''); setMoveMemberCellId(''); reloadFellowshipCells(); reloadMembers(); }
+                        else { const json = await res.json().catch(() => ({})); setMoveError(json?.error?.message || 'Failed to move member.'); }
+                      } catch { setMoveError('Network error.'); }
+                      setMoving(false);
+                    }}
+                    disabled={moving || !moveMemberCellId}
+                    style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: moving || !moveMemberCellId ? 0.6 : 1 }}>
+                    {moving ? 'Moving…' : 'Move member'}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

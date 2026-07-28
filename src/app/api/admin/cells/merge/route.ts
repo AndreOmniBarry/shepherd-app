@@ -22,10 +22,15 @@ async function getUser(req: Request) {
 // Deliberately does NOT touch any cell_leader account's cell_id — if a
 // merged-away cell had its own leader, that account still exists and its
 // role should be reassigned separately by lead_tech.
+// Fellowship heads can also do this, but only within their own
+// fellowship — every source and target cell is checked against their
+// fellowship_id before anything is touched.
 export async function POST(req: Request) {
   try {
     const user = await getUser(req);
-    if (!user || !['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+    const isAdmin = !!user && ['overseer', 'pa', 'lead_tech'].includes(user.role);
+    const isFellowshipHead = !!user && user.role === 'fellowship_head' && !!user.fellowship_id;
+    if (!user || !(isAdmin || isFellowshipHead)) {
       return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     }
 
@@ -42,6 +47,18 @@ export async function POST(req: Request) {
     const targetData = await targetRes.json();
     const target = targetData?.[0];
     if (!target) return NextResponse.json({ data: null, error: { message: 'Target cell not found' } }, { status: 404 });
+
+    if (isFellowshipHead) {
+      if (target.fellowship_id !== user.fellowship_id) {
+        return NextResponse.json({ data: null, error: { message: 'Target cell is not in your fellowship' } }, { status: 403 });
+      }
+      const sourcesRes = await fetch(`${SURL}/rest/v1/cells?id=in.(${sources.join(',')})&select=id,fellowship_id`, { headers: H() });
+      const sourcesData = await sourcesRes.json();
+      const allOwnFellowship = Array.isArray(sourcesData) && sourcesData.length === sources.length && sourcesData.every((c: { fellowship_id: string }) => c.fellowship_id === user.fellowship_id);
+      if (!allOwnFellowship) {
+        return NextResponse.json({ data: null, error: { message: 'One or more cells to merge are not in your fellowship' } }, { status: 403 });
+      }
+    }
 
     let movedMembers = 0;
     for (const sourceId of sources) {
