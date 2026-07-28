@@ -2269,7 +2269,17 @@ export default function DashboardPage(){
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <button onClick={()=>setSelectedCell(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to Cells</button>
               <div style={card()}>
-                <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:2}}>{selectedCell.cell}</div>
+                <input defaultValue={selectedCell.cell}
+                  onBlur={async e=>{
+                    const newName=e.target.value.trim();
+                    if(!newName||newName===selectedCell.cell)return;
+                    const cellId=(selectedCell as unknown as {id?:string}).id;
+                    if(!cellId)return;
+                    const res=await fetch('/api/fellowship/cells',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({cell_id:cellId,name:newName})});
+                    if(res.ok){reloadCells();setSelectedCell(sc=>sc?{...sc,cell:newName}:sc);}
+                    else window.alert('Failed to rename cell.');
+                  }}
+                  style={{fontSize:15,fontWeight:600,color:t.text,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'4px 8px',background:t.input,outline:'none',fontFamily:'inherit',marginBottom:6,width:'100%',boxSizing:'border-box'}} />
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} Fellowship · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
                 {!selectedCell.members_list&&<div style={{fontSize:12,color:t.muted,marginBottom:12,padding:'8px 12px',background:t.cardInner,borderRadius:8}}>Connect live database to see individual member roster for this cell.</div>}
                 <div style={{display:'flex',gap:6,marginBottom:14}}>
