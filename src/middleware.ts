@@ -159,7 +159,9 @@ export async function middleware(req: NextRequest) {
 
   const { role, cell_id } = payload;
   const portal = rolePortal(role || '');
-  const allowed = allowedPrefixes(role || '');
+  // /calendar is shared across every role — everyone should be able to
+  // see upcoming/past church programs regardless of their own portal.
+  const allowed = [...allowedPrefixes(role || ''), '/calendar'];
 
   // Root redirect → role portal
   if (pathname === '/') {
