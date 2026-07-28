@@ -191,3 +191,27 @@ SELECT f.id, f.name,
 FROM fellowships f
 WHERE f.name IN ('Men''s Fellowship', 'Women''s Fellowship')
 ORDER BY f.name;
+
+-- ── PART 8: one cell for all of Men's Fellowship, for now ────────────────
+-- Pastor's plan is to migrate members and set up a proper cell structure
+-- later — until then, per your instruction, all 29 Men's Fellowship
+-- members go into a single cell, named "Men's Fellowship" as a
+-- placeholder. Repurposing "Covenant Cell" (none of the 10 have any
+-- members, so which one doesn't matter) rather than creating a new row;
+-- the other 9 are deactivated, not deleted, so nothing is lost once the
+-- real cell structure is ready.
+UPDATE cells SET name = 'Men''s Fellowship'
+WHERE id = 'd670b4d2-3e1f-4cfb-b246-e5ac83920e7b';
+
+UPDATE members SET cell_id = 'd670b4d2-3e1f-4cfb-b246-e5ac83920e7b'
+WHERE fellowship_id = 'a62b19bf-1753-479d-8586-cb9dfd735a69';
+
+UPDATE cells SET is_active = false
+WHERE fellowship_id = 'a62b19bf-1753-479d-8586-cb9dfd735a69'
+  AND id != 'd670b4d2-3e1f-4cfb-b246-e5ac83920e7b';
+
+-- Verify — should show 1 active cell, 29 members in it
+SELECT c.name, c.is_active, (SELECT count(*) FROM members m WHERE m.cell_id = c.id) AS members_in_cell
+FROM cells c
+WHERE c.fellowship_id = 'a62b19bf-1753-479d-8586-cb9dfd735a69'
+ORDER BY c.is_active DESC, c.name;
