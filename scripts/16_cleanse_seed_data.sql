@@ -149,3 +149,45 @@ WHERE email = 'david.osasenaga@shepherd.app';
 -- to be a real fellowship with its own cells/members distinct from CYDF,
 -- tell me and I'll give you a proper plan for it (new head account, or
 -- merge into CYDF) rather than leaving it orphaned by this update.
+
+-- ── PART 7: fix confirmed CYDF/Men/Women duplicates ──────────────────────
+-- Confirmed via Part 5 + follow-up checks:
+--   - cydf@shepherd.app ("Demo CYDF Head") is a leftover placeholder
+--     account, same species as the ones already deleted in Part 1.
+--   - "Men Fellowship" (no apostrophe, 679d5222-0848-4f88-8ea7-e20a11f8b4e1)
+--     has 10 cells and 1 head account, but 0 members.
+--   - "Men's Fellowship" (apostrophe, a62b19bf-1753-479d-8586-cb9dfd735a69)
+--     has your 29 real members, but 0 cells — and every one of those 29
+--     has cell_id = NULL, so they aren't in any of the 10 cells either.
+--   - Same shape for Women: "Women Fellowship" (no apostrophe,
+--     d161ae2c-2a70-4062-947c-eeefc6d2c27c) has 17 empty cells; "Women's
+--     Fellowship" (apostrophe, b63b7285-ce63-4685-87ed-498c6d7c1035) has
+--     your 46 real members, all with cell_id = NULL.
+-- This moves the 10/17 cells and the 1 head account onto the fellowship
+-- that actually holds the real members, then removes the now-empty
+-- duplicate rows. It does NOT assign the 29/46 members into a cell yet —
+-- that's the "put all the men in one cell" step, which needs you to pick
+-- which cell survives (via the Merge Cells tool once this runs, or tell me
+-- the cell name and I'll write the one-line member assignment for you).
+DELETE FROM users WHERE email = 'cydf@shepherd.app';
+
+UPDATE cells SET fellowship_id = 'a62b19bf-1753-479d-8586-cb9dfd735a69'
+WHERE fellowship_id = '679d5222-0848-4f88-8ea7-e20a11f8b4e1';
+UPDATE users SET fellowship_id = 'a62b19bf-1753-479d-8586-cb9dfd735a69'
+WHERE fellowship_id = '679d5222-0848-4f88-8ea7-e20a11f8b4e1';
+DELETE FROM fellowships WHERE id = '679d5222-0848-4f88-8ea7-e20a11f8b4e1';
+
+UPDATE cells SET fellowship_id = 'b63b7285-ce63-4685-87ed-498c6d7c1035'
+WHERE fellowship_id = 'd161ae2c-2a70-4062-947c-eeefc6d2c27c';
+UPDATE users SET fellowship_id = 'b63b7285-ce63-4685-87ed-498c6d7c1035'
+WHERE fellowship_id = 'd161ae2c-2a70-4062-947c-eeefc6d2c27c';
+DELETE FROM fellowships WHERE id = 'd161ae2c-2a70-4062-947c-eeefc6d2c27c';
+
+-- Verify — Men's/Women's Fellowship should now each show their real
+-- member count plus the 10/17 cells; the no-apostrophe rows should be gone.
+SELECT f.id, f.name,
+       (SELECT count(*) FROM cells c WHERE c.fellowship_id = f.id) AS cell_count,
+       (SELECT count(*) FROM members m WHERE m.fellowship_id = f.id) AS member_count
+FROM fellowships f
+WHERE f.name IN ('Men''s Fellowship', 'Women''s Fellowship')
+ORDER BY f.name;
