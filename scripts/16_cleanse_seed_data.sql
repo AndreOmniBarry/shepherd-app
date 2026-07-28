@@ -215,3 +215,35 @@ SELECT c.name, c.is_active, (SELECT count(*) FROM members m WHERE m.cell_id = c.
 FROM cells c
 WHERE c.fellowship_id = 'a62b19bf-1753-479d-8586-cb9dfd735a69'
 ORDER BY c.is_active DESC, c.name;
+
+-- ── PART 9: spread Women's Fellowship across Group 1–6, for now ──────────
+-- Different shape than Men's — you asked for multiple cells here, not one:
+-- keep the 6 existing "Group N" cells active, deactivate the other 17
+-- (Anchor, Cornerstone, Emmanuel, etc. — real-sounding names but nobody's
+-- assigned to them and this is all placeholder pending the pastor's real
+-- arrangement anyway), and split the 46 real members across Group 1–6 in
+-- round-robin order so no single group is overloaded.
+UPDATE cells SET is_active = false
+WHERE fellowship_id = 'b63b7285-ce63-4685-87ed-498c6d7c1035'
+  AND name NOT ILIKE 'Group %';
+
+WITH ordered_members AS (
+  SELECT id, ROW_NUMBER() OVER (ORDER BY full_name) AS rn
+  FROM members
+  WHERE fellowship_id = 'b63b7285-ce63-4685-87ed-498c6d7c1035'
+),
+group_cells AS (
+  SELECT id, ROW_NUMBER() OVER (ORDER BY name) AS grn
+  FROM cells
+  WHERE fellowship_id = 'b63b7285-ce63-4685-87ed-498c6d7c1035' AND name ILIKE 'Group %'
+)
+UPDATE members m SET cell_id = gc.id
+FROM ordered_members om
+JOIN group_cells gc ON gc.grn = ((om.rn - 1) % 6) + 1
+WHERE m.id = om.id;
+
+-- Verify — 6 active cells, ~7-8 members each, totalling 46
+SELECT c.name, c.is_active, (SELECT count(*) FROM members m WHERE m.cell_id = c.id) AS members_in_cell
+FROM cells c
+WHERE c.fellowship_id = 'b63b7285-ce63-4685-87ed-498c6d7c1035'
+ORDER BY c.is_active DESC, c.name;
