@@ -337,11 +337,11 @@ export default function DepartmentHeadPage() {
             {/* Service date */}
             <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Service date</div>
-              <input type="date" value={serviceDate} max={new Date().toISOString().split('T')[0]}
+              <input type="date" value={serviceDate} max={new Date().toISOString().split('T')[0]} min={new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0]}
                 onChange={e => setServiceDate(e.target.value)}
                 style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 13, outline: 'none', background: t.input, color: t.text }} />
               <div style={{ fontSize: 11, color: t.muted, marginTop: 6 }}>
-                {serviceDate ? `${serviceDayName}, ${(() => { const [yr,mo,dy] = serviceDate.split('-').map(Number); return new Date(yr, mo-1, dy).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); })()}` : ''}
+                {serviceDate ? `${serviceDayName}, ${(() => { const [yr,mo,dy] = serviceDate.split('-').map(Number); return new Date(yr, mo-1, dy).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); })()}` : ''} — records older than 14 days can&apos;t be submitted; contact your administrator.
               </div>
               {serviceDate && !isValidServiceDay && (
                 <div style={{ fontSize: 11, color: t.amber, marginTop: 6 }}>

@@ -18,12 +18,12 @@ const hdrs = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
-// ── 30-day rolling window check ────────────────────────────────
+// ── 14-day rolling window check ────────────────────────────────
 function isWithinWindow(serviceDateStr: string): boolean {
   const serviceDate = new Date(serviceDateStr + 'T00:00:00');
   const now = new Date();
   const cutoff = new Date();
-  cutoff.setDate(now.getDate() - 30);
+  cutoff.setDate(now.getDate() - 14);
   return serviceDate >= cutoff && serviceDate <= now;
 }
 
