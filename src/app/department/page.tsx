@@ -316,8 +316,8 @@ export default function DepartmentHeadPage() {
 
       {/* Sub-nav */}
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', display: 'flex' }}>
-        {[{ id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' }, { id: 'submit', label: 'Attendance', icon: 'ti-calendar-check' }, { id: 'history', label: 'History', icon: 'ti-history' }, { id: 'roster', label: 'Roster', icon: 'ti-list' },
-        { id: 'serving', label: 'Serving', icon: 'ti-user-check' },
+        {[{ id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' }, { id: 'submit', label: 'Attendance', icon: 'ti-calendar-check' }, { id: 'history', label: 'History', icon: 'ti-history' }, { id: 'roster', label: 'Members', icon: 'ti-list' },
+        { id: 'serving', label: 'Serving Schedule', icon: 'ti-user-check' },
         { id: 'birthdays', label: '🎂 Birthdays' },
         ...(/protocol|ushering/i.test(deptName) ? [{ id: 'events' as const, label: 'Events', icon: 'ti-calendar-event' }] : [])].map(n => (
           <button key={n.id} onClick={() => setTab(n.id as typeof tab)}
@@ -484,7 +484,7 @@ export default function DepartmentHeadPage() {
           <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: 0, overflow: 'hidden' }}>
             <div style={{ padding: '14px 16px', borderBottom: `0.5px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{deptName} — Full Roster</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{deptName} — Members</div>
                 <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{members.length} members</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>

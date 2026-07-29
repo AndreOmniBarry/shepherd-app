@@ -14,16 +14,13 @@ type Partner = {
   this_month_paid: boolean; months_consistent: number; total_given: number;
 };
 
-type NavTab = 'overview' | 'partners' | 'log' | 'catchup' | 'lapsed';
+type NavTab = 'overview' | 'partners' | 'log' | 'lapsed';
 
-const MONTHS_2026 = [
-  { value: '2026-01-01', label: 'January 2026' },
-  { value: '2026-02-01', label: 'February 2026' },
-  { value: '2026-03-01', label: 'March 2026' },
-  { value: '2026-04-01', label: 'April 2026' },
-  { value: '2026-05-01', label: 'May 2026' },
-  { value: '2026-06-01', label: 'June 2026' },
-];
+function monthLabel(ym: string) {
+  const [y, m] = ym.split('-').map(Number);
+  if (!y || !m) return ym;
+  return new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+}
 
 const BAND_CONFIG: Record<string, { color: string; bg: string; text: string }> = {
   'Silver':   { color: '#9E9E9E', bg: '#F5F5F5', text: '#424242' },
@@ -50,19 +47,12 @@ export default function PartnershipPage() {
   const [addingPartner, setAddingPartner] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
 
-  // Log giving
+  // Log giving — one form handles both current-month and backdated entries;
+  // picking a past month automatically marks the entry as backdated instead
+  // of asking a separate yes/no question.
   const [givingForm, setGivingForm] = useState({ partner_id: '', amount: '', month: new Date().toISOString().slice(0, 7), status: 'paid', notes: '' });
   const [givingSubmitting, setGivingSubmitting] = useState(false);
   const [givingSuccess, setGivingSuccess] = useState(false);
-
-  // Catch-up: log historical giving
-  const [catchupPartner, setCatchupPartner] = useState('');
-  const [catchupMonth, setCatchupMonth] = useState(MONTHS_2026[0].value);
-  const [catchupAmount, setCatchupAmount] = useState('');
-  const [catchupStatus, setCatchupStatus] = useState('paid');
-  const [catchupNotes, setCatchupNotes] = useState('');
-  const [catchupSubmitting, setCatchupSubmitting] = useState(false);
-  const [catchupSuccess, setCatchupSuccess] = useState(false);
 
   const t = {
     bg: dark ? '#080614' : '#F0EFF8', card: dark ? '#13102A' : '#FFFFFF',
@@ -120,33 +110,22 @@ export default function PartnershipPage() {
     setAddingPartner(false);
   }
 
-  async function logGiving(isCatchup = false) {
-    const form = isCatchup
-      ? { partner_id: catchupPartner, amount: catchupAmount, month: catchupMonth.slice(0, 7) + '-01', status: catchupStatus, notes: catchupNotes }
-      : { partner_id: givingForm.partner_id, amount: givingForm.amount, month: givingForm.month + '-01', status: givingForm.status, notes: givingForm.notes };
-
-    if (!form.partner_id || !form.amount) return;
-    if (isCatchup) setCatchupSubmitting(true); else setGivingSubmitting(true);
-
+  async function logGiving() {
+    if (!givingForm.partner_id || !givingForm.amount) return;
+    setGivingSubmitting(true);
     try {
       const res = await fetch('/api/partnership/giving', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify(form),
+        body: JSON.stringify({ partner_id: givingForm.partner_id, amount: givingForm.amount, month: givingForm.month + '-01', status: givingForm.status, notes: givingForm.notes }),
       });
       if (res.ok) {
-        if (isCatchup) {
-          setCatchupSuccess(true);
-          setCatchupAmount(''); setCatchupNotes('');
-          setTimeout(() => setCatchupSuccess(false), 3000);
-        } else {
-          setGivingSuccess(true);
-          setGivingForm({ partner_id: '', amount: '', month: new Date().toISOString().slice(0, 7), status: 'paid', notes: '' });
-          setTimeout(() => setGivingSuccess(false), 3000);
-        }
+        setGivingSuccess(true);
+        setGivingForm(prev => ({ ...prev, amount: '', notes: '', month: new Date().toISOString().slice(0, 7) }));
+        setTimeout(() => setGivingSuccess(false), 3000);
         fetch('/api/partnership/partners', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (data?.partners) setPartners(data.partners); });
       }
     } catch {}
-    if (isCatchup) setCatchupSubmitting(false); else setGivingSubmitting(false);
+    setGivingSubmitting(false);
   }
 
   const activePartners = partners.filter(p => p.status === 'active');
@@ -181,7 +160,6 @@ export default function PartnershipPage() {
     { id: 'partners', label: `Partners (${activePartners.length})` },
     { id: 'overview', label: 'Overview' },
     { id: 'log', label: 'Log giving' },
-    { id: 'catchup', label: 'Historical entries' },
     { id: 'lapsed', label: `Lapsed (${lapsedPartners.length})` },
   ];
 
@@ -382,8 +360,8 @@ export default function PartnershipPage() {
         {/* ── LOG GIVING ── */}
         {tab === 'log' && (
           <div style={card()}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Log this month's partnership giving</div>
-            <div style={{ fontSize: 11, color: t.muted, marginBottom: 16, lineHeight: 1.5 }}>For current month payments. Use the Historical entries tab for January to June 2026 catch-up.</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Log giving</div>
+            <div style={{ fontSize: 11, color: t.muted, marginBottom: 16, lineHeight: 1.5 }}>Pick any month — past or present. A month other than the current one is automatically recorded as a backdated entry; it won't trigger a lapse alert.</div>
 
             {givingSuccess && <div style={{ background: t.tealBg, borderRadius: 8, padding: '10px 13px', marginBottom: 12, fontSize: 12, color: t.teal, fontWeight: 500 }}>Giving record saved.</div>}
 
@@ -407,17 +385,22 @@ export default function PartnershipPage() {
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Month *</div>
-                  <input type="month" value={givingForm.month} onChange={e => setGivingForm(p => ({ ...p, month: e.target.value }))}
+                  <input type="month" value={givingForm.month} max={new Date().toISOString().slice(0, 7)} onChange={e => setGivingForm(p => ({ ...p, month: e.target.value }))}
                     style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }} />
                 </div>
               </div>
+              {givingForm.month && givingForm.month !== new Date().toISOString().slice(0, 7) && (
+                <div style={{ background: t.amberBg, borderRadius: 8, padding: '8px 12px', fontSize: 11, color: t.amber, fontWeight: 500 }}>
+                  Backdated entry — recorded for {monthLabel(givingForm.month)}, won't trigger a lapse alert.
+                </div>
+              )}
               <div>
                 <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Payment status</div>
                 <select value={givingForm.status} onChange={e => setGivingForm(p => ({ ...p, status: e.target.value }))}
                   style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
                   <option value="paid">Paid in full</option>
                   <option value="partial">Partial payment</option>
-                  <option value="missed">Missed this month</option>
+                  <option value="missed">Not paid — missed this month</option>
                 </select>
               </div>
               <div>
@@ -426,80 +409,10 @@ export default function PartnershipPage() {
                   placeholder="e.g. Bank transfer, pledged to pay balance next week..."
                   style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
               </div>
-              <button onClick={() => logGiving(false)} disabled={givingSubmitting || !givingForm.partner_id || !givingForm.amount}
+              <button onClick={logGiving} disabled={givingSubmitting || !givingForm.partner_id || !givingForm.amount}
                 style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 9, padding: '11px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: givingSubmitting || !givingForm.partner_id || !givingForm.amount ? 0.6 : 1 }}>
                 {givingSubmitting ? 'Saving...' : 'Save giving record'}
               </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── HISTORICAL CATCH-UP ── */}
-        {tab === 'catchup' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4 }}>Historical giving catch-up</div>
-              <div style={{ fontSize: 12, color: t.sub, lineHeight: 1.6 }}>
-                Log partnership giving records from January to June 2026. Select the partner, the month, and enter the amount paid. This backdates the record without triggering any alerts.
-              </div>
-            </div>
-
-            {catchupSuccess && <div style={{ background: t.tealBg, borderRadius: 9, border: `0.5px solid rgba(29,158,117,0.2)`, padding: '10px 14px', fontSize: 12, color: t.teal, fontWeight: 500 }}>Historical record saved.</div>}
-
-            <div style={card()}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Partner *</div>
-                  <select value={catchupPartner} onChange={e => {
-                    const partner = partners.find(p => p.id === e.target.value);
-                    setCatchupPartner(e.target.value);
-                    if (partner) setCatchupAmount(String(partner.band_amount));
-                  }}
-                    style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
-                    <option value="">Select partner</option>
-                    {partners.filter(p => p.status === 'active').map(p => (
-                      <option key={p.id} value={p.id}>{p.full_name} — {p.band_name} (₦{p.band_amount.toLocaleString()}/mo)</option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div>
-                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Month *</div>
-                    <select value={catchupMonth} onChange={e => setCatchupMonth(e.target.value)}
-                      style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
-                      {MONTHS_2026.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Amount paid (₦) *</div>
-                    <input type="number" value={catchupAmount} onChange={e => setCatchupAmount(e.target.value)}
-                      placeholder="0" style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 13, fontWeight: 600, background: t.input, color: t.teal, outline: 'none', fontFamily: 'inherit' }} />
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Status</div>
-                  <select value={catchupStatus} onChange={e => setCatchupStatus(e.target.value)}
-                    style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
-                    <option value="paid">Paid in full</option>
-                    <option value="partial">Partial payment</option>
-                    <option value="missed">Not paid — missed this month</option>
-                  </select>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Notes</div>
-                  <input value={catchupNotes} onChange={e => setCatchupNotes(e.target.value)}
-                    placeholder="Optional notes about this historical entry..."
-                    style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
-                </div>
-                <button onClick={() => logGiving(true)} disabled={catchupSubmitting || !catchupPartner || !catchupAmount}
-                  style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 9, padding: '11px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: catchupSubmitting || !catchupPartner || !catchupAmount ? 0.6 : 1 }}>
-                  {catchupSubmitting ? 'Saving...' : 'Save historical record'}
-                </button>
-              </div>
-            </div>
-
-            <div style={{ background: t.purpleBg, borderRadius: 10, padding: '11px 14px', border: `0.5px solid rgba(83,74,183,0.15)`, fontSize: 11, color: t.purple, lineHeight: 1.6 }}>
-              Historical records do not trigger lapse alerts. They are purely for building an accurate giving history from January 2026. Go through each partner month by month from your manual records.
             </div>
           </div>
         )}

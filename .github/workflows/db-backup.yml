@@ -1,0 +1,31 @@
+name: Nightly database backup
+
+on:
+  schedule:
+    # 03:00 UTC daily — adjust if you want a different time.
+    - cron: '0 3 * * *'
+  workflow_dispatch: {}   # lets you also trigger a backup manually from the Actions tab
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install postgresql-client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Dump database
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "SUPABASE_DB_URL secret is not set — see scripts/README-backup.md" >&2
+            exit 1
+          fi
+          pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges -F c -f shepherd_backup.dump
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shepherd-db-backup-${{ github.run_id }}
+          path: shepherd_backup.dump
+          retention-days: 30

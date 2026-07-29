@@ -65,6 +65,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'Email, name and role are required' } }, { status: 400 });
     }
 
+    // Rate limit: generous on purpose — legitimate bulk-inviting happens
+    // (onboarding a whole event's worth of volunteers, setting up the year's
+    // department heads in one sitting), so this only catches runaway/abuse
+    // patterns, not normal batch invitations.
+    const rateCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const rateRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/invites?created_by=eq.${user.id}&created_at=gte.${rateCutoff}&select=id`,
+      { headers: { ...hdrs(), Prefer: 'count=exact' } }
+    );
+    const rateCount = parseInt(rateRes.headers.get('content-range')?.split('/')[1] || '0', 10);
+    if (rateCount >= 40) {
+      return NextResponse.json({ data: null, error: { message: 'Too many invites created in the last hour (40 max) — wait a bit before sending more.' } }, { status: 429 });
+    }
+
     // Check if uninvited invite already exists for this email
     const checkRes = await fetch(
       `${SUPABASE_URL}/rest/v1/invites?email=eq.${encodeURIComponent(email)}&used=eq.false&select=id,expires_at&limit=1`,

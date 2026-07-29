@@ -59,6 +59,25 @@ export default function FloatingCalculator({ role }: { role: string }) {
     } catch {}
   }, [storageKey]);
 
+  useEffect(() => {
+    if (!open || minimized) return;
+    function onKeyDown(e: KeyboardEvent) {
+      const key = e.key;
+      if (/^[0-9]$/.test(key)) { press(key); e.preventDefault(); return; }
+      if (key === '.') { press('.'); e.preventDefault(); return; }
+      if (key === '+') { press('+'); e.preventDefault(); return; }
+      if (key === '-') { press('−'); e.preventDefault(); return; }
+      if (key === '*') { press('×'); e.preventDefault(); return; }
+      if (key === '/') { press('÷'); e.preventDefault(); return; }
+      if (key === '%') { press('%'); e.preventDefault(); return; }
+      if (key === 'Enter' || key === '=') { press('='); e.preventDefault(); return; }
+      if (key === 'Backspace') { press('⌫'); e.preventDefault(); return; }
+      if (key === 'Escape') { press('C'); e.preventDefault(); return; }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, minimized, expr, history]);
+
   function pushHistory(expression: string, result: string) {
     const next = [{ expression, result, time: Date.now() }, ...history].slice(0, 30);
     setHistory(next);

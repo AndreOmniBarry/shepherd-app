@@ -22,7 +22,7 @@ import {
 type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; giving_breakdown?:{name:string;amount:number;pct:number}[]; growth_trend?:{month:string;count:number}[]; gender_distribution?:{name:string;count:number;pct:number}[]; gender_known?:number; age_bands?:{band:string;n:number;p:number}[]; age_known?:number; };
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
 type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
-type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'care_followup'|'requisitions'|'validation'|'settings'|'admin'|'workforce'|'service_planner'|'events';
+type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'care_followup'|'requisitions'|'validation'|'settings'|'admin'|'workforce'|'events';
 
 // ── Unique cell data with realistic, differentiated trends ─────
 const CELLS_DATA = [
@@ -1322,7 +1322,8 @@ export default function DashboardPage(){
   // to avoid forcing a Suspense boundary around the whole page for one param.
   React.useEffect(()=>{
     const requested = new URLSearchParams(window.location.search).get('page');
-    if (requested) setPage(requested as NavPage);
+    if (requested === 'service_planner') { setPage('events'); setEventsSubTab('planner'); }
+    else if (requested) setPage(requested as NavPage);
   },[]);
   const [showAlertOnly,setShowAlertOnly]=useState(false);
   const [churchConfig,setChurchConfig]=React.useState<{structure_type:string;tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string}>({structure_type:'cell_church',tier1_label:'Fellowship',tier2_label:'Cell',tier1_head_label:'Fellowship Head',tier2_head_label:'Cell Leader',church_name:'',currency:'NGN'});
@@ -1330,6 +1331,7 @@ export default function DashboardPage(){
   const [userName,setUserName]=useState('');
   const [userRole,setUserRole]=useState('');
   const [givingRange,setGivingRange]=useState('6m');
+  const [eventsSubTab,setEventsSubTab]=useState<'planner'|'programs'>('planner');
   const [cellGranularity,setCellGranularity]=useState<'week'|'month'>('week');
   const [cellOffset,setCellOffset]=useState(0);
   const [cellHistory,setCellHistory]=useState<{label:string;present:number;absent:number;rate:number}[]|null>(null);
@@ -1599,7 +1601,9 @@ export default function DashboardPage(){
     {id:'members' as NavPage,icon:'ti-users',label:'Members'},
     {id:'departments' as NavPage,icon:'ti-building',label:'Departments'},
     {id:'attendance' as NavPage,icon:'ti-calendar-stats',label:'Attendance'},
-    {id:'giving' as NavPage,icon:'ti-coin',label:'Giving'},
+    // Financial visibility is deliberately restricted for PA — they can
+    // approve/query requisitions but not view giving/financial totals.
+    ...(userRole!=='pa'?[{id:'giving' as NavPage,icon:'ti-coin',label:'Giving'}]:[]),
     // The Cell Ministry tab only applies to the two-tier fellowship→cell structure —
     // hidden entirely for zonal/campus/department/house_network/single churches.
     ...(churchConfig.structure_type==='cell_church'?[{id:'cells' as NavPage,icon:'ti-circles',label:`${churchConfig.tier2_label||'Cell'} Ministry`}]:[]),
@@ -1610,8 +1614,7 @@ export default function DashboardPage(){
     {id:'care_followup' as NavPage,icon:'ti-heart-handshake',label:'Care & Follow-up'},
     {id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'},
     {id:'workforce' as NavPage,icon:'ti-user-check',label:'Workforce'},
-    {id:'service_planner' as NavPage,icon:'ti-calendar-check',label:'Service Planner'},
-    {id:'events' as NavPage,icon:'ti-ticket',label:'Events'},
+    {id:'events' as NavPage,icon:'ti-ticket',label:'Events & Service Planning'},
     {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
     {id:'settings' as NavPage,icon:'ti-settings',label:'Settings'},
     ...(userRole === 'lead_tech' ? [{id:'admin' as NavPage,icon:'ti-shield',label:'Admin Portal'}] : []),
@@ -2613,11 +2616,24 @@ export default function DashboardPage(){
           {page==='workforce'&&(
             <WorkforceIntelligencePanel t={t} />
           )}
-          {page==='service_planner'&&(
-            <ServicePlannerPanel t={t} />
-          )}
           {page==='events'&&(
-            <EventsPanel t={t} />
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                {[
+                  {id:'planner' as const,label:'Order of Service',desc:'Who\'s anchoring what, and for how long — the run of a single service.'},
+                  {id:'programs' as const,label:'Programs & Registration',desc:'Special events, crusades, conferences — plus their registration links.'},
+                ].map(s=>(
+                  <button key={s.id} onClick={()=>setEventsSubTab(s.id)}
+                    style={{padding:'8px 14px',borderRadius:9,border:`0.5px solid ${eventsSubTab===s.id?'#534AB7':t.border}`,cursor:'pointer',background:eventsSubTab===s.id?'#534AB7':t.card,color:eventsSubTab===s.id?'#fff':t.text,fontSize:12,fontWeight:600,textAlign:'left' as const}}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              <div style={{fontSize:12,color:t.muted,marginTop:-6}}>
+                {eventsSubTab==='planner'?'Order of Service — who\'s anchoring what, and for how long — the run of a single service.':'Programs & Registration — special events, crusades, conferences, and their registration links.'}
+              </div>
+              {eventsSubTab==='planner'?<ServicePlannerPanel t={t} />:<EventsPanel t={t} />}
+            </div>
           )}
           {page==='care_followup'&&(
             <CareFollowupPanel t={t} />
