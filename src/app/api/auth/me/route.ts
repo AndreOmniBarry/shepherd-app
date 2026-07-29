@@ -23,7 +23,7 @@ export async function GET(req: Request) {
 
     // Fetch full profile to get real full_name
     const profileRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=id,email,full_name,role,cell_id&limit=1`,
+      `${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=id,email,full_name,role,cell_id,department_id&limit=1`,
       { headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` } }
     );
     const profiles = await profileRes.json();
@@ -39,10 +39,23 @@ export async function GET(req: Request) {
       cellName = cells?.[0]?.name || null;
     }
 
+    // Was never fetched here at all — department_head accounts always fell
+    // back to a generic name client-side, silently breaking anything that
+    // keys off the real department name (e.g. the Protocol/Ushering Events tab).
+    let departmentName = null;
+    if (profile?.department_id) {
+      const deptRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/departments?id=eq.${profile.department_id}&select=name&limit=1`,
+        { headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` } }
+      );
+      const depts = await deptRes.json();
+      departmentName = depts?.[0]?.name || null;
+    }
+
     const fullName = profile?.full_name || user.name || user.email?.split('@')[0] || 'Pastor';
 
     return NextResponse.json({
-      data: { ...user, name: fullName, cell_name: cellName },
+      data: { ...user, name: fullName, cell_name: cellName, department_name: departmentName },
       error: null,
     });
   } catch (err) {
