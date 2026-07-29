@@ -5,6 +5,7 @@ import NotificationBell from "@/components/NotificationBell";
 import MyAccountButton from "@/components/MyAccountButton";
 import BirthdayPanel from '@/components/BirthdayPanel';
 import UpcomingEventsCard from '@/components/UpcomingEventsCard';
+import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -152,6 +153,7 @@ export default function FellowshipHeadPage() {
   const [givingSubmitting, setGivingSubmitting] = useState(false);
   // CYDF headcount state
   const [isCYDF, setIsCYDF] = useState(false);
+  const [cydfLabel, setCydfLabel] = useState('Register');
   const [cydfForm, setCydfForm] = useState({ service_id: '', children_count: '', teenagers_count: '', notes: '' });
   const [cydfServices, setCydfServices] = useState<{id:string;service_date:string}[]>([]);
   const [cydfHistory, setCydfHistory] = useState<{id:string;children_count:number;teenagers_count:number;submitted_at:string;sla_grade:string;services:{service_date:string}}[]>([]);
@@ -206,21 +208,19 @@ export default function FellowshipHeadPage() {
       })
       .catch(() => router.push('/login'));
 
-    // Load cells in fellowship
-    // Check if this is CYDF fellowship
-    fetch('/api/auth/me', { credentials: 'include' })
-      .then(r => r.json())
-      .then(({ data }) => {
-        if (data?.fellowship_id === 'cb72d6c2-a206-45b9-895c-a26d705d2367') {
-          setIsCYDF(true);
-          fetch('/api/fellowship/cydf-headcount', { credentials: 'include' })
-            .then(r => r.json())
-            .then(({ data }) => {
-              if (data?.history) setCydfHistory(data.history);
-              if (data?.services) { setCydfServices(data.services); if(data.services[0]) setCydfForm(p=>({...p,service_id:data.services[0].id})); }
-            }).catch(()=>{});
-        }
-      }).catch(()=>{});
+    // Whether this fellowship is "aggregate only" (no individual member/cell
+    // tracking, just a headcount register) is a per-fellowship flag any
+    // church can set on any fellowship — not hardcoded to one church's ID.
+    // A successful response here IS the check.
+    fetch('/api/fellowship/cydf-headcount', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(json => {
+        if (!json?.data) return;
+        setIsCYDF(true);
+        setCydfLabel(json.data.fellowship_name ? `${json.data.fellowship_name} Register` : 'Register');
+        if (json.data.history) setCydfHistory(json.data.history);
+        if (json.data.services) { setCydfServices(json.data.services); if (json.data.services[0]) setCydfForm(p => ({ ...p, service_id: json.data.services[0].id })); }
+      }).catch(() => {});
 
     fetch('/api/fellowship/cells', { credentials: 'include' })
       .then(r => r.json())
@@ -368,7 +368,7 @@ export default function FellowshipHeadPage() {
       // Only CYDF's own fellowship head ever sees this — was previously
       // shown to every fellowship head (Youth/Men's/Women's included)
       // because this array never actually checked isCYDF.
-      ...(isCYDF ? [{ id: 'cydf' as NavTab, label: 'CYDF Headcount' }] : []),
+      ...(isCYDF ? [{ id: 'cydf' as NavTab, label: cydfLabel }] : []),
       { id: 'disputes', label: `Disputes${disputes.filter(d => d.status === 'pending').length > 0 ? ` (${disputes.filter(d => d.status === 'pending').length})` : ''}` },
   ];
 
@@ -495,16 +495,8 @@ export default function FellowshipHeadPage() {
               </div>
 
               <div style={card()}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Attendance trend — last 8 weeks</div>
-                <ResponsiveContainer width="100%" height={160}>
-                  <LineChart data={fellowshipTrend} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={t.chartGrid} />
-                    <XAxis dataKey="w" tick={{ fontSize: 9, fill: t.chartAxis }} />
-                    <YAxis tick={{ fontSize: 9, fill: t.chartAxis }} />
-                    <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: `1px solid ${t.border}`, background: t.chartTip, color: t.chartTipText }} />
-                    <Line type="monotone" dataKey="v" stroke="#534AB7" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Attendance trend</div>
+                <AttendanceHistoryPanel t={t} fetchUrl={(g, o) => `/api/fellowship/history?granularity=${g}&offset=${o}`} color={t.purple} />
               </div>
             </div>
           </div>
@@ -541,15 +533,7 @@ export default function FellowshipHeadPage() {
                       </div>
                     ))}
                   </div>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <BarChart data={selectedCell.trend} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={t.chartGrid} />
-                      <XAxis dataKey="w" tick={{ fontSize: 9, fill: t.chartAxis }} />
-                      <YAxis tick={{ fontSize: 9, fill: t.chartAxis }} />
-                      <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: `1px solid ${t.border}`, background: t.chartTip, color: t.chartTipText }} />
-                      <Bar dataKey="v" fill="#534AB7" radius={[3, 3, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <AttendanceHistoryPanel t={t} fetchUrl={(g, o) => `/api/cells/history?cell_id=${selectedCell.id}&granularity=${g}&offset=${o}`} color={t.purple} />
                 </div>
                 {/* Dispute button */}
                 {selectedCell.status === 'submitted' && selectedCell.record_id && (
@@ -822,13 +806,13 @@ export default function FellowshipHeadPage() {
         {tab === 'cydf' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4 }}>CYDF Headcount</div>
-              <div style={{ fontSize: 12, color: t.sub, lineHeight: 1.6 }}>Submit the headcount for Children (0–12) and Teenagers (13–19) separately each Sunday.</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4 }}>{cydfLabel}</div>
+              <div style={{ fontSize: 12, color: t.sub, lineHeight: 1.6 }}>There are no cells to lead here — this is your register. Submit the headcount for children and teenagers separately each Sunday, same as a cell leader logs attendance.</div>
             </div>
 
             {cydfSuccess && (
               <div style={{ background: t.tealBg, borderRadius: 9, border: `0.5px solid rgba(29,158,117,0.2)`, padding: '10px 14px', fontSize: 12, color: t.teal, fontWeight: 500 }}>
-                CYDF headcount submitted successfully.
+                Register submitted successfully.
               </div>
             )}
 

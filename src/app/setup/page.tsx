@@ -117,6 +117,10 @@ const QUESTIONS: Question[] = [
   { id: 'tier2_label', section: 'Church Structure', type: 'text', question: 'What do you call your second tier?', sub: 'The groups within each first tier — where members typically belong.', placeholder: 'e.g. Cell, Home Group, Unit' },
   { id: 'tier1_head_label', section: 'Church Structure', type: 'text', question: 'What title does a first-tier leader carry?', placeholder: 'e.g. Fellowship Head, Zonal Pastor, Campus Director' },
   { id: 'tier2_head_label', section: 'Church Structure', type: 'text', question: 'What title does a second-tier leader carry?', placeholder: 'e.g. Cell Leader, Home Group Host, District Pastor' },
+  { id: 'cydf_combined', section: 'Church Structure', type: 'single', question: 'Are your Children\'s and Teenagers\' ministries combined into one group, or run separately?', sub: 'Some churches run them as one group with a simple headcount register (no individual cells); others keep them fully separate fellowships like any other. Either is fine — this just decides which one gets set up for you.', options: [
+    { value: 'combined', label: 'Combined', sub: 'One group, aggregate headcount register, no separate cells' },
+    { value: 'separate', label: 'Separate', sub: 'Two independent fellowships, each with their own structure' },
+  ]},
 
   // SERVICES
   { id: 'service_days', section: 'Services', type: 'multi', required: true, question: 'Which days does your church hold regular services?', sub: 'Determines attendance submission windows and absence alerts.', options: [
@@ -588,6 +592,7 @@ export default function SetupWizard() {
         cell_meeting_day: a.cell_meeting_day,
         has_children: a.has_children,
         has_youth: a.has_youth,
+        cydf_combined: a.cydf_combined,
         departments: a.departments,
         giving_types: a.giving_types,
         has_partnership: a.has_partnership,

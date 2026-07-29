@@ -8,6 +8,7 @@ import CellOverview from '@/components/CellOverview';
 import CellFollowup from '@/components/CellFollowup';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import CellMeetingsTab from '@/components/CellMeetingsTab';
+import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
@@ -168,6 +169,10 @@ export default function CellPage() {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [historyWeeks, setHistoryWeeks] = useState(12);
+  const [flagTarget, setFlagTarget] = useState<{ id: string; name: string } | null>(null);
+  const [flagNote, setFlagNote] = useState('');
+  const [flagSubmitting, setFlagSubmitting] = useState(false);
+  const [flagResult, setFlagResult] = useState('');
   const [cellName, setCellName] = useState('');
   const [leaderName, setLeaderName] = useState('');
   const [dark, setDark] = useState(false);
@@ -465,12 +470,7 @@ export default function CellPage() {
                             {present ? 'Present' : 'Absent'}
                           </span>
                         </button>
-                        <button onClick={async () => {
-                          const note = window.prompt(`What's wrong with ${m.full_name}'s placement? (sent to your fellowship head)`);
-                          if (!note?.trim()) return;
-                          const res = await fetch('/api/cell/flag-correction', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ member_id: m.id, note: note.trim() }) });
-                          window.alert(res.ok ? 'Flagged for your fellowship head to review.' : 'Failed to flag — try again.');
-                        }}
+                        <button onClick={() => { setFlagTarget({ id: m.id, name: m.full_name }); setFlagNote(''); setFlagResult(''); }}
                           title="Flag a placement issue with this member"
                           style={{ padding: '0 10px', borderRadius: 9, border: `0.5px solid ${t.border}`, background: 'transparent', color: t.muted, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
@@ -552,14 +552,13 @@ export default function CellPage() {
         )}
 
                 {tab === 'history' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Last {historyWeeks} Weeks</div>
-              <select value={historyWeeks} onChange={e => setHistoryWeeks(Number(e.target.value))}
-                style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '6px 10px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }}>
-                {[4, 8, 12, 26, 52].map(w => (<option key={w} value={w}>{w} weeks</option>))}
-              </select>
-            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Attendance history</div>
+            <AttendanceHistoryPanel t={t} fetchUrl={(g, o) => `/api/cells/history?granularity=${g}&offset=${o}`} color={t.teal} />
+          </div>
+          <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>Recent submissions</div>
             {history.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 32, color: t.muted, fontSize: 13 }}>No submissions yet. Your history will appear here after your first submission.</div>
             ) : (
@@ -590,8 +589,36 @@ export default function CellPage() {
               </div>
             )}
           </div>
+          </div>
         )}
       </div>
+
+      {flagTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 16 }}
+          onClick={() => setFlagTarget(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: t.card, borderRadius: 14, padding: 20, width: '100%', maxWidth: 380, border: `0.5px solid ${t.border}` }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 4 }}>Flag a placement issue</div>
+            <div style={{ fontSize: 12, color: t.muted, marginBottom: 14 }}>What's wrong with {flagTarget.name}'s placement? This goes to your fellowship head to review.</div>
+            <textarea value={flagNote} onChange={e => setFlagNote(e.target.value)} rows={3} autoFocus
+              placeholder="e.g. this member actually belongs to a different cell..."
+              style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 13, outline: 'none', background: t.input, color: t.text, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+            {flagResult && <div style={{ fontSize: 12, color: flagResult.startsWith('Flagged') ? t.teal : t.coral, marginTop: 8 }}>{flagResult}</div>}
+            <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
+              <button onClick={() => setFlagTarget(null)} style={{ padding: '8px 16px', borderRadius: 8, border: `0.5px solid ${t.border}`, background: 'transparent', color: t.sub, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button disabled={!flagNote.trim() || flagSubmitting} onClick={async () => {
+                setFlagSubmitting(true);
+                try {
+                  const res = await fetch('/api/cell/flag-correction', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ member_id: flagTarget.id, note: flagNote.trim() }) });
+                  if (res.ok) { setFlagResult('Flagged for your fellowship head to review.'); setTimeout(() => setFlagTarget(null), 1200); }
+                  else setFlagResult('Failed to flag — try again.');
+                } finally { setFlagSubmitting(false); }
+              }} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#534AB7', color: '#fff', fontSize: 12, fontWeight: 600, cursor: !flagNote.trim() || flagSubmitting ? 'default' : 'pointer', opacity: !flagNote.trim() || flagSubmitting ? 0.6 : 1 }}>
+                {flagSubmitting ? 'Sending…' : 'Send flag'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -41,7 +41,21 @@ export async function POST(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
   const body = await req.json();
-  const { income_type_id, member_name, amount, service_date, notes, fellowship_id } = body;
+  const { income_type_id, member_name, amount, service_date, notes, fellowship_id, is_adjustment, adjustment_note } = body;
+
+  // Lock-step reconciliation: once a month is closed, a normal entry can no
+  // longer land inside it silently — it must be explicitly marked as an
+  // adjustment, so a "final" figure never quietly changes after the fact.
+  if (service_date) {
+    const monthStart = String(service_date).slice(0, 7) + '-01';
+    const periodRes = await fetch(`${S}/rest/v1/financial_periods?period_month=eq.${monthStart}&select=id`, { headers: h() });
+    const periodRows = await periodRes.json();
+    const isClosed = Array.isArray(periodRows) && periodRows.length > 0;
+    if (isClosed && !is_adjustment) {
+      return NextResponse.json({ data: null, error: { message: `${monthStart.slice(0, 7)} is a closed period. Log this as an adjustment instead — check "This is an adjustment to a closed period" and explain why.`, code: 'PERIOD_CLOSED' } }, { status: 409 });
+    }
+  }
+
   const res = await fetch(`${S}/rest/v1/income_records`, {
     method: 'POST',
     headers: { ...h(), 'Prefer': 'return=representation' },
@@ -53,6 +67,8 @@ export async function POST(req: Request) {
       notes: notes || null,
       fellowship_id: fellowship_id || null,
       submitted_by: user.id,
+      is_adjustment: !!is_adjustment,
+      adjustment_note: is_adjustment ? (adjustment_note || null) : null,
     }),
   });
   const data = await res.json();

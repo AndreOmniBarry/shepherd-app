@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import FloatingCalculator from '@/components/FloatingCalculator';
+import FinancialPeriodsPanel from '@/components/FinancialPeriodsPanel';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 type Member = { id: string; full_name: string; phone: string | null };
@@ -72,6 +73,7 @@ export default function AccountsPage() {
   const [incomeForm, setIncomeForm] = useState({
     income_type_id: '', amount: '', service_date: new Date().toISOString().split('T')[0],
     notes: '', is_backdated: false, backdate_month: MONTHS_2026[0].value,
+    is_adjustment: false, adjustment_note: '',
   });
   const [incomeSubmitting, setIncomeSubmitting] = useState(false);
   const [incomeSuccess, setIncomeSuccess] = useState(false);
@@ -194,11 +196,13 @@ export default function AccountsPage() {
           amount: parseFloat(incomeForm.amount),
           service_date: serviceDate,
           notes: incomeForm.notes || null,
+          is_adjustment: incomeForm.is_adjustment,
+          adjustment_note: incomeForm.adjustment_note || null,
         }),
       });
       if (res.ok) {
         setIncomeSuccess(true);
-        setIncomeForm({ income_type_id: '', amount: '', service_date: new Date().toISOString().split('T')[0], notes: '', is_backdated: false, backdate_month: MONTHS_2026[0].value });
+        setIncomeForm({ income_type_id: '', amount: '', service_date: new Date().toISOString().split('T')[0], notes: '', is_backdated: false, backdate_month: MONTHS_2026[0].value, is_adjustment: false, adjustment_note: '' });
         setSelectedMember(null);
         setMemberSearch('');
         setDuplicateWarning('');
@@ -356,6 +360,8 @@ export default function AccountsPage() {
                 <div style={{ fontSize: 11, color: t.muted }}>Use Log income to start recording</div>
               </div>
             )}
+
+            <FinancialPeriodsPanel t={t} />
           </div>
         )}
 
@@ -466,6 +472,24 @@ export default function AccountsPage() {
                     This is a historical entry (backdating from January 2026)
                   </label>
                 </div>
+
+                {/* Adjustment to a closed period — only relevant when backdating into a
+                    month that's already been reconciled/closed. */}
+                {incomeForm.is_backdated && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input type="checkbox" id="adjustment" checked={incomeForm.is_adjustment} onChange={e => setIncomeForm(p => ({ ...p, is_adjustment: e.target.checked }))} style={{ cursor: 'pointer' }} />
+                      <label htmlFor="adjustment" style={{ fontSize: 12, color: t.sub, cursor: 'pointer' }}>
+                        This is an adjustment to a closed period
+                      </label>
+                    </div>
+                    {incomeForm.is_adjustment && (
+                      <input value={incomeForm.adjustment_note} onChange={e => setIncomeForm(p => ({ ...p, adjustment_note: e.target.value }))}
+                        placeholder="Why this adjustment is needed..."
+                        style={{ width: '100%', marginTop: 8, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
+                    )}
+                  </div>
+                )}
 
                 {/* Notes */}
                 <div>

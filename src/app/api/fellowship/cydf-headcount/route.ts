@@ -5,8 +5,6 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const hdrs = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
 
-const CYDF_FELLOWSHIP_ID = 'cb72d6c2-a206-45b9-895c-a26d705d2367';
-
 function calcSLA(submittedAt: Date): string {
   const day = submittedAt.getDay();
   const hour = submittedAt.getHours();
@@ -29,17 +27,31 @@ async function getUser(req: Request) {
   return payloadToAuthUser(payload);
 }
 
+// No hardcoded fellowship — this feature applies to whichever fellowship a
+// church has flagged as "aggregate only" (fellowships.is_aggregate_only).
+// Comforters House uses it for a combined Children & Teenagers fellowship,
+// but the flag itself is generic: any church can mark any fellowship this
+// way if it doesn't track individual members/cells, just a headcount.
+async function getAggregateFellowship(fellowshipId: string | null) {
+  if (!fellowshipId) return null;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/fellowships?id=eq.${fellowshipId}&is_aggregate_only=eq.true&select=id,name`, { headers: hdrs() });
+  const rows = await res.json();
+  return Array.isArray(rows) && rows[0] ? rows[0] : null;
+}
+
 export async function GET(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    const fellowship = await getAggregateFellowship(user.fellowship_id);
+    if (!fellowship) return NextResponse.json({ data: null, error: { message: 'Not an aggregate-only fellowship' } }, { status: 403 });
 
-    // Get last 8 weeks of CYDF headcounts
+    // Get last 8 weeks of headcounts
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 56);
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/cydf_headcount?fellowship_id=eq.${CYDF_FELLOWSHIP_ID}&submitted_at=gte.${cutoff.toISOString()}&order=submitted_at.desc&limit=12&select=id,children_count,teenagers_count,submitted_at,sla_grade,notes,services(service_date)`,
+      `${SUPABASE_URL}/rest/v1/cydf_headcount?fellowship_id=eq.${fellowship.id}&submitted_at=gte.${cutoff.toISOString()}&order=submitted_at.desc&limit=12&select=id,children_count,teenagers_count,submitted_at,sla_grade,notes,services(service_date)`,
       { headers: hdrs() }
     );
     const data = await res.json();
@@ -56,6 +68,7 @@ export async function GET(req: Request) {
       data: {
         history: Array.isArray(data) ? data : [],
         services: Array.isArray(services) ? services : [],
+        fellowship_name: fellowship.name,
       },
       error: null,
     });
@@ -68,6 +81,8 @@ export async function POST(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    const fellowship = await getAggregateFellowship(user.fellowship_id);
+    if (!fellowship) return NextResponse.json({ data: null, error: { message: 'Not an aggregate-only fellowship' } }, { status: 403 });
 
     const body = await req.json();
     const { service_id, children_count, teenagers_count, notes } = body;
@@ -82,7 +97,7 @@ export async function POST(req: Request) {
       headers: { ...hdrs(), 'Prefer': 'resolution=merge-duplicates,return=representation' },
       body: JSON.stringify({
         service_id,
-        fellowship_id: CYDF_FELLOWSHIP_ID,
+        fellowship_id: fellowship.id,
         children_count: parseInt(children_count) || 0,
         teenagers_count: parseInt(teenagers_count) || 0,
         submitted_by: user.id,

@@ -5,7 +5,26 @@
 
 // ── DATABASE ROW TYPES ──────────────────────────────────────
 
-export type Role = 'cell_leader' | 'overseer' | 'workforce';
+// Every functional role the app actually grants a portal/permission set to.
+// Church-facing *labels* for these are configurable per church via
+// church_config (e.g. a "pa" account can display as "Deacon" or "Reverend"
+// for a given church) — this union is the fixed internal permission key,
+// not the display text. Add a new role here when a new permission set is
+// introduced; `general_overseer`/`branch_pastor` are reserved for the
+// multi-branch model and unused until that ships.
+export type Role =
+  | 'cell_leader'
+  | 'fellowship_head'
+  | 'department_head'
+  | 'overseer'
+  | 'general_overseer'
+  | 'branch_pastor'
+  | 'pa'
+  | 'lead_tech'
+  | 'accounts'
+  | 'partnership'
+  | 'care_team'
+  | 'workforce';
 
 export type Fellowship = {
   id:          string;
