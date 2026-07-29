@@ -361,7 +361,9 @@ export default function FellowshipHeadPage() {
 
   const navItems: { id: NavTab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
-    { id: 'cells', label: churchConfig.tier2_label || 'Cells' },
+    // Aggregate-only fellowships (e.g. a combined Children & Teenagers
+    // register) don't have cells to drill into.
+    ...(isCYDF ? [] : [{ id: 'cells' as NavTab, label: churchConfig.tier2_label || 'Cells' }]),
     { id: 'members', label: 'Members' },
     { id: 'giving', label: 'Giving' },
     { id: 'birthdays', label: '🎂 Birthdays' },
