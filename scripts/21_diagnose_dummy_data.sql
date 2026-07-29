@@ -44,7 +44,8 @@ WHERE name IN (
 ORDER BY name;
 
 -- 4) Any departments whose name/leader looks like leftover seed data.
-SELECT d.id, d.name, d.is_active,
+SELECT d.id, d.name,
+       (SELECT count(*) FROM department_members dm WHERE dm.department_id = d.id) AS member_count,
        (SELECT full_name FROM users u WHERE u.department_id = d.id AND u.role = 'department_head' AND u.is_active = true LIMIT 1) AS head_name
 FROM departments d
 ORDER BY d.name;
