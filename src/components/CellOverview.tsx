@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import UpcomingEventsCard from '@/components/UpcomingEventsCard';
 
 type MemberProfile = {
   id: string;
@@ -96,6 +97,8 @@ export default function CellOverview({ dark = false, t }: CellOverviewProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      <UpcomingEventsCard t={t} />
 
       {/* Action items */}
       {actions.length > 0 && (

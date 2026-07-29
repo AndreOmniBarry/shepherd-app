@@ -25,6 +25,20 @@ const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 function ymd(d: Date) { return d.toISOString().split('T')[0]; }
 
+function rolePortal(role: string): string {
+  switch (role) {
+    case 'overseer': case 'pa': case 'lead_tech': return '/dashboard';
+    case 'fellowship_head': return '/fellowship';
+    case 'department_head': return '/department';
+    case 'cell_leader': return '/cell';
+    case 'accounts': return '/accounts';
+    case 'partnership': return '/partnership';
+    case 'care_team': return '/care';
+    case 'workforce': return '/workforce';
+    default: return '/cell';
+  }
+}
+
 export default function CalendarPage() {
   const router = useRouter();
   const [dark, setDark] = useState(false);
@@ -32,6 +46,7 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [homePath, setHomePath] = useState('/dashboard');
 
   const t = {
     bg: dark ? '#080614' : '#F0EFF8', card: dark ? '#13102A' : '#FFFFFF',
@@ -44,7 +59,7 @@ export default function CalendarPage() {
   };
 
   useEffect(() => {
-    fetch('/api/auth/me', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (!data) router.push('/login'); }).catch(() => router.push('/login'));
+    fetch('/api/auth/me', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (!data) router.push('/login'); else setHomePath(rolePortal(data.role)); }).catch(() => router.push('/login'));
   }, []);
 
   useEffect(() => {
@@ -91,6 +106,10 @@ export default function CalendarPage() {
     <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={() => router.push(homePath)} title="Back to dashboard"
+            style={{ background: t.purpleBg, border: 'none', borderRadius: 8, width: 30, height: 30, cursor: 'pointer', color: t.purple, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="ti-arrow-left" size={15} />
+          </button>
           <div style={{ width: 24, height: 24, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ position: 'absolute', width: 3, height: 17, background: '#A89FFF', borderRadius: 2 }} />
             <div style={{ position: 'absolute', width: 12, height: 3, background: '#A89FFF', borderRadius: 2 }} />

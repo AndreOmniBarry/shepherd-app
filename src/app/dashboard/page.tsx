@@ -23,7 +23,6 @@ type KPI = { total_members:number; active_members:number; today_present:number; 
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
 type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
 type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'care_followup'|'requisitions'|'validation'|'settings'|'admin'|'workforce'|'service_planner'|'events';
-type TimeRange = '8w'|'3m'|'6m'|'1y'|'2y'|'5y';
 
 // ── Unique cell data with realistic, differentiated trends ─────
 const CELLS_DATA = [
@@ -198,25 +197,6 @@ function fmtNGN(n:number){if(n>=1_000_000)return`₦${(n/1_000_000).toFixed(1)}M
 function greeting(){const h=new Date().getHours();return h<12?'Good morning':h<17?'Good afternoon':'Good evening';}
 
 function givingSlice(range:string){const m:Record<string,number>={'6m':6,'1y':12,'2y':24,'5y':60};return GIVING_DATA.slice(-(m[range]||12));}
-
-// Attendance trend for a cell — generate based on cell's unique history + range
-function cellTrend(cell:typeof CELLS_DATA[0], range:string){
-  const counts:Record<string,number>={'8w':8,'3m':13,'6m':26,'1y':52,'2y':104,'5y':260};
-  const n = counts[range] || 8;
-  const h = cell.history; // 12 weeks of real history
-  const baseAvg = h.reduce((a,b)=>a+b,0)/h.length;
-  // Growth rate per week based on cell trend
-  const weeklyGrowth = cell.status==='rising'?0.003:cell.status==='alert'?-0.004:cell.status==='watch'?-0.001:0.001;
-  return Array.from({length:n},(_,i)=>{
-    // For recent weeks use actual history, for older weeks extrapolate backwards with growth
-    const weeksAgo = n - 1 - i;
-    const base = weeksAgo < h.length ? h[h.length-1-weeksAgo] : Math.max(2, Math.round(baseAvg * (1 - weeklyGrowth * weeksAgo)));
-    // Add realistic weekly noise (sunday variation, holidays etc)
-    const seasonalFactor = Math.sin(i * 0.5) * 0.08; // gentle wave
-    const noise = Math.round(base * seasonalFactor);
-    return {w:`W${i+1}`, v:Math.max(2, base + noise)};
-  });
-}
 
 // Export helpers
 function exportCSV(data:Record<string,unknown>[], filename:string){
@@ -1208,10 +1188,11 @@ function CreateCellModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dar
 
   async function submit(){
     if(!name.trim()){setError('Cell name is required.');return;}
+    if(!fellowshipId){setError('A fellowship is required — a cell can\'t exist outside one.');return;}
     setSaving(true);setError('');
     try{
       const res=await fetch('/api/cells/create',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
-        body:JSON.stringify({name:name.trim(),fellowship_id:fellowshipId||null,target_size:targetSize||null})});
+        body:JSON.stringify({name:name.trim(),fellowship_id:fellowshipId,target_size:targetSize||null})});
       if(!res.ok){const e=await res.json();setError(e?.error?.message||'Failed to create cell.');setSaving(false);return;}
       onCreated();onClose();
     }catch{setError('Network error.');}
@@ -1229,9 +1210,9 @@ function CreateCellModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dar
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
           <div><label style={labelS}>Cell name *</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Overcomers" style={inputS}/></div>
           <div>
-            <label style={labelS}>Fellowship</label>
+            <label style={labelS}>Fellowship *</label>
             <select value={fellowshipId} onChange={e=>setFellowshipId(e.target.value)} style={inputS}>
-              <option value="">None</option>
+              <option value="">Select a fellowship...</option>
               {fellowships.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
           </div>
@@ -1349,7 +1330,10 @@ export default function DashboardPage(){
   const [userName,setUserName]=useState('');
   const [userRole,setUserRole]=useState('');
   const [givingRange,setGivingRange]=useState('6m');
-  const [cellRange,setCellRange]=useState('8w');
+  const [cellGranularity,setCellGranularity]=useState<'week'|'month'>('week');
+  const [cellOffset,setCellOffset]=useState(0);
+  const [cellHistory,setCellHistory]=useState<{label:string;present:number;absent:number;rate:number}[]|null>(null);
+  const [cellHistoryLoading,setCellHistoryLoading]=useState(false);
   const [selectedCell,setSelectedCell]=useState<typeof CELLS_DATA[0]|null>(null);
   const [cellFilter,setCellFilter]=useState<string>('all');
   const [memberSearch,setMemberSearch]=useState('');
@@ -1543,6 +1527,16 @@ export default function DashboardPage(){
 
   useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:'smooth'});},[messages]);
 
+  useEffect(()=>{
+    const cellId=(selectedCell as unknown as {id?:string})?.id;
+    if(!selectedCell||!cellId){setCellHistory(null);return;}
+    setCellHistoryLoading(true);
+    fetch(`/api/cells/history?cell_id=${cellId}&granularity=${cellGranularity}&offset=${cellOffset}`,{credentials:'include'})
+      .then(r=>r.json()).then(j=>setCellHistory(j?.data?.buckets||null))
+      .catch(()=>setCellHistory(null))
+      .finally(()=>setCellHistoryLoading(false));
+  },[selectedCell,cellGranularity,cellOffset]);
+
   const sendChat=useCallback(async()=>{
     if(!chatInput.trim()||chatLoading)return;
     const query=chatInput.trim();setChatInput('');
@@ -1603,7 +1597,7 @@ export default function DashboardPage(){
   const navItems=[
     {id:'dashboard' as NavPage,icon:'ti-layout-dashboard',label:'Dashboard'},
     {id:'members' as NavPage,icon:'ti-users',label:'Members'},
-    {id:'departments' as NavPage,icon:'ti-building',label:`${churchConfig.tier1_label?'Fellowships':'Departments'}`},
+    {id:'departments' as NavPage,icon:'ti-building',label:'Departments'},
     {id:'attendance' as NavPage,icon:'ti-calendar-stats',label:'Attendance'},
     {id:'giving' as NavPage,icon:'ti-coin',label:'Giving'},
     // The Cell Ministry tab only applies to the two-tier fellowship→cell structure —
@@ -1626,9 +1620,6 @@ export default function DashboardPage(){
   const agentOpts=[
     {id:'moshe' as AgentName,label:'Moshe',desc:'Church intelligence — all domains'},
   ];
-
-  const rangeOpts:TimeRange[]=['8w','3m','6m','1y','2y','5y'];
-  const rangeLabel=(r:TimeRange)=>r==='8w'?'8 Weeks':r==='3m'?'3 Months':r==='6m'?'6 Months':r==='1y'?'1 Year':r==='2y'?'2 Years':'5 Years';
 
   return(
     <div data-theme={dark?'dark':'light'} data-sidebar={dark?'dark':sidebarStyle} style={{display:'flex',minHeight:'100vh',background:t.bg,fontFamily:'Inter,system-ui,sans-serif'}}>
@@ -2245,7 +2236,7 @@ export default function DashboardPage(){
                     <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Cell','Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status','Weekly Meeting'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
                       {(dbCells||CELLS_DATA).filter(row=>cellFilter==='all'||(row.status===cellFilter)||(row.fel===cellFilter)).map((row,i)=>{const s=ss(row.status);return(
-                        <tr key={i} onClick={()=>setSelectedCell(row)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
+                        <tr key={i} onClick={()=>{setSelectedCell(row);setCellOffset(0);}} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
                           onMouseEnter={e=>e.currentTarget.style.background=t.hover}
                           onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                           <td style={{padding:'8px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{row.cell}</td>
@@ -2282,24 +2273,34 @@ export default function DashboardPage(){
                   style={{fontSize:15,fontWeight:600,color:t.text,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'4px 8px',background:t.input,outline:'none',fontFamily:'inherit',marginBottom:6,width:'100%',boxSizing:'border-box'}} />
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} Fellowship · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
                 {!selectedCell.members_list&&<div style={{fontSize:12,color:t.muted,marginBottom:12,padding:'8px 12px',background:t.cardInner,borderRadius:8}}>Connect live database to see individual member roster for this cell.</div>}
-                <div style={{display:'flex',gap:6,marginBottom:14}}>
-                  {rangeOpts.map(r=>(
-                    <button key={r} onClick={()=>setCellRange(r)}
-                      style={{padding:'4px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:cellRange===r?500:400,background:cellRange===r?'#534AB7':t.cardInner,borderColor:cellRange===r?'#534AB7':'#E5E7EB',color:cellRange===r?'#fff':t.sub}}>
-                      {rangeLabel(r)}
+                <div style={{display:'flex',gap:6,marginBottom:14,alignItems:'center',flexWrap:'wrap'}}>
+                  {(['week','month'] as const).map(g=>(
+                    <button key={g} onClick={()=>{setCellGranularity(g);setCellOffset(0);}}
+                      style={{padding:'4px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:cellGranularity===g?500:400,background:cellGranularity===g?'#534AB7':t.cardInner,borderColor:cellGranularity===g?'#534AB7':'#E5E7EB',color:cellGranularity===g?'#fff':t.sub}}>
+                      {g==='week'?'By Week':'By Month'}
                     </button>
                   ))}
+                  <div style={{width:1,alignSelf:'stretch',background:t.border,margin:'0 2px'}}/>
+                  <button onClick={()=>setCellOffset(o=>o+1)} style={{padding:'4px 10px',borderRadius:20,border:`0.5px solid ${t.border}`,cursor:'pointer',fontSize:11,background:t.cardInner,color:t.sub}}>← Earlier</button>
+                  <button onClick={()=>setCellOffset(o=>Math.max(0,o-1))} disabled={cellOffset===0} style={{padding:'4px 10px',borderRadius:20,border:`0.5px solid ${t.border}`,cursor:cellOffset===0?'default':'pointer',fontSize:11,background:t.cardInner,color:cellOffset===0?t.muted:t.sub,opacity:cellOffset===0?0.5:1}}>Later →</button>
+                  {cellHistory&&<span style={{fontSize:11,color:t.muted}}>{cellHistory[0]?.label} – {cellHistory[cellHistory.length-1]?.label}</span>}
                 </div>
                 <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch',background:t.card}}>
-                  <ResponsiveContainer width="100%" height={200} minWidth={300}>
-                    <LineChart data={cellTrend(selectedCell,cellRange)} margin={{top:5,right:10,left:-20,bottom:0}}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                      <XAxis dataKey="w" tick={{fontSize:9,fill:t.chartAxis}} interval={Math.floor(cellTrend(selectedCell,cellRange).length/6)}/>
-                      <YAxis tick={{fontSize:9,fill:t.chartAxis}} domain={[0,'auto']} width={32}/>
-                      <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}}/>
-                      <Line type="monotone" dataKey="v" name="Attendance" stroke={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'} strokeWidth={2} dot={false}/>
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {cellHistoryLoading?(
+                    <div style={{padding:'40px 0',textAlign:'center',fontSize:12,color:t.muted}}>Loading attendance history…</div>
+                  ):!cellHistory||cellHistory.every(b=>b.present===0&&b.absent===0)?(
+                    <div style={{padding:'40px 0',textAlign:'center',fontSize:12,color:t.muted}}>No attendance records logged for this window yet.</div>
+                  ):(
+                    <ResponsiveContainer width="100%" height={200} minWidth={300}>
+                      <LineChart data={cellHistory} margin={{top:5,right:10,left:-20,bottom:0}}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
+                        <XAxis dataKey="label" tick={{fontSize:9,fill:t.chartAxis}} interval={Math.floor(cellHistory.length/6)}/>
+                        <YAxis tick={{fontSize:9,fill:t.chartAxis}} domain={[0,100]} width={32}/>
+                        <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}}/>
+                        <Line type="monotone" dataKey="rate" name="Attendance Rate %" stroke={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'} strokeWidth={2} dot={false}/>
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </div>
               {(selectedCell.members_list||[]).length>0&&<div style={card()}>

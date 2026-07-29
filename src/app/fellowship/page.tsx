@@ -4,6 +4,7 @@ import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 import NotificationBell from "@/components/NotificationBell";
 import MyAccountButton from "@/components/MyAccountButton";
 import BirthdayPanel from '@/components/BirthdayPanel';
+import UpcomingEventsCard from '@/components/UpcomingEventsCard';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -359,12 +360,15 @@ export default function FellowshipHeadPage() {
   );
 
   const navItems: { id: NavTab; label: string }[] = [
-    { id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' },
-    { id: 'cells', label: churchConfig.tier2_label || 'Cells', icon: 'ti-circles' },
-    { id: 'members', label: 'Members', icon: 'ti-users' },
-    { id: 'giving', label: 'Giving', icon: 'ti-coin' },
+    { id: 'overview', label: 'Overview' },
+    { id: 'cells', label: churchConfig.tier2_label || 'Cells' },
+    { id: 'members', label: 'Members' },
+    { id: 'giving', label: 'Giving' },
     { id: 'birthdays', label: '🎂 Birthdays' },
-      { id: 'cydf', label: 'CYDF Headcount' },
+      // Only CYDF's own fellowship head ever sees this — was previously
+      // shown to every fellowship head (Youth/Men's/Women's included)
+      // because this array never actually checked isCYDF.
+      ...(isCYDF ? [{ id: 'cydf' as NavTab, label: 'CYDF Headcount' }] : []),
       { id: 'disputes', label: `Disputes${disputes.filter(d => d.status === 'pending').length > 0 ? ` (${disputes.filter(d => d.status === 'pending').length})` : ''}` },
   ];
 
@@ -448,6 +452,10 @@ export default function FellowshipHeadPage() {
                   Nudge all
                 </button>
               )}
+            </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <UpcomingEventsCard t={t} />
             </div>
 
             {/* KPI cards */}
