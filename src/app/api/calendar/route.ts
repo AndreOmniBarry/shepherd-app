@@ -27,13 +27,18 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const from = searchParams.get('from') || new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0];
     const to = searchParams.get('to') || new Date(Date.now() + 180 * 86400000).toISOString().split('T')[0];
+    // A branch_pastor only ever sees their own branch's calendar; anyone
+    // else can optionally drill into one branch via ?branch_id=.
+    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
+    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
 
     const [eventsRes, specialRes, plansRes] = await Promise.all([
-      fetch(`${SURL}/rest/v1/church_events?event_date=gte.${from}&event_date=lte.${to}&status=neq.cancelled&order=event_date.asc&select=id,title,event_type,event_date,end_date,location,public_slug`, { headers: H() }),
-      fetch(`${SURL}/rest/v1/services?service_type=eq.special&service_date=gte.${from}&service_date=lte.${to}&order=service_date.asc&select=id,service_date,notes`, { headers: H() }),
-      // Published order-of-service programmes — everyone can see who's
-      // anchoring what, not just the individually-assigned person.
-      fetch(`${SURL}/rest/v1/service_plans?status=eq.published&service_date=gte.${from}&service_date=lte.${to}&order=service_date.asc&select=id,service_date,title,theme`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/church_events?event_date=gte.${from}&event_date=lte.${to}&status=neq.cancelled&order=event_date.asc&select=id,title,event_type,event_date,end_date,location,public_slug${branchFilter}`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/services?service_type=eq.special&service_date=gte.${from}&service_date=lte.${to}&order=service_date.asc&select=id,service_date,notes${branchFilter}`, { headers: H() }),
+      // Order-of-service programmes appear on the calendar as soon as
+      // they're created, not only once published, so the pastor/PA can see
+      // that a service day already has a plan in progress.
+      fetch(`${SURL}/rest/v1/service_plans?status=neq.cancelled&service_date=gte.${from}&service_date=lte.${to}&order=service_date.asc&select=id,service_date,title,theme,status${branchFilter}`, { headers: H() }),
     ]);
     const events = await eventsRes.json();
     const special = await specialRes.json();
@@ -49,7 +54,7 @@ export async function GET(req: Request) {
         type: 'special', source: 'service' as const, location: null, slug: null,
       })),
       ...(Array.isArray(plans) ? plans : []).map((p: Record<string, unknown>) => ({
-        id: `plan-${p.id}`, title: `${p.title as string}${p.theme ? ` — ${p.theme}` : ''}`, date: p.service_date as string, end_date: null,
+        id: `plan-${p.id}`, title: `${p.title as string}${p.theme ? ` — ${p.theme}` : ''}${p.status === 'draft' ? ' (draft)' : ''}`, date: p.service_date as string, end_date: null,
         type: 'order_of_service', source: 'plan' as const, location: null, slug: null, plan_id: p.id as string,
       })),
     ].sort((a, b) => a.date.localeCompare(b.date));

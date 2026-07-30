@@ -15,7 +15,7 @@ function nextSundayStr() {
   return d.toISOString().split('T')[0];
 }
 
-export default function ServicePlannerPanel({ t }: { t: Record<string, string> }) {
+export default function ServicePlannerPanel({ t, branchId }: { t: Record<string, string>; branchId?: string }) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,12 +37,15 @@ export default function ServicePlannerPanel({ t }: { t: Record<string, string> }
   const [specialSuccess, setSpecialSuccess] = useState('');
 
   function loadPlans() {
-    fetch('/api/service-planner', { credentials: 'include' }).then(r => r.json()).then(({ data }) => setPlans(data?.plans || [])).finally(() => setLoading(false));
+    const bq = branchId ? `?branch_id=${branchId}` : '';
+    fetch(`/api/service-planner${bq}`, { credentials: 'include' }).then(r => r.json()).then(({ data }) => setPlans(data?.plans || [])).finally(() => setLoading(false));
   }
   useEffect(() => {
     loadPlans();
-    fetch('/api/members/leaders', { credentials: 'include' }).then(r => r.json()).then(({ data }) => setLeaders(data?.leaders || [])).catch(() => {});
-  }, []);
+    const bq = branchId ? `?branch_id=${branchId}` : '';
+    fetch(`/api/members/leaders${bq}`, { credentials: 'include' }).then(r => r.json()).then(({ data }) => setLeaders(data?.leaders || [])).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branchId]);
 
   function loadItems(planId: string) {
     fetch(`/api/service-planner/items?plan_id=${planId}`, { credentials: 'include' }).then(r => r.json()).then(({ data }) => setItems(data?.items || []));
