@@ -23,7 +23,10 @@ async function getUser(req: Request) {
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/fellowships?select=id,name&order=name.asc`, { headers: hdrs() });
+  const { searchParams } = new URL(req.url);
+  const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
+  const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/fellowships?select=id,name&order=name.asc${branchFilter}`, { headers: hdrs() });
   const data = await res.json();
   return NextResponse.json({ data: { fellowships: Array.isArray(data) ? data : [] }, error: null });
 }

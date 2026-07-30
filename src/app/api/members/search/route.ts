@@ -14,18 +14,20 @@ export async function GET(req: Request) {
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
-    const ALLOWED_ROLES = ['overseer', 'pa', 'lead_tech', 'fellowship_head', 'department_head', 'cell_leader', 'care_team'];
+    const ALLOWED_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech', 'fellowship_head', 'department_head', 'cell_leader', 'care_team'];
     if (!ALLOWED_ROLES.includes(String(payload.role))) {
       return NextResponse.json({ data: null, error: { message: 'Not authorized to search members' } }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('q') || '';
+    const branchId = payload.role === 'branch_pastor' ? payload.branch_id : searchParams.get('branch_id');
+    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
 
     const select = 'id,full_name,phone,membership_status,join_date,cells(name),fellowships(name)';
-    let url = `${SUPABASE_URL}/rest/v1/members?select=${select}&order=join_date.desc.nullslast&limit=200`;
+    let url = `${SUPABASE_URL}/rest/v1/members?select=${select}&order=join_date.desc.nullslast&limit=200${branchFilter}`;
     if (q.length >= 2) {
-      url = `${SUPABASE_URL}/rest/v1/members?full_name=ilike.*${q}*&select=${select}&order=full_name.asc&limit=50`;
+      url = `${SUPABASE_URL}/rest/v1/members?full_name=ilike.*${q}*&select=${select}&order=full_name.asc&limit=50${branchFilter}`;
     }
 
     const res = await fetch(url, { headers: hdrs() });

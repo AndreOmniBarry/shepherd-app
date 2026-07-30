@@ -5,7 +5,8 @@ import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import Icon from '@/components/Icon';
 
-type Item = { id: string; title: string; date: string; end_date: string | null; type: string; source: 'event' | 'service'; location: string | null; slug: string | null };
+type Item = { id: string; title: string; date: string; end_date: string | null; type: string; source: 'event' | 'service' | 'plan'; location: string | null; slug: string | null; plan_id?: string };
+type PlanItem = { id: string; item_type: string; title: string; description: string | null; duration_minutes: number | null; assigned_to_name: string | null };
 
 const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
   programme: { bg: '#EEEDFE', text: '#3C3489' },
@@ -17,6 +18,7 @@ const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
   thanksgiving: { bg: '#FAEEDA', text: '#633806' },
   dedication: { bg: '#E1F5EE', text: '#085041' },
   special: { bg: '#FAECE7', text: '#993C1D' },
+  order_of_service: { bg: '#E1F5EE', text: '#085041' },
   other: { bg: '#F3F4F6', text: '#374151' },
 };
 
@@ -47,6 +49,19 @@ export default function CalendarPage() {
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [homePath, setHomePath] = useState('/dashboard');
+  const [openPlanId, setOpenPlanId] = useState<string | null>(null);
+  const [planItems, setPlanItems] = useState<PlanItem[]>([]);
+  const [planItemsLoading, setPlanItemsLoading] = useState(false);
+
+  function togglePlan(planId: string) {
+    if (openPlanId === planId) { setOpenPlanId(null); return; }
+    setOpenPlanId(planId);
+    setPlanItemsLoading(true);
+    fetch(`/api/service-planner/items?plan_id=${planId}`, { credentials: 'include' })
+      .then(r => r.json()).then(({ data }) => setPlanItems(data?.items || []))
+      .catch(() => setPlanItems([]))
+      .finally(() => setPlanItemsLoading(false));
+  }
 
   const t = {
     bg: dark ? '#080614' : '#F0EFF8', card: dark ? '#13102A' : '#FFFFFF',
@@ -175,13 +190,34 @@ export default function CalendarPage() {
             <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>{selectedDay}</div>
             {itemsByDay[selectedDay].map(it => {
               const c = TYPE_COLORS[it.type] || TYPE_COLORS.other;
+              const isPlan = it.source === 'plan' && it.plan_id;
               return (
-                <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `0.5px solid ${t.border}` }}>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{it.title}</div>
-                    {it.location && <div style={{ fontSize: 11, color: t.muted, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="ti-map-pin" size={11} /> {it.location}</div>}
+                <div key={it.id}>
+                  <div onClick={() => isPlan && togglePlan(it.plan_id!)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `0.5px solid ${t.border}`, cursor: isPlan ? 'pointer' : 'default' }}>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{it.title}</div>
+                      {it.location && <div style={{ fontSize: 11, color: t.muted, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="ti-map-pin" size={11} /> {it.location}</div>}
+                      {isPlan && <div style={{ fontSize: 10, color: t.purple, marginTop: 2 }}>{openPlanId === it.plan_id ? 'Hide order of service ▲' : 'View order of service ▼'}</div>}
+                    </div>
+                    <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, background: c.bg, color: c.text, fontWeight: 600, textTransform: 'capitalize' }}>{it.type.replace(/_/g, ' ')}</span>
                   </div>
-                  <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, background: c.bg, color: c.text, fontWeight: 600, textTransform: 'capitalize' }}>{it.type}</span>
+                  {isPlan && openPlanId === it.plan_id && (
+                    <div style={{ padding: '4px 0 10px 10px', borderLeft: `2px solid ${t.purpleBg}`, marginLeft: 4 }}>
+                      {planItemsLoading ? (
+                        <div style={{ fontSize: 11, color: t.muted, padding: '6px 0' }}>Loading…</div>
+                      ) : planItems.length === 0 ? (
+                        <div style={{ fontSize: 11, color: t.muted, padding: '6px 0' }}>No segments added yet.</div>
+                      ) : planItems.map(pi => (
+                        <div key={pi.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 11 }}>
+                          <div>
+                            <span style={{ color: t.text, fontWeight: 500 }}>{pi.title}</span>
+                            {pi.assigned_to_name && <span style={{ color: t.muted }}> — {pi.assigned_to_name}</span>}
+                          </div>
+                          {pi.duration_minutes ? <span style={{ color: t.muted }}>{pi.duration_minutes} min</span> : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}

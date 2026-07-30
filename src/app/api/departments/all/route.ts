@@ -21,12 +21,14 @@ async function getUser(req: Request) {
 export async function GET(req: Request) {
   try {
     const user = await getUser(req);
-    if (!user || !['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+    if (!user || !['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
     const departmentId = searchParams.get('department_id');
+    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
+    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
 
     // Single-department roster with per-member latest attendance status
     if (departmentId) {
@@ -70,7 +72,7 @@ export async function GET(req: Request) {
     }
 
     const [deptsRes, leadersRes, membersRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/departments?select=id,name&order=name.asc`, { headers: hdrs() }),
+      fetch(`${SUPABASE_URL}/rest/v1/departments?select=id,name&order=name.asc${branchFilter}`, { headers: hdrs() }),
       fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.department_head&is_active=eq.true&select=department_id,full_name`, { headers: hdrs() }),
       fetch(`${SUPABASE_URL}/rest/v1/department_members?select=department_id,member_id`, { headers: hdrs() }),
     ]);

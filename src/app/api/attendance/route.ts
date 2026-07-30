@@ -197,6 +197,17 @@ export async function GET(req: Request) {
 
     if (user.role === 'cell_leader' && user.cell_id) {
       url += `&cell_id=eq.${user.cell_id}`;
+    } else {
+      // Branch scoping: attendance doesn't carry branch_id directly, so
+      // scope it via the cells that belong to the relevant branch.
+      const { searchParams: sp2 } = new URL(req.url);
+      const branchId = user.role === 'branch_pastor' ? user.branch_id : sp2.get('branch_id');
+      if (branchId) {
+        const cellsRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?branch_id=eq.${branchId}&select=id`, { headers: hdrs() });
+        const cellRows: { id: string }[] = await cellsRes.json();
+        const cellIds = (Array.isArray(cellRows) ? cellRows : []).map(c => c.id);
+        url += cellIds.length > 0 ? `&cell_id=in.(${cellIds.join(',')})` : '&cell_id=eq.00000000-0000-0000-0000-000000000000';
+      }
     }
 
     const res = await fetch(url, { headers: hdrs() });

@@ -11,15 +11,22 @@ export async function GET(req: Request) {
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     const user = payloadToAuthUser(payload);
-    if (!['overseer', 'pa', 'lead_tech'].includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
+    if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
 
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const headers = { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` };
 
+    // Branch scoping: branch_pastor is always locked to their own branch;
+    // everyone else can pass ?branch_id= to drill in, or omit it for the
+    // consolidated all-branches view.
+    const { searchParams } = new URL(req.url);
+    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
+    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+
     // Get all active cells with fellowship
     const cellsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/cells?is_active=eq.true&select=id,name,fellowship_id,target_size,fellowships(name)&order=fellowship_id.asc,name.asc`,
+      `${SUPABASE_URL}/rest/v1/cells?is_active=eq.true&select=id,name,fellowship_id,target_size,fellowships(name)&order=fellowship_id.asc,name.asc${branchFilter}`,
       { headers }
     );
     const cells = await cellsRes.json();

@@ -120,3 +120,30 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ data: null, error: { message: 'Failed to update' } }, { status: 500 });
   }
 }
+
+// DELETE — only ever for requests already marked prayed, to keep storage
+// from accumulating indefinitely without touching anything still open.
+export async function DELETE(req: Request) {
+  try {
+    const user = await getUser(req);
+    if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
+      return NextResponse.json({ data: null, error: { message: 'Not authorized' } }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ data: null, error: { message: 'id is required' } }, { status: 400 });
+
+    const recRes = await fetch(`${SUPABASE_URL}/rest/v1/prayer_requests?id=eq.${id}&select=status&limit=1`, { headers: hdrs() });
+    const recData = await recRes.json();
+    if (recData?.[0]?.status !== 'prayed') {
+      return NextResponse.json({ data: null, error: { message: 'Only requests already marked prayed can be deleted' } }, { status: 400 });
+    }
+
+    await fetch(`${SUPABASE_URL}/rest/v1/prayer_requests?id=eq.${id}`, { method: 'DELETE', headers: hdrs() });
+    return NextResponse.json({ data: { deleted: true }, error: null });
+  } catch (err) {
+    return NextResponse.json({ data: null, error: { message: 'Failed to delete' } }, { status: 500 });
+  }
+}
