@@ -17,11 +17,13 @@ async function getUser(req: Request) {
 export async function GET(req: Request) {
   try {
     const user = await getUser(req);
-    if (!user || !['overseer','pa','lead_tech','accounts'].includes(user.role)) {
+    if (!user || !['overseer','general_overseer','branch_pastor','pa','lead_tech','accounts'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
+    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
+    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
     const range = searchParams.get('range') || '6m';
     const RANGE_MONTHS: Record<string, number> = { '8w': 2, '3m': 3, '6m': 6, '1y': 12, '2y': 24, '5y': 60 };
     const monthsBack = RANGE_MONTHS[range] ?? 6;
@@ -39,10 +41,10 @@ export async function GET(req: Request) {
 
     // Fetch all income records for this year + last year + the requested trend range, in parallel
     const [thisYearRes, lastYearRes, typesRes, rangeRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${yearStart}T00:00:00&order=service_date.desc&limit=2000&select=id,amount,service_date,income_type_id,member_name,notes,created_at,income_types(name,category)`, { headers: h() }),
-      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${prevYearStart}T00:00:00&created_at=lte.${prevYearEnd}T23:59:59&select=amount,service_date,income_type_id,income_types(name,category)`, { headers: h() }),
+      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${yearStart}T00:00:00&order=service_date.desc&limit=2000&select=id,amount,service_date,income_type_id,member_name,notes,created_at,income_types(name,category)${branchFilter}`, { headers: h() }),
+      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${prevYearStart}T00:00:00&created_at=lte.${prevYearEnd}T23:59:59&select=amount,service_date,income_type_id,income_types(name,category)${branchFilter}`, { headers: h() }),
       fetch(`${SUPABASE_URL}/rest/v1/income_types?is_active=eq.true&order=name.asc&select=id,name,category`, { headers: h() }),
-      fetch(`${SUPABASE_URL}/rest/v1/income_records?service_date=gte.${rangeStartStr}&order=service_date.asc&limit=5000&select=amount,service_date`, { headers: h() }),
+      fetch(`${SUPABASE_URL}/rest/v1/income_records?service_date=gte.${rangeStartStr}&order=service_date.asc&limit=5000&select=amount,service_date${branchFilter}`, { headers: h() }),
     ]);
 
     const [thisYear, lastYear, types, rangeRecords] = await Promise.all([thisYearRes.json(), lastYearRes.json(), typesRes.json(), rangeRes.json()]);

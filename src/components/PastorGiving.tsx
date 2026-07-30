@@ -15,9 +15,9 @@ type GivingData = {
 const TYPE_COLORS = ['#534AB7','#1D9E75','#BA7517','#D85A30','#9C27B0','#E91E63','#00BCD4','#FF5722'];
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-interface PastorGivingProps { dark: boolean; t: Record<string, string>; }
+interface PastorGivingProps { dark: boolean; t: Record<string, string>; branchId?: string; }
 
-export default function PastorGiving({ dark, t }: PastorGivingProps) {
+export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
   const [data, setData] = useState<GivingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'month' | 'week' | 'day' | 'custom'>('month');
@@ -28,20 +28,22 @@ export default function PastorGiving({ dark, t }: PastorGivingProps) {
   const fmtDate = (d: string) => { const [y,mo,dy] = d.split('-').map(Number); return `${dy} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo-1]}`; };
 
   useEffect(() => {
-    fetch('/api/analytics/giving', { credentials: 'include' })
+    setLoading(true);
+    const bq = branchId ? `?branch_id=${branchId}` : '';
+    fetch(`/api/analytics/giving${bq}`, { credentials: 'include' })
       .then(r => r.json())
       .then(({ data }) => { if (data) setData(data); })
       .catch(() => {})
       .finally(() => setLoading(false));
 
     const interval = setInterval(() => {
-      fetch('/api/analytics/giving', { credentials: 'include' })
+      fetch(`/api/analytics/giving${bq}`, { credentials: 'include' })
         .then(r => r.json())
         .then(({ data }) => { if (data) setData(data); })
         .catch(() => {});
     }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [branchId]);
 
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: t.muted, fontSize: 13 }}>Loading giving intelligence...</div>;
   if (!data) return <div style={{ textAlign: 'center', padding: 60, color: t.muted, fontSize: 13 }}>No giving data available.</div>;

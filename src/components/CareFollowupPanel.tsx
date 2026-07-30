@@ -18,16 +18,18 @@ const STATUS_LABEL: Record<string, string> = {
   in_progress: 'In progress', reached: 'Reached', visited: 'Visited', restored: 'Restored', unreachable: 'Unreachable', closed: 'Closed',
 };
 
-export default function CareFollowupPanel({ t }: { t: Record<string, string> }) {
+export default function CareFollowupPanel({ t, branchId }: { t: Record<string, string>; branchId?: string }) {
   const [data, setData] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/care/overview', { credentials: 'include' })
+    setLoading(true);
+    const bq = branchId ? `?branch_id=${branchId}` : '';
+    fetch(`/api/care/overview${bq}`, { credentials: 'include' })
       .then(r => r.json())
       .then(({ data }) => { if (data) setData(data); })
       .finally(() => setLoading(false));
-  }, []);
+  }, [branchId]);
 
   const card = (extra?: React.CSSProperties): React.CSSProperties => ({
     background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '16px 18px', ...extra,

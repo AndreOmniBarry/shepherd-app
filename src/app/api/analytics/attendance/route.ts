@@ -14,11 +14,13 @@ export async function GET(req: Request) {
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     const user = payloadToAuthUser(payload);
-    if (!['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+    if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
+    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
+    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
     // Use Lagos time UTC+1 for today's date to avoid cutoff issues
     const lagosToday = new Date(Date.now() + 60 * 60 * 1000).toISOString().split('T')[0];
     const weeks = parseInt(searchParams.get('weeks') || '8');
@@ -27,50 +29,56 @@ export async function GET(req: Request) {
 
     // ── 1. Recent Sunday services ──────────────────────────────
     const sundayServicesRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/services?service_type=neq.midweek&service_date=gte.${cutoff.toISOString().split('T')[0]}&service_date=lte.${lagosToday}&order=service_date.desc&limit=${weeks}&select=id,service_date,service_type,service_number`,
+      `${SUPABASE_URL}/rest/v1/services?service_type=neq.midweek&service_date=gte.${cutoff.toISOString().split('T')[0]}&service_date=lte.${lagosToday}&order=service_date.desc&limit=${weeks}&select=id,service_date,service_type,service_number${branchFilter}`,
       { headers: hdrs() }
     );
     const sundayServices = await sundayServicesRes.json();
 
     // ── 2. Recent Midweek services ─────────────────────────────
     const midweekServicesRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/services?service_type=eq.midweek&service_date=gte.${cutoff.toISOString().split('T')[0]}&service_date=lte.${lagosToday}&order=service_date.desc&limit=${weeks}&select=id,service_date,service_type`,
+      `${SUPABASE_URL}/rest/v1/services?service_type=eq.midweek&service_date=gte.${cutoff.toISOString().split('T')[0]}&service_date=lte.${lagosToday}&order=service_date.desc&limit=${weeks}&select=id,service_date,service_type${branchFilter}`,
       { headers: hdrs() }
     );
     const midweekServices = await midweekServicesRes.json();
 
+    // ── 5. All cells, fellowships and departments — branch scoped first,
+    // since attendance/department_attendance don't carry branch_id directly
+    // and need to be filtered through these ids instead ──
+    const cellsRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/cells?select=id,name,fellowship_id,fellowships(id,name)&order=name.asc${branchFilter}`,
+      { headers: hdrs() }
+    );
+    const allCells = await cellsRes.json();
+    const branchCellIds = (Array.isArray(allCells) ? allCells : []).map((c: Record<string, unknown>) => c.id as string);
+    const cellIdFilter = branchCellIds.length > 0 ? `(${branchCellIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)';
+
+    const fellowshipsRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/fellowships?select=id,name&order=name.asc${branchFilter}`,
+      { headers: hdrs() }
+    );
+    const fellowships = await fellowshipsRes.json();
+
+    const deptsRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/departments?select=id,name&order=name.asc${branchFilter}`,
+      { headers: hdrs() }
+    );
+    const departments = await deptsRes.json();
+    const branchDeptIds = (Array.isArray(departments) ? departments : []).map((d: Record<string, unknown>) => d.id as string);
+    const deptIdFilter = branchDeptIds.length > 0 ? `(${branchDeptIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)';
+
     // ── 3. Cell attendance records ─────────────────────────────
     const cellAttRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/attendance_records?submitted_at=gte.${cutoff.toISOString()}&order=submitted_at.desc&limit=500&select=id,present_count,absent_count,visitor_count,submitted_at,sla_grade,service_id,cell_id,cells(name,fellowship_id,fellowships(name))`,
+      `${SUPABASE_URL}/rest/v1/attendance_records?submitted_at=gte.${cutoff.toISOString()}&order=submitted_at.desc&limit=500&select=id,present_count,absent_count,visitor_count,submitted_at,sla_grade,service_id,cell_id,cells(name,fellowship_id,fellowships(name))&cell_id=in.${cellIdFilter}`,
       { headers: hdrs() }
     );
     const cellRecords = await cellAttRes.json();
 
     // ── 4. Department attendance records ──────────────────────
     const deptAttRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/department_attendance?submitted_at=gte.${cutoff.toISOString()}&order=submitted_at.desc&limit=200&select=id,present_count,absent_count,submitted_at,sla_grade,service_id,department_id,departments(name)`,
+      `${SUPABASE_URL}/rest/v1/department_attendance?submitted_at=gte.${cutoff.toISOString()}&order=submitted_at.desc&limit=200&select=id,present_count,absent_count,submitted_at,sla_grade,service_id,department_id,departments(name)&department_id=in.${deptIdFilter}`,
       { headers: hdrs() }
     );
     const deptRecords = await deptAttRes.json();
-
-    // ── 5. All cells and fellowships ──────────────────────────
-    const cellsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/cells?select=id,name,fellowship_id,fellowships(id,name)&order=name.asc`,
-      { headers: hdrs() }
-    );
-    const allCells = await cellsRes.json();
-
-    const fellowshipsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/fellowships?select=id,name&order=name.asc`,
-      { headers: hdrs() }
-    );
-    const fellowships = await fellowshipsRes.json();
-
-    const deptsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/departments?select=id,name&order=name.asc`,
-      { headers: hdrs() }
-    );
-    const departments = await deptsRes.json();
 
     // ── 6. Latest Sunday — submission status per cell ──────────
     const latestSunday = Array.isArray(sundayServices) ? sundayServices[0] : null;

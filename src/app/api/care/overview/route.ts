@@ -22,14 +22,18 @@ async function getUser(req: Request) {
 export async function GET(req: Request) {
   try {
     const user = await getUser(req);
-    if (!user || !['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+    if (!user || !['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
+    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+
     const [teamRes, timersRes, leadsRes] = await Promise.all([
-      fetch(`${SURL}/rest/v1/users?role=eq.care_team&select=id,full_name,is_active`, { headers: H() }),
-      fetch(`${SURL}/rest/v1/first_timers?order=created_at.desc&limit=300&select=id,full_name,status,outcome,assigned_to,sla_grade,created_at,service_date`, { headers: H() }),
-      fetch(`${SURL}/rest/v1/care_leads?order=created_at.desc&limit=300&select=id,weeks_absent,status,assigned_to,sla_grade,created_at,members(full_name)`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/users?role=eq.care_team&select=id,full_name,is_active${branchFilter}`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/first_timers?order=created_at.desc&limit=300&select=id,full_name,status,outcome,assigned_to,sla_grade,created_at,service_date${branchFilter}`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/care_leads?order=created_at.desc&limit=300&select=id,weeks_absent,status,assigned_to,sla_grade,created_at,members(full_name)${branchFilter}`, { headers: H() }),
     ]);
     const team = await teamRes.json();
     const timers = await timersRes.json();

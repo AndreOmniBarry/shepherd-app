@@ -94,6 +94,20 @@ export async function POST(req: Request) {
     const careTeam = await careRes.json();
     const careIds: string[] = Array.isArray(careTeam) ? careTeam.map((u: Record<string, string>) => u.id) : [];
 
+    // Look up each absent member's branch so the resulting care lead carries
+    // it too — otherwise a branch's absentees would leak into every branch's
+    // care queue.
+    const midweekMemberIds = [...new Set(lastWedAbsent.map((e: Record<string, unknown>) => e.member_id as string).filter(Boolean))];
+    const midweekMembersRes = midweekMemberIds.length > 0 ? await fetch(
+      `${SUPABASE_URL}/rest/v1/members?id=in.(${midweekMemberIds.join(',')})&select=id,branch_id`,
+      { headers: hdrs() }
+    ) : null;
+    const midweekMembersData = midweekMembersRes ? await midweekMembersRes.json() : [];
+    const midweekBranchByMember: Record<string, string | null> = {};
+    if (Array.isArray(midweekMembersData)) {
+      midweekMembersData.forEach((m: Record<string, string>) => { midweekBranchByMember[m.id] = m.branch_id || null; });
+    }
+
     // For each absent member — check how many of last 3 Wednesdays they missed
     const processedMembers = new Set<string>();
 
@@ -182,6 +196,7 @@ export async function POST(req: Request) {
           notes: `Missed ${memberAbsences} consecutive Wednesday midweek services.`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          branch_id: midweekBranchByMember[memberId] || null,
         }),
       });
 

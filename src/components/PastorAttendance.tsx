@@ -39,9 +39,10 @@ const SLA_CFG: Record<string, { bg: string; text: string }> = {
 interface PastorAttendanceProps {
   dark: boolean;
   t: Record<string, string>;
+  branchId?: string;
 }
 
-export default function PastorAttendance({ dark, t }: PastorAttendanceProps) {
+export default function PastorAttendance({ dark, t, branchId }: PastorAttendanceProps) {
   const [data, setData] = useState<AttendanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'sunday' | 'midweek'>('sunday');
@@ -49,7 +50,9 @@ export default function PastorAttendance({ dark, t }: PastorAttendanceProps) {
   const [fellowshipFilter, setFellowshipFilter] = useState('all');
 
   useEffect(() => {
-    fetch('/api/analytics/attendance', { credentials: 'include' })
+    setLoading(true);
+    const bq = branchId ? `?branch_id=${branchId}` : '';
+    fetch(`/api/analytics/attendance${bq}`, { credentials: 'include' })
       .then(r => r.json())
       .then(({ data }) => { if (data) setData(data); })
       .catch(() => {})
@@ -57,13 +60,13 @@ export default function PastorAttendance({ dark, t }: PastorAttendanceProps) {
 
     // Auto-refresh every 60 seconds — v2
     const interval = setInterval(() => {
-      fetch('/api/analytics/attendance', { credentials: 'include' })
+      fetch(`/api/analytics/attendance${bq}`, { credentials: 'include' })
         .then(r => r.json())
         .then(({ data }) => { if (data) setData(data); })
         .catch(() => {});
     }, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [branchId]);
 
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: t.muted, fontSize: 13 }}>Loading attendance intelligence...</div>;
   if (!data) return <div style={{ textAlign: 'center', padding: 60, color: t.muted, fontSize: 13 }}>No attendance data available.</div>;

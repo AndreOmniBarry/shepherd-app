@@ -14,20 +14,22 @@ const STATUS_CFG: Record<string, { bg: string; text: string; label: string }> = 
   paid:     { bg: '#EEEDFE', text: '#3C3489', label: 'Paid' },
 };
 
-interface PastorRequisitionsProps { t: Record<string, string>; dark: boolean; }
+interface PastorRequisitionsProps { t: Record<string, string>; dark: boolean; branchId?: string; }
 
-export default function PastorRequisitions({ t, dark }: PastorRequisitionsProps) {
+export default function PastorRequisitions({ t, dark, branchId }: PastorRequisitionsProps) {
   const [requisitions, setRequisitions] = useState<Requisition[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
 
   useEffect(() => {
-    fetch('/api/accounts/requisitions', { credentials: 'include' })
+    setLoading(true);
+    const bq = branchId ? `?branch_id=${branchId}` : '';
+    fetch(`/api/accounts/requisitions${bq}`, { credentials: 'include' })
       .then(r => r.json())
       .then(({ data }) => { if (data?.requisitions) setRequisitions(data.requisitions); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [branchId]);
 
   async function updateStatus(id: string, status: string) {
     await fetch(`/api/accounts/requisitions/${id}`, {

@@ -293,16 +293,18 @@ type WorkforceData = {
   next_sunday: string;
 };
 
-function WorkforceIntelligencePanel({t}: {t: Record<string,string>}) {
+function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; branchId?: string}) {
   const [data, setData] = React.useState<WorkforceData|null>(null);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    fetch('/api/workforce/intelligence', { credentials: 'include' })
+    setLoading(true);
+    const bq = branchId ? `?branch_id=${branchId}` : '';
+    fetch(`/api/workforce/intelligence${bq}`, { credentials: 'include' })
       .then(r => r.json())
       .then(({ data }) => setData(data))
       .finally(() => setLoading(false));
-  }, []);
+  }, [branchId]);
 
   if (loading) return <div style={{fontSize:12,color:t.sub,padding:20}}>Loading workforce intelligence…</div>;
   if (!data) return <div style={{fontSize:12,color:t.sub,padding:20}}>Could not load workforce data.</div>;
@@ -1437,7 +1439,6 @@ export default function DashboardPage(){
       window.history.replaceState({}, '', '/dashboard');
     }
     fetch('/api/branches',{credentials:'include'}).then(r=>r.ok?r.json():null).then(json=>{if(json?.data?.branches)setBranchesList(json.data.branches);}).catch(()=>{});
-    fetch('/api/members/leaders',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.leaders)setLeaderOptions(data.leaders);}).catch(()=>{});
     fetch('/api/attendance?weeks=8',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
       const records=data?.records||[];
       const now=new Date();
@@ -1476,6 +1477,7 @@ export default function DashboardPage(){
     setDeptsLoading(true);
     fetch(`/api/departments/all${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setDeptsList(data?.departments||[]);}).finally(()=>setDeptsLoading(false));
     fetch(`/api/cells/all${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setDbCells(data?.cells||[]);}).catch(()=>{});
+    fetch(`/api/members/leaders${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setLeaderOptions(data?.leaders||[]);}).catch(()=>{});
   },[selectedBranch]);
 
   useEffect(()=>{
@@ -1868,10 +1870,10 @@ export default function DashboardPage(){
 
           {/* ══ ATTENDANCE ══ */}
           {page==='attendance'&&(
-            <PastorAttendance dark={dark} t={t} />
+            <PastorAttendance dark={dark} t={t} branchId={selectedBranch||undefined} />
           )}          {/* ══ GIVING ══ */}
           {page==='giving'&&(
-            <PastorGiving dark={dark} t={t} />
+            <PastorGiving dark={dark} t={t} branchId={selectedBranch||undefined} />
           )}
           {/* ══ MEMBERS ══ */}
           {page==='members'&&(
@@ -2644,10 +2646,10 @@ export default function DashboardPage(){
           )}
 
           {page==='requisitions'&&(
-            <PastorRequisitions t={t} dark={dark} />
+            <PastorRequisitions t={t} dark={dark} branchId={selectedBranch||undefined} />
           )}
           {page==='workforce'&&(
-            <WorkforceIntelligencePanel t={t} />
+            <WorkforceIntelligencePanel t={t} branchId={selectedBranch||undefined} />
           )}
           {page==='events'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
@@ -2669,7 +2671,7 @@ export default function DashboardPage(){
             </div>
           )}
           {page==='care_followup'&&(
-            <CareFollowupPanel t={t} />
+            <CareFollowupPanel t={t} branchId={selectedBranch||undefined} />
           )}
           {page==='validation'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
