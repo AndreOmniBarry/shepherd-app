@@ -14,7 +14,7 @@ async function getUser(req: Request) {
 export async function GET(req: Request) {
   try {
     const user = await getUser(req);
-    if (!user || !['overseer','pa','lead_tech'].includes(user.role)) {
+    if (!user || !['overseer','general_overseer','branch_pastor','pa','lead_tech'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     }
 
@@ -22,13 +22,26 @@ export async function GET(req: Request) {
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const headers = { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` };
 
-    const [members, activeCells, todayAttendance, ytdGiving, newMembers] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/members?select=membership_status,join_date,gender,date_of_birth`, { headers }).then(r => r.json()),
-      fetch(`${SUPABASE_URL}/rest/v1/cells?is_active=eq.true&select=id`, { headers }).then(r => r.json()),
-      fetch(`${SUPABASE_URL}/rest/v1/attendance_records?submitted_at=gte.${getMostRecentSunday()}&select=present_count,visitor_count,cell_id`, { headers }).then(r => r.json()),
-      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${new Date().getFullYear()}-01-01T00:00:00&select=amount,income_type_id,income_types(name,category)`, { headers }).then(r => r.json()),
-      fetch(`${SUPABASE_URL}/rest/v1/members?join_date=gte.${getFirstOfMonth()}&membership_status=eq.active&select=id`, { headers }).then(r => r.json()),
+    // Branch scoping: a branch_pastor is always locked to their own branch.
+    // general_overseer/overseer/pa/lead_tech can pass ?branch_id= to drill
+    // into one branch, or omit it for the consolidated all-branches view.
+    const { searchParams } = new URL(req.url);
+    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
+    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+
+    const [members, activeCells, ytdGiving, newMembers] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/members?select=membership_status,join_date,gender,date_of_birth${branchFilter}`, { headers }).then(r => r.json()),
+      fetch(`${SUPABASE_URL}/rest/v1/cells?is_active=eq.true&select=id${branchFilter}`, { headers }).then(r => r.json()),
+      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${new Date().getFullYear()}-01-01T00:00:00&select=amount,income_type_id,income_types(name,category)${branchFilter}`, { headers }).then(r => r.json()),
+      fetch(`${SUPABASE_URL}/rest/v1/members?join_date=gte.${getFirstOfMonth()}&membership_status=eq.active&select=id${branchFilter}`, { headers }).then(r => r.json()),
     ]);
+
+    // Attendance doesn't carry branch_id directly — it's scoped via the
+    // cells that were just fetched for this branch.
+    const cellIds = (Array.isArray(activeCells) ? activeCells : []).map((c: { id: string }) => c.id);
+    const todayAttendance = cellIds.length > 0
+      ? await fetch(`${SUPABASE_URL}/rest/v1/attendance_records?submitted_at=gte.${getMostRecentSunday()}&cell_id=in.(${cellIds.join(',')})&select=present_count,visitor_count,cell_id`, { headers }).then(r => r.json())
+      : [];
 
     const totalMembers = Array.isArray(members) ? members.length : 0;
     const activeMembers = Array.isArray(members) ? members.filter((m: Record<string,string>) => m.membership_status === 'active').length : 0;

@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -141,6 +142,7 @@ export async function PATCH(req: Request) {
         method: 'PATCH', headers: { ...hdrs(), Prefer: 'return=minimal' },
         body: JSON.stringify({ pastor_revoked: true, pastor_revoke_reason: comment.trim(), pastor_revoked_at: new Date().toISOString() }),
       });
+      logAudit({ actor_id: user.id, actor_role: user.role, action: 'member_removal_revoked', target_type: 'member_removal', target_id: id, detail: { member_id: record.member_id, reason: comment.trim() } });
       return NextResponse.json({ data: { revoked: true }, error: null });
     }
 
@@ -179,6 +181,8 @@ export async function PATCH(req: Request) {
           body: `${record.member_name}'s removal was authorised.`,
         }]),
       }).catch(() => {});
+
+      logAudit({ actor_id: user.id, actor_role: user.role, action: 'member_removal_approved', target_type: 'member_removal', target_id: id, detail: { member_id: record.member_id, member_name: record.member_name } });
 
       return NextResponse.json({ data: { approved: true }, error: null });
     }

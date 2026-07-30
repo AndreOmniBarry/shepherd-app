@@ -56,6 +56,8 @@ function isPublicEventRegistration(pathname: string, method: string): boolean {
 function rolePortal(role: string): string {
   switch (role) {
     case 'overseer':
+    case 'general_overseer':
+    case 'branch_pastor':
     case 'pa':
     case 'lead_tech':
       return '/dashboard';
@@ -82,10 +84,15 @@ function rolePortal(role: string): string {
 function allowedPrefixes(role: string): string[] {
   switch (role) {
     case 'overseer':
+    case 'general_overseer':
     case 'pa':
     case 'lead_tech':
       // Full access — can view all portals for troubleshooting
       return ['/dashboard', '/fellowship', '/department', '/cell', '/care', '/workforce', '/update', '/admin', '/api'];
+    case 'branch_pastor':
+      // Same portal set as overseer, minus admin — every view is scoped
+      // server-side to the pastor's own branch_id.
+      return ['/dashboard', '/fellowship', '/department', '/cell', '/care', '/workforce', '/update', '/api'];
     case 'fellowship_head':
       return ['/fellowship', '/update', '/api'];
     case 'department_head':

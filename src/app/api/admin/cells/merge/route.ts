@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -75,6 +76,8 @@ export async function POST(req: Request) {
         body: JSON.stringify({ is_active: false }),
       });
     }
+
+    logAudit({ actor_id: user.id, actor_role: user.role, action: 'cell_merge', target_type: 'cell', target_id: target_cell_id, detail: { source_cell_ids: sources, moved_members: movedMembers } });
 
     return NextResponse.json({ data: { moved_members: movedMembers, merged_cells: sources.length }, error: null });
   } catch (err) {
