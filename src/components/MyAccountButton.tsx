@@ -3,14 +3,19 @@ import { useState, useEffect, useRef } from 'react';
 
 interface Props { dark?: boolean; }
 
-const ADMIN_ROLES = ['overseer', 'lead_tech'];
-const PREVIEW_ROLES: { value: string; label: string; refKind: 'cell' | 'fellowship' | 'department' | null }[] = [
-  { value: 'cell_leader', label: 'Cell Leader', refKind: 'cell' },
+const ADMIN_ROLES = ['overseer', 'general_overseer', 'lead_tech'];
+const PREVIEW_ROLES: { value: string; label: string; refKind: 'cell' | 'fellowship' | 'department' | 'branch' | null }[] = [
+  { value: 'overseer', label: 'Overseer / Pastor', refKind: null },
+  { value: 'general_overseer', label: 'General Overseer', refKind: null },
+  { value: 'branch_pastor', label: 'Branch Pastor', refKind: 'branch' },
+  { value: 'pa', label: 'PA', refKind: null },
   { value: 'fellowship_head', label: 'Fellowship Head', refKind: 'fellowship' },
+  { value: 'cell_leader', label: 'Cell Leader', refKind: 'cell' },
   { value: 'department_head', label: 'Department Head', refKind: 'department' },
   { value: 'care_team', label: 'Care Team', refKind: null },
   { value: 'accounts', label: 'Accounts', refKind: null },
   { value: 'partnership', label: 'Partnership', refKind: null },
+  { value: 'workforce', label: 'Workforce', refKind: null },
 ];
 
 export default function MyAccountButton({ dark = false }: Props) {
@@ -60,11 +65,12 @@ export default function MyAccountButton({ dark = false }: Props) {
     setRefId('');
     setRefOptions([]);
     if (!cfg?.refKind) return;
-    const endpoint = cfg.refKind === 'cell' ? '/api/cells/all' : cfg.refKind === 'fellowship' ? '/api/fellowships/all' : '/api/departments/all';
+    const endpoint = cfg.refKind === 'cell' ? '/api/cells/all' : cfg.refKind === 'fellowship' ? '/api/fellowships/all' : cfg.refKind === 'branch' ? '/api/branches' : '/api/departments/all';
     fetch(endpoint, { credentials: 'include' }).then(r => r.json()).then(({ data }) => {
       if (cfg.refKind === 'cell' && data?.cells) setRefOptions(data.cells.map((c: { id: string; cell: string; fel: string }) => ({ id: c.id, name: `${c.cell} (${c.fel})` })));
       else if (cfg.refKind === 'fellowship' && data?.fellowships) setRefOptions(data.fellowships.map((f: { id: string; name: string }) => ({ id: f.id, name: f.name })));
       else if (cfg.refKind === 'department' && data?.departments) setRefOptions(data.departments.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })));
+      else if (cfg.refKind === 'branch' && data?.branches) setRefOptions(data.branches.map((b: { id: string; name: string }) => ({ id: b.id, name: b.name })));
     }).catch(() => {});
   }, [previewRole]);
 
