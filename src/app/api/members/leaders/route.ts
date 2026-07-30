@@ -22,8 +22,12 @@ export async function GET(req: Request) {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
+    const { searchParams } = new URL(req.url);
+    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
+    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?select=id,full_name,role&role=in.(cell_leader,fellowship_head,department_head)&order=full_name.asc`,
+      `${SUPABASE_URL}/rest/v1/users?select=id,full_name,role&role=in.(cell_leader,fellowship_head,department_head)&order=full_name.asc${branchFilter}`,
       { headers: hdrs() }
     );
     const data = await res.json();

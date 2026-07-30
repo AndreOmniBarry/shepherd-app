@@ -32,14 +32,16 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const all = searchParams.get('all') === 'true';
+    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
+    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
 
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 60);
 
     // Overseer/PA can see all; care team sees recent
-    const isAdmin = ['overseer', 'pa', 'lead_tech'].includes(user.role);
+    const isAdmin = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role);
     const select = 'id,full_name,phone,address,occupation,date_of_birth,how_they_came,would_join,volunteer_interest,prayer_point,service_date,status,notes,assigned_to,cell_id,completed_member_class,outcome,sla_grade,created_at';
-    let url = `${SUPABASE_URL}/rest/v1/first_timers?order=created_at.desc&limit=200&select=${select}`;
+    let url = `${SUPABASE_URL}/rest/v1/first_timers?order=created_at.desc&limit=200&select=${select}${branchFilter}`;
     if (!isAdmin || !all) {
       url += `&service_date=gte.${cutoff.toISOString().split('T')[0]}`;
     }
@@ -92,6 +94,7 @@ export async function POST(req: Request) {
         cell_id: cell_id || null,
         assigned_to: assignedTo,
         status: 'new',
+        branch_id: user.branch_id || null,
       }),
     });
     const data = await res.json();

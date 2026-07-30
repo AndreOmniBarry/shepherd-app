@@ -15,15 +15,20 @@ async function getUser(req: Request) {
   return p ? payloadToAuthUser(p) : null;
 }
 
-const ALLOWED = ['overseer', 'pa', 'lead_tech', 'accounts'];
+const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech', 'accounts'];
 
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  // PA and branch_pastor only ever see their own branch's income — never
+  // other branches', regardless of any query param.
+  const { searchParams } = new URL(req.url);
+  const branchId = ['pa', 'branch_pastor'].includes(user.role) ? user.branch_id : searchParams.get('branch_id');
+  const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
   const res = await fetch(
-    `${S}/rest/v1/income_records?service_date=gte.${cutoff.toISOString().split('T')[0]}&order=service_date.desc&limit=200&select=id,amount,member_name,service_date,notes,created_at,income_types(name)`,
+    `${S}/rest/v1/income_records?service_date=gte.${cutoff.toISOString().split('T')[0]}&order=service_date.desc&limit=200&select=id,amount,member_name,service_date,notes,created_at,income_types(name)${branchFilter}`,
     { headers: h() }
   );
   const data = await res.json();
@@ -69,6 +74,7 @@ export async function POST(req: Request) {
       submitted_by: user.id,
       is_adjustment: !!is_adjustment,
       adjustment_note: is_adjustment ? (adjustment_note || null) : null,
+      branch_id: user.branch_id || null,
     }),
   });
   const data = await res.json();

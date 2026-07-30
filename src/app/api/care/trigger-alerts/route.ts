@@ -72,6 +72,24 @@ export async function POST(req: Request) {
       });
     }
 
+    // Look up each absent member's branch so the resulting care lead carries
+    // it too — otherwise a branch's absentees would leak into every branch's
+    // care queue.
+    const memberIds = [...new Set(absentEntries.map((e: Record<string, string>) => e.member_id).filter(Boolean))];
+    const membersRes = memberIds.length > 0 ? await fetch(
+      `${SUPABASE_URL}/rest/v1/members?id=in.(${memberIds.join(',')})&select=id,branch_id`,
+      { headers: hdrs() }
+    ) : null;
+    const membersData = membersRes ? await membersRes.json() : [];
+    const branchByMember: Record<string, string | null> = {};
+    if (Array.isArray(membersData)) {
+      membersData.forEach((m: Record<string, string>) => { branchByMember[m.id] = m.branch_id || null; });
+    }
+
+    const careIdsRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.care_team&select=id`, { headers: hdrs() });
+    const careIdsData = await careIdsRes.json();
+    const careIds: string[] = Array.isArray(careIdsData) ? careIdsData.map((u: Record<string, string>) => u.id) : [];
+
     // 4. For each absent member — create care lead if none exists
     for (let i = 0; i < absentEntries.length; i++) {
       const entry = absentEntries[i] as Record<string, string>;
@@ -112,6 +130,7 @@ export async function POST(req: Request) {
           notes: entry.absence_reason ? `Absence reason logged: ${entry.absence_reason}` : null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          branch_id: branchByMember[memberId] || null,
         }),
       });
 

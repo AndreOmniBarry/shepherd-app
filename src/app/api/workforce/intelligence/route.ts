@@ -16,22 +16,32 @@ async function getUser(req: Request) {
 export async function GET(req: Request) {
   try {
     const user = await getUser(req);
-    if (!user || !['overseer','pa','lead_tech'].includes(user.role)) {
+    if (!user || !['overseer','general_overseer','branch_pastor','pa','lead_tech'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 403 });
     }
 
-    const [deptRes, rosterRes, memberRes, profileRes] = await Promise.all([
-      fetch(`${SURL}/rest/v1/departments?select=id,name`, { headers: H() }),
-      fetch(`${SURL}/rest/v1/workforce_rosters?order=service_date.desc&limit=100&select=id,department_id,service_date,published,workforce_roster_entries(id,member_id,member_name,role_title,confirmed)`, { headers: H() }),
-      fetch(`${SURL}/rest/v1/department_members?select=department_id,member_id,members(full_name,membership_status)`, { headers: H() }),
-      fetch(`${SURL}/rest/v1/workforce_profiles?select=id,member_id,primary_department_id,secondary_departments,reliability_score,total_services_assigned,total_services_attended,last_served,is_active,members(full_name)`, { headers: H() }),
-    ]);
+    const { searchParams } = new URL(req.url);
+    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
+    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
 
-    const [depts, rosters, deptMembers, profiles] = await Promise.all([
-      deptRes.json(), rosterRes.json(), memberRes.json(), profileRes.json(),
-    ]);
-
+    const deptRes = await fetch(`${SURL}/rest/v1/departments?select=id,name${branchFilter}`, { headers: H() });
+    const depts = await deptRes.json();
     const departments = Array.isArray(depts) ? depts : [];
+    const deptIds = departments.map((d: Record<string, unknown>) => d.id as string);
+    // Branch has no departments — nothing downstream can match, so filter on
+    // a dummy id rather than issuing an unscoped query.
+    const deptIdFilter = deptIds.length > 0 ? `(${deptIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)';
+
+    const [rosterRes, memberRes, profileRes] = await Promise.all([
+      fetch(`${SURL}/rest/v1/workforce_rosters?order=service_date.desc&limit=100&select=id,department_id,service_date,published,workforce_roster_entries(id,member_id,member_name,role_title,confirmed)&department_id=in.${deptIdFilter}`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/department_members?select=department_id,member_id,members(full_name,membership_status)&department_id=in.${deptIdFilter}`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/workforce_profiles?select=id,member_id,primary_department_id,secondary_departments,reliability_score,total_services_assigned,total_services_attended,last_served,is_active,members(full_name)&primary_department_id=in.${deptIdFilter}`, { headers: H() }),
+    ]);
+
+    const [rosters, deptMembers, profiles] = await Promise.all([
+      rosterRes.json(), memberRes.json(), profileRes.json(),
+    ]);
+
     const allRosters = Array.isArray(rosters) ? rosters : [];
     const allDeptMembers = Array.isArray(deptMembers) ? deptMembers : [];
     const allProfiles = Array.isArray(profiles) ? profiles : [];
