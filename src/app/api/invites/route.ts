@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -115,6 +116,8 @@ export async function POST(req: Request) {
     // Build invite link
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://shepherd-app-beta.vercel.app';
     const inviteLink = `${baseUrl}/register?token=${invite.token}`;
+
+    logAudit({ actor_id: user.id, actor_role: user.role, action: 'invite_created', target_type: 'invite', target_id: invite.id, detail: { email: invite.email, role } });
 
     return NextResponse.json({
       data: { invite, invite_link: inviteLink },

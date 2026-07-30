@@ -1328,6 +1328,8 @@ export default function DashboardPage(){
   const [showAlertOnly,setShowAlertOnly]=useState(false);
   const [churchConfig,setChurchConfig]=React.useState<{structure_type:string;tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string}>({structure_type:'cell_church',tier1_label:'Fellowship',tier2_label:'Cell',tier1_head_label:'Fellowship Head',tier2_head_label:'Cell Leader',church_name:'',currency:'NGN'});
   const [kpi,setKpi]=useState<KPI|null>(null);
+  const [branchesList,setBranchesList]=useState<{id:string;name:string;is_headquarters:boolean}[]>([]);
+  const [selectedBranch,setSelectedBranch]=useState('');
   const [userName,setUserName]=useState('');
   const [userRole,setUserRole]=useState('');
   const [givingRange,setGivingRange]=useState('6m');
@@ -1423,7 +1425,7 @@ export default function DashboardPage(){
     if (justOnboarded && typeof window !== 'undefined') {
       window.history.replaceState({}, '', '/dashboard');
     }
-    fetch('/api/analytics/dashboard',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setKpi(data);}).catch(()=>{});
+    fetch('/api/branches',{credentials:'include'}).then(r=>r.ok?r.json():null).then(json=>{if(json?.data?.branches)setBranchesList(json.data.branches);}).catch(()=>{});
     fetch('/api/members/leaders',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.leaders)setLeaderOptions(data.leaders);}).catch(()=>{});
     fetch('/api/departments/all',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.departments)setDeptsList(data.departments);}).finally(()=>setDeptsLoading(false));
     fetch('/api/attendance?weeks=8',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
@@ -1538,6 +1540,11 @@ export default function DashboardPage(){
       .catch(()=>setCellHistory(null))
       .finally(()=>setCellHistoryLoading(false));
   },[selectedCell,cellGranularity,cellOffset]);
+
+  useEffect(()=>{
+    const url=selectedBranch?`/api/analytics/dashboard?branch_id=${selectedBranch}`:'/api/analytics/dashboard';
+    fetch(url,{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setKpi(data);}).catch(()=>{});
+  },[selectedBranch]);
 
   const sendChat=useCallback(async()=>{
     if(!chatInput.trim()||chatLoading)return;
@@ -1675,6 +1682,14 @@ export default function DashboardPage(){
             </div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:12}}>
+            {branchesList.length>1&&userRole!=='branch_pastor'&&(
+              <select value={selectedBranch} onChange={e=>setSelectedBranch(e.target.value)}
+                title="Viewing scope"
+                style={{border:`0.5px solid ${t.navBorder}`,borderRadius:8,padding:'6px 10px',fontSize:11,background:t.cardInner,color:t.text,outline:'none',fontFamily:'inherit',cursor:'pointer'}}>
+                <option value="">All Branches (Consolidated)</option>
+                {branchesList.map(b=>(<option key={b.id} value={b.id}>{b.name}</option>))}
+              </select>
+            )}
             {!isMobile&&!dark&&(<div style={{display:'flex',background:t.cardInner,border:`0.5px solid ${t.border}`,borderRadius:20,padding:2,gap:2}}><button onClick={()=>setSidebarStyle('light')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='light'?'#534AB7':'transparent',color:sidebarStyle==='light'?'#fff':t.muted,fontFamily:'inherit'}}>Light sidebar</button><button onClick={()=>setSidebarStyle('dark')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='dark'?'#534AB7':'transparent',color:sidebarStyle==='dark'?'#fff':t.muted,fontFamily:'inherit'}}>Dark sidebar</button></div>)}
             <button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Search</button>
             <button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:'none',background:'#534AB7',color:'#fff',fontSize:11,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>Add member</button>
