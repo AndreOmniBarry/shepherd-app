@@ -16,7 +16,7 @@ const C = {
 };
 
 type Answer = string | string[] | number | null;
-type QuestionType = 'single' | 'multi' | 'text' | 'number' | 'country';
+type QuestionType = 'single' | 'multi' | 'text' | 'number' | 'country' | 'branch_list';
 
 interface Option { value: string; label: string; sub?: string; icon?: string }
 interface Question {
@@ -98,6 +98,7 @@ const QUESTIONS: Question[] = [
     { value: '6_20', label: '6 – 20 locations' }, { value: '21_100', label: '21 – 100 locations' },
     { value: 'above_100', label: 'Above 100 locations' },
   ]},
+  { id: 'branch_names', section: 'Size & Scale', type: 'branch_list', required: true, question: 'Name each of your branches', sub: 'The first one you add becomes your headquarters branch. SHEPHERD builds each of these as its own scoped branch — admins for one branch never see another\'s data.' },
   { id: 'staff_count', section: 'Size & Scale', type: 'single', question: 'How many paid staff does your church employ?', options: [
     { value: 'none', label: 'No paid staff', sub: 'Fully volunteer-led' },
     { value: '1_5', label: '1 – 5 staff' }, { value: '6_20', label: '6 – 20 staff' },
@@ -478,6 +479,7 @@ export default function SetupWizard() {
   const [textVal, setTextVal] = useState('');
   const [numberVal, setNumberVal] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
+  const [branchNameInput, setBranchNameInput] = useState('');
   const [transitioning, setTransitioning] = useState(false);
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -531,6 +533,7 @@ export default function SetupWizard() {
     if (question.type === 'number') return numberVal.trim().length > 0;
     if (question.type === 'country') return !!ans;
     if (question.type === 'multi') return Array.isArray(ans) && (ans as string[]).length > 0;
+    if (question.type === 'branch_list') return Array.isArray(ans) && (ans as string[]).length >= 2;
     return ans !== null;
   }
 
@@ -549,6 +552,9 @@ export default function SetupWizard() {
         if (dir === 1 && answers.structure_type === 'single') {
           while (idx < QUESTIONS.length && ['tier1_label','tier2_label','tier1_head_label','tier2_head_label'].includes(QUESTIONS[idx]?.id)) idx++;
         }
+        if (dir === 1 && answers.location_count === '1') {
+          while (idx < QUESTIONS.length && QUESTIONS[idx]?.id === 'branch_names') idx++;
+        }
         setQIndex(Math.max(0, Math.min(QUESTIONS.length - 1, idx)));
       }
       setTransitioning(false);
@@ -558,6 +564,19 @@ export default function SetupWizard() {
   function toggleMulti(val: string) {
     const current = (answers[question.id] as string[]) || [];
     saveAnswer(current.includes(val) ? current.filter(v => v !== val) : [...current, val]);
+  }
+
+  function addBranchName() {
+    const name = branchNameInput.trim();
+    if (!name) return;
+    const current = (answers.branch_names as string[]) || [];
+    if (current.some(n => n.toLowerCase() === name.toLowerCase())) { setBranchNameInput(''); return; }
+    setAnswers(prev => ({ ...prev, branch_names: [...current, name] }));
+    setBranchNameInput('');
+  }
+  function removeBranchName(i: number) {
+    const current = (answers.branch_names as string[]) || [];
+    setAnswers(prev => ({ ...prev, branch_names: current.filter((_, idx) => idx !== i) }));
   }
 
   async function finish(planTier: string) {
@@ -613,6 +632,17 @@ export default function SetupWizard() {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
+        const branchNames = (a.branch_names as string[]) || [];
+        if (branchNames.length > 0) {
+          try {
+            await fetch('/api/branches', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ names: branchNames }),
+            });
+          } catch { /* non-fatal — branches can still be added later from admin settings */ }
+        }
         // Force fresh config load on dashboard
         router.push('/dashboard?onboarded=1');
       } else {
@@ -761,6 +791,36 @@ export default function SetupWizard() {
               </div>
             </div>
           )}
+
+          {/* BRANCH LIST */}
+          {question?.type === 'branch_list' && (
+            <div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <input value={branchNameInput} onChange={e => setBranchNameInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addBranchName(); } }}
+                  placeholder="e.g. Grace Dome, Victory Tabernacle"
+                  style={{ flex: 1, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', fontSize: 14, background: C.white, color: C.text, outline: 'none' }} />
+                <button onClick={addBranchName} disabled={!branchNameInput.trim()}
+                  style={{ padding: '0 18px', borderRadius: 10, border: 'none', background: branchNameInput.trim() ? C.purple : C.border, color: C.white, fontSize: 13, fontWeight: 600, cursor: branchNameInput.trim() ? 'pointer' : 'default' }}>
+                  + Add
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {((ans as string[]) || []).map((name, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, border: `1px solid ${C.border}`, background: i === 0 ? C.purpleBg : C.white }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: C.text }}>{name}</span>
+                      {i === 0 && <span style={{ fontSize: 10, fontWeight: 700, color: C.purple, background: 'rgba(83,74,183,0.12)', borderRadius: 10, padding: '2px 8px' }}>HEADQUARTERS</span>}
+                    </div>
+                    <button onClick={() => removeBranchName(i)} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
+                  </div>
+                ))}
+                {((ans as string[]) || []).length === 0 && (
+                  <div style={{ fontSize: 12, color: C.muted, padding: '8px 2px' }}>No branches added yet — add at least 2 (your headquarters plus any others).</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Nav buttons */}
@@ -773,7 +833,7 @@ export default function SetupWizard() {
                 ← Back
               </button>
             )}
-            {(question?.type === 'multi' || question?.type === 'text' || question?.type === 'number') && (
+            {(question?.type === 'multi' || question?.type === 'text' || question?.type === 'number' || question?.type === 'branch_list') && (
               <button onClick={() => go(1)} disabled={!canAdvance()}
                 style={{ flex: 1, padding: '12px 22px', borderRadius: 9, border: 'none', background: canAdvance() ? C.purple : C.border, color: C.white, fontSize: 14, fontWeight: 600, cursor: canAdvance() ? 'pointer' : 'default', transition: 'background 0.2s' }}>
                 {qIndex === QUESTIONS.length - 1 ? 'Choose your plan →' : 'Continue →'}

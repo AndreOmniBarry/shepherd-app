@@ -27,6 +27,11 @@ export type ChurchConfig = {
   service_days: string[];
   logo_url: string | null;
   is_configured: boolean;
+  plan_tier?: string;
+  subscription_status?: string;
+  subscription_started_at?: string | null;
+  trial_started_at?: string | null;
+  trial_ends_at?: string | null;
 };
 
 export const STRUCTURE_PRESETS: Record<StructureType, {
