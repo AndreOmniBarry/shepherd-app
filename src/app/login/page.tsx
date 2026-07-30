@@ -1,29 +1,7 @@
 'use client';
 import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-
-function rolePortal(role: string): string {
-  switch (role) {
-    case 'overseer':
-    case 'pa':
-    case 'lead_tech':
-      return '/dashboard';
-    case 'fellowship_head':
-      return '/fellowship';
-    case 'department_head':
-      return '/department';
-    case 'cell_leader':
-      return '/cell';
-    case 'accounts':
-      return '/accounts';
-    case 'partnership':
-      return '/partnership';
-    case 'care_team':
-      return '/care';
-    default:
-      return '/cell';
-  }
-}
+import { rolePortal } from '@/lib/role-portal';
 
 function LoginForm() {
   const router = useRouter();

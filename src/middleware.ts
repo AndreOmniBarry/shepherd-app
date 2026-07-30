@@ -14,6 +14,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 import { DEMO_USER_IDS } from '@/lib/demo-accounts';
+import { rolePortal } from '@/lib/role-portal';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'shepherd-dev-secret-change-in-production-minimum-32-chars'
@@ -50,34 +51,6 @@ function isPublic(pathname: string): boolean {
 // PUBLIC_PATHS entry.
 function isPublicEventRegistration(pathname: string, method: string): boolean {
   return pathname === '/api/events/register' && method === 'POST';
-}
-
-// Map role to its home portal
-function rolePortal(role: string): string {
-  switch (role) {
-    case 'overseer':
-    case 'general_overseer':
-    case 'branch_pastor':
-    case 'pa':
-    case 'lead_tech':
-      return '/dashboard';
-    case 'fellowship_head':
-      return '/fellowship';
-    case 'department_head':
-      return '/department';
-    case 'cell_leader':
-      return '/cell';
-    case 'accounts':
-      return '/accounts';
-    case 'partnership':
-      return '/partnership';
-    case 'care_team':
-      return '/care';
-    case 'workforce':
-      return '/workforce';
-    default:
-      return '/cell';
-  }
 }
 
 // Portal prefixes each role is allowed to access
