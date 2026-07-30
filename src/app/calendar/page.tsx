@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import Icon from '@/components/Icon';
+import { rolePortal } from '@/lib/role-portal';
 
 type Item = { id: string; title: string; date: string; end_date: string | null; type: string; source: 'event' | 'service' | 'plan'; location: string | null; slug: string | null; plan_id?: string };
 type PlanItem = { id: string; item_type: string; title: string; description: string | null; duration_minutes: number | null; assigned_to_name: string | null };
@@ -26,20 +27,6 @@ const MONTH_NAMES = ['January','February','March','April','May','June','July','A
 const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 function ymd(d: Date) { return d.toISOString().split('T')[0]; }
-
-function rolePortal(role: string): string {
-  switch (role) {
-    case 'overseer': case 'pa': case 'lead_tech': return '/dashboard';
-    case 'fellowship_head': return '/fellowship';
-    case 'department_head': return '/department';
-    case 'cell_leader': return '/cell';
-    case 'accounts': return '/accounts';
-    case 'partnership': return '/partnership';
-    case 'care_team': return '/care';
-    case 'workforce': return '/workforce';
-    default: return '/cell';
-  }
-}
 
 export default function CalendarPage() {
   const router = useRouter();
