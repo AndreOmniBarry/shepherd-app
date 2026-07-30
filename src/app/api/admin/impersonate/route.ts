@@ -18,19 +18,22 @@ async function getUser(req: Request) {
 const PORTAL_PATH: Record<string, string> = {
   cell_leader: '/cell', fellowship_head: '/fellowship', department_head: '/department',
   care_team: '/care', accounts: '/accounts', partnership: '/partnership',
+  overseer: '/dashboard', general_overseer: '/dashboard', branch_pastor: '/dashboard',
+  pa: '/dashboard', workforce: '/workforce',
 };
 
-// Lets overseer/lead_tech preview any scoped portal exactly as that role
-// would see it, using a real existing cell/fellowship/department for genuine
-// data — without needing that person's actual login. For demoing progress to
-// a mentor/stakeholder without pestering leaders for their passwords.
+// Lets overseer/general_overseer/lead_tech preview any scoped portal exactly
+// as that role would see it, using a real existing cell/fellowship/department
+// (or branch, for branch_pastor) for genuine data — without needing that
+// person's actual login. For demoing progress to a mentor/stakeholder
+// without pestering leaders for their passwords.
 // Read-only: middleware.ts blocks every non-GET request from these fixed
 // demo ids, so a preview session can look but never write real data.
 export async function POST(req: Request) {
   try {
     const user = await getUser(req);
-    if (!user || !['overseer', 'lead_tech'].includes(user.role)) {
-      return NextResponse.json({ data: null, error: { message: 'Only the overseer or lead tech can preview other portals' } }, { status: 403 });
+    if (!user || !['overseer', 'general_overseer', 'lead_tech'].includes(user.role)) {
+      return NextResponse.json({ data: null, error: { message: 'Only the overseer, general overseer, or lead tech can preview other portals' } }, { status: 403 });
     }
 
     const { role, ref_id, ref_name } = await req.json() as { role: Role; ref_id?: string; ref_name?: string };
@@ -43,6 +46,7 @@ export async function POST(req: Request) {
       cell_id: role === 'cell_leader' ? (ref_id || null) : null,
       fellowship_id: role === 'fellowship_head' ? (ref_id || null) : null,
       department_id: role === 'department_head' ? (ref_id || null) : null,
+      branch_id: role === 'branch_pastor' ? (ref_id || null) : null,
     };
     await fetch(`${SUPABASE_URL}/rest/v1/users`, {
       method: 'POST', headers: { ...hdrs(), Prefer: 'resolution=merge-duplicates,return=minimal' },
@@ -52,6 +56,7 @@ export async function POST(req: Request) {
     const demoToken = await signToken({
       id: demoId, email: row.email as string, role,
       cell_id: (row.cell_id as string) || null, fellowship_id: (row.fellowship_id as string) || null,
+      branch_id: (row.branch_id as string) || null,
       name: label,
     });
 

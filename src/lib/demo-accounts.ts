@@ -8,6 +8,11 @@ export const DEMO_ID: Record<string, string> = {
   care_team:        '00000000-0000-0000-0000-0000000000d4',
   accounts:         '00000000-0000-0000-0000-0000000000d5',
   partnership:      '00000000-0000-0000-0000-0000000000d6',
+  overseer:         '00000000-0000-0000-0000-0000000000d7',
+  general_overseer: '00000000-0000-0000-0000-0000000000d8',
+  branch_pastor:    '00000000-0000-0000-0000-0000000000d9',
+  pa:               '00000000-0000-0000-0000-0000000000da',
+  workforce:        '00000000-0000-0000-0000-0000000000db',
 };
 
 export const DEMO_USER_IDS = new Set(Object.values(DEMO_ID));
