@@ -35,18 +35,13 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
   const [specialSaving, setSpecialSaving] = useState(false);
   const [specialError, setSpecialError] = useState('');
   const [specialSuccess, setSpecialSuccess] = useState('');
-  const [specialServices, setSpecialServices] = useState<{ id: string; service_date: string; label: string; cells_reported: number; depts_reported: number; cell_present: number; cell_absent: number; visitors: number; dept_present: number; dept_absent: number }[]>([]);
 
   function loadPlans() {
     const bq = branchId ? `?branch_id=${branchId}` : '';
     fetch(`/api/service-planner${bq}`, { credentials: 'include' }).then(r => r.json()).then(({ data }) => setPlans(data?.plans || [])).finally(() => setLoading(false));
   }
-  function loadSpecialServices() {
-    fetch('/api/services/special', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (data?.special_services) setSpecialServices(data.special_services); }).catch(() => {});
-  }
   useEffect(() => {
     loadPlans();
-    loadSpecialServices();
     const bq = branchId ? `?branch_id=${branchId}` : '';
     fetch(`/api/members/leaders${bq}`, { credentials: 'include' }).then(r => r.json()).then(({ data }) => setLeaders(data?.leaders || [])).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,7 +118,6 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
       if (res.ok) {
         setSpecialSuccess(`"${specialLabel.trim()}" created — cell leaders and department heads can now log attendance for it.`);
         setSpecialDate(''); setSpecialLabel('');
-        loadSpecialServices();
         setTimeout(() => setSpecialSuccess(''), 5000);
       } else setSpecialError(json.error?.message || 'Failed to create special service day');
     } catch { setSpecialError('Network error — special day was not created.'); }
@@ -157,29 +151,6 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
         )}
         {specialError && <div style={{ background: t.coralBg, color: t.coral, borderRadius: 8, padding: '8px 12px', fontSize: 12, marginTop: 8 }}>{specialError}</div>}
         {specialSuccess && <div style={{ background: t.tealBg, color: t.teal, borderRadius: 8, padding: '8px 12px', fontSize: 12, marginTop: 8 }}>{specialSuccess}</div>}
-
-        {specialServices.length > 0 && (
-          <div style={{ marginTop: 14, borderTop: `0.5px solid ${t.border}`, paddingTop: 12 }}>
-            <div style={{ fontSize: 11, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Monitoring — attendance logged so far</div>
-            {specialServices.map(s => {
-              const totalPresent = s.cell_present + s.dept_present;
-              const totalAbsent = s.cell_absent + s.dept_absent;
-              return (
-                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `0.5px solid ${t.border}` }}>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{s.label}</div>
-                    <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{s.service_date} · {s.cells_reported} cell{s.cells_reported === 1 ? '' : 's'} + {s.depts_reported} department{s.depts_reported === 1 ? '' : 's'} reported{s.visitors > 0 ? ` · ${s.visitors} visitors` : ''}</div>
-                  </div>
-                  {(totalPresent + totalAbsent) > 0 ? (
-                    <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 10, background: t.tealBg, color: t.teal, fontWeight: 600 }}>{totalPresent} present</span>
-                  ) : (
-                    <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 10, background: t.amberBg, color: t.amber, fontWeight: 600 }}>No data yet</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 14 }}>
