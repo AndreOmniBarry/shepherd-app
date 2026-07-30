@@ -19,7 +19,7 @@ function hasData(buckets: Bucket[] | null): boolean {
 // a chart — it says where things are going well and where they aren't.
 // Reused by the cell portal, fellowship portal, and admin dashboard so every
 // history view in the app behaves the same way.
-export default function AttendanceHistoryPanel({ t, fetchUrl, color }: { t: Record<string, string>; fetchUrl: (granularity: 'week' | 'month', offset: number) => string; color?: string }) {
+export default function AttendanceHistoryPanel({ t, fetchUrl, color, metricLabel, emptyText }: { t: Record<string, string>; fetchUrl: (granularity: 'week' | 'month', offset: number) => string; color?: string; metricLabel?: string; emptyText?: string }) {
   const [granularity, setGranularity] = useState<'week' | 'month'>('week');
   const [offset, setOffset] = useState(0);
   const [buckets, setBuckets] = useState<Bucket[] | null>(null);
@@ -89,7 +89,7 @@ export default function AttendanceHistoryPanel({ t, fetchUrl, color }: { t: Reco
         {loading ? (
           <div style={{ padding: '40px 0', textAlign: 'center', fontSize: 12, color: t.muted }}>Loading attendance history…</div>
         ) : !hasData(buckets) ? (
-          <div style={{ padding: '40px 0', textAlign: 'center', fontSize: 12, color: t.muted }}>No attendance records logged for this window yet.</div>
+          <div style={{ padding: '40px 0', textAlign: 'center', fontSize: 12, color: t.muted }}>{emptyText || 'No attendance records logged for this window yet.'}</div>
         ) : (
           <ResponsiveContainer width="100%" height={200} minWidth={300}>
             <AreaChart data={buckets!} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
@@ -103,7 +103,7 @@ export default function AttendanceHistoryPanel({ t, fetchUrl, color }: { t: Reco
               <XAxis dataKey="label" tick={{ fontSize: 9, fill: t.chartAxis || t.muted }} interval={Math.floor(buckets!.length / 6)} />
               <YAxis tick={{ fontSize: 9, fill: t.chartAxis || t.muted }} domain={[0, 100]} width={32} />
               <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e5e7eb', background: t.chartTip, color: t.chartTipText }} />
-              <Area type="monotone" dataKey="rate" name="Attendance Rate %" stroke={color || '#534AB7'} strokeWidth={2} fill="url(#attendanceFill)" dot={false} />
+              <Area type="monotone" dataKey="rate" name={metricLabel || 'Attendance Rate %'} stroke={color || '#534AB7'} strokeWidth={2} fill="url(#attendanceFill)" dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         )}
