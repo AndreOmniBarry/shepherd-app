@@ -5,9 +5,9 @@ import DeptOverview from '@/components/DeptOverview';
 import BirthdayPanel from '@/components/BirthdayPanel';
 import WorkforceServingTab from '@/components/WorkforceServingTab';
 import CareEventsTab from '@/components/CareEventsTab';
+import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -426,20 +426,10 @@ export default function DepartmentHeadPage() {
         {/* HISTORY */}
         {tab === 'history' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {history.length > 0 && (
-              <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '16px 18px' }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 14 }}>Attendance trend</div>
-                <ResponsiveContainer width="100%" height={140}>
-                  <BarChart data={history.slice(0, 8).reverse().map((r, i) => ({ w: `W${i + 1}`, v: r.present_count }))} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={t.chartGrid} />
-                    <XAxis dataKey="w" tick={{ fontSize: 9, fill: t.chartAxis }} />
-                    <YAxis tick={{ fontSize: 9, fill: t.chartAxis }} />
-                    <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: t.chartTip, color: t.chartTipText }} />
-                    <Bar dataKey="v" fill="#534AB7" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+            <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '16px 18px' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 14 }}>Attendance trend</div>
+              <AttendanceHistoryPanel t={t} color="#534AB7" fetchUrl={(g, o) => `/api/department/history?granularity=${g}&offset=${o}`} />
+            </div>
             <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Last 12 weeks</div>
               {history.length === 0 ? (

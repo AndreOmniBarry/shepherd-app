@@ -15,6 +15,24 @@ type GivingData = {
 const TYPE_COLORS = ['#534AB7','#1D9E75','#BA7517','#D85A30','#9C27B0','#E91E63','#00BCD4','#FF5722'];
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+// Same "what this window says" idea as attendance history, but for giving —
+// the win here isn't a rate, it's a total, so the language and formatting
+// differ, but the shape (average/best/weakest/trend) is deliberately the
+// same across every portal this feature reaches.
+function givingTrendStats(points: { label: string; total: number }[]) {
+  if (points.length === 0) return null;
+  const avg = points.reduce((s, p) => s + p.total, 0) / points.length;
+  const best = points.reduce((a, b) => b.total > a.total ? b : a);
+  const worst = points.reduce((a, b) => b.total < a.total ? b : a);
+  const firstHalf = points.slice(0, Math.ceil(points.length / 2));
+  const secondHalf = points.slice(Math.ceil(points.length / 2));
+  const firstAvg = firstHalf.length ? firstHalf.reduce((s, p) => s + p.total, 0) / firstHalf.length : 0;
+  const secondAvg = secondHalf.length ? secondHalf.reduce((s, p) => s + p.total, 0) / secondHalf.length : 0;
+  const trendUp = points.length >= 4 && secondAvg > firstAvg * 1.05;
+  const trendDown = points.length >= 4 && secondAvg < firstAvg * 0.95;
+  return { avg, best, worst, trendUp, trendDown };
+}
+
 interface PastorGivingProps { dark: boolean; t: Record<string, string>; branchId?: string; }
 
 export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
@@ -50,6 +68,24 @@ export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
 
   const monthsToShow = range === '3m' ? 3 : range === '6m' ? 6 : 12;
   const chartData = data.monthly_trend.slice(-monthsToShow);
+  const monthlyStats = givingTrendStats(chartData.filter(m => m.total > 0).map(m => ({ label: m.label, total: m.total })));
+  const weeklyStats = givingTrendStats(data.weekly_trend.filter(w => w.total > 0).map(w => ({ label: w.week, total: w.total })));
+
+  function TrendStatsStrip({ stats }: { stats: ReturnType<typeof givingTrendStats> }) {
+    if (!stats) return null;
+    return (
+      <div style={{ marginTop: 14, paddingTop: 14, borderTop: `0.5px solid ${t.border}` }}>
+        <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>What this window says</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
+          <div style={{ fontSize: 12, color: t.sub }}><strong style={{ color: t.text }}>{fmtNGN(stats.avg)}</strong> average</div>
+          <div style={{ fontSize: 12, color: t.sub }}><strong style={{ color: t.teal }}>{fmtNGN(stats.best.total)}</strong> best — {stats.best.label}</div>
+          <div style={{ fontSize: 12, color: t.sub }}><strong style={{ color: t.text }}>{fmtNGN(stats.worst.total)}</strong> weakest — {stats.worst.label}</div>
+          {stats.trendUp && <div style={{ fontSize: 12, color: t.teal }}>↑ Trending up across this window</div>}
+          {stats.trendDown && <div style={{ fontSize: 12, color: t.coral }}>↓ Trending down — worth a closer look</div>}
+        </div>
+      </div>
+    );
+  }
 
   // Get top 4 income types for stacked chart
   const topTypes = data.by_type.slice(0, 4);
@@ -128,6 +164,7 @@ export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
               ))}
             </div>
           )}
+          <TrendStatsStrip stats={monthlyStats} />
         </div>
       )}
 
@@ -149,6 +186,7 @@ export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
               <Area type="monotone" dataKey="total" stroke="#534AB7" strokeWidth={2} fill="url(#wkGrad)" />
             </AreaChart>
           </ResponsiveContainer>
+          <TrendStatsStrip stats={weeklyStats} />
         </div>
       )}
 

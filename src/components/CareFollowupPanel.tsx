@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
 
 type RosterRow = { id: string; full_name: string; is_active: boolean; assigned: number; resolved: number; avg_sla_score: number | null };
 type TimerRow = { id: string; full_name: string; status: string; assigned_name: string; sla_grade: string | null; created_at: string };
@@ -57,6 +58,14 @@ export default function CareFollowupPanel({ t, branchId }: { t: Record<string, s
             <div style={{ fontSize: 22, fontWeight: 700, color: t.text }}>{k.value}</div>
           </div>
         ))}
+      </div>
+
+      <div style={card()}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Resolution history</div>
+        <AttendanceHistoryPanel t={t} color="#1D9E75"
+          fetchUrl={(g, o) => `/api/care/history${branchId ? `?branch_id=${branchId}&` : '?'}granularity=${g}&offset=${o}`}
+          metricLabel="Resolution rate %"
+          emptyText="No first-timer or absentee follow-up logged for this window yet." />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
