@@ -207,9 +207,13 @@ function exportCSV(data:Record<string,unknown>[], filename:string){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename+'.csv';a.click();
 }
 
+const PRAYER_FILTER_LABEL:{[k:string]:string}={open:'New request',prayed:'Prayed',all:'All'};
+
 function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean}){
   const [requests,setRequests]=React.useState<{id:string;request:string;requester_name:string;category:string;status:string;submitted_by_role:string;created_at:string}[]>([]);
   const [filter,setFilter]=React.useState('open');
+  const [deleteTarget,setDeleteTarget]=React.useState<string|null>(null);
+  const [deleting,setDeleting]=React.useState(false);
   React.useEffect(()=>{
     fetch(`/api/prayer-requests?status=${filter}`,{credentials:'include'})
       .then(r=>r.json()).then(({data})=>{if(data?.requests)setRequests(data.requests);}).catch(()=>{});
@@ -218,24 +222,45 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
     await fetch('/api/prayer-requests',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id,status:'prayed'})});
     setRequests(prev=>prev.map(r=>r.id===id?{...r,status:'prayed'}:r));
   }
-  async function deletePrayed(id:string){
-    if(!window.confirm('Delete this prayer request? This cannot be undone.'))return;
-    const res=await fetch(`/api/prayer-requests?id=${id}`,{method:'DELETE',credentials:'include'});
-    if(res.ok)setRequests(prev=>prev.filter(r=>r.id!==id));
+  async function confirmDeletePrayed(){
+    if(!deleteTarget)return;
+    setDeleting(true);
+    try{
+      const res=await fetch(`/api/prayer-requests?id=${deleteTarget}`,{method:'DELETE',credentials:'include'});
+      if(res.ok)setRequests(prev=>prev.filter(r=>r.id!==deleteTarget));
+    }finally{setDeleting(false);setDeleteTarget(null);}
   }
   const STATUS_CFG:{[k:string]:{bg:string;text:string;label:string}}={
-    open:{bg:'#EEEDFE',text:'#3C3489',label:'Open'},
+    open:{bg:'#EEEDFE',text:'#3C3489',label:'New request'},
     prayed:{bg:'#E1F5EE',text:'#085041',label:'Prayed'},
     closed:{bg:'#F3F4F6',text:'#6B7280',label:'Closed'},
   };
   const CATS:{[k:string]:string}={general:'General',healing:'Healing',family:'Family',finance:'Finance',guidance:'Guidance',thanksgiving:'Thanksgiving',other:'Other'};
   return(
     <div style={{display:'flex',flexDirection:'column',gap:10}}>
+      {deleteTarget&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}} onClick={()=>!deleting&&setDeleteTarget(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:t.card,borderRadius:14,border:`0.5px solid ${t.border}`,padding:22,maxWidth:360,width:'90%'}}>
+            <div style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:8}}>Delete this prayer request?</div>
+            <div style={{fontSize:12,color:t.sub,lineHeight:1.5,marginBottom:18}}>This cannot be undone.</div>
+            <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+              <button onClick={()=>setDeleteTarget(null)} disabled={deleting}
+                style={{background:t.input,color:t.text,border:'none',borderRadius:8,padding:'8px 16px',fontSize:12,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}>
+                Cancel
+              </button>
+              <button onClick={confirmDeletePrayed} disabled={deleting}
+                style={{background:t.coral,color:'#fff',border:'none',borderRadius:8,padding:'8px 16px',fontSize:12,fontWeight:600,cursor:deleting?'wait':'pointer',fontFamily:'inherit'}}>
+                {deleting?'Deleting…':'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{display:'flex',gap:8,marginBottom:4}}>
         {['open','prayed','all'].map(f=>(
           <button key={f} onClick={()=>setFilter(f)}
             style={{padding:'5px 14px',borderRadius:20,border:'none',background:filter===f?'#534AB7':t.input,color:filter===f?'#fff':t.sub,fontSize:11,cursor:'pointer',fontWeight:filter===f?600:400,fontFamily:'inherit'}}>
-            {f.charAt(0).toUpperCase()+f.slice(1)}
+            {PRAYER_FILTER_LABEL[f]||f}
           </button>
         ))}
         <span style={{marginLeft:'auto',fontSize:11,color:t.muted,alignSelf:'center'}}>{requests.length} request{requests.length!==1?'s':''}</span>
@@ -243,7 +268,7 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
       {requests.length===0?(
         <div style={{background:t.card,borderRadius:12,border:`0.5px solid ${t.border}`,padding:40,textAlign:'center'}}>
           <div style={{fontSize:24,marginBottom:8}}>🙏</div>
-          <div style={{fontSize:13,color:t.sub}}>No {filter==='all'?'':filter} prayer requests</div>
+          <div style={{fontSize:13,color:t.sub}}>No {filter==='all'?'':(PRAYER_FILTER_LABEL[filter]||filter).toLowerCase()+' '}prayer requests</div>
         </div>
       ):(
         <div style={{background:t.card,borderRadius:12,border:`0.5px solid ${t.border}`,overflow:'hidden'}}>
@@ -267,7 +292,7 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
                       </button>
                     )}
                     {r.status==='prayed'&&(
-                      <button onClick={()=>deletePrayed(r.id)} title="Delete this prayer request"
+                      <button onClick={()=>setDeleteTarget(r.id)} title="Delete this prayer request"
                         style={{fontSize:10,padding:'3px 9px',borderRadius:8,background:t.coralBg,color:t.coral,border:'none',cursor:'pointer',fontWeight:500,fontFamily:'inherit'}}>
                         Delete
                       </button>
@@ -1405,6 +1430,8 @@ export default function DashboardPage(){
   const [isMobile,setIsMobile]=useState(false);
   const [dbCells,setDbCells]=useState<(typeof CELLS_DATA[number] & {last_meeting_date?:string|null;meeting_this_week?:boolean;meeting_sla_grade?:string|null;submission_sla_score?:number|null;meeting_sla_score?:number|null;accuracy?:number;overall_score?:number})[]|null>(null);
   const [leaderOptions,setLeaderOptions]=useState<{id:string;full_name:string;role:string}[]>([]);
+  const [memberFellowshipId,setMemberFellowshipId]=useState('');
+  const [memberFellowshipsList,setMemberFellowshipsList]=useState<{id:string;name:string}[]>([]);
   const [commendType,setCommendType]=useState<'commendation'|'meeting'|'encouragement'|'announcement'>('commendation');
   const [commendLeader,setCommendLeader]=useState('');
   const [commendMsg,setCommendMsg]=useState('');
@@ -1478,6 +1505,7 @@ export default function DashboardPage(){
     fetch(`/api/departments/all${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setDeptsList(data?.departments||[]);}).finally(()=>setDeptsLoading(false));
     fetch(`/api/cells/all${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setDbCells(data?.cells||[]);}).catch(()=>{});
     fetch(`/api/members/leaders${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setLeaderOptions(data?.leaders||[]);}).catch(()=>{});
+    fetch(`/api/fellowships/all${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setMemberFellowshipsList(data?.fellowships||[]);}).catch(()=>{});
   },[selectedBranch]);
 
   useEffect(()=>{
@@ -1488,14 +1516,16 @@ export default function DashboardPage(){
 
   const loadMembers=useCallback(()=>{
     setMembersLoading(true);
-    const bq=selectedBranch?`branch_id=${selectedBranch}`:'';
-    const url=memberSearch.trim().length>=2
-      ?`/api/members/search?q=${encodeURIComponent(memberSearch.trim())}${bq?`&${bq}`:''}`
-      :`/api/members/search${bq?`?${bq}`:''}`;
+    const params=new URLSearchParams();
+    if(memberSearch.trim().length>=2)params.set('q',memberSearch.trim());
+    if(selectedBranch)params.set('branch_id',selectedBranch);
+    if(memberFellowshipId)params.set('fellowship_id',memberFellowshipId);
+    const qs=params.toString();
+    const url=`/api/members/search${qs?`?${qs}`:''}`;
     fetch(url,{credentials:'include'}).then(r=>r.json()).then(({data})=>{
       setMembersList(data?.members||[]);
     }).catch(()=>{}).finally(()=>setMembersLoading(false));
-  },[memberSearch,selectedBranch]);
+  },[memberSearch,selectedBranch,memberFellowshipId]);
   useEffect(()=>{
     const handle=setTimeout(loadMembers, memberSearch?300:0);
     return()=>clearTimeout(handle);
@@ -1994,6 +2024,13 @@ export default function DashboardPage(){
                 </div>
                 <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
                   <input value={memberSearch} onChange={e=>setMemberSearch(e.target.value)} placeholder="Search by name..." style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 10px',fontSize:12,outline:'none',flex:1,minWidth:160,background:t.input,color:t.text}}/>
+                  {['overseer','general_overseer','branch_pastor','pa','lead_tech'].includes(userRole) && memberFellowshipsList.length>0 && (
+                    <select value={memberFellowshipId} onChange={e=>setMemberFellowshipId(e.target.value)}
+                      style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 10px',fontSize:12,outline:'none',background:t.input,color:t.text}}>
+                      <option value="">All fellowships</option>
+                      {memberFellowshipsList.map(f=>(<option key={f.id} value={f.id}>{f.name}</option>))}
+                    </select>
+                  )}
                   {['all','active','inactive'].map(f=>(
                     <button key={f} onClick={()=>setMemberFilter(f)}
                       style={{padding:'5px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:memberFilter===f?500:400,background:memberFilter===f?'#534AB7':t.cardInner,borderColor:memberFilter===f?'#534AB7':'#E5E7EB',color:memberFilter===f?'#fff':'#6B7280',textTransform:'capitalize' as const}}>
@@ -2667,7 +2704,7 @@ export default function DashboardPage(){
               <div style={{fontSize:12,color:t.muted,marginTop:-6}}>
                 {eventsSubTab==='planner'?'Order of Service — who\'s anchoring what, and for how long — the run of a single service.':'Programs & Registration — special events, crusades, conferences, and their registration links.'}
               </div>
-              {eventsSubTab==='planner'?<ServicePlannerPanel t={t} />:<EventsPanel t={t} />}
+              {eventsSubTab==='planner'?<ServicePlannerPanel t={t} branchId={selectedBranch||undefined} />:<EventsPanel t={t} />}
             </div>
           )}
           {page==='care_followup'&&(

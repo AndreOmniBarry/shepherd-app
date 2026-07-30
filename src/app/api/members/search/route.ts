@@ -23,11 +23,13 @@ export async function GET(req: Request) {
     const q = searchParams.get('q') || '';
     const branchId = payload.role === 'branch_pastor' ? payload.branch_id : searchParams.get('branch_id');
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+    const fellowshipId = searchParams.get('fellowship_id');
+    const fellowshipFilter = fellowshipId ? `&fellowship_id=eq.${fellowshipId}` : '';
 
     const select = 'id,full_name,phone,membership_status,join_date,cells(name),fellowships(name)';
-    let url = `${SUPABASE_URL}/rest/v1/members?select=${select}&order=join_date.desc.nullslast&limit=200${branchFilter}`;
+    let url = `${SUPABASE_URL}/rest/v1/members?select=${select}&order=join_date.desc.nullslast&limit=200${branchFilter}${fellowshipFilter}`;
     if (q.length >= 2) {
-      url = `${SUPABASE_URL}/rest/v1/members?full_name=ilike.*${q}*&select=${select}&order=full_name.asc&limit=50${branchFilter}`;
+      url = `${SUPABASE_URL}/rest/v1/members?full_name=ilike.*${q}*&select=${select}&order=full_name.asc&limit=50${branchFilter}${fellowshipFilter}`;
     }
 
     const res = await fetch(url, { headers: hdrs() });
