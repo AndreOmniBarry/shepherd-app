@@ -2029,16 +2029,16 @@ export default function DashboardPage(){
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
                     <thead style={{position:'sticky',top:0,background:t.card}}>
                       <tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>
-                        {[...['Name','Phone','Cell','Fellowship','Joined','Status'],...(['overseer','pa','lead_tech'].includes(userRole)?['']:[])].map((h,hi)=>(
+                        {[...['Name','Phone','Cell','Fellowship','Joined','Status'],...(['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(userRole)?['']:[])].map((h,hi)=>(
                           <th key={h||`action-${hi}`} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap',background:t.card}}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {membersLoading?(
-                        <tr><td colSpan={['overseer','pa','lead_tech'].includes(userRole)?7:6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>Loading members…</td></tr>
+                        <tr><td colSpan={['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(userRole)?7:6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>Loading members…</td></tr>
                       ):membersList.filter(m=>memberFilter==='all'?true:m.membership_status===memberFilter).length===0?(
-                        <tr><td colSpan={['overseer','pa','lead_tech'].includes(userRole)?7:6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>No members found.</td></tr>
+                        <tr><td colSpan={['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(userRole)?7:6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>No members found.</td></tr>
                       ):membersList
                         .filter(m=>memberFilter==='all'?true:m.membership_status===memberFilter)
                         .map((m,i)=>(
@@ -2049,7 +2049,7 @@ export default function DashboardPage(){
                           <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.fellowship_name||'—'}</td>
                           <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.join_date?new Date(m.join_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</td>
                           <td style={{padding:'7px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.membership_status==='active'?'#E1F5EE':'#FAECE7',color:m.membership_status==='active'?'#085041':'#993C1D',textTransform:'capitalize' as const}}>{m.membership_status}</span></td>
-                          {['overseer','pa','lead_tech'].includes(userRole)&&(
+                          {['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(userRole)&&(
                             <td style={{padding:'7px 8px',whiteSpace:'nowrap'}}>
                               <button onClick={()=>{setMoveTarget({id:m.id,name:m.full_name});setMoveCellId('');setMoveError('');}}
                                 style={{background:'transparent',color:t.purple,border:`0.5px solid ${t.border}`,borderRadius:6,padding:'4px 9px',fontSize:10,fontWeight:600,cursor:'pointer',marginRight:6}}>
@@ -2395,7 +2395,7 @@ export default function DashboardPage(){
                 <div style={{fontSize:13,fontWeight:500,marginBottom:4}}>AI-Powered Reports</div>
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Select a prompt to generate a narrative report via Moshe. Add credits at console.anthropic.com if needed.</div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-                  {['Monthly attendance report for June 2026','YTD giving analysis and projections','Cell performance review with intervention recommendations','Membership growth analysis and conversion trends','Plan a realistic membership budget for all 35 cells based on current trends','Which 3 cells need immediate pastoral intervention and why?'].map(q=>(
+                  {[...['Monthly attendance report for June 2026'],...(userRole==='pa'?[]:['YTD giving analysis and projections']),...['Cell performance review with intervention recommendations','Membership growth analysis and conversion trends','Plan a realistic membership budget for all 35 cells based on current trends','Which 3 cells need immediate pastoral intervention and why?']].map(q=>(
                     <button key={q} onClick={()=>{setChatOpen(true);setChatInput(q);}}
                       style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,cursor:'pointer',fontWeight:500,textAlign:'left'}}>
                       {q}
@@ -2737,7 +2737,7 @@ export default function DashboardPage(){
             <div ref={chatEndRef}/>
           </div>
           <div style={{padding:'6px 12px',borderTop:`0.5px solid ${t.border}`,display:'flex',gap:6,overflowX:'auto'}}>
-            {['How are you?','Top 3 cells this month','Plan cell budgets','YTD giving summary','Which cells need help?'].map(q=>(
+            {[...['How are you?','Top 3 cells this month'],...(userRole==='pa'?[]:['Plan cell budgets','YTD giving summary']),...['Which cells need help?']].map(q=>(
               <button key={q} onClick={()=>setChatInput(q)}
                 style={{whiteSpace:'nowrap',fontSize:11,padding:'3px 8px',borderRadius:20,border:`0.5px solid ${t.border}`,background:'transparent',color:t.sub,cursor:'pointer',flexShrink:0}}>
                 {q}

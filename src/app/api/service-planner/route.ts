@@ -81,11 +81,28 @@ export async function PATCH(req: Request) {
             user_id: i.assigned_to, type: 'service', read: false,
             title: 'You have a role in Sunday\'s service',
             body: `You are assigned to: ${i.title}. Check My Assignments for the full programme.`,
+            link: '/my-assignments',
           }));
           await fetch(`${SUPABASE_URL}/rest/v1/notifications`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(notifications) });
         }
       } catch {}
     }
     return NextResponse.json({ data: { updated: true }, error: null });
+  } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const user = await getUser(req);
+    if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    if (!['overseer','general_overseer','branch_pastor','pa','lead_tech'].includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ data: null, error: { message: 'id is required' } }, { status: 400 });
+    const branchId = user.role === 'branch_pastor' ? user.branch_id : null;
+    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+    await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items?plan_id=eq.${id}`, { method: 'DELETE', headers: H() });
+    await fetch(`${SUPABASE_URL}/rest/v1/service_plans?id=eq.${id}${branchFilter}`, { method: 'DELETE', headers: H() });
+    return NextResponse.json({ data: { deleted: true }, error: null });
   } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
 }

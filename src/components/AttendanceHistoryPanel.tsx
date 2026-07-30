@@ -75,13 +75,13 @@ export default function AttendanceHistoryPanel({ t, fetchUrl, color, metricLabel
           </button>
         ))}
         <div style={{ width: 1, alignSelf: 'stretch', background: t.border, margin: '0 2px' }} />
-        <button onClick={() => jump('earlier')} disabled={searching !== null}
+        <button onClick={() => jump('earlier')} disabled={searching !== null} title="Jump back to the previous period with activity logged"
           style={{ padding: '4px 10px', borderRadius: 20, border: `0.5px solid ${t.border}`, cursor: searching ? 'wait' : 'pointer', fontSize: 11, background: t.cardInner || t.input, color: t.sub }}>
-          {searching === 'earlier' ? 'Searching…' : '← Earlier with data'}
+          {searching === 'earlier' ? 'Searching…' : '← Older'}
         </button>
-        <button onClick={() => jump('later')} disabled={offset === 0 || searching !== null}
+        <button onClick={() => jump('later')} disabled={offset === 0 || searching !== null} title="Jump forward to the next period with activity logged"
           style={{ padding: '4px 10px', borderRadius: 20, border: `0.5px solid ${t.border}`, cursor: offset === 0 || searching ? 'default' : 'pointer', fontSize: 11, background: t.cardInner || t.input, color: offset === 0 ? t.muted : t.sub, opacity: offset === 0 ? 0.5 : 1 }}>
-          {searching === 'later' ? 'Searching…' : 'Later with data →'}
+          {searching === 'later' ? 'Searching…' : 'Newer →'}
         </button>
         {buckets && <span style={{ fontSize: 11, color: t.muted }}>{buckets[0]?.label} – {buckets[buckets.length - 1]?.label}</span>}
       </div>

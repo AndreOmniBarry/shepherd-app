@@ -6,7 +6,7 @@ import { assignToLeastLoadedCareTeamMember } from '@/lib/care-assignment';
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const H = () => ({ 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' });
-const ADMIN_ROLES = ['overseer', 'pa', 'lead_tech'];
+const ADMIN_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
 
 async function getUser(req: Request) {
   const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);

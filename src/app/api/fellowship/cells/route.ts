@@ -137,7 +137,7 @@ export async function PATCH(req: Request) {
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     const user = payloadToAuthUser(payload);
-    const isAdmin = ['overseer', 'pa', 'lead_tech'].includes(user.role);
+    const isAdmin = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role);
     if (!isAdmin && user.role !== 'fellowship_head') {
       return NextResponse.json({ data: null, error: { message: 'Only the fellowship head or an admin can rename a cell' } }, { status: 403 });
     }

@@ -29,6 +29,9 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const [deleteTarget, setDeleteTarget] = useState<Plan | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const [showSpecial, setShowSpecial] = useState(false);
   const [specialDate, setSpecialDate] = useState('');
   const [specialLabel, setSpecialLabel] = useState('');
@@ -72,6 +75,18 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
       } else setError(json.error?.message || 'Failed to create plan');
     } catch { setError('Network error — plan was not created.'); }
     setSaving(false);
+  }
+
+  async function confirmDeletePlan() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/service-planner?id=${deleteTarget.id}`, { method: 'DELETE', credentials: 'include' });
+      if (res.ok) {
+        if (selectedId === deleteTarget.id) { setSelectedId(null); setItems([]); }
+        loadPlans();
+      }
+    } finally { setDeleting(false); setDeleteTarget(null); }
   }
 
   function addItem() {
@@ -172,12 +187,37 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
           <div style={{ fontSize: 11, color: t.muted }}>No service plans yet.</div>
         ) : plans.map(p => (
           <div key={p.id} onClick={() => selectPlan(p.id)}
-            style={{ padding: '9px 10px', borderRadius: 8, cursor: 'pointer', marginBottom: 4, background: selectedId === p.id ? t.purpleBg : 'transparent' }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{p.title}</div>
-            <div style={{ fontSize: 10, color: t.muted, marginTop: 1 }}>{p.service_date} · <span style={{ color: p.status === 'published' ? t.teal : t.amber, fontWeight: 600 }}>{p.status}</span></div>
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 10px', borderRadius: 8, cursor: 'pointer', marginBottom: 4, background: selectedId === p.id ? t.purpleBg : 'transparent' }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{p.title}</div>
+              <div style={{ fontSize: 10, color: t.muted, marginTop: 1 }}>{p.service_date} · <span style={{ color: p.status === 'published' ? t.teal : t.amber, fontWeight: 600 }}>{p.status}</span></div>
+            </div>
+            <button onClick={e => { e.stopPropagation(); setDeleteTarget(p); }} title="Delete this service plan"
+              style={{ background: 'transparent', border: 'none', color: t.coral, cursor: 'pointer', flexShrink: 0, padding: 4 }}>
+              <Icon name="ti-trash" size={14} />
+            </button>
           </div>
         ))}
       </div>
+
+      {deleteTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={() => !deleting && setDeleteTarget(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: t.card, borderRadius: 14, border: `0.5px solid ${t.border}`, padding: 22, maxWidth: 380, width: '90%' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 8 }}>Delete &quot;{deleteTarget.title}&quot;?</div>
+            <div style={{ fontSize: 12, color: t.sub, lineHeight: 1.5, marginBottom: 18 }}>This removes the plan and its full order of service. This cannot be undone.</div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setDeleteTarget(null)} disabled={deleting}
+                style={{ background: t.input, color: t.text, border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Cancel
+              </button>
+              <button onClick={confirmDeletePlan} disabled={deleting}
+                style={{ background: t.coral, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: deleting ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 16 }}>
         {!selectedPlan ? (

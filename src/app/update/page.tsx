@@ -129,7 +129,7 @@ export default function UpdatePage() {
         // submissions) — this page only ever shows the logged-in user's own
         // submissions, which is always empty for admin roles and reads as "my
         // approved member never showed up anywhere."
-        if (['overseer', 'pa', 'lead_tech'].includes(data.role)) { router.push('/dashboard?page=validation'); return; }
+        if (['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(data.role)) { router.push('/dashboard?page=validation'); return; }
         setLeaderName(data.name || '');
         setUserRole(data.role || '');
         if (['fellowship_head', 'department_head'].includes(data.role)) {

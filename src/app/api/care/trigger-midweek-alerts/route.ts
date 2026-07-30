@@ -243,7 +243,7 @@ export async function GET(req: Request) {
   if (!m?.[1]) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const payload = await verifyToken(m[1]);
   const user = payload ? payloadToAuthUser(payload) : null;
-  if (!user || !['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+  if (!user || !['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
   const postReq = new Request(req.url, {

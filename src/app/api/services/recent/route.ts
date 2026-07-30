@@ -105,7 +105,7 @@ export async function POST(req: Request) {
     const match = cookie.match(/shepherd_token=([^;]+)/);
     if (!match?.[1]) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     const payload = await verifyToken(match[1]);
-    if (!payload || !['overseer','pa','lead_tech'].includes(String(payload.role))) {
+    if (!payload || !['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(String(payload.role))) {
       return NextResponse.json({ data: null, error: { message: 'Only admins can create a special service day' } }, { status: 403 });
     }
 

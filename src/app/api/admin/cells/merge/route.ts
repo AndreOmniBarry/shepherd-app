@@ -29,7 +29,7 @@ async function getUser(req: Request) {
 export async function POST(req: Request) {
   try {
     const user = await getUser(req);
-    const isAdmin = !!user && ['overseer', 'pa', 'lead_tech'].includes(user.role);
+    const isAdmin = !!user && ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role);
     const isFellowshipHead = !!user && user.role === 'fellowship_head' && !!user.fellowship_id;
     if (!user || !(isAdmin || isFellowshipHead)) {
       return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });

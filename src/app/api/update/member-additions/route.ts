@@ -17,7 +17,7 @@ async function getUser(req: Request) {
   return payloadToAuthUser(payload);
 }
 
-const ADMIN_ROLES = ['overseer', 'pa', 'lead_tech'];
+const ADMIN_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
 
 export async function POST(req: Request) {
   try {

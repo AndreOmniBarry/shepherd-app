@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       cell_id: role === 'cell_leader' ? (ref_id || null) : null,
       fellowship_id: role === 'fellowship_head' ? (ref_id || null) : null,
       department_id: role === 'department_head' ? (ref_id || null) : null,
-      branch_id: role === 'branch_pastor' ? (ref_id || null) : null,
+      branch_id: (role === 'branch_pastor' || role === 'pa') ? (ref_id || null) : null,
     };
     await fetch(`${SUPABASE_URL}/rest/v1/users`, {
       method: 'POST', headers: { ...hdrs(), Prefer: 'resolution=merge-duplicates,return=minimal' },
