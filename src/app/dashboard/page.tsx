@@ -218,6 +218,11 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
     await fetch('/api/prayer-requests',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id,status:'prayed'})});
     setRequests(prev=>prev.map(r=>r.id===id?{...r,status:'prayed'}:r));
   }
+  async function deletePrayed(id:string){
+    if(!window.confirm('Delete this prayer request? This cannot be undone.'))return;
+    const res=await fetch(`/api/prayer-requests?id=${id}`,{method:'DELETE',credentials:'include'});
+    if(res.ok)setRequests(prev=>prev.filter(r=>r.id!==id));
+  }
   const STATUS_CFG:{[k:string]:{bg:string;text:string;label:string}}={
     open:{bg:'#EEEDFE',text:'#3C3489',label:'Open'},
     prayed:{bg:'#E1F5EE',text:'#085041',label:'Prayed'},
@@ -259,6 +264,12 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
                       <button onClick={()=>markPrayed(r.id)}
                         style={{fontSize:10,padding:'3px 9px',borderRadius:8,background:t.tealBg,color:t.teal,border:'none',cursor:'pointer',fontWeight:500,fontFamily:'inherit'}}>
                         Mark prayed
+                      </button>
+                    )}
+                    {r.status==='prayed'&&(
+                      <button onClick={()=>deletePrayed(r.id)} title="Delete this prayer request"
+                        style={{fontSize:10,padding:'3px 9px',borderRadius:8,background:t.coralBg,color:t.coral,border:'none',cursor:'pointer',fontWeight:500,fontFamily:'inherit'}}>
+                        Delete
                       </button>
                     )}
                   </div>
@@ -1427,7 +1438,6 @@ export default function DashboardPage(){
     }
     fetch('/api/branches',{credentials:'include'}).then(r=>r.ok?r.json():null).then(json=>{if(json?.data?.branches)setBranchesList(json.data.branches);}).catch(()=>{});
     fetch('/api/members/leaders',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.leaders)setLeaderOptions(data.leaders);}).catch(()=>{});
-    fetch('/api/departments/all',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.departments)setDeptsList(data.departments);}).finally(()=>setDeptsLoading(false));
     fetch('/api/attendance?weeks=8',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
       const records=data?.records||[];
       const now=new Date();
@@ -1457,13 +1467,16 @@ export default function DashboardPage(){
     fetchLive();
     const interval=setInterval(fetchLive,30000);
 
-    // Load real cell data with actual leaders
-    fetch('/api/cells/all',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
-      if(data?.cells&&data.cells.length>0) setDbCells(data.cells);
-    }).catch(()=>{});
-
     return()=>clearInterval(interval);
   },[]);
+
+  // Branch-scoped lists — re-fetch whenever the branch switcher changes.
+  useEffect(()=>{
+    const bq=selectedBranch?`?branch_id=${selectedBranch}`:'';
+    setDeptsLoading(true);
+    fetch(`/api/departments/all${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setDeptsList(data?.departments||[]);}).finally(()=>setDeptsLoading(false));
+    fetch(`/api/cells/all${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setDbCells(data?.cells||[]);}).catch(()=>{});
+  },[selectedBranch]);
 
   useEffect(()=>{
     if(!selectedDeptId){setDeptDetail(null);return;}
@@ -1473,11 +1486,14 @@ export default function DashboardPage(){
 
   const loadMembers=useCallback(()=>{
     setMembersLoading(true);
-    const url=memberSearch.trim().length>=2?`/api/members/search?q=${encodeURIComponent(memberSearch.trim())}`:'/api/members/search';
+    const bq=selectedBranch?`branch_id=${selectedBranch}`:'';
+    const url=memberSearch.trim().length>=2
+      ?`/api/members/search?q=${encodeURIComponent(memberSearch.trim())}${bq?`&${bq}`:''}`
+      :`/api/members/search${bq?`?${bq}`:''}`;
     fetch(url,{credentials:'include'}).then(r=>r.json()).then(({data})=>{
       setMembersList(data?.members||[]);
     }).catch(()=>{}).finally(()=>setMembersLoading(false));
-  },[memberSearch]);
+  },[memberSearch,selectedBranch]);
   useEffect(()=>{
     const handle=setTimeout(loadMembers, memberSearch?300:0);
     return()=>clearTimeout(handle);
@@ -1508,13 +1524,15 @@ export default function DashboardPage(){
   }
 
   function reloadCells(){
-    fetch('/api/cells/all',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
-      if(data?.cells) setDbCells(data.cells);
+    const bq=selectedBranch?`?branch_id=${selectedBranch}`:'';
+    fetch(`/api/cells/all${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{
+      setDbCells(data?.cells||[]);
     }).catch(()=>{});
   }
 
   function reloadDeptsList(){
-    fetch('/api/departments/all',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.departments)setDeptsList(data.departments);});
+    const bq=selectedBranch?`?branch_id=${selectedBranch}`:'';
+    fetch(`/api/departments/all${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setDeptsList(data?.departments||[]);});
   }
   function reloadDeptDetail(){
     if(!selectedDeptId)return;
@@ -1866,7 +1884,7 @@ export default function DashboardPage(){
                     {label:'Total Members',value:fmt(kpi?.total_members),sub:'All statuses'},
                     {label:'Active Members',value:fmt(kpi?.active_members),sub:'Regularly attending'},
                     {label:'New This Month',value:fmt(kpi?.new_members_month),sub:new Date().toLocaleString('en-US',{month:'long',year:'numeric'})},
-                    {label:'CYDF Combined',value:fmt(children+teens),sub:(kpi?.age_known||0)>0?`${children} children · ${teens} teens`:'No DOB data yet'},
+                    {label:'Children & Teens (0–17)',value:fmt(children+teens),sub:(kpi?.age_known||0)>0?`${children} children · ${teens} teens`:'No DOB data yet'},
                   ];
                 })().map(s=>(
                   <div key={s.label} style={card()}>

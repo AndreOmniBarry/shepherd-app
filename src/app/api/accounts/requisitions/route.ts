@@ -14,13 +14,20 @@ async function getUser(req: Request) {
   return p ? payloadToAuthUser(p) : null;
 }
 
-const ALLOWED = ['overseer', 'pa', 'lead_tech', 'accounts'];
+const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech', 'accounts'];
 
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+
+  // PA and branch_pastor only ever see their own branch's requisitions —
+  // never other branches', regardless of any query param.
+  const { searchParams } = new URL(req.url);
+  const branchId = ['pa', 'branch_pastor'].includes(user.role) ? user.branch_id : searchParams.get('branch_id');
+  const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+
   const res = await fetch(
-    `${S}/rest/v1/expense_requisitions?order=created_at.desc&limit=100&select=id,title,amount_requested,amount_approved,requested_by_name,status,created_at,notes,expense_categories(name)`,
+    `${S}/rest/v1/expense_requisitions?order=created_at.desc&limit=100&select=id,title,amount_requested,amount_approved,requested_by_name,status,created_at,notes,expense_categories(name)${branchFilter}`,
     { headers: h() }
   );
   const data = await res.json();
@@ -47,6 +54,7 @@ export async function POST(req: Request) {
       requested_by: user.id,
       requested_by_name: requested_by_name || 'Unknown',
       department_id: department_id || null,
+      branch_id: user.branch_id || null,
       status: 'pending',
     }),
   });

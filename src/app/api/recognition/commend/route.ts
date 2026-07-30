@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    if (!['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+    if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Not authorized' } }, { status: 403 });
     }
 
@@ -43,8 +43,10 @@ export async function POST(req: Request) {
 
     if (!res.ok) {
       const err = await res.text();
-      console.error('[POST /api/recognition/commend]', err);
-      return NextResponse.json({ data: null, error: { message: 'Failed to send commendation' } }, { status: 502 });
+      console.error('[POST /api/recognition/commend] Supabase error:', res.status, err);
+      let detail = '';
+      try { detail = JSON.parse(err)?.message || ''; } catch {}
+      return NextResponse.json({ data: null, error: { message: detail ? `Failed to send commendation: ${detail}` : 'Failed to send commendation' } }, { status: 502 });
     }
 
     return NextResponse.json({ data: { sent: true, category: category || null }, error: null }, { status: 201 });

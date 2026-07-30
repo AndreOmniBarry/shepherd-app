@@ -47,6 +47,7 @@ export default function AdminPortal() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Church | null>(null);
   const [tab, setTab] = useState<'overview' | 'profile' | 'goals' | 'notes'>('overview');
+  const [sidebarTab, setSidebarTab] = useState<'churches' | 'billing' | 'alerts' | 'settings'>('churches');
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [stats, setStats] = useState({ total: 0, trial: 0, active: 0, expired: 0, growth: 0, starter: 0 });
@@ -111,9 +112,10 @@ export default function AdminPortal() {
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>Lead Tech Admin</div>
         </div>
         <div style={{ padding: '16px 10px', flex: 1 }}>
-          {[{ label: 'Churches', active: true }, { label: 'Plans & Billing' }, { label: 'Alerts' }, { label: 'Settings' }].map((item, i) => (
-            <div key={i} style={{ padding: '9px 10px', borderRadius: 7, marginBottom: 2, background: item.active ? 'rgba(255,255,255,0.1)' : 'transparent', cursor: 'pointer' }}>
-              <div style={{ fontSize: 12, fontWeight: item.active ? 600 : 400, color: item.active ? C.white : 'rgba(255,255,255,0.45)' }}>{item.label}</div>
+          {([{ id: 'churches' as const, label: 'Churches' }, { id: 'billing' as const, label: 'Plans & Billing' }, { id: 'alerts' as const, label: 'Alerts' }, { id: 'settings' as const, label: 'Settings' }]).map((item) => (
+            <div key={item.id} onClick={() => setSidebarTab(item.id)}
+              style={{ padding: '9px 10px', borderRadius: 7, marginBottom: 2, background: sidebarTab === item.id ? 'rgba(255,255,255,0.1)' : 'transparent', cursor: 'pointer' }}>
+              <div style={{ fontSize: 12, fontWeight: sidebarTab === item.id ? 600 : 400, color: sidebarTab === item.id ? C.white : 'rgba(255,255,255,0.45)' }}>{item.label}</div>
             </div>
           ))}
         </div>
@@ -130,10 +132,67 @@ export default function AdminPortal() {
 
         {/* Header */}
         <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 4 }}>Church Management</div>
-          <div style={{ fontSize: 13, color: C.muted }}>All onboarded churches, their structures, plans, and trial status</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 4 }}>
+            {sidebarTab === 'churches' ? 'Church Management' : sidebarTab === 'billing' ? 'Plans & Billing' : sidebarTab === 'alerts' ? 'Alerts' : 'Settings'}
+          </div>
+          <div style={{ fontSize: 13, color: C.muted }}>
+            {sidebarTab === 'churches' ? 'All onboarded churches, their structures, plans, and trial status'
+              : sidebarTab === 'billing' ? 'Plan tier and subscription status per church'
+              : sidebarTab === 'alerts' ? 'Trials and subscriptions needing attention'
+              : 'Platform-level configuration'}
+          </div>
         </div>
 
+        {sidebarTab === 'billing' && (
+          <div style={{ ...card({ padding: 0, overflow: 'hidden' }) }}>
+            <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${C.border}`, fontSize: 13, fontWeight: 600, color: C.text }}>All churches — plan &amp; status</div>
+            {churches.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: C.muted, fontSize: 13 }}>No churches onboarded yet.</div>
+            ) : churches.map((church, i) => {
+              const planC = PLAN_COLORS[church.plan_tier] || PLAN_COLORS.trial;
+              const statusC = STATUS_COLORS[church.subscription_status] || STATUS_COLORS.trial;
+              return (
+                <div key={church.id} style={{ padding: '14px 18px', borderBottom: i < churches.length - 1 ? `0.5px solid ${C.border}` : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 13, color: C.text, fontWeight: 500 }}>{church.church_name}</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: planC.bg, color: planC.color }}>{(church.plan_tier || 'trial').toUpperCase()}</span>
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: statusC.bg, color: statusC.color }}>{(church.subscription_status || 'trial').toUpperCase()}{church.subscription_status === 'trial' ? ` · ${church.trial_days_remaining}d left` : ''}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {sidebarTab === 'alerts' && (
+          <div style={{ ...card({ padding: 0, overflow: 'hidden' }) }}>
+            {(() => {
+              const expiring = churches.filter(c => c.subscription_status === 'trial' && c.trial_days_remaining <= 7);
+              const expired = churches.filter(c => c.subscription_status === 'expired');
+              const alerts = [
+                ...expired.map(c => ({ c, msg: 'Subscription expired', color: C.coral, bg: C.coralBg })),
+                ...expiring.map(c => ({ c, msg: `Trial ends in ${c.trial_days_remaining} day${c.trial_days_remaining === 1 ? '' : 's'}`, color: C.amber, bg: C.amberBg })),
+              ];
+              if (alerts.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: C.muted, fontSize: 13 }}>No alerts right now.</div>;
+              return alerts.map((a, i) => (
+                <div key={i} style={{ padding: '14px 18px', borderBottom: i < alerts.length - 1 ? `0.5px solid ${C.border}` : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 13, color: C.text, fontWeight: 500 }}>{a.c.church_name}</div>
+                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: a.bg, color: a.color }}>{a.msg}</span>
+                </div>
+              ));
+            })()}
+          </div>
+        )}
+
+        {sidebarTab === 'settings' && (
+          <div style={{ ...card({ padding: '18px 20px' }) }}>
+            <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
+              Platform-wide settings will live here as they're needed — for now there's a single church on this deployment, so nothing platform-level to configure yet. Per-church settings (service days, structure, labels) are configured by each church in their own Settings tab.
+            </div>
+          </div>
+        )}
+
+        {sidebarTab === 'churches' && (<>
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, marginBottom: 24 }}>
           {[
@@ -303,6 +362,7 @@ export default function AdminPortal() {
             </div>
           )}
         </div>
+        </>)}
       </div>
     </div>
   );
