@@ -4,6 +4,7 @@ import NotificationBell from "@/components/NotificationBell";
 import MyAccountButton from "@/components/MyAccountButton";
 import Icon from "@/components/Icon";
 import PastorAttendance from '@/components/PastorAttendance';
+import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
 import PastorGiving from '@/components/PastorGiving';
 import PastorRequisitions from '@/components/PastorRequisitions';
 import FellowshipValidation from '@/components/FellowshipValidation';
@@ -1372,10 +1373,6 @@ export default function DashboardPage(){
   const [userRole,setUserRole]=useState('');
   const [givingRange,setGivingRange]=useState('6m');
   const [eventsSubTab,setEventsSubTab]=useState<'planner'|'programs'>('planner');
-  const [cellGranularity,setCellGranularity]=useState<'week'|'month'>('week');
-  const [cellOffset,setCellOffset]=useState(0);
-  const [cellHistory,setCellHistory]=useState<{label:string;present:number;absent:number;rate:number}[]|null>(null);
-  const [cellHistoryLoading,setCellHistoryLoading]=useState(false);
   const [selectedCell,setSelectedCell]=useState<typeof CELLS_DATA[0]|null>(null);
   const [cellFilter,setCellFilter]=useState<string>('all');
   const [memberSearch,setMemberSearch]=useState('');
@@ -1580,16 +1577,6 @@ export default function DashboardPage(){
   },[churchConfig.structure_type,page]);
 
   useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:'smooth'});},[messages]);
-
-  useEffect(()=>{
-    const cellId=(selectedCell as unknown as {id?:string})?.id;
-    if(!selectedCell||!cellId){setCellHistory(null);return;}
-    setCellHistoryLoading(true);
-    fetch(`/api/cells/history?cell_id=${cellId}&granularity=${cellGranularity}&offset=${cellOffset}`,{credentials:'include'})
-      .then(r=>r.json()).then(j=>setCellHistory(j?.data?.buckets||null))
-      .catch(()=>setCellHistory(null))
-      .finally(()=>setCellHistoryLoading(false));
-  },[selectedCell,cellGranularity,cellOffset]);
 
   useEffect(()=>{
     const url=selectedBranch?`/api/analytics/dashboard?branch_id=${selectedBranch}`:'/api/analytics/dashboard';
@@ -2311,7 +2298,7 @@ export default function DashboardPage(){
                     <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Cell','Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status','Weekly Meeting'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
                       {(dbCells||CELLS_DATA).filter(row=>cellFilter==='all'||(row.status===cellFilter)||(row.fel===cellFilter)).map((row,i)=>{const s=ss(row.status);return(
-                        <tr key={i} onClick={()=>{setSelectedCell(row);setCellOffset(0);}} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
+                        <tr key={i} onClick={()=>setSelectedCell(row)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
                           onMouseEnter={e=>e.currentTarget.style.background=t.hover}
                           onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                           <td style={{padding:'8px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{row.cell}</td>
@@ -2348,35 +2335,8 @@ export default function DashboardPage(){
                   style={{fontSize:15,fontWeight:600,color:t.text,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'4px 8px',background:t.input,outline:'none',fontFamily:'inherit',marginBottom:6,width:'100%',boxSizing:'border-box'}} />
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} Fellowship · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
                 {!selectedCell.members_list&&<div style={{fontSize:12,color:t.muted,marginBottom:12,padding:'8px 12px',background:t.cardInner,borderRadius:8}}>Connect live database to see individual member roster for this cell.</div>}
-                <div style={{display:'flex',gap:6,marginBottom:14,alignItems:'center',flexWrap:'wrap'}}>
-                  {(['week','month'] as const).map(g=>(
-                    <button key={g} onClick={()=>{setCellGranularity(g);setCellOffset(0);}}
-                      style={{padding:'4px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:cellGranularity===g?500:400,background:cellGranularity===g?'#534AB7':t.cardInner,borderColor:cellGranularity===g?'#534AB7':'#E5E7EB',color:cellGranularity===g?'#fff':t.sub}}>
-                      {g==='week'?'By Week':'By Month'}
-                    </button>
-                  ))}
-                  <div style={{width:1,alignSelf:'stretch',background:t.border,margin:'0 2px'}}/>
-                  <button onClick={()=>setCellOffset(o=>o+1)} style={{padding:'4px 10px',borderRadius:20,border:`0.5px solid ${t.border}`,cursor:'pointer',fontSize:11,background:t.cardInner,color:t.sub}}>← Earlier</button>
-                  <button onClick={()=>setCellOffset(o=>Math.max(0,o-1))} disabled={cellOffset===0} style={{padding:'4px 10px',borderRadius:20,border:`0.5px solid ${t.border}`,cursor:cellOffset===0?'default':'pointer',fontSize:11,background:t.cardInner,color:cellOffset===0?t.muted:t.sub,opacity:cellOffset===0?0.5:1}}>Later →</button>
-                  {cellHistory&&<span style={{fontSize:11,color:t.muted}}>{cellHistory[0]?.label} – {cellHistory[cellHistory.length-1]?.label}</span>}
-                </div>
-                <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch',background:t.card}}>
-                  {cellHistoryLoading?(
-                    <div style={{padding:'40px 0',textAlign:'center',fontSize:12,color:t.muted}}>Loading attendance history…</div>
-                  ):!cellHistory||cellHistory.every(b=>b.present===0&&b.absent===0)?(
-                    <div style={{padding:'40px 0',textAlign:'center',fontSize:12,color:t.muted}}>No attendance records logged for this window yet.</div>
-                  ):(
-                    <ResponsiveContainer width="100%" height={200} minWidth={300}>
-                      <LineChart data={cellHistory} margin={{top:5,right:10,left:-20,bottom:0}}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                        <XAxis dataKey="label" tick={{fontSize:9,fill:t.chartAxis}} interval={Math.floor(cellHistory.length/6)}/>
-                        <YAxis tick={{fontSize:9,fill:t.chartAxis}} domain={[0,100]} width={32}/>
-                        <Tooltip contentStyle={{fontSize:11,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}}/>
-                        <Line type="monotone" dataKey="rate" name="Attendance Rate %" stroke={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'} strokeWidth={2} dot={false}/>
-                      </LineChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
+                <AttendanceHistoryPanel t={t} color={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'}
+                  fetchUrl={(g,o)=>`/api/cells/history?cell_id=${(selectedCell as unknown as {id?:string})?.id}&granularity=${g}&offset=${o}`} />
               </div>
               {(selectedCell.members_list||[]).length>0&&<div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
