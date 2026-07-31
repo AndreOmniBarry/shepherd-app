@@ -6,6 +6,7 @@ import MyAccountButton from '@/components/MyAccountButton';
 import FloatingCalculator from '@/components/FloatingCalculator';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import ChatNavButton from '@/components/ChatNavButton';
+import LoadingScreen from '@/components/LoadingScreen';
 
 type Band = { id: string; name: string; amount: number; color: string };
 type Partner = {
@@ -34,6 +35,7 @@ export default function PartnershipPage() {
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('partners');
   const [dark, setDark] = useState(false);
+  const [pageReady, setPageReady] = useState(false);
   const [leaderName, setLeaderName] = useState('');
   const [bands, setBands] = useState<Band[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -73,7 +75,7 @@ export default function PartnershipPage() {
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.json())
-      .then(({ data }) => { if (!data) { router.push('/login'); return; } setLeaderName(data.name || ''); })
+      .then(({ data }) => { if (!data) { router.push('/login'); return; } setLeaderName(data.name || ''); setPageReady(true); })
       .catch(() => router.push('/login'));
 
     Promise.all([
@@ -164,6 +166,8 @@ export default function PartnershipPage() {
     { id: 'lapsed', label: `Lapsed (${lapsedPartners.length})` },
   ];
 
+  if (!pageReady) return <LoadingScreen dark={dark} label="Loading partnership…" />;
+
   return (
     <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>
       {/* Topbar */}
@@ -191,7 +195,9 @@ export default function PartnershipPage() {
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', display: 'flex', overflowX: 'auto' }}>
         {navItems.map(n => (
           <button key={n.id} onClick={() => setTab(n.id)}
-            style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: tab === n.id ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', whiteSpace: 'nowrap', marginBottom: -0.5 }}>
+            onMouseEnter={e => { if (tab !== n.id) { e.currentTarget.style.color = t.purple; e.currentTarget.style.textShadow = '0 0 12px rgba(168,159,255,0.5)'; } }}
+            onMouseLeave={e => { if (tab !== n.id) { e.currentTarget.style.color = t.muted; e.currentTarget.style.textShadow = 'none'; } }}
+            style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: tab === n.id ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', transition: 'all var(--motion-fast) var(--ease-out-expo)', whiteSpace: 'nowrap', marginBottom: -0.5 }}>
             {n.label}
           </button>
         ))}

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import ChatNavButton from '@/components/ChatNavButton';
+import LoadingScreen from '@/components/LoadingScreen';
 
 type Entry = {
   id: string;
@@ -74,6 +75,8 @@ export default function WorkforcePage() {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
     router.push('/login');
   }
+
+  if (loading) return <LoadingScreen dark={dark} label="Loading your workforce schedule…" />;
 
   return (
     <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>

@@ -352,18 +352,19 @@
     color: var(--nav-item);
     background: transparent;
     font-weight: 400;
-    transition: background 0.15s, color 0.15s;
+    transition: background var(--motion-fast) var(--ease-out-expo), color var(--motion-fast) var(--ease-out-expo), box-shadow var(--motion-fast) var(--ease-out-expo), transform var(--motion-fast) var(--ease-spring);
   }
   .sh-nav-item:hover {
     background: var(--nav-hover-bg);
     color: var(--nav-hover);
-    box-shadow: inset 0 0 0 0.5px rgba(83,74,183,0.2);
+    box-shadow: inset 0 0 0 0.5px rgba(83,74,183,0.25), 0 0 14px rgba(168,159,255,0.35);
+    transform: translateX(2px);
   }
   .sh-nav-item.active {
     background: var(--nav-active-bg);
     color: var(--nav-active);
     font-weight: 600;
-    box-shadow: inset 0 0 0 0.5px rgba(83,74,183,0.3), 0 0 16px rgba(83,74,183,0.15);
+    box-shadow: inset 0 0 0 0.5px rgba(83,74,183,0.3), 0 0 20px rgba(168,159,255,0.3);
   }
 
   .sh-nav-badge {

@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 import ChatNavButton from '@/components/ChatNavButton';
+import LoadingScreen from '@/components/LoadingScreen';
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
@@ -76,6 +77,7 @@ export default function DepartmentHeadPage() {
   const { config: churchConfig } = useChurchConfigStandalone();
   const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'roster' | 'serving' | 'birthdays' | 'events'>('overview');
   const [dark, setDark] = useState(false);
+  const [pageReady, setPageReady] = useState(false);
   const [deptName, setDeptName] = useState('');
   const [leaderName, setLeaderName] = useState('');
   const [members, setMembers] = useState<DeptMember[]>([]);
@@ -182,6 +184,7 @@ export default function DepartmentHeadPage() {
         if (!data) { router.push('/login'); return; }
         setDeptName(data.department_name || 'Your Department');
         setLeaderName(data.name || '');
+        setPageReady(true);
         if (data.branch_id) {
           fetch('/api/branches', { credentials: 'include' }).then(r => r.json()).then(({ data: bd }) => {
             const mine = (bd?.branches || []).find((b: { id: string }) => b.id === data.branch_id);
@@ -276,6 +279,8 @@ export default function DepartmentHeadPage() {
     router.push('/login');
   }
 
+  if (!pageReady) return <LoadingScreen dark={dark} label="Loading your department…" />;
+
   if (submitted && submittedData) {
     const sla = SLA_COLORS[submittedData.sla_grade] || SLA_COLORS['A'];
     return (
@@ -338,7 +343,9 @@ export default function DepartmentHeadPage() {
         { id: 'birthdays', label: 'Birthdays', icon: 'ti-cake' },
         ...(/protocol|ushering/i.test(deptName) ? [{ id: 'events' as const, label: 'Events', icon: 'ti-calendar-event' }] : [])].map(n => (
           <button key={n.id} onClick={() => setTab(n.id as typeof tab)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: tab === n.id ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', marginBottom: -0.5 }}>
+            onMouseEnter={e => { if (tab !== n.id) { e.currentTarget.style.color = t.purple; e.currentTarget.style.textShadow = '0 0 12px rgba(168,159,255,0.5)'; } }}
+            onMouseLeave={e => { if (tab !== n.id) { e.currentTarget.style.color = t.muted; e.currentTarget.style.textShadow = 'none'; } }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: tab === n.id ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', transition: 'all var(--motion-fast) var(--ease-out-expo)', marginBottom: -0.5 }}>
             {n.icon && <Icon name={n.icon} size={13} />}{n.label}
           </button>
         ))}

@@ -7,6 +7,7 @@ import FloatingCalculator from '@/components/FloatingCalculator';
 import FinancialPeriodsPanel from '@/components/FinancialPeriodsPanel';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import ChatNavButton from '@/components/ChatNavButton';
+import LoadingScreen from '@/components/LoadingScreen';
 
 type Member = { id: string; full_name: string; phone: string | null };
 type IncomeType = { id: string; name: string; category: string };
@@ -55,6 +56,7 @@ export default function AccountsPage() {
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('overview');
   const [dark, setDark] = useState(false);
+  const [pageReady, setPageReady] = useState(false);
   const [leaderName, setLeaderName] = useState('');
   const [members, setMembers] = useState<Member[]>([]);
   const [incomeTypes, setIncomeTypes] = useState<IncomeType[]>([]);
@@ -109,7 +111,7 @@ export default function AccountsPage() {
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.json())
-      .then(({ data }) => { if (!data) { router.push('/login'); return; } setLeaderName(data.name || ''); })
+      .then(({ data }) => { if (!data) { router.push('/login'); return; } setLeaderName(data.name || ''); setPageReady(true); })
       .catch(() => router.push('/login'));
 
     Promise.all([
@@ -270,6 +272,8 @@ export default function AccountsPage() {
     { id: 'requisitions', label: `Requisitions${pendingReqs > 0 ? ` (${pendingReqs})` : ''}` },
   ];
 
+  if (!pageReady) return <LoadingScreen dark={dark} label="Loading accounts…" />;
+
   return (
     <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>
       {/* Topbar */}
@@ -297,7 +301,9 @@ export default function AccountsPage() {
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', display: 'flex', overflowX: 'auto' }}>
         {navItems.map(n => (
           <button key={n.id} onClick={() => setTab(n.id)}
-            style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', whiteSpace: 'nowrap', marginBottom: -0.5 }}>
+            onMouseEnter={e => { if (tab !== n.id) { e.currentTarget.style.color = t.purple; e.currentTarget.style.textShadow = '0 0 12px rgba(168,159,255,0.5)'; } }}
+            onMouseLeave={e => { if (tab !== n.id) { e.currentTarget.style.color = t.muted; e.currentTarget.style.textShadow = 'none'; } }}
+            style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', transition: 'all var(--motion-fast) var(--ease-out-expo)', whiteSpace: 'nowrap', marginBottom: -0.5 }}>
             {n.label}
           </button>
         ))}
