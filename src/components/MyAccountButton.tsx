@@ -193,7 +193,7 @@ export default function MyAccountButton({ dark = false }: Props) {
                     <div style={label}>Preview a portal (no password needed)</div>
                     <select value={previewRole} onChange={e => setPreviewRole(e.target.value)} style={{ ...inp, marginBottom: 8 }}>
                       <option value="">Choose a role…</option>
-                      {PREVIEW_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      {PREVIEW_ROLES.filter(r => r.value !== role).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                     </select>
                     {PREVIEW_ROLES.find(r => r.value === previewRole)?.refKind && (
                       <select value={refId} onChange={e => setRefId(e.target.value)} style={{ ...inp, marginBottom: 8 }}>

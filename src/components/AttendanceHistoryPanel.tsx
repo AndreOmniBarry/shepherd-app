@@ -19,14 +19,14 @@ function hasData(buckets: Bucket[] | null): boolean {
 // a chart — it says where things are going well and where they aren't.
 // Reused by the cell portal, fellowship portal, and admin dashboard so every
 // history view in the app behaves the same way.
-export default function AttendanceHistoryPanel({ t, fetchUrl, color, metricLabel, emptyText }: { t: Record<string, string>; fetchUrl: (granularity: 'week' | 'month', offset: number) => string; color?: string; metricLabel?: string; emptyText?: string }) {
-  const [granularity, setGranularity] = useState<'week' | 'month'>('week');
+export default function AttendanceHistoryPanel({ t, fetchUrl, color, metricLabel, emptyText }: { t: Record<string, string>; fetchUrl: (granularity: 'week' | 'month' | 'year', offset: number) => string; color?: string; metricLabel?: string; emptyText?: string }) {
+  const [granularity, setGranularity] = useState<'week' | 'month' | 'year'>('week');
   const [offset, setOffset] = useState(0);
   const [buckets, setBuckets] = useState<Bucket[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState<'earlier' | 'later' | null>(null);
 
-  const fetchBuckets = useCallback((g: 'week' | 'month', o: number) => {
+  const fetchBuckets = useCallback((g: 'week' | 'month' | 'year', o: number) => {
     return fetch(fetchUrl(g, o), { credentials: 'include' })
       .then(r => r.json())
       .then(({ data }) => (data?.buckets as Bucket[] | undefined) || null)
@@ -68,10 +68,10 @@ export default function AttendanceHistoryPanel({ t, fetchUrl, color, metricLabel
   return (
     <div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        {(['week', 'month'] as const).map(g => (
+        {(['week', 'month', 'year'] as const).map(g => (
           <button key={g} onClick={() => { setGranularity(g); setOffset(0); }}
             style={{ padding: '4px 10px', borderRadius: 20, border: '0.5px solid', cursor: 'pointer', fontSize: 11, fontWeight: granularity === g ? 500 : 400, background: granularity === g ? '#534AB7' : t.cardInner || t.input, borderColor: granularity === g ? '#534AB7' : '#E5E7EB', color: granularity === g ? '#fff' : t.sub }}>
-            {g === 'week' ? 'By Week' : 'By Month'}
+            {g === 'week' ? 'By Week' : g === 'month' ? 'By Month' : 'By Year'}
           </button>
         ))}
         <div style={{ width: 1, alignSelf: 'stretch', background: t.border, margin: '0 2px' }} />

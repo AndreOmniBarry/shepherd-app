@@ -16,7 +16,7 @@ import CareFollowupPanel from '@/components/CareFollowupPanel';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis,
+  LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 
@@ -1463,21 +1463,6 @@ export default function DashboardPage(){
       window.history.replaceState({}, '', '/dashboard');
     }
     fetch('/api/branches',{credentials:'include'}).then(r=>r.ok?r.json():null).then(json=>{if(json?.data?.branches)setBranchesList(json.data.branches);}).catch(()=>{});
-    fetch('/api/attendance?weeks=8',{credentials:'include'}).then(r=>r.json()).then(({data})=>{
-      const records=data?.records||[];
-      const now=new Date();
-      const buckets:{w:string;total:number}[]=[];
-      for(let i=7;i>=0;i--){
-        const weekStart=new Date(now); weekStart.setDate(now.getDate()-now.getDay()-i*7);
-        const weekEnd=new Date(weekStart); weekEnd.setDate(weekStart.getDate()+7);
-        const total=records.filter((r:{services?:{service_date:string}})=>{
-          const d=r.services?.service_date?new Date(r.services.service_date):null;
-          return d && d>=weekStart && d<weekEnd;
-        }).reduce((s:number,r:{present_count?:number;visitor_count?:number})=>s+(r.present_count||0)+(r.visitor_count||0),0);
-        buckets.push({w:`W${8-i}`,total});
-      }
-      setWeeklyAttendance(buckets);
-    }).catch(()=>{});
 
     // Live feed - fetch real submissions and auto-refresh every 30s
     function fetchLive(){
@@ -1503,6 +1488,21 @@ export default function DashboardPage(){
     fetch(`/api/cells/all${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setDbCells(data?.cells||[]);}).catch(()=>{});
     fetch(`/api/members/leaders${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setLeaderOptions(data?.leaders||[]);}).catch(()=>{});
     fetch(`/api/fellowships/all${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setMemberFellowshipsList(data?.fellowships||[]);}).catch(()=>{});
+    fetch(`/api/attendance?weeks=8${selectedBranch?`&branch_id=${selectedBranch}`:''}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{
+      const records=data?.records||[];
+      const now=new Date();
+      const buckets:{w:string;total:number}[]=[];
+      for(let i=7;i>=0;i--){
+        const weekStart=new Date(now); weekStart.setDate(now.getDate()-now.getDay()-i*7);
+        const weekEnd=new Date(weekStart); weekEnd.setDate(weekStart.getDate()+7);
+        const total=records.filter((r:{services?:{service_date:string}})=>{
+          const d=r.services?.service_date?new Date(r.services.service_date):null;
+          return d && d>=weekStart && d<weekEnd;
+        }).reduce((s:number,r:{present_count?:number;visitor_count?:number})=>s+(r.present_count||0)+(r.visitor_count||0),0);
+        buckets.push({w:`W${8-i}`,total});
+      }
+      setWeeklyAttendance(buckets);
+    }).catch(()=>{});
   },[selectedBranch]);
 
   useEffect(()=>{
@@ -1771,12 +1771,28 @@ export default function DashboardPage(){
                     <span style={{fontSize:12,color:t.purple}}>View all →</span>
                   </div>
                   <ResponsiveContainer width="100%" height={100}>
-                    <BarChart data={weeklyAttendance} margin={{top:2,right:0,left:-30,bottom:0}}>
+                    <AreaChart data={weeklyAttendance} margin={{top:2,right:0,left:-30,bottom:0}}>
+                      <defs>
+                        <linearGradient id="dashAttFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#534AB7" stopOpacity={0.35}/>
+                          <stop offset="95%" stopColor="#534AB7" stopOpacity={0.02}/>
+                        </linearGradient>
+                      </defs>
                       <XAxis dataKey="w" tick={{fontSize:9,fill:t.chartAxis}} tickLine={false} axisLine={false}/>
                       <YAxis hide/><Tooltip contentStyle={{fontSize:11,borderRadius:6,border:'1px solid #e5e7eb'}}/>
-                      <Bar dataKey="total" name="Attendance" fill="#534AB7" radius={[2,2,0,0]}/>
-                    </BarChart>
+                      <Area type="monotone" dataKey="total" name="Attendance" stroke="#534AB7" strokeWidth={2} fill="url(#dashAttFill)"/>
+                    </AreaChart>
                   </ResponsiveContainer>
+                  {weeklyAttendance.length>0 && weeklyAttendance.some(w=>w.total>0) && (()=>{
+                    const nonZero=weeklyAttendance.filter(w=>w.total>0);
+                    const avg=Math.round(nonZero.reduce((s,w)=>s+w.total,0)/nonZero.length);
+                    const best=nonZero.reduce((a,b)=>b.total>a.total?b:a);
+                    return (
+                      <div style={{fontSize:11,color:t.muted,marginTop:8,paddingTop:8,borderTop:`0.5px solid ${t.border}`}}>
+                        Avg {avg} · Best {best.w} at {best.total}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div style={card()}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
