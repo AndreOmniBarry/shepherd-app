@@ -6,6 +6,7 @@ import BirthdayPanel from '@/components/BirthdayPanel';
 import WorkforceServingTab from '@/components/WorkforceServingTab';
 import CareEventsTab from '@/components/CareEventsTab';
 import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
+import Icon from '@/components/Icon';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
@@ -234,7 +235,8 @@ export default function DepartmentHeadPage() {
   const absentMembers = members.filter(m => attendance[m.id] === 'absent');
 
   const serviceDayName = serviceDate ? dayNameOf(serviceDate) : '';
-  const isValidServiceDay = !serviceDate || (churchConfig.service_days || ['Sunday']).includes(serviceDayName);
+  const isSanctionedSpecialDay = specialServices.some(s => s.service_date === serviceDate);
+  const isValidServiceDay = !serviceDate || (churchConfig.service_days || ['Sunday']).includes(serviceDayName) || isSanctionedSpecialDay;
   const servicesForSelectedDay = dayServiceCounts[serviceDayName] || 1;
 
   async function submit() {
@@ -391,9 +393,14 @@ export default function DepartmentHeadPage() {
               <div style={{ fontSize: 11, color: t.muted, marginTop: 6 }}>
                 {serviceDate ? `${serviceDayName}, ${(() => { const [yr,mo,dy] = serviceDate.split('-').map(Number); return new Date(yr, mo-1, dy).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); })()}` : ''} — records older than 14 days can&apos;t be submitted; contact your administrator.
               </div>
+              {serviceDate && isSanctionedSpecialDay && (
+                <div style={{ fontSize: 11, color: t.teal, marginTop: 6, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Icon name="ti-check" size={13} /> Sanctioned special service day — {specialServices.find(s => s.service_date === serviceDate)?.label || 'special program'}.
+                </div>
+              )}
               {serviceDate && !isValidServiceDay && (
                 <div style={{ fontSize: 11, color: t.amber, marginTop: 6 }}>
-                  {serviceDayName} isn&apos;t one of your church&apos;s regular service days ({(churchConfig.service_days || ['Sunday']).join(', ')}). Only continue if this is a special program an admin has already added.
+                  {serviceDayName} isn&apos;t one of your church&apos;s regular service days ({(churchConfig.service_days || ['Sunday']).join(', ')}) and no special program has been added for this date yet. Ask an admin to add it under Service Planner first.
                 </div>
               )}
             </div>
@@ -519,13 +526,13 @@ export default function DepartmentHeadPage() {
                 <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{deptName} — Members</div>
                 <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{members.length} members</div>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button onClick={() => setShowAddExisting(v => !v)}
-                  style={{ background: t.purpleBg, color: t.purple, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  style={{ background: t.purpleBg, color: t.purple, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                   + Add existing member
                 </button>
                 <button onClick={() => { window.location.href = '/update'; }}
-                  style={{ background: 'transparent', color: t.sub, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  style={{ background: 'transparent', color: t.sub, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                   + New member
                 </button>
               </div>

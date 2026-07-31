@@ -1544,6 +1544,7 @@ export default function DashboardPage(){
   const [selectedCell,setSelectedCell]=useState<CellRow|null>(null);
   const [cellFilter,setCellFilter]=useState<string>('all');
   const [memberSearch,setMemberSearch]=useState('');
+  const memberSearchRef=useRef<HTMLInputElement>(null);
   const [memberFilter,setMemberFilter]=useState('all');
   const [membersList,setMembersList]=useState<{id:string;full_name:string;phone:string;membership_status:string;join_date:string|null;cell_name:string|null;fellowship_name:string|null}[]>([]);
   const [membersLoading,setMembersLoading]=useState(true);
@@ -1683,6 +1684,13 @@ export default function DashboardPage(){
     const handle=setTimeout(loadMembers, memberSearch?300:0);
     return()=>clearTimeout(handle);
   },[loadMembers]);
+
+  // Jumping to Members from the topbar Search button should land the
+  // cursor ready to type, not just switch tabs and leave the user hunting
+  // for the search box themselves.
+  useEffect(()=>{
+    if(page==='members') requestAnimationFrame(()=>memberSearchRef.current?.focus());
+  },[page]);
 
   async function confirmDeleteMember(){
     if(!deleteTarget)return;
@@ -2181,7 +2189,7 @@ export default function DashboardPage(){
                   </div>
                 </div>
                 <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
-                  <input value={memberSearch} onChange={e=>setMemberSearch(e.target.value)} placeholder="Search by name..." style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 10px',fontSize:12,outline:'none',flex:1,minWidth:160,background:t.input,color:t.text}}/>
+                  <input ref={memberSearchRef} value={memberSearch} onChange={e=>setMemberSearch(e.target.value)} placeholder="Search by name..." style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 10px',fontSize:12,outline:'none',flex:1,minWidth:160,background:t.input,color:t.text}}/>
                   {['overseer','general_overseer','branch_pastor','pa','lead_tech'].includes(userRole) && memberFellowshipsList.length>0 && (
                     <select value={memberFellowshipId} onChange={e=>setMemberFellowshipId(e.target.value)}
                       style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 10px',fontSize:12,outline:'none',background:t.input,color:t.text}}>
