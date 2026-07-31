@@ -1470,6 +1470,7 @@ export default function DashboardPage(){
   const [selectedBranch,setSelectedBranch]=useState('');
   const [userName,setUserName]=useState('');
   const [userRole,setUserRole]=useState('');
+  const [userBranchId,setUserBranchId]=useState('');
   const [eventsSubTab,setEventsSubTab]=useState<'planner'|'programs'>('planner');
   const [selectedCell,setSelectedCell]=useState<CellRow|null>(null);
   const [cellFilter,setCellFilter]=useState<string>('all');
@@ -1553,6 +1554,7 @@ export default function DashboardPage(){
       if(data?.name&&data.name!=='General')setUserName(data.name);
       else if(data?.email)setUserName(data.email.split('@')[0]);
       if(data?.role)setUserRole(data.role);
+      if(data?.branch_id)setUserBranchId(data.branch_id);
     }).catch(()=>{});
     // Reload config fresh - especially after onboarding
     const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
@@ -1804,13 +1806,24 @@ export default function DashboardPage(){
             </div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:12}}>
-            {branchesList.length>1&&userRole!=='branch_pastor'&&(
-              <select value={selectedBranch} onChange={e=>setSelectedBranch(e.target.value)}
-                title="Viewing scope"
-                style={{border:`0.5px solid ${t.navBorder}`,borderRadius:8,padding:'6px 10px',fontSize:11,background:t.cardInner,color:t.text,outline:'none',fontFamily:'inherit',cursor:'pointer'}}>
-                <option value="">All Branches (Consolidated)</option>
-                {branchesList.map(b=>(<option key={b.id} value={b.id}>{b.name}</option>))}
-              </select>
+            {userRole==='branch_pastor' ? (
+              <div title="You are scoped to your own branch — every figure and action here applies only to it"
+                style={{display:'flex',alignItems:'center',gap:7,padding:'6px 12px',borderRadius:20,border:'0.5px solid rgba(29,158,117,0.3)',background:dark?'rgba(29,158,117,0.12)':'#E1F5EE'}}>
+                <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',flexShrink:0,boxShadow:'0 0 0 3px rgba(29,158,117,0.2)'}}/>
+                <span style={{fontSize:11,fontWeight:700,color:'#085041'}}>Viewing: {branchesList.find(b=>b.id===userBranchId)?.name || 'Your Branch'}</span>
+              </div>
+            ) : branchesList.length>1&&(
+              <div style={{position:'relative',display:'flex',alignItems:'center'}}>
+                <div style={{position:'absolute',left:10,display:'flex',alignItems:'center',gap:6,pointerEvents:'none',zIndex:1}}>
+                  <span style={{width:7,height:7,borderRadius:'50%',background:selectedBranch?'#BA7517':'#534AB7',flexShrink:0,boxShadow:`0 0 0 3px ${selectedBranch?'rgba(186,117,23,0.18)':'rgba(83,74,183,0.18)'}`}}/>
+                </div>
+                <select value={selectedBranch} onChange={e=>setSelectedBranch(e.target.value)}
+                  title="Viewing scope — every figure and action on this page applies to whatever is selected here"
+                  style={{border:`1px solid ${selectedBranch?'rgba(186,117,23,0.35)':'rgba(83,74,183,0.35)'}`,borderRadius:20,padding:'6px 12px 6px 22px',fontSize:11,fontWeight:700,background:selectedBranch?(dark?'rgba(186,117,23,0.12)':'#FAEEDA'):(dark?'rgba(83,74,183,0.12)':t.purpleBg),color:selectedBranch?'#633806':'#3C3489',outline:'none',fontFamily:'inherit',cursor:'pointer',appearance:'none' as const}}>
+                  <option value="">Viewing: All Branches (Consolidated)</option>
+                  {branchesList.map(b=>(<option key={b.id} value={b.id}>Viewing: {b.name}</option>))}
+                </select>
+              </div>
             )}
             {!isMobile&&!dark&&(<div style={{display:'flex',background:t.cardInner,border:`0.5px solid ${t.border}`,borderRadius:20,padding:2,gap:2}}><button onClick={()=>setSidebarStyle('light')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='light'?'#534AB7':'transparent',color:sidebarStyle==='light'?'#fff':t.muted,fontFamily:'inherit'}}>Light sidebar</button><button onClick={()=>setSidebarStyle('dark')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='dark'?'#534AB7':'transparent',color:sidebarStyle==='dark'?'#fff':t.muted,fontFamily:'inherit'}}>Dark sidebar</button></div>)}
             <button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Search</button>

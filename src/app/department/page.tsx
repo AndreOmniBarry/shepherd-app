@@ -87,6 +87,7 @@ export default function DepartmentHeadPage() {
   const [serviceDate, setServiceDate] = useState('');
   const [serviceNumber, setServiceNumber] = useState(1);
   const [dayServiceCounts, setDayServiceCounts] = useState<Record<string, number>>({});
+  const [specialServices, setSpecialServices] = useState<{ id: string; service_date: string; label: string; submitted: boolean }[]>([]);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -187,6 +188,8 @@ export default function DepartmentHeadPage() {
         }
       })
       .catch(() => router.push('/login'));
+
+    fetch('/api/services/special/upcoming', { credentials: 'include' }).then(r => r.json()).then(({ data }) => setSpecialServices(data?.special_services || [])).catch(() => {});
 
     loadMembers();
 
@@ -350,6 +353,23 @@ export default function DepartmentHeadPage() {
         {/* SUBMIT */}
         {tab === 'submit' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {specialServices.some(s => !s.submitted) && (
+              <div style={{ background: t.purpleBg, borderRadius: 12, border: '0.5px solid rgba(83,74,183,0.2)', padding: '14px 16px' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: t.purple, marginBottom: 8 }}>Special service days awaiting your attendance</div>
+                {specialServices.filter(s => !s.submitted).map(s => (
+                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{s.label}</div>
+                      <div style={{ fontSize: 11, color: t.muted }}>{s.service_date}</div>
+                    </div>
+                    <button onClick={() => { setServiceDate(s.service_date); setServiceNumber(1); }}
+                      style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                      Submit for this day
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             {/* Service date */}
             <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Service date</div>
