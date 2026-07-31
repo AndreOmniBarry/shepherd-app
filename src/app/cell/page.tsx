@@ -160,6 +160,8 @@ export default function CellPage() {
   const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'prayer' | 'birthdays' | 'followup' | 'members' | 'meetings'>('overview');
   const [members, setMembers] = useState<Member[]>([]);
   const [serviceDate, setServiceDate] = useState('');
+  const [serviceNumber, setServiceNumber] = useState(1);
+  const [servicesPerDay, setServicesPerDay] = useState(1);
   const [attendance, setAttendance] = useState<Record<string, 'present' | 'absent'>>({});
   const [absenceReasons, setAbsenceReasons] = useState<Record<string, string>>({});
   const [visitorCount, setVisitorCount] = useState(0);
@@ -211,6 +213,12 @@ export default function CellPage() {
         if (!data) { router.push('/login'); return; }
         setCellName(data.cell_name || 'Your Cell');
         setLeaderName(data.name || '');
+        if (data.branch_id) {
+          fetch('/api/branches', { credentials: 'include' }).then(r => r.json()).then(({ data: bd }) => {
+            const mine = (bd?.branches || []).find((b: { id: string }) => b.id === data.branch_id);
+            if (mine?.services_per_day) setServicesPerDay(mine.services_per_day);
+          }).catch(() => {});
+        }
       })
       .catch(() => router.push('/login'));
 
@@ -302,6 +310,7 @@ export default function CellPage() {
         credentials: 'include',
         body: JSON.stringify({
           service_date: serviceDate,
+          service_number: serviceNumber,
           entries,
           visitor_count: visitorCount,
           absence_reasons: absenceReasons,
@@ -389,6 +398,7 @@ export default function CellPage() {
             style={{ width: 30, height: 30, borderRadius: 8, border: `0.5px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.muted, fontSize: 14 }}>
             {dark ? '☀' : '◑'}
           </div>
+          <button onClick={() => router.push("/church-center")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Center</button>
           <button onClick={() => router.push("/calendar")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Calendar</button><NotificationBell dark={dark} /><MyAccountButton dark={dark} /><button onClick={logout} style={{ background: "transparent", color: t.muted, border: "none", fontSize: 12, cursor: "pointer" }}>Sign out</button>
         </div>
       </div>
@@ -427,6 +437,17 @@ export default function CellPage() {
               <input type="date" value={serviceDate} max={new Date().toISOString().split('T')[0]} min={new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0]}
                 onChange={e => setServiceDate(e.target.value)}
                 style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 13, outline: 'none', background: t.input, color: t.text }} />
+              {servicesPerDay > 1 && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Which service?</div>
+                  <select value={serviceNumber} onChange={e => setServiceNumber(Number(e.target.value))}
+                    style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '7px 10px', fontSize: 13, outline: 'none', background: t.input, color: t.text }}>
+                    {Array.from({ length: servicesPerDay }, (_, i) => i + 1).map(n => (
+                      <option key={n} value={n}>Service {n}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div style={{ fontSize: 11, color: t.muted, marginTop: 6 }}>
                 {serviceDate ? `${serviceDayName}, ${(() => { const [yr,mo,dy] = serviceDate.split('-').map(Number); return new Date(yr, mo-1, dy).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); })()}` : ''} — records older than 14 days can&apos;t be submitted; contact your administrator.
               </div>

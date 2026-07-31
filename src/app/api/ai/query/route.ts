@@ -109,7 +109,7 @@ IMPORTANT: For total church income use income_records joined with income_types. 
 
 Dates always come from services.service_date. Join through services for time-filtered attendance or giving queries.
 sub_group in members only contains "children" or "teenagers" for age classification. Leader data is NOT stored in the database. If asked about a cell leader, state clearly: "Leader information is not currently stored in the database."
-CYDF: Children (0-12) and Teenagers (13-17) always shown as separate figures.
+CYDF: Children (0-12) and Teenagers (13-19) always shown as separate figures.
 
 ## SQL TOOL
 The sql field must contain only raw SQL starting with SELECT or WITH.
@@ -123,7 +123,7 @@ records, cell engagement, giving summaries, financial trends, per-capita and YTD
 counts, demographics, and conversion tracking.
 Format all amounts as NGN with the naira sign. For financial queries always return amount, date,
 category, and reference ID where available.
-Age bands for demographics: 0-12 (children), 13-17 (teenagers), 18-25, 26-35, 36-50, 51+.
+Age bands for demographics: 0-12 (children), 13-19 (teenagers), 20-25, 26-35, 36-50, 51+.
 Net growth = new members minus inactive or transferred in the same period.
 When asked which cells need help, query attendance over the last 8 weeks and rank by lowest
 performance or steepest decline.`;

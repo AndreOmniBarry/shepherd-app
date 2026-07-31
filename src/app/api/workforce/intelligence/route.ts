@@ -54,17 +54,43 @@ export async function GET(req: Request) {
 
     const departmentStats = departments.map((dept: Record<string,unknown>) => {
       const deptRosters = allRosters.filter((r: Record<string,unknown>) => r.department_id === dept.id);
-      const memberCount = allDeptMembers.filter((m: Record<string,unknown>) => m.department_id === dept.id).length;
+      const deptMemberRows = allDeptMembers.filter((m: Record<string,unknown>) => m.department_id === dept.id);
+      const memberCount = deptMemberRows.length;
       const nextRoster = deptRosters.find((r: Record<string,unknown>) => r.service_date >= today);
       const entries = (nextRoster as Record<string,unknown[]>|null)?.workforce_roster_entries || [];
       const coverage = entries.length > 0 ? 'scheduled' : 'no_roster';
       const lastRoster = deptRosters[0];
+
+      // Drill-down data — every member in this department with their own
+      // reliability stats, and the department's last 8 rosters. Computed
+      // here since we already fetched all of it; no extra round-trip when
+      // the pastor expands a department in the intelligence panel.
+      const deptProfiles = allProfiles.filter((p: Record<string,unknown>) => p.primary_department_id === dept.id);
+      const profileByMember: Record<string, Record<string,unknown>> = {};
+      deptProfiles.forEach((p: Record<string,unknown>) => { profileByMember[p.member_id as string] = p; });
+      const members = deptMemberRows.map((dm: Record<string,unknown>) => {
+        const info = dm.members as Record<string,string>|null;
+        const profile = profileByMember[dm.member_id as string];
+        return {
+          member_id: dm.member_id, full_name: info?.full_name || 'Unknown', membership_status: info?.membership_status || null,
+          reliability_score: profile?.reliability_score ?? null,
+          total_assigned: profile?.total_services_assigned ?? null,
+          total_attended: profile?.total_services_attended ?? null,
+          last_served: profile?.last_served ?? null,
+        };
+      });
+      const recentRosters = deptRosters.slice(0, 8).map((r: Record<string,unknown>) => ({
+        id: r.id, service_date: r.service_date, published: r.published,
+        entries_count: ((r.workforce_roster_entries as unknown[]) || []).length,
+      }));
+
       return {
         id: dept.id, name: dept.name, member_count: memberCount,
         next_roster_date: nextRoster ? (nextRoster as Record<string,unknown>).service_date : null,
         next_roster_coverage: coverage, roster_count: deptRosters.length,
         last_roster_date: lastRoster ? (lastRoster as Record<string,unknown>).service_date : null,
         assigned_next: entries.length,
+        members, recent_rosters: recentRosters,
       };
     });
 
@@ -78,9 +104,13 @@ export async function GET(req: Request) {
       const memberInfo = dm.members as Record<string,string>|null;
       if (memberInfo?.full_name) memberNameMap[mid] = memberInfo.full_name;
     });
+    const deptNameMap: Record<string, string> = {};
+    departments.forEach((d: Record<string,unknown>) => { deptNameMap[d.id as string] = d.name as string; });
+    const deptBreakdown = (member_id: string) => (memberDeptMap[member_id] || []).map(id => ({ department_id: id, department_name: deptNameMap[id] || 'Department' }));
+
     const overcommitted = Object.entries(memberDeptMap)
       .filter(([, depts]) => depts.length >= 3)
-      .map(([member_id, dept_ids]) => ({ member_id, full_name: memberNameMap[member_id] || 'Unknown', department_count: dept_ids.length }))
+      .map(([member_id, dept_ids]) => ({ member_id, full_name: memberNameMap[member_id] || 'Unknown', department_count: dept_ids.length, departments: deptBreakdown(member_id) }))
       .slice(0, 10);
 
     // Reliability rankings
@@ -94,6 +124,7 @@ export async function GET(req: Request) {
         total_assigned: p.total_services_assigned,
         total_attended: p.total_services_attended,
         last_served: p.last_served,
+        departments: deptBreakdown(p.member_id as string),
       }));
 
     // Summary stats

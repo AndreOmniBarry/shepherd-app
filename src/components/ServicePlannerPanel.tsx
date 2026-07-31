@@ -235,7 +235,7 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
             {items.length === 0 ? (
               <div style={{ fontSize: 12, color: t.muted, textAlign: 'center', padding: '20px 0' }}>No items yet — add the first one.</div>
             ) : items.map((it, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 140px 70px auto', gap: 8, alignItems: 'center', padding: '7px 0', borderBottom: `0.5px solid ${t.border}` }}>
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 140px 84px auto', gap: 8, alignItems: 'center', padding: '7px 0', borderBottom: `0.5px solid ${t.border}` }}>
                 <select value={it.item_type} onChange={e => updateItem(i, { item_type: e.target.value })}
                   style={{ border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '5px 7px', fontSize: 11, background: t.input, color: t.text, outline: 'none' }}>
                   {ITEM_TYPES.map(ty => (<option key={ty} value={ty}>{ty}</option>))}
@@ -247,8 +247,11 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
                   <option value="">Unassigned</option>
                   {leaders.map(l => (<option key={l.id} value={l.id}>{l.full_name}</option>))}
                 </select>
-                <input type="number" value={it.duration_minutes} onChange={e => updateItem(i, { duration_minutes: Number(e.target.value) })}
-                  style={{ border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '5px 7px', fontSize: 11, background: t.input, color: t.text, outline: 'none' }} />
+                <div style={{ position: 'relative' }}>
+                  <input type="number" min={0} value={it.duration_minutes} onChange={e => updateItem(i, { duration_minutes: Number(e.target.value) })}
+                    style={{ width: '100%', boxSizing: 'border-box', border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '5px 30px 5px 7px', fontSize: 11, background: t.input, color: t.text, outline: 'none' }} />
+                  <span style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: t.muted, pointerEvents: 'none' }}>min</span>
+                </div>
                 <button onClick={() => removeItem(i)} style={{ background: 'transparent', border: 'none', color: t.coral, cursor: 'pointer' }}><Icon name="ti-x" size={14} /></button>
               </div>
             ))}

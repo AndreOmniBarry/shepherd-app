@@ -5,6 +5,7 @@ import MyAccountButton from "@/components/MyAccountButton";
 import Icon from "@/components/Icon";
 import PastorAttendance from '@/components/PastorAttendance';
 import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
+import TotalHistoryPanel from '@/components/TotalHistoryPanel';
 import PastorGiving from '@/components/PastorGiving';
 import PastorRequisitions from '@/components/PastorRequisitions';
 import FellowshipValidation from '@/components/FellowshipValidation';
@@ -311,17 +312,22 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
   );
 }
 
+type WorkforceDeptMember = {member_id:string;full_name:string;membership_status:string|null;reliability_score:number|null;total_assigned:number|null;total_attended:number|null;last_served:string|null};
+type WorkforceDeptRoster = {id:string;service_date:string;published:boolean;entries_count:number};
+type WorkforceMemberDept = {department_id:string;department_name:string};
 type WorkforceData = {
   summary: {total_workforce:number;total_departments:number;departments_scheduled_next_sunday:number;departments_with_gaps:number;overcommitted_members:number};
-  department_stats: {id:string;name:string;member_count:number;next_roster_date:string|null;next_roster_coverage:string;roster_count:number;last_roster_date:string|null;assigned_next:number}[];
-  overcommitted: {member_id:string;full_name:string;department_count:number}[];
-  reliability_rankings: {member_id:string;full_name:string;reliability_score:number;total_assigned:number;total_attended:number;last_served:string|null}[];
+  department_stats: {id:string;name:string;member_count:number;next_roster_date:string|null;next_roster_coverage:string;roster_count:number;last_roster_date:string|null;assigned_next:number;members:WorkforceDeptMember[];recent_rosters:WorkforceDeptRoster[]}[];
+  overcommitted: {member_id:string;full_name:string;department_count:number;departments:WorkforceMemberDept[]}[];
+  reliability_rankings: {member_id:string;full_name:string;reliability_score:number;total_assigned:number;total_attended:number;last_served:string|null;departments:WorkforceMemberDept[]}[];
   next_sunday: string;
 };
 
 function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; branchId?: string}) {
   const [data, setData] = React.useState<WorkforceData|null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [expandedDept, setExpandedDept] = React.useState<string|null>(null);
+  const [expandedMember, setExpandedMember] = React.useState<string|null>(null);
 
   React.useEffect(() => {
     setLoading(true);
@@ -360,7 +366,8 @@ function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; br
       </div>
 
       <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'16px 18px'}}>
-        <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:12}}>Department Coverage</div>
+        <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:2}}>Department Coverage</div>
+        <div style={{fontSize:11,color:t.muted,marginBottom:10}}>Click a department to drill into its roster and every member serving there.</div>
         <table style={{width:'100%',borderCollapse:'collapse'}}>
           <thead>
             <tr>
@@ -372,16 +379,44 @@ function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; br
           </thead>
           <tbody>
             {data.department_stats.map(d=>(
-              <tr key={d.id} style={{borderTop:`0.5px solid ${t.border}`}}>
-                <td style={{padding:'8px',fontSize:12,color:t.text}}>{d.name}</td>
-                <td style={{padding:'8px',fontSize:12,color:t.sub}}>{d.member_count}</td>
-                <td style={{padding:'8px',fontSize:12,color:t.sub}}>{d.next_roster_date ? `${d.next_roster_date} · ${d.assigned_next} assigned` : '—'}</td>
-                <td style={{padding:'8px'}}>
-                  <span style={{fontSize:10,padding:'3px 9px',borderRadius:8,fontWeight:600,background:d.next_roster_coverage==='scheduled'?'#E1F5EE':'#FAECE7',color:d.next_roster_coverage==='scheduled'?'#085041':'#993C1D'}}>
-                    {d.next_roster_coverage==='scheduled'?'Covered':'No roster yet'}
-                  </span>
-                </td>
-              </tr>
+              <React.Fragment key={d.id}>
+                <tr onClick={()=>setExpandedDept(v=>v===d.id?null:d.id)} style={{borderTop:`0.5px solid ${t.border}`,cursor:'pointer',background:expandedDept===d.id?t.purpleBg:'transparent'}}>
+                  <td style={{padding:'8px',fontSize:12,color:t.text,fontWeight:expandedDept===d.id?600:400}}>{expandedDept===d.id?'▾ ':'▸ '}{d.name}</td>
+                  <td style={{padding:'8px',fontSize:12,color:t.sub}}>{d.member_count}</td>
+                  <td style={{padding:'8px',fontSize:12,color:t.sub}}>{d.next_roster_date ? `${d.next_roster_date} · ${d.assigned_next} assigned` : '—'}</td>
+                  <td style={{padding:'8px'}}>
+                    <span style={{fontSize:10,padding:'3px 9px',borderRadius:8,fontWeight:600,background:d.next_roster_coverage==='scheduled'?'#E1F5EE':'#FAECE7',color:d.next_roster_coverage==='scheduled'?'#085041':'#993C1D'}}>
+                      {d.next_roster_coverage==='scheduled'?'Covered':'No roster yet'}
+                    </span>
+                  </td>
+                </tr>
+                {expandedDept===d.id && (
+                  <tr>
+                    <td colSpan={4} style={{padding:'0 8px 14px',background:t.purpleBg}}>
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,paddingTop:6}}>
+                        <div>
+                          <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:6}}>Members ({d.members.length})</div>
+                          {d.members.length===0 ? <div style={{fontSize:12,color:t.muted}}>No members assigned yet.</div> : d.members.map(m=>(
+                            <div key={m.member_id} style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'4px 0'}}>
+                              <span style={{color:t.text}}>{m.full_name}</span>
+                              <span style={{color:t.sub}}>{m.reliability_score!=null?`${m.reliability_score.toFixed(1)} · ${m.total_attended}/${m.total_assigned}`:'No history'}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div>
+                          <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:6}}>Recent rosters</div>
+                          {d.recent_rosters.length===0 ? <div style={{fontSize:12,color:t.muted}}>No rosters yet.</div> : d.recent_rosters.map(r=>(
+                            <div key={r.id} style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'4px 0'}}>
+                              <span style={{color:t.text}}>{r.service_date}</span>
+                              <span style={{color:t.sub}}>{r.entries_count} assigned{r.published?'':' · draft'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
@@ -393,9 +428,16 @@ function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; br
           {data.reliability_rankings.length===0 ? (
             <div style={{fontSize:12,color:t.muted}}>No serving history recorded yet.</div>
           ) : data.reliability_rankings.map((r,i)=>(
-            <div key={r.member_id} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:i<data.reliability_rankings.length-1?`0.5px solid ${t.border}`:'none'}}>
-              <span style={{fontSize:12,color:t.text}}>{r.full_name}</span>
-              <span style={{fontSize:12,color:t.purple,fontWeight:600}}>{r.reliability_score?.toFixed(1)} · {r.total_attended}/{r.total_assigned}</span>
+            <div key={r.member_id}>
+              <div onClick={()=>setExpandedMember(v=>v===r.member_id?null:r.member_id)} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:i<data.reliability_rankings.length-1&&expandedMember!==r.member_id?`0.5px solid ${t.border}`:'none',cursor:'pointer'}}>
+                <span style={{fontSize:12,color:t.text}}>{expandedMember===r.member_id?'▾ ':'▸ '}{r.full_name}</span>
+                <span style={{fontSize:12,color:t.purple,fontWeight:600}}>{r.reliability_score?.toFixed(1)} · {r.total_attended}/{r.total_assigned}</span>
+              </div>
+              {expandedMember===r.member_id && (
+                <div style={{padding:'4px 0 10px 14px',fontSize:11,color:t.sub}}>
+                  Serves in: {r.departments.map(d=>d.department_name).join(', ') || '—'}{r.last_served ? ` · Last served ${r.last_served}` : ''}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -404,9 +446,16 @@ function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; br
           {data.overcommitted.length===0 ? (
             <div style={{fontSize:12,color:t.muted}}>Nobody is currently spread across 3 or more departments.</div>
           ) : data.overcommitted.map(o=>(
-            <div key={o.member_id} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',fontSize:12}}>
-              <span style={{color:t.text}}>{o.full_name}</span>
-              <span style={{color:t.coral}}>{o.department_count} departments</span>
+            <div key={o.member_id}>
+              <div onClick={()=>setExpandedMember(v=>v===o.member_id?null:o.member_id)} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',fontSize:12,cursor:'pointer'}}>
+                <span style={{color:t.text}}>{expandedMember===o.member_id?'▾ ':'▸ '}{o.full_name}</span>
+                <span style={{color:t.coral}}>{o.department_count} departments</span>
+              </div>
+              {expandedMember===o.member_id && (
+                <div style={{padding:'0 0 10px 14px',fontSize:11,color:t.sub}}>
+                  {o.departments.map(d=>d.department_name).join(', ') || '—'}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -648,7 +697,7 @@ function TeamAccessPanel({t}: {t: Record<string,string>}) {
   );
 }
 
-function ChurchSettingsPanel({t, dark, onConfigSaved}: {t: Record<string,string>; dark: boolean; onConfigSaved?: (cfg:{structure_type:string;tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string})=>void}) {
+function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<string,string>; dark: boolean; userRole?: string; onConfigSaved?: (cfg:{structure_type:string;tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string})=>void}) {
   const [config, setConfig] = React.useState<Record<string,unknown>>({});
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
@@ -876,8 +925,89 @@ function ChurchSettingsPanel({t, dark, onConfigSaved}: {t: Record<string,string>
           <div style={{marginTop:16,background:t.purpleBg,borderRadius:8,padding:'10px 14px',fontSize:12,color:t.purple}}>
             Active: {serviceDays.join(', ') || 'None selected'}
           </div>
+          <div style={{marginTop:6,fontSize:11,color:t.muted}}>
+            This is the church-wide default. Branches can run their own schedule below — different days, or more than one service in a day.
+          </div>
         </div>
       )}
+      {activeTab === 'services' && ['overseer','general_overseer','branch_pastor','lead_tech'].includes(userRole||'') && (
+        <BranchScheduleEditor t={t} userRole={userRole||''} allDays={DAYS} />
+      )}
+    </div>
+  );
+}
+
+function BranchScheduleEditor({t, userRole, allDays}: {t: Record<string,string>; userRole: string; allDays: string[]}) {
+  const [branches, setBranches] = React.useState<{id:string;name:string;service_days:string[];services_per_day:number}[]>([]);
+  const [selectedId, setSelectedId] = React.useState('');
+  const [days, setDays] = React.useState<string[]>(['Sunday']);
+  const [perDay, setPerDay] = React.useState(1);
+  const [loading, setLoading] = React.useState(true);
+  const [saving, setSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
+
+  React.useEffect(() => {
+    fetch('/api/branches', { credentials: 'include' }).then(r=>r.json()).then(({data})=>{
+      const list = data?.branches || [];
+      setBranches(list);
+      if (list.length > 0) setSelectedId(list[0].id);
+    }).finally(()=>setLoading(false));
+  }, []);
+
+  React.useEffect(() => {
+    const b = branches.find(x => x.id === selectedId);
+    if (b) { setDays(b.service_days?.length ? b.service_days : ['Sunday']); setPerDay(b.services_per_day || 1); }
+  }, [selectedId, branches]);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/branches', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ id: selectedId, service_days: days, services_per_day: perDay }),
+      });
+      if (res.ok) {
+        setSaved(true); setTimeout(()=>setSaved(false), 3000);
+        setBranches(prev => prev.map(b => b.id === selectedId ? { ...b, service_days: days, services_per_day: perDay } : b));
+      }
+    } catch {}
+    setSaving(false);
+  }
+
+  if (loading) return null;
+  if (branches.length === 0) return null;
+
+  return (
+    <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'18px 20px'}}>
+      <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:2}}>Branch Schedule</div>
+      <div style={{fontSize:12,color:t.muted,marginBottom:14}}>Each branch can run its own service days and its own number of services per day — a branch pastor only ever edits their own branch.</div>
+
+      {userRole !== 'branch_pastor' && branches.length > 1 && (
+        <select value={selectedId} onChange={e=>setSelectedId(e.target.value)}
+          style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',fontSize:13,background:t.input,color:t.text,outline:'none',marginBottom:14}}>
+          {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      )}
+
+      <div style={{fontSize:11,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:8}}>Service days</div>
+      <div style={{display:'flex',gap:8,flexWrap:'wrap' as const,marginBottom:16}}>
+        {allDays.map(day => (
+          <button key={day} onClick={()=>setDays(prev => prev.includes(day) ? prev.filter(d=>d!==day) : [...prev,day])}
+            style={{padding:'7px 14px',borderRadius:20,border:`0.5px solid ${days.includes(day)?t.purple:t.border}`,background:days.includes(day)?t.purple:t.input,color:days.includes(day)?'#fff':t.sub,fontSize:12,fontWeight:days.includes(day)?600:400,cursor:'pointer'}}>
+            {day}
+          </button>
+        ))}
+      </div>
+
+      <div style={{fontSize:11,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:8}}>Services per day</div>
+      <input type="number" min={1} max={10} value={perDay} onChange={e=>setPerDay(Math.max(1,Math.min(10,Number(e.target.value)||1)))}
+        style={{width:80,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',fontSize:13,background:t.input,color:t.text,outline:'none'}} />
+      <div style={{fontSize:11,color:t.muted,marginTop:6}}>e.g. a branch running 3 Sunday services would set this to 3 — attendance submission will offer Service 1/2/3.</div>
+
+      <button onClick={save} disabled={saving || days.length===0}
+        style={{marginTop:16,background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'9px 18px',fontSize:13,fontWeight:600,cursor:saving?'wait':'pointer',opacity:days.length===0?0.5:1}}>
+        {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save branch schedule'}
+      </button>
     </div>
   );
 }
@@ -1437,7 +1567,6 @@ export default function DashboardPage(){
   const [sentCommendations,setSentCommendations]=useState<{to:string;type:string;msg:string;time:string}[]>([]);
   const [editGoals,setEditGoals]=useState(false);
   const [liveFeed,setLiveFeed]=useState<{id:string;cell:string;fellowship:string;present:number;absent:number;visitors:number;mins_ago:number}[]>([]);
-  const [weeklyAttendance,setWeeklyAttendance]=useState<{w:string;total:number}[]>([]);
   const [livePresent,setLivePresent]=useState<number|null>(null);
   const [liveCellsReported,setLiveCellsReported]=useState<number|null>(null);
 
@@ -1488,21 +1617,6 @@ export default function DashboardPage(){
     fetch(`/api/cells/all${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setDbCells(data?.cells||[]);}).catch(()=>{});
     fetch(`/api/members/leaders${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setLeaderOptions(data?.leaders||[]);}).catch(()=>{});
     fetch(`/api/fellowships/all${bq}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{setMemberFellowshipsList(data?.fellowships||[]);}).catch(()=>{});
-    fetch(`/api/attendance?weeks=8${selectedBranch?`&branch_id=${selectedBranch}`:''}`,{credentials:'include'}).then(r=>r.json()).then(({data})=>{
-      const records=data?.records||[];
-      const now=new Date();
-      const buckets:{w:string;total:number}[]=[];
-      for(let i=7;i>=0;i--){
-        const weekStart=new Date(now); weekStart.setDate(now.getDate()-now.getDay()-i*7);
-        const weekEnd=new Date(weekStart); weekEnd.setDate(weekStart.getDate()+7);
-        const total=records.filter((r:{services?:{service_date:string}})=>{
-          const d=r.services?.service_date?new Date(r.services.service_date):null;
-          return d && d>=weekStart && d<weekEnd;
-        }).reduce((s:number,r:{present_count?:number;visitor_count?:number})=>s+(r.present_count||0)+(r.visitor_count||0),0);
-        buckets.push({w:`W${8-i}`,total});
-      }
-      setWeeklyAttendance(buckets);
-    }).catch(()=>{});
   },[selectedBranch]);
 
   useEffect(()=>{
@@ -1765,34 +1879,14 @@ export default function DashboardPage(){
                 ))}
               </div>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:14,marginBottom:14}}>
-                <div onClick={()=>setPage('attendance')} style={{...card(),cursor:'pointer'}}>
+                <div style={card()}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
-                    <span style={{fontSize:13,fontWeight:500,color:t.text}}>Attendance trend (8 Sundays)</span>
-                    <span style={{fontSize:12,color:t.purple}}>View all →</span>
+                    <span style={{fontSize:13,fontWeight:500,color:t.text}}>Attendance trend</span>
+                    <span style={{fontSize:12,color:t.purple,cursor:'pointer'}} onClick={()=>setPage('attendance')}>View all →</span>
                   </div>
-                  <ResponsiveContainer width="100%" height={100}>
-                    <AreaChart data={weeklyAttendance} margin={{top:2,right:0,left:-30,bottom:0}}>
-                      <defs>
-                        <linearGradient id="dashAttFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#534AB7" stopOpacity={0.35}/>
-                          <stop offset="95%" stopColor="#534AB7" stopOpacity={0.02}/>
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="w" tick={{fontSize:9,fill:t.chartAxis}} tickLine={false} axisLine={false}/>
-                      <YAxis hide/><Tooltip contentStyle={{fontSize:11,borderRadius:6,border:'1px solid #e5e7eb'}}/>
-                      <Area type="monotone" dataKey="total" name="Attendance" stroke="#534AB7" strokeWidth={2} fill="url(#dashAttFill)"/>
-                    </AreaChart>
-                  </ResponsiveContainer>
-                  {weeklyAttendance.length>0 && weeklyAttendance.some(w=>w.total>0) && (()=>{
-                    const nonZero=weeklyAttendance.filter(w=>w.total>0);
-                    const avg=Math.round(nonZero.reduce((s,w)=>s+w.total,0)/nonZero.length);
-                    const best=nonZero.reduce((a,b)=>b.total>a.total?b:a);
-                    return (
-                      <div style={{fontSize:11,color:t.muted,marginTop:8,paddingTop:8,borderTop:`0.5px solid ${t.border}`}}>
-                        Avg {avg} · Best {best.w} at {best.total}
-                      </div>
-                    );
-                  })()}
+                  <AttendanceHistoryPanel t={t} color="#534AB7"
+                    fetchUrl={(g,o)=>`/api/analytics/attendance/history?granularity=${g}&offset=${o}${selectedBranch?`&branch_id=${selectedBranch}`:''}`}
+                    emptyText="No attendance logged for this window yet." />
                 </div>
                 <div style={card()}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
@@ -1914,12 +2008,12 @@ export default function DashboardPage(){
               <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
                 {(()=>{
                   const children=kpi?.age_bands?.find(b=>b.band==='0–12')?.n||0;
-                  const teens=kpi?.age_bands?.find(b=>b.band==='13–17')?.n||0;
+                  const teens=kpi?.age_bands?.find(b=>b.band==='13–19')?.n||0;
                   return [
                     {label:'Total Members',value:fmt(kpi?.total_members),sub:'All statuses'},
                     {label:'Active Members',value:fmt(kpi?.active_members),sub:'Regularly attending'},
                     {label:'New This Month',value:fmt(kpi?.new_members_month),sub:new Date().toLocaleString('en-US',{month:'long',year:'numeric'})},
-                    {label:'Children & Teens (0–17)',value:fmt(children+teens),sub:(kpi?.age_known||0)>0?`${children} children · ${teens} teens`:'No DOB data yet'},
+                    {label:'Children & Teens (0–19)',value:fmt(children+teens),sub:(kpi?.age_known||0)>0?`${children} children · ${teens} teens`:'No DOB data yet'},
                   ];
                 })().map(s=>(
                   <div key={s.label} style={card()}>
@@ -1931,15 +2025,10 @@ export default function DashboardPage(){
               </div>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:14}}>
                 <div style={card()}>
-                  <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Member Growth - Last 6 Months</div>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <LineChart data={kpi?.growth_trend||[]} margin={{top:5,right:10,left:-20,bottom:0}}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
-                      <XAxis dataKey="month" tick={{fontSize:11,fill:t.chartAxis}}/><YAxis tick={{fontSize:10,fill:t.chartAxis}}/>
-                      <Tooltip contentStyle={{fontSize:12,borderRadius:8,border:'1px solid #e5e7eb',background:t.chartTip,color:t.chartTipText}}/>
-                      <Line type="monotone" dataKey="count" name="Members" stroke="#534AB7" strokeWidth={2} dot={{fill:'#534AB7',r:3}}/>
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Member Growth</div>
+                  <TotalHistoryPanel t={t} color="#534AB7" valueLabel="Members"
+                    fetchUrl={(g,o)=>`/api/analytics/members/history?granularity=${g}&offset=${o}${selectedBranch?`&branch_id=${selectedBranch}`:''}`}
+                    emptyText="No members on file for this window yet." />
                 </div>
                 <div style={card()}>
                   <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Conversion Sources</div>
@@ -2695,7 +2784,7 @@ export default function DashboardPage(){
           )}
           {page==='settings'&&(
             <div>
-              <ChurchSettingsPanel t={t} dark={dark} onConfigSaved={(cfg)=>setChurchConfig(cfg)} />
+              <ChurchSettingsPanel t={t} dark={dark} userRole={userRole} onConfigSaved={(cfg)=>setChurchConfig(cfg)} />
               {userRole==='lead_tech' && <TeamAccessPanel t={t} />}
             </div>
           )}

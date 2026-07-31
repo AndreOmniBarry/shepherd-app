@@ -38,6 +38,7 @@ export async function POST(req: Request) {
         read: false,
         title: '🏆 You have been commended!',
         body: commendation.trim(),
+        link: '/church-center',
       }),
     });
 

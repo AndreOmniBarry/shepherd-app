@@ -1,9 +1,6 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
-import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-
-type HistoryBucket = { label: string; total: number };
-const HISTORY_MAX_LOOKBACK = 24;
+import { useState, useEffect } from 'react';
+import TotalHistoryPanel from '@/components/TotalHistoryPanel';
 
 type GivingData = {
   kpi: { ytd: number; mtd: number; wtd: number; today: number; yoy_growth: number | null; last_year: number };
@@ -16,39 +13,12 @@ type GivingData = {
 };
 
 const TYPE_COLORS = ['#534AB7','#1D9E75','#BA7517','#D85A30','#9C27B0','#E91E63','#00BCD4','#FF5722'];
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-// Same "what this window says" idea as attendance history, but for giving —
-// the win here isn't a rate, it's a total, so the language and formatting
-// differ, but the shape (average/best/weakest/trend) is deliberately the
-// same across every portal this feature reaches.
-function givingTrendStats(points: { label: string; total: number }[]) {
-  if (points.length === 0) return null;
-  const avg = points.reduce((s, p) => s + p.total, 0) / points.length;
-  const best = points.reduce((a, b) => b.total > a.total ? b : a);
-  const worst = points.reduce((a, b) => b.total < a.total ? b : a);
-  const firstHalf = points.slice(0, Math.ceil(points.length / 2));
-  const secondHalf = points.slice(Math.ceil(points.length / 2));
-  const firstAvg = firstHalf.length ? firstHalf.reduce((s, p) => s + p.total, 0) / firstHalf.length : 0;
-  const secondAvg = secondHalf.length ? secondHalf.reduce((s, p) => s + p.total, 0) / secondHalf.length : 0;
-  const trendUp = points.length >= 4 && secondAvg > firstAvg * 1.05;
-  const trendDown = points.length >= 4 && secondAvg < firstAvg * 0.95;
-  return { avg, best, worst, trendUp, trendDown };
-}
 
 interface PastorGivingProps { dark: boolean; t: Record<string, string>; branchId?: string; }
 
 export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
   const [data, setData] = useState<GivingData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'history' | 'day' | 'custom'>('history');
-  const [selectedMonth, setSelectedMonth] = useState<string>(`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`);
-
-  const [historyGranularity, setHistoryGranularity] = useState<'week' | 'month' | 'year'>('month');
-  const [historyOffset, setHistoryOffset] = useState(0);
-  const [historyBuckets, setHistoryBuckets] = useState<HistoryBucket[] | null>(null);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historySearching, setHistorySearching] = useState<'earlier' | 'later' | null>(null);
 
   const fmtNGN = (n: number) => n >= 1e9 ? `₦${(n/1e9).toFixed(2)}B` : n >= 1e6 ? `₦${(n/1e6).toFixed(2)}M` : `₦${Math.round(n).toLocaleString('en-NG')}`;
   const fmtDate = (d: string) => { const [y,mo,dy] = d.split('-').map(Number); return `${dy} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo-1]}`; };
@@ -71,68 +41,11 @@ export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
     return () => clearInterval(interval);
   }, [branchId]);
 
-  const fetchHistoryBuckets = useCallback((g: 'week' | 'month' | 'year', o: number) => {
-    const bq = branchId ? `&branch_id=${branchId}` : '';
-    return fetch(`/api/analytics/giving/history?granularity=${g}&offset=${o}${bq}`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(({ data }) => (data?.buckets as HistoryBucket[] | undefined) || null)
-      .catch(() => null);
-  }, [branchId]);
-
-  useEffect(() => {
-    setHistoryLoading(true);
-    fetchHistoryBuckets(historyGranularity, historyOffset).then(b => { setHistoryBuckets(b); setHistoryLoading(false); });
-  }, [historyGranularity, historyOffset, fetchHistoryBuckets]);
-
-  async function jumpHistory(direction: 'earlier' | 'later') {
-    setHistorySearching(direction);
-    let o = historyOffset;
-    for (let i = 0; i < HISTORY_MAX_LOOKBACK; i++) {
-      o = direction === 'earlier' ? o + 1 : o - 1;
-      if (o < 0) { o = 0; break; }
-      const b = await fetchHistoryBuckets(historyGranularity, o);
-      if (b && b.some(x => x.total > 0)) { setHistoryOffset(o); setHistoryBuckets(b); setHistorySearching(null); return; }
-      if (direction === 'later' && o === 0) break;
-    }
-    setHistoryOffset(o);
-    setHistorySearching(null);
-  }
-
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: t.muted, fontSize: 13 }}>Loading giving intelligence...</div>;
   if (!data) return <div style={{ textAlign: 'center', padding: 60, color: t.muted, fontSize: 13 }}>No giving data available.</div>;
 
-  const historyStats = givingTrendStats((historyBuckets || []).filter(b => b.total > 0));
-
-  function TrendStatsStrip({ stats }: { stats: ReturnType<typeof givingTrendStats> }) {
-    if (!stats) return null;
-    return (
-      <div style={{ marginTop: 14, paddingTop: 14, borderTop: `0.5px solid ${t.border}` }}>
-        <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>What this window says</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
-          <div style={{ fontSize: 12, color: t.sub }}><strong style={{ color: t.text }}>{fmtNGN(stats.avg)}</strong> average</div>
-          <div style={{ fontSize: 12, color: t.sub }}><strong style={{ color: t.teal }}>{fmtNGN(stats.best.total)}</strong> best — {stats.best.label}</div>
-          <div style={{ fontSize: 12, color: t.sub }}><strong style={{ color: t.text }}>{fmtNGN(stats.worst.total)}</strong> weakest — {stats.worst.label}</div>
-          {stats.trendUp && <div style={{ fontSize: 12, color: t.teal }}>↑ Trending up across this window</div>}
-          {stats.trendDown && <div style={{ fontSize: 12, color: t.coral }}>↓ Trending down — worth a closer look</div>}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-      {/* View toggle */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', background: t.input, borderRadius: 10, padding: 3, border: `0.5px solid ${t.border}`, gap: 2 }}>
-          {[{ id: 'history', label: 'History' }, { id: 'day', label: 'Today' }, { id: 'custom', label: 'By Month' }].map(v => (
-            <button key={v.id} onClick={() => setView(v.id as typeof view)}
-              style={{ padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: view === v.id ? 600 : 400, background: view === v.id ? (dark ? 'rgba(83,74,183,0.5)' : '#534AB7') : 'transparent', color: view === v.id ? '#fff' : t.sub, transition: 'all 0.15s', fontFamily: 'inherit' }}>
-              {v.label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
@@ -150,103 +63,16 @@ export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
         ))}
       </div>
 
-      {/* Main chart */}
-      {view === 'history' && (
-        <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '16px' }}>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            {(['week', 'month', 'year'] as const).map(g => (
-              <button key={g} onClick={() => { setHistoryGranularity(g); setHistoryOffset(0); }}
-                style={{ padding: '4px 10px', borderRadius: 20, border: '0.5px solid', cursor: 'pointer', fontSize: 11, fontWeight: historyGranularity === g ? 500 : 400, background: historyGranularity === g ? '#534AB7' : t.input, borderColor: historyGranularity === g ? '#534AB7' : t.border, color: historyGranularity === g ? '#fff' : t.sub }}>
-                {g === 'week' ? 'By Week' : g === 'month' ? 'By Month' : 'By Year'}
-              </button>
-            ))}
-            <div style={{ width: 1, alignSelf: 'stretch', background: t.border, margin: '0 2px' }} />
-            <button onClick={() => jumpHistory('earlier')} disabled={historySearching !== null} title="Jump back to the previous period with giving logged"
-              style={{ padding: '4px 10px', borderRadius: 20, border: `0.5px solid ${t.border}`, cursor: historySearching ? 'wait' : 'pointer', fontSize: 11, background: t.input, color: t.sub }}>
-              {historySearching === 'earlier' ? 'Searching…' : '← Older'}
-            </button>
-            <button onClick={() => jumpHistory('later')} disabled={historyOffset === 0 || historySearching !== null} title="Jump forward to the next period with giving logged"
-              style={{ padding: '4px 10px', borderRadius: 20, border: `0.5px solid ${t.border}`, cursor: historyOffset === 0 || historySearching ? 'default' : 'pointer', fontSize: 11, background: t.input, color: historyOffset === 0 ? t.muted : t.sub, opacity: historyOffset === 0 ? 0.5 : 1 }}>
-              {historySearching === 'later' ? 'Searching…' : 'Newer →'}
-            </button>
-            {historyBuckets && <span style={{ fontSize: 11, color: t.muted }}>{historyBuckets[0]?.label} – {historyBuckets[historyBuckets.length - 1]?.label}</span>}
-          </div>
-          {historyLoading ? (
-            <div style={{ padding: '40px 0', textAlign: 'center', fontSize: 12, color: t.muted }}>Loading giving history…</div>
-          ) : !historyBuckets || historyBuckets.every(b => b.total === 0) ? (
-            <div style={{ padding: '40px 0', textAlign: 'center', fontSize: 12, color: t.muted }}>No giving recorded for this window yet.</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={historyBuckets} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="givingHistFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#534AB7" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#534AB7" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={dark ? 'rgba(168,159,255,0.06)' : '#F0EEF9'} />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: dark ? 'rgba(168,159,255,0.5)' : '#9990CC' }} />
-                <YAxis tick={{ fontSize: 10, fill: dark ? 'rgba(168,159,255,0.5)' : '#9990CC' }} tickFormatter={v => fmtNGN(v)} width={56} />
-                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: t.card, color: t.text, border: `0.5px solid ${t.border}` }} formatter={(v: number) => [fmtNGN(v), 'Total']} />
-                <Area type="monotone" dataKey="total" stroke="#534AB7" strokeWidth={2} fill="url(#givingHistFill)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-          <TrendStatsStrip stats={historyStats} />
-        </div>
-      )}
+      {/* Statement — one pager, week/month/year, Previous/Next, no separate
+          "Today"/"By Month" modes to keep track of; Today is already in the
+          KPI row above and month totals are just the By Month granularity. */}
+      <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '16px' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Statement</div>
+        <TotalHistoryPanel t={t} color="#534AB7" valueLabel="Giving" formatValue={fmtNGN} defaultGranularity="month"
+          fetchUrl={(g, o) => `/api/analytics/giving/history?granularity=${g}&offset=${o}${branchId ? `&branch_id=${branchId}` : ''}`}
+          emptyText="No giving recorded for this window yet." />
+      </div>
 
-      {view === 'day' && (
-        <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '16px' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Today's giving</div>
-          <div style={{ fontSize: 11, color: t.muted, marginBottom: 16 }}>{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
-          {data.kpi.today === 0 ? (
-            <div style={{ textAlign: 'center', padding: '24px 0', color: t.muted, fontSize: 13 }}>No giving recorded today yet.</div>
-          ) : (
-            <div style={{ fontSize: 32, fontWeight: 700, color: t.teal }}>{fmtNGN(data.kpi.today)}</div>
-          )}
-        </div>
-      )}
-
-      {view === 'custom' && (
-        <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Month breakdown</div>
-            <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
-              style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '6px 10px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }}>
-              {data.monthly_trend.filter(m => m.total > 0).map(m => (
-                <option key={m.month} value={m.month}>{m.label} {m.month.split('-')[0]}</option>
-              ))}
-            </select>
-          </div>
-          {(() => {
-            const monthData = data.monthly_trend.find(m => m.month === selectedMonth);
-            if (!monthData) return <div style={{ color: t.muted, fontSize: 13 }}>No data for this month.</div>;
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: t.teal }}>{fmtNGN(monthData.total)}</div>
-                <div style={{ fontSize: 12, color: t.muted }}>Total for {monthData.label}</div>
-                {data.by_type.map((type, i) => {
-                  const amt = (monthData[type.id] as number) || 0;
-                  if (!amt) return null;
-                  const pct = monthData.total > 0 ? Math.round((amt / (monthData.total as number)) * 100) : 0;
-                  return (
-                    <div key={type.id} style={{ marginTop: 4 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, color: t.text }}>{type.name}</span>
-                        <span style={{ fontSize: 11, color: t.muted }}>{fmtNGN(amt)} · {pct}%</span>
-                      </div>
-                      <div style={{ height: 5, background: dark ? 'rgba(255,255,255,0.06)' : '#F0EEF9', borderRadius: 3, overflow: 'hidden' }}>
-                        <div style={{ width: `${pct}%`, height: '100%', background: TYPE_COLORS[i % TYPE_COLORS.length], borderRadius: 3 }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
-        </div>
-      )}
       {/* By type breakdown + recent entries */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {/* By type */}
