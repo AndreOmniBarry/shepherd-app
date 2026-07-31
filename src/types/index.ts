@@ -73,7 +73,7 @@ export type Service = {
   id:             string;
   service_date:   string;
   service_type:   string;
-  service_number: 1 | 2;
+  service_number: number;
   notes:          string | null;
   created_at:     string;
 };
@@ -256,7 +256,7 @@ export type FellowshipBreakdown = {
 
 export type DemographyData = {
   age_bands: {
-    band:       string;    // "0-12", "13-17", "18-25", etc.
+    band:       string;    // "0-12", "13-19", "20-25", etc.
     count:      number;
     sub_group?: SubGroup;
   }[];

@@ -15,12 +15,38 @@ async function getUser(req: Request) {
 
 export async function GET(req: Request) {
   const user = await getUser(req);
-  if (!user || !['overseer', 'general_overseer', 'pa', 'lead_tech'].includes(user.role)) {
-    return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
-  }
-  const res = await fetch(`${S}/rest/v1/branches?order=is_headquarters.desc,name.asc&select=id,name,is_headquarters`, { headers: H() });
+  // Branch names/schedules aren't sensitive — any authenticated role can
+  // read this (a cell leader needs their own branch's service days and
+  // services-per-day to submit attendance correctly).
+  if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const res = await fetch(`${S}/rest/v1/branches?order=is_headquarters.desc,name.asc&select=id,name,is_headquarters,service_days,services_per_day`, { headers: H() });
   const data = await res.json();
   return NextResponse.json({ data: { branches: Array.isArray(data) ? data : [] }, error: null });
+}
+
+// Updates one branch's own service schedule — which weekdays it runs
+// regular services on, and how many services it runs per day. A
+// branch_pastor can only ever touch their own branch; overseer/
+// general_overseer/lead_tech can target any branch by id.
+export async function PATCH(req: Request) {
+  const user = await getUser(req);
+  if (!user || !['overseer', 'general_overseer', 'branch_pastor', 'lead_tech'].includes(user.role)) {
+    return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
+  }
+  const { id, service_days, services_per_day } = await req.json() as { id?: string; service_days?: string[]; services_per_day?: number };
+  const branchId = user.role === 'branch_pastor' ? user.branch_id : id;
+  if (!branchId) return NextResponse.json({ data: null, error: { message: 'branch id is required' } }, { status: 400 });
+  if (!service_days?.length) return NextResponse.json({ data: null, error: { message: 'At least one service day is required' } }, { status: 400 });
+  const perDay = Math.max(1, Math.min(10, Number(services_per_day) || 1));
+
+  const res = await fetch(`${S}/rest/v1/branches?id=eq.${branchId}`, {
+    method: 'PATCH',
+    headers: { ...H(), 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+    body: JSON.stringify({ service_days, services_per_day: perDay }),
+  });
+  if (!res.ok) return NextResponse.json({ data: null, error: { message: 'Failed to update branch schedule' } }, { status: 502 });
+  const updated = await res.json();
+  return NextResponse.json({ data: Array.isArray(updated) ? updated[0] : updated, error: null });
 }
 
 // Bulk-creates branches straight from the onboarding wizard — a church picks

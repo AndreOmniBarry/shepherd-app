@@ -77,8 +77,8 @@ export async function GET(req: Request) {
     // excluded (not guessed into a band), so this fills in accurately as DOB
     // data is completed rather than showing a fake distribution up front ──
     const AGE_BANDS = [
-      { label: '0–12', min: 0, max: 12 }, { label: '13–17', min: 13, max: 17 },
-      { label: '18–25', min: 18, max: 25 }, { label: '26–35', min: 26, max: 35 },
+      { label: '0–12', min: 0, max: 12 }, { label: '13–19', min: 13, max: 19 },
+      { label: '20–25', min: 20, max: 25 }, { label: '26–35', min: 26, max: 35 },
       { label: '36–50', min: 36, max: 50 }, { label: '51+', min: 51, max: 200 },
     ];
     const ageBandCounts = AGE_BANDS.map(b => ({ band: b.label, n: 0 }));

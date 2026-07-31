@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
 
 type CellStatus = {
   cell_id: string; cell_name: string; fellowship_name: string;
@@ -131,37 +132,21 @@ export default function PastorAttendance({ dark, t, branchId }: PastorAttendance
         ))}
       </div>
 
+      {/* Historical trend — every service ever logged, any day of the week,
+          paged by week/month/year with its own mini-analysis. Independent
+          of the Sunday/Wednesday toggle above, which is about the most
+          recent service's live submission status, not history. */}
+      <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 12 }}>Attendance history</div>
+        <AttendanceHistoryPanel t={t} color="#534AB7"
+          fetchUrl={(g, o) => `/api/analytics/attendance/history?granularity=${g}&offset=${o}${branchId ? `&branch_id=${branchId}` : ''}`}
+          emptyText="No attendance logged for this window yet." />
+      </div>
+
       {/* Charts */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        {/* Trend chart */}
-        <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>{view === 'sunday' ? 'Sunday' : 'Wednesday'} attendance trend</div>
-          <div style={{ fontSize: 10, color: t.muted, marginBottom: 12 }}>Last {trend.length} services</div>
-          {trend.length > 0 ? (
-            <ResponsiveContainer width="100%" height={130}>
-              <AreaChart data={trend} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="attGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#534AB7" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#534AB7" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={dark ? '#2A2A2A' : '#F0F0F0'} />
-                <XAxis dataKey="week" tick={{ fontSize: 9, fill: dark ? '#888' : '#6B7280' }} />
-                <YAxis tick={{ fontSize: 9, fill: dark ? '#888' : '#6B7280' }} />
-                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: t.card, color: t.text }}
-                  formatter={(v: number, name: string) => [v, name === 'present' ? 'Present' : name === 'absent' ? 'Absent' : name]} />
-                <Area type="monotone" dataKey="present" stroke="#1D9E75" strokeWidth={2} fill="url(#attGrad)" name="present" />
-                <Area type="monotone" dataKey="absent" stroke="#D85A30" strokeWidth={1.5} fill="none" name="absent" />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <div style={{ height: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.muted, fontSize: 12 }}>No data yet</div>
-          )}
-        </div>
-
         {/* Fellowship summary */}
-        <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
+        <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px', gridColumn: '1 / -1' }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 12 }}>Fellowship submission status</div>
           {data.fellowship_summary.length === 0 ? (
             <div style={{ color: t.muted, fontSize: 12, textAlign: 'center', padding: '20px 0' }}>No data</div>

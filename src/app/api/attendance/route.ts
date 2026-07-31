@@ -35,6 +35,7 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { service_date, entries, visitor_count, absence_reasons } = body;
+    const service_number = Math.max(1, Math.min(10, Number(body.service_number) || 1));
 
     if (!service_date || !entries?.length) {
       return NextResponse.json({ data: null, error: { message: 'service_date and entries are required' } }, { status: 400 });
@@ -47,16 +48,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'That date is outside the submission window. Contact your administrator.' } }, { status: 403 });
     }
 
-    // Find or create the services row for this exact date — one and only
-    // one place this ever happens, so service_type can never drift from
-    // the date's actual day-of-week. If an admin already sanctioned this
-    // exact date (a regular Sunday/midweek OR a special day like a vigil
-    // or convention, created via Service Planner's Special Service Days),
-    // reuse it as-is and skip the day-of-week check below entirely — that
-    // check only exists to stop backdating attendance to an arbitrary,
-    // never-sanctioned day, not to block legitimate special-day services.
+    // Find or create the services row for this exact date and service
+    // number — one and only one place this ever happens, so service_type
+    // can never drift from the date's actual day-of-week. If an admin
+    // already sanctioned this exact date (a regular Sunday/midweek OR a
+    // special day like a vigil or convention, created via Service
+    // Planner's Special Service Days), reuse it as-is and skip the
+    // day-of-week check below entirely — that check only exists to stop
+    // backdating attendance to an arbitrary, never-sanctioned day, not to
+    // block legitimate special-day services.
     const existingSvcRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.1&select=id&limit=1`,
+      `${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.${service_number}&select=id&limit=1`,
       { headers: hdrs() }
     );
     const existingSvc = await existingSvcRes.json();
@@ -70,23 +72,35 @@ export async function POST(req: Request) {
       const dateObj = new Date(y, mo - 1, d);
       const dayName = DAY_NAMES[dateObj.getDay()];
 
-      const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?select=service_days&limit=1`, { headers: hdrs() });
-      const cfgData = await cfgRes.json();
-      const serviceDays: string[] = cfgData?.[0]?.service_days?.length ? cfgData[0].service_days : ['Sunday'];
+      // Branch's own configured service days take priority over the
+      // church-wide default — a branch whose primary day isn't Sunday
+      // (e.g. Saturday/Tuesday) is no longer mislabeled as "midweek".
+      let serviceDays: string[] = ['Sunday'];
+      if (user.branch_id) {
+        const branchRes = await fetch(`${SUPABASE_URL}/rest/v1/branches?id=eq.${user.branch_id}&select=service_days&limit=1`, { headers: hdrs() });
+        const branchData = await branchRes.json();
+        if (branchData?.[0]?.service_days?.length) serviceDays = branchData[0].service_days;
+      } else {
+        const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?select=service_days&limit=1`, { headers: hdrs() });
+        const cfgData = await cfgRes.json();
+        if (cfgData?.[0]?.service_days?.length) serviceDays = cfgData[0].service_days;
+      }
       if (!serviceDays.includes(dayName)) {
         return NextResponse.json({ data: null, error: { message: `${dayName} isn't one of your church's configured service days (${serviceDays.join(', ')}). If this is a special program, ask an admin to add it first under Service Planner.` } }, { status: 400 });
       }
-      const service_type = dayName === 'Sunday' ? 'sunday' : 'midweek';
+      // First configured day is the "primary" service (labeled sunday for
+      // backward compatibility); every other configured day is "midweek".
+      const service_type = dayName === serviceDays[0] ? 'sunday' : 'midweek';
 
       const insertSvcRes = await fetch(`${SUPABASE_URL}/rest/v1/services`, {
         method: 'POST', headers: { ...hdrs(), 'Prefer': 'return=representation' },
-        body: JSON.stringify({ service_date, service_number: 1, service_type, notes: 'Auto-created on first submission' }),
+        body: JSON.stringify({ service_date, service_number, service_type, notes: 'Auto-created on first submission' }),
       });
       const insertedSvc = await insertSvcRes.json();
       realServiceId = Array.isArray(insertedSvc) && insertedSvc[0]?.id ? insertedSvc[0].id : null;
       if (!realServiceId) {
         // Race with another submission creating it first — fetch again.
-        const retryRes = await fetch(`${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.1&select=id&limit=1`, { headers: hdrs() });
+        const retryRes = await fetch(`${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.${service_number}&select=id&limit=1`, { headers: hdrs() });
         const retryData = await retryRes.json();
         realServiceId = retryData?.[0]?.id || null;
       }
