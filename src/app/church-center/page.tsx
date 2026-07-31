@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import Icon from '@/components/Icon';
+import { SkeletonCard } from '@/components/Skeleton';
 import { rolePortal } from '@/lib/role-portal';
 
 type Commendation = { id: string; title: string; body: string; read: boolean; created_at: string };
@@ -148,7 +149,9 @@ export default function ChurchCenterPage() {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: t.muted, fontSize: 13 }}>Loading…</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {[0, 1, 2].map(i => <SkeletonCard key={i} lines={2} />)}
+          </div>
         ) : (
         <div key={tab} className="shep-tab-enter" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {tab === 'recognition' ? (

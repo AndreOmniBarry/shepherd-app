@@ -5,6 +5,16 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const hdrs = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
 
+const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+function isWithinWindow(serviceDateStr: string): boolean {
+  const serviceDate = new Date(serviceDateStr + 'T00:00:00');
+  const now = new Date();
+  const cutoff = new Date();
+  cutoff.setDate(now.getDate() - 14);
+  return serviceDate >= cutoff && serviceDate <= now;
+}
+
 function calcSLA(submittedAt: Date): string {
   const day = submittedAt.getDay();
   const hour = submittedAt.getHours();
@@ -56,18 +66,9 @@ export async function GET(req: Request) {
     );
     const data = await res.json();
 
-    // Get upcoming services
-    const today = new Date().toISOString().split('T')[0];
-    const servicesRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/services?service_date=lte.${today}&service_number=eq.1&order=service_date.desc&limit=8&select=id,service_date`,
-      { headers: hdrs() }
-    );
-    const services = await servicesRes.json();
-
     return NextResponse.json({
       data: {
         history: Array.isArray(data) ? data : [],
-        services: Array.isArray(services) ? services : [],
         fellowship_name: fellowship.name,
       },
       error: null,
@@ -85,9 +86,59 @@ export async function POST(req: Request) {
     if (!fellowship) return NextResponse.json({ data: null, error: { message: 'Not an aggregate-only fellowship' } }, { status: 403 });
 
     const body = await req.json();
-    const { service_id, children_count, teenagers_count, notes } = body;
+    const { service_date, children_count, teenagers_count, notes } = body;
+    const service_number = Math.max(1, Math.min(10, Number(body.service_number) || 1));
 
-    if (!service_id) return NextResponse.json({ data: null, error: { message: 'Service is required' } }, { status: 400 });
+    if (!service_date) return NextResponse.json({ data: null, error: { message: 'Service date is required' } }, { status: 400 });
+    if (!isWithinWindow(service_date)) {
+      return NextResponse.json({ data: null, error: { message: 'That date is outside the submission window. Contact your administrator.' } }, { status: 403 });
+    }
+
+    // Reuse an existing services row for this exact date if one already
+    // exists (a regular day or an admin-sanctioned special day) — only
+    // cross-checks the day-of-week against the church's configured service
+    // days when creating a brand new row, same rule cell/department
+    // attendance follow, so a sanctioned special day never gets blocked.
+    const existingSvcRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.${service_number}&select=id`,
+      { headers: hdrs() }
+    );
+    const existingSvc = await existingSvcRes.json();
+    let service_id: string | null = existingSvc?.[0]?.id || null;
+
+    if (!service_id) {
+      const [y, mo, d] = service_date.split('-').map(Number);
+      const dateObj = new Date(y, mo - 1, d);
+      const dayName = DAY_NAMES[dateObj.getDay()];
+
+      let serviceDays: string[] = ['Sunday'];
+      if (user.branch_id) {
+        const branchRes = await fetch(`${SUPABASE_URL}/rest/v1/branches?id=eq.${user.branch_id}&select=service_days&limit=1`, { headers: hdrs() });
+        const branchData = await branchRes.json();
+        if (branchData?.[0]?.service_days?.length) serviceDays = branchData[0].service_days;
+      } else {
+        const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?select=service_days&limit=1`, { headers: hdrs() });
+        const cfgData = await cfgRes.json();
+        if (cfgData?.[0]?.service_days?.length) serviceDays = cfgData[0].service_days;
+      }
+      if (!serviceDays.includes(dayName)) {
+        return NextResponse.json({ data: null, error: { message: `${dayName} isn't one of your church's configured service days (${serviceDays.join(', ')}). If this is a special program, ask an admin to add it first under Service Planner.` } }, { status: 400 });
+      }
+      const service_type = dayName === serviceDays[0] ? 'sunday' : 'midweek';
+
+      const insertSvcRes = await fetch(`${SUPABASE_URL}/rest/v1/services`, {
+        method: 'POST', headers: { ...hdrs(), 'Prefer': 'return=representation' },
+        body: JSON.stringify({ service_date, service_number, service_type, notes: 'Auto-created on first submission' }),
+      });
+      const insertedSvc = await insertSvcRes.json();
+      service_id = Array.isArray(insertedSvc) && insertedSvc[0]?.id ? insertedSvc[0].id : null;
+      if (!service_id) {
+        const retryRes = await fetch(`${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.${service_number}&select=id&limit=1`, { headers: hdrs() });
+        const retryData = await retryRes.json();
+        service_id = retryData?.[0]?.id || null;
+      }
+      if (!service_id) return NextResponse.json({ data: null, error: { message: 'Could not create or find service record' } }, { status: 500 });
+    }
 
     const submittedAt = new Date();
     const sla_grade = calcSLA(submittedAt);

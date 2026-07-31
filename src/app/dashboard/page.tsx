@@ -13,6 +13,7 @@ import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import ServicePlannerPanel from '@/components/ServicePlannerPanel';
 import EventsPanel from '@/components/EventsPanel';
 import CareFollowupPanel from '@/components/CareFollowupPanel';
+import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -175,7 +176,11 @@ function ActionBoardPanel({t, branchId}: {t: Record<string,string>; branchId?: s
       .finally(() => setLoading(false));
   }, [branchId]);
 
-  if (loading) return <div style={{fontSize:12,color:t.sub,padding:20}}>Scanning church health…</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {[0, 1, 2, 3].map(i => <SkeletonCard key={i} lines={1} />)}
+    </div>
+  );
   if (!flags) return <div style={{fontSize:12,color:t.sub,padding:20}}>Could not load the action board.</div>;
 
   const shown = filter==='all' ? flags : flags.filter(f=>f.severity===filter);
@@ -241,7 +246,16 @@ function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; br
       .finally(() => setLoading(false));
   }, [branchId]);
 
-  if (loading) return <div style={{fontSize:12,color:t.sub,padding:20}}>Loading workforce intelligence…</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+        {[0, 1, 2, 3].map(i => <SkeletonCard key={i} lines={1} />)}
+      </div>
+      <SkeletonCard>
+        {Array.from({ length: 4 }, (_, i) => <SkeletonRow key={i} />)}
+      </SkeletonCard>
+    </div>
+  );
   if (!data) return <div style={{fontSize:12,color:t.sub,padding:20}}>Could not load workforce data.</div>;
 
   const tiles = [
@@ -372,6 +386,7 @@ const CREATABLE_ROLES: {value:string;label:string;refKind:'cell'|'fellowship'|'d
   {value:'fellowship_head',label:'Fellowship Head',refKind:'fellowship'},
   {value:'department_head',label:'Department Head',refKind:'department'},
   {value:'care_team',label:'Follow-Up & Care Team',refKind:null},
+  {value:'workforce',label:'Workforce',refKind:null},
   {value:'accounts',label:'Accounts',refKind:null},
   {value:'partnership',label:'Partnership',refKind:null},
   {value:'pa',label:'PA / Church Admin',refKind:null},
@@ -1685,11 +1700,13 @@ export default function DashboardPage(){
     return()=>clearTimeout(handle);
   },[loadMembers]);
 
-  // Jumping to Members from the topbar Search button should land the
-  // cursor ready to type, not just switch tabs and leave the user hunting
-  // for the search box themselves.
+  // Autofocus the in-tab search box when landing on Members with nothing
+  // typed yet (e.g. via the sidebar nav item). Skipped when memberSearch is
+  // already non-empty — that means the topbar search box itself is what's
+  // being typed into right now, and stealing focus mid-keystroke would be
+  // exactly the "redirects me to another field" complaint this replaced.
   useEffect(()=>{
-    if(page==='members') requestAnimationFrame(()=>memberSearchRef.current?.focus());
+    if(page==='members' && !memberSearch) requestAnimationFrame(()=>memberSearchRef.current?.focus());
   },[page]);
 
   async function confirmDeleteMember(){
@@ -1904,7 +1921,11 @@ export default function DashboardPage(){
               </div>
             )}
             {!isMobile&&!dark&&(<div style={{display:'flex',background:t.cardInner,border:`0.5px solid ${t.border}`,borderRadius:20,padding:2,gap:2}}><button onClick={()=>setSidebarStyle('light')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='light'?'#534AB7':'transparent',color:sidebarStyle==='light'?'#fff':t.muted,fontFamily:'inherit'}}>Light sidebar</button><button onClick={()=>setSidebarStyle('dark')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='dark'?'#534AB7':'transparent',color:sidebarStyle==='dark'?'#fff':t.muted,fontFamily:'inherit'}}>Dark sidebar</button></div>)}
-            {!isMobile&&<button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Search</button>}
+            {!isMobile&&<input value={memberSearch} onChange={e=>{setMemberSearch(e.target.value); if(page!=='members') setPage('members');}} onFocus={()=>{ if(page!=='members') setPage('members'); }}
+              placeholder="Search members..."
+              style={{width:160,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.text,outline:'none',fontFamily:'inherit',transition:'width var(--motion-medium) var(--ease-out-expo), background var(--motion-fast) var(--ease-out-expo)'}}
+              onFocusCapture={e=>{e.currentTarget.style.width='220px'; e.currentTarget.style.background=t.input;}}
+              onBlurCapture={e=>{e.currentTarget.style.width='160px'; e.currentTarget.style.background='transparent';}} />}
             {!isMobile&&<button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:'none',background:'#534AB7',color:'#fff',fontSize:11,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>Add member</button>}
             {isMobile ? (
               <button onClick={()=>router.push('/church-feed')} title="Church Feed" style={{width:30,height:30,borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:t.sub,flexShrink:0}}><Icon name="ti-speakerphone" size={14}/></button>

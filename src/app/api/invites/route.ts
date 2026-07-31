@@ -21,7 +21,7 @@ export async function GET(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    if (!['lead_tech', 'pa', 'overseer'].includes(user.role)) {
+    if (!['lead_tech', 'pa', 'overseer', 'general_overseer'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Not authorized' } }, { status: 403 });
     }
 
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    if (!['lead_tech', 'pa', 'overseer'].includes(user.role)) {
+    if (!['lead_tech', 'pa', 'overseer', 'general_overseer'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Not authorized to create invites' } }, { status: 403 });
     }
 
@@ -133,7 +133,7 @@ export async function DELETE(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    if (!['lead_tech', 'pa', 'overseer'].includes(user.role)) {
+    if (!['lead_tech', 'pa', 'overseer', 'general_overseer'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Not authorized' } }, { status: 403 });
     }
 

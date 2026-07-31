@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import Icon from '@/components/Icon';
 
 type MemberProfile = {
   id: string;
@@ -201,7 +202,7 @@ export default function DeptOverview({ dark = false, t }: DeptOverviewProps) {
                   <tr key={m.id} style={{ borderBottom: i < filteredMembers.length - 1 ? `0.5px solid ${t.border}` : 'none' }}>
                     <td style={{ padding: '10px 12px', fontWeight: 500, color: t.text, whiteSpace: 'nowrap' }}>
                       {m.full_name}
-                      {m.birthdayStatus === 'today' && <span style={{ marginLeft: 6 }}>🎂</span>}
+                      {m.birthdayStatus === 'today' && <span style={{ marginLeft: 6, display: 'inline-flex', color: '#BA7517', verticalAlign: 'middle' }}><Icon name="ti-cake" size={12} /></span>}
                     </td>
                     <td style={{ padding: '10px 12px', color: t.muted, fontSize: 11 }}>{m.role}</td>
                     <td style={{ padding: '10px 12px' }}>
@@ -231,7 +232,7 @@ export default function DeptOverview({ dark = false, t }: DeptOverviewProps) {
       {/* Birthdays */}
       {birthdayToday.length > 0 && (
         <div style={{ background: '#FAEEDA', borderRadius: 10, padding: '12px 14px', border: '0.5px solid rgba(186,117,23,0.2)' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#633806', marginBottom: 6 }}>🎂 Birthday today</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#633806', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="ti-cake" size={13} /> Birthday today</div>
           {birthdayToday.map(m => (
             <div key={m.id} style={{ fontSize: 12, color: '#BA7517' }}>{m.full_name} — {m.role}</div>
           ))}

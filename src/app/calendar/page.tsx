@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import Icon from '@/components/Icon';
+import { SkeletonRow } from '@/components/Skeleton';
 import { rolePortal } from '@/lib/role-portal';
 
 type Item = { id: string; title: string; date: string; end_date: string | null; type: string; source: 'event' | 'service' | 'plan'; location: string | null; slug: string | null; plan_id?: string };
@@ -225,7 +226,7 @@ export default function CalendarPage() {
         <div style={{ ...glass, padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>Upcoming</div>
           {loading ? (
-            <div style={{ fontSize: 12, color: t.sub }}>Loading…</div>
+            <>{[0, 1, 2].map(i => <SkeletonRow key={i} />)}</>
           ) : upcoming.length === 0 ? (
             <div style={{ fontSize: 12, color: t.muted }}>Nothing scheduled yet.</div>
           ) : upcoming.map(it => {

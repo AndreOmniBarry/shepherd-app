@@ -1,6 +1,7 @@
 
 'use client';
 import { useState, useEffect } from 'react';
+import Icon from '@/components/Icon';
 
 type BirthdayMember = {
   id: string;
@@ -67,7 +68,7 @@ export default function BirthdayPanel({ dark = false, t, scope = 'cell', showFel
       {tab === 'today' && (
         todayList.length === 0 ? (
           <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: 32, textAlign: 'center' }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>🎂</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8, color: t.muted }}><Icon name="ti-cake" size={28} /></div>
             <div style={{ fontSize: 13, color: t.sub }}>No birthdays today</div>
             <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>Check upcoming tab for the next birthdays</div>
           </div>
@@ -76,7 +77,7 @@ export default function BirthdayPanel({ dark = false, t, scope = 'cell', showFel
             {todayList.map(m => (
               <div key={m.id} style={{ background: 'linear-gradient(135deg, #FAEEDA 0%, #EEEDFE 100%)', borderRadius: 12, border: '0.5px solid rgba(186,117,23,0.2)', padding: '16px 18px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ fontSize: 32 }}>🎂</div>
+                  <div style={{ color: '#BA7517' }}><Icon name="ti-cake" size={32} /></div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 15, fontWeight: 700, color: '#633806', marginBottom: 2 }}>{m.full_name}</div>
                     <div style={{ fontSize: 12, color: '#BA7517' }}>
@@ -152,7 +153,7 @@ export default function BirthdayPanel({ dark = false, t, scope = 'cell', showFel
                 return (
                   <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 16px', borderBottom: i < monthList.length - 1 ? `0.5px solid ${t.border}` : 'none', opacity: isPast ? 0.5 : 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ fontSize: 18 }}>{isToday ? '🎂' : isPast ? '✓' : '🎁'}</div>
+                      <div style={{ color: isToday ? '#BA7517' : t.muted }}><Icon name={isToday ? 'ti-cake' : isPast ? 'ti-check' : 'ti-cake'} size={16} /></div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 500, color: t.text }}>{m.full_name}</div>
                         <div style={{ fontSize: 11, color: t.muted }}>{m.cell_name} · {MONTHS[m.birth_month]} {m.birth_day}</div>

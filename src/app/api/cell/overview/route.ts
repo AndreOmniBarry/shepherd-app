@@ -160,7 +160,7 @@ export async function GET(req: Request) {
       actions.push({ priority: 'medium', message: `${warningMembers.length} member${warningMembers.length > 1 ? 's have' : ' has'} missed 2 consecutive Sundays — reach out this week` });
     }
     if (birthdayToday.length > 0) {
-      actions.push({ priority: 'high', message: `🎂 Birthday today: ${birthdayToday.map(m => m.full_name.split(' ')[0]).join(', ')} — celebrate them!` });
+      actions.push({ priority: 'high', message: `Birthday today: ${birthdayToday.map(m => m.full_name.split(' ')[0]).join(', ')} — celebrate them!` });
     }
     if (upcomingBirthdays.length > 0) {
       actions.push({ priority: 'low', message: `Upcoming birthday${upcomingBirthdays.length > 1 ? 's' : ''}: ${upcomingBirthdays.slice(0, 2).map(m => `${m.full_name.split(' ')[0]} (${m.birthdayStatus})`).join(', ')}` });

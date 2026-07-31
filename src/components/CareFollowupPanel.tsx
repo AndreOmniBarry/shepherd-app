@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
+import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 
 type RosterRow = { id: string; full_name: string; is_active: boolean; assigned: number; resolved: number; avg_sla_score: number | null };
 type TimerRow = { id: string; full_name: string; status: string; assigned_name: string; sla_grade: string | null; created_at: string };
@@ -36,7 +37,16 @@ export default function CareFollowupPanel({ t, branchId }: { t: Record<string, s
     background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '16px 18px', ...extra,
   });
 
-  if (loading) return <div style={{ fontSize: 12, color: t.sub, padding: 20 }}>Loading care & follow-up engagement…</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+        {[0, 1, 2, 3].map(i => <SkeletonCard key={i} lines={1} />)}
+      </div>
+      <SkeletonCard lines={0} style={{ gap: 0 }}>
+        {Array.from({ length: 4 }, (_, i) => <SkeletonRow key={i} />)}
+      </SkeletonCard>
+    </div>
+  );
   if (!data) return <div style={{ fontSize: 12, color: t.sub, padding: 20 }}>Could not load care team data.</div>;
 
   return (

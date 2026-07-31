@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Icon from '@/components/Icon';
 
 type Notification = {
   id: string;
@@ -15,15 +16,15 @@ type Notification = {
 const TYPE_CONFIG: Record<string, { color: string; bg: string; icon: string }> = {
   system:      { color: '#534AB7', bg: '#EEEDFE', icon: '⚙' },
   pastoral:    { color: '#BA7517', bg: '#FAEEDA', icon: '✉' },
-  pipeline:    { color: '#1D9E75', bg: '#E1F5EE', icon: '👤' },
+  pipeline:    { color: '#1D9E75', bg: '#E1F5EE', icon: 'ti-user-check' },
   dispute:     { color: '#BA7517', bg: '#FAEEDA', icon: '⚑' },
-  birthday:    { color: '#D85A30', bg: '#FAECE7', icon: '🎂' },
+  birthday:    { color: '#D85A30', bg: '#FAECE7', icon: 'ti-cake' },
   achievement: { color: '#534AB7', bg: '#EEEDFE', icon: '★' },
   sla:         { color: '#D85A30', bg: '#FAECE7', icon: '⏱' },
   attendance:  { color: '#1D9E75', bg: '#E1F5EE', icon: '✓' },
   giving:      { color: '#534AB7', bg: '#EEEDFE', icon: '₦' },
-  commendation:{ color: '#BA7517', bg: '#FAEEDA', icon: '🏆' },
-  service:     { color: '#534AB7', bg: '#EEEDFE', icon: '📋' },
+  commendation:{ color: '#BA7517', bg: '#FAEEDA', icon: 'ti-trophy' },
+  service:     { color: '#534AB7', bg: '#EEEDFE', icon: 'ti-checkbox' },
 };
 
 function timeAgo(dateStr: string): string {
@@ -272,9 +273,9 @@ export default function NotificationBell({ dark = false }: NotificationBellProps
                     <div style={{
                       width: 32, height: 32, borderRadius: 8, flexShrink: 0,
                       background: cfg.bg, display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', fontSize: 14, marginTop: 1,
+                      justifyContent: 'center', fontSize: 14, marginTop: 1, color: cfg.color,
                     }}>
-                      {cfg.icon}
+                      {cfg.icon.startsWith('ti-') ? <Icon name={cfg.icon} size={15} /> : cfg.icon}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: n.read ? 400 : 600, color: t.text, lineHeight: 1.4, marginBottom: 2 }}>

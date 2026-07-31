@@ -133,7 +133,7 @@ export async function GET(req: Request) {
       actions.push({ priority: 'high', message: `${criticalMembers.length} department member${criticalMembers.length > 1 ? 's have' : ' has'} missed 3+ consecutive Sundays: ${criticalMembers.slice(0, 2).map(m => m.full_name.split(' ')[0]).join(', ')}` });
     }
     if (birthdayToday.length > 0) {
-      actions.push({ priority: 'high', message: `🎂 Birthday today: ${birthdayToday.map(m => m.full_name.split(' ')[0]).join(', ')}` });
+      actions.push({ priority: 'high', message: `Birthday today: ${birthdayToday.map(m => m.full_name.split(' ')[0]).join(', ')}` });
     }
 
     const dayOfWeek = new Date().getDay();
