@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { gradeToScore } from '@/lib/sla';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 export async function GET(req: Request) {
   try {
@@ -33,7 +34,7 @@ export async function GET(req: Request) {
 
     // Get cell leaders from users table
     const leadersRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&is_active=eq.true&select=cell_id,full_name,email`,
+      `${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&is_active=eq.true&select=cell_id,full_name,email${EXCLUDE_DEMO_IDS}`,
       { headers }
     );
     const leaders = await leadersRes.json();

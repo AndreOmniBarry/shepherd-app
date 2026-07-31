@@ -16,3 +16,11 @@ export const DEMO_ID: Record<string, string> = {
 };
 
 export const DEMO_USER_IDS = new Set(Object.values(DEMO_ID));
+
+// PostgREST filter fragment to exclude every fixed demo/preview id from a
+// query — use on any users lookup whose result is shown as a real leader
+// name (leaderboards, cell/department listings, staff directories). Without
+// this, previewing a role for a real cell/department upserts a "DEMO — X"
+// row pointed at that real cell_id/department_id, which then silently
+// overwrites the real leader's name wherever that id is joined for display.
+export const EXCLUDE_DEMO_IDS = `&id=not.in.(${Object.values(DEMO_ID).join(',')})`;

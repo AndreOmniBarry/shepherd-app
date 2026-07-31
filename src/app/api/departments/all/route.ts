@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -73,7 +74,7 @@ export async function GET(req: Request) {
 
     const [deptsRes, leadersRes, membersRes] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/departments?select=id,name&order=name.asc${branchFilter}`, { headers: hdrs() }),
-      fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.department_head&is_active=eq.true&select=department_id,full_name`, { headers: hdrs() }),
+      fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.department_head&is_active=eq.true&select=department_id,full_name${EXCLUDE_DEMO_IDS}`, { headers: hdrs() }),
       fetch(`${SUPABASE_URL}/rest/v1/department_members?select=department_id,member_id`, { headers: hdrs() }),
     ]);
     const [depts, leaders, deptMembers] = await Promise.all([deptsRes.json(), leadersRes.json(), membersRes.json()]);
