@@ -103,13 +103,16 @@ export default function CalendarPage() {
   }
 
   const todayStr = ymd(new Date());
+  const glass: React.CSSProperties = { background: 'var(--glass-bg)', WebkitBackdropFilter: 'blur(var(--glass-blur)) saturate(160%)', backdropFilter: 'blur(var(--glass-blur)) saturate(160%)', border: '0.5px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', borderRadius: 'var(--radius-md)', transition: 'transform var(--motion-medium) var(--ease-out-expo), box-shadow var(--motion-medium) var(--ease-out-expo)' };
 
   return (
-    <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>
-      <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
+    <div data-theme={dark ? 'dark' : 'light'} className="shep-page-enter" style={{ minHeight: '100vh', background: dark ? `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}` : `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`, fontFamily: 'Inter,system-ui,sans-serif' }}>
+      <div style={{ background: t.navBg, WebkitBackdropFilter: 'blur(18px) saturate(160%)', backdropFilter: 'blur(18px) saturate(160%)', borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={() => router.push(homePath)} title="Back to dashboard"
-            style={{ background: t.purpleBg, border: 'none', borderRadius: 8, width: 30, height: 30, cursor: 'pointer', color: t.purple, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+            style={{ background: t.purpleBg, border: 'none', borderRadius: 'var(--radius-sm)', width: 30, height: 30, cursor: 'pointer', color: t.purple, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform var(--motion-fast) var(--ease-spring)' }}>
             <Icon name="ti-arrow-left" size={15} />
           </button>
           <div style={{ width: 24, height: 24, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -134,15 +137,21 @@ export default function CalendarPage() {
           <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>{MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}</div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={() => setCursor(c => { const d = new Date(c); d.setMonth(d.getMonth() - 1); return d; })}
-              style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 8, width: 30, height: 30, cursor: 'pointer', color: t.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+              onMouseEnter={e => { e.currentTarget.style.background = t.purple; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = t.card; e.currentTarget.style.color = t.text; }}
+              style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 'var(--radius-sm)', width: 30, height: 30, cursor: 'pointer', color: t.text, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all var(--motion-fast) var(--ease-out-expo)' }}>‹</button>
             <button onClick={() => setCursor(() => { const d = new Date(); d.setDate(1); return d; })}
-              style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '0 12px', cursor: 'pointer', color: t.text, fontSize: 12 }}>Today</button>
+              onMouseEnter={e => { e.currentTarget.style.background = t.purpleBg; }}
+              onMouseLeave={e => { e.currentTarget.style.background = t.card; }}
+              style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 'var(--radius-sm)', padding: '0 12px', cursor: 'pointer', color: t.text, fontSize: 12, fontWeight: 600, transition: 'all var(--motion-fast) var(--ease-out-expo)' }}>Today</button>
             <button onClick={() => setCursor(c => { const d = new Date(c); d.setMonth(d.getMonth() + 1); return d; })}
-              style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 8, width: 30, height: 30, cursor: 'pointer', color: t.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+              onMouseEnter={e => { e.currentTarget.style.background = t.purple; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = t.card; e.currentTarget.style.color = t.text; }}
+              style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 'var(--radius-sm)', width: 30, height: 30, cursor: 'pointer', color: t.text, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all var(--motion-fast) var(--ease-out-expo)' }}>›</button>
           </div>
         </div>
 
-        <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ ...glass, borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)' }}>
             {DAY_NAMES.map(d => (
               <div key={d} style={{ padding: '8px 6px', fontSize: 10, color: t.muted, fontWeight: 600, textTransform: 'uppercase', textAlign: 'center', borderBottom: `0.5px solid ${t.border}` }}>{d}</div>
@@ -156,8 +165,10 @@ export default function CalendarPage() {
                 const dayItems = itemsByDay[key] || [];
                 return (
                   <div key={key} onClick={() => setSelectedDay(key)}
-                    style={{ minWidth: 0, minHeight: 76, padding: '6px 6px', borderRight: `0.5px solid ${t.border}`, borderBottom: `0.5px solid ${t.border}`, cursor: 'pointer', background: key === selectedDay ? t.purpleBg : 'transparent', opacity: inMonth ? 1 : 0.35, overflow: 'hidden', boxSizing: 'border-box' }}>
-                    <div style={{ fontSize: 11, fontWeight: key === todayStr ? 700 : 400, color: key === todayStr ? '#fff' : t.text, background: key === todayStr ? t.purple : 'transparent', width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 3 }}>
+                    onMouseEnter={e => { if (key !== selectedDay) e.currentTarget.style.background = dark ? 'rgba(168,159,255,0.06)' : 'rgba(83,74,183,0.04)'; }}
+                    onMouseLeave={e => { if (key !== selectedDay) e.currentTarget.style.background = 'transparent'; }}
+                    style={{ minWidth: 0, minHeight: 76, padding: '6px 6px', borderRight: `0.5px solid ${t.border}`, borderBottom: `0.5px solid ${t.border}`, cursor: 'pointer', background: key === selectedDay ? t.purpleBg : 'transparent', opacity: inMonth ? 1 : 0.35, overflow: 'hidden', boxSizing: 'border-box', transition: 'background var(--motion-fast) var(--ease-out-expo)' }}>
+                    <div style={{ fontSize: 11, fontWeight: key === todayStr ? 700 : 400, color: key === todayStr ? '#fff' : t.text, background: key === todayStr ? t.purple : 'transparent', width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 3, boxShadow: key === todayStr ? '0 0 0 3px rgba(83,74,183,0.18)' : 'none' }}>
                       {day.getDate()}
                     </div>
                     {dayItems.slice(0, 2).map(it => {
@@ -173,7 +184,7 @@ export default function CalendarPage() {
         </div>
 
         {selectedDay && (itemsByDay[selectedDay]?.length || 0) > 0 && (
-          <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 16 }}>
+          <div key={selectedDay} className="shep-pop-enter" style={{ ...glass, padding: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>{selectedDay}</div>
             {itemsByDay[selectedDay].map(it => {
               const c = TYPE_COLORS[it.type] || TYPE_COLORS.other;
@@ -211,7 +222,7 @@ export default function CalendarPage() {
           </div>
         )}
 
-        <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 16 }}>
+        <div style={{ ...glass, padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>Upcoming</div>
           {loading ? (
             <div style={{ fontSize: 12, color: t.sub }}>Loading…</div>
@@ -220,7 +231,10 @@ export default function CalendarPage() {
           ) : upcoming.map(it => {
             const c = TYPE_COLORS[it.type] || TYPE_COLORS.other;
             return (
-              <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `0.5px solid ${t.border}` }}>
+              <div key={it.id}
+                onMouseEnter={e => { e.currentTarget.style.background = dark ? 'rgba(168,159,255,0.05)' : 'rgba(83,74,183,0.03)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', margin: '0 -10px', borderRadius: 'var(--radius-sm)', borderBottom: `0.5px solid ${t.border}`, transition: 'background var(--motion-fast) var(--ease-out-expo)' }}>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{it.title}</div>
                   <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{it.date}{it.end_date && it.end_date !== it.date ? ` – ${it.end_date}` : ''}{it.location ? ` · ${it.location}` : ''}</div>

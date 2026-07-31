@@ -142,20 +142,25 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
 
   if (loading) return <div style={{ fontSize: 12, color: t.sub, padding: 20 }}>Loading service planner…</div>;
 
+  const glass: React.CSSProperties = { background: 'var(--glass-bg)', WebkitBackdropFilter: 'blur(var(--glass-blur)) saturate(160%)', backdropFilter: 'blur(var(--glass-blur)) saturate(160%)', border: '0.5px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', borderRadius: 'var(--radius-md)', transition: 'box-shadow var(--motion-medium) var(--ease-out-expo)' };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 14 }}>
+    <div className="shep-tab-enter" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ ...glass, padding: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showSpecial ? 10 : 0 }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Special Service Days</div>
             <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>For congress, convention, vigils, crusades — anything outside your regular recurring service days that still needs attendance taken.</div>
           </div>
-          <button onClick={() => setShowSpecial(v => !v)} style={{ background: showSpecial ? t.purpleBg : t.purple, color: showSpecial ? t.purple : '#fff', border: 'none', borderRadius: 7, padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          <button onClick={() => setShowSpecial(v => !v)}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
+            style={{ background: showSpecial ? t.purpleBg : t.purple, color: showSpecial ? t.purple : '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all var(--motion-fast) var(--ease-out-expo)' }}>
             {showSpecial ? 'Cancel' : '+ Add special day'}
           </button>
         </div>
         {showSpecial && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap', marginTop: 10 }}>
+          <div className="shep-pop-enter" style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap', marginTop: 10 }}>
             <div style={{ width: 190 }}><DateTimePicker t={t} value={specialDate} onChange={setSpecialDate} placeholder="Select date" /></div>
             <input value={specialLabel} onChange={e => setSpecialLabel(e.target.value)} placeholder="e.g. Congress Day 1, New Year Vigil"
               style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, background: t.input, color: t.text, outline: 'none', flex: 1, minWidth: 180 }} />
@@ -169,10 +174,13 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 14 }}>
-      <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 14 }}>
+      <div style={{ ...glass, padding: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Service Plans</div>
-          <button onClick={() => setShowNew(v => !v)} style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 7, padding: '4px 9px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>+ New</button>
+          <button onClick={() => setShowNew(v => !v)}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+            style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '4px 9px', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'transform var(--motion-fast) var(--ease-spring)' }}>+ New</button>
         </div>
         {showNew && (
           <div style={{ background: t.input, borderRadius: 8, padding: 10, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -187,7 +195,9 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
           <div style={{ fontSize: 11, color: t.muted }}>No service plans yet.</div>
         ) : plans.map(p => (
           <div key={p.id} onClick={() => selectPlan(p.id)}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 10px', borderRadius: 8, cursor: 'pointer', marginBottom: 4, background: selectedId === p.id ? t.purpleBg : 'transparent' }}>
+            onMouseEnter={e => { if (selectedId !== p.id) e.currentTarget.style.background = 'rgba(83,74,183,0.06)'; }}
+            onMouseLeave={e => { if (selectedId !== p.id) e.currentTarget.style.background = 'transparent'; }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 10px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', marginBottom: 4, background: selectedId === p.id ? t.purpleBg : 'transparent', transition: 'background var(--motion-fast) var(--ease-out-expo)' }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{p.title}</div>
               <div style={{ fontSize: 10, color: t.muted, marginTop: 1 }}>{p.service_date} · <span style={{ color: p.status === 'published' ? t.teal : t.amber, fontWeight: 600 }}>{p.status}</span></div>
@@ -219,7 +229,7 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
         </div>
       )}
 
-      <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 16 }}>
+      <div key={selectedId || 'empty'} className="shep-tab-enter" style={{ ...glass, padding: 16 }}>
         {!selectedPlan ? (
           <div style={{ fontSize: 12, color: t.muted, textAlign: 'center', padding: '40px 0' }}>Select a service plan, or create a new one, to build the order of service.</div>
         ) : (
@@ -260,8 +270,14 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
             {success && <div style={{ background: t.tealBg, color: t.teal, borderRadius: 8, padding: '8px 12px', fontSize: 12, marginTop: 12 }}>{success}</div>}
 
             <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-              <button onClick={() => saveItems(false)} disabled={saving} style={{ background: 'transparent', border: `0.5px solid ${t.border}`, color: t.text, borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Save draft</button>
-              <button onClick={() => saveItems(true)} disabled={saving || items.length === 0} style={{ background: t.teal, border: 'none', color: '#fff', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: items.length === 0 ? 0.5 : 1 }}>
+              <button onClick={() => saveItems(false)} disabled={saving}
+                onMouseEnter={e => { e.currentTarget.style.background = t.purpleBg; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                style={{ background: 'transparent', border: `0.5px solid ${t.border}`, color: t.text, borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'background var(--motion-fast) var(--ease-out-expo)' }}>Save draft</button>
+              <button onClick={() => saveItems(true)} disabled={saving || items.length === 0}
+                onMouseEnter={e => { if (items.length > 0) e.currentTarget.style.transform = 'scale(1.03)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+                style={{ background: t.teal, border: 'none', color: '#fff', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: items.length === 0 ? 0.5 : 1, transition: 'transform var(--motion-fast) var(--ease-spring)' }}>
                 {saving ? 'Saving…' : 'Publish & notify'}
               </button>
             </div>
