@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { bucketBounds } from '@/lib/history-buckets';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -31,10 +32,9 @@ export async function GET(req: Request) {
 
     const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
 
-    const periodMs = granularity === 'year' ? 365 * 86400000 : granularity === 'month' ? 30 * 86400000 : 7 * 86400000;
-    const now = new Date();
-    const windowEnd = new Date(now.getTime() - offset * BUCKETS * periodMs);
-    const windowStart = new Date(windowEnd.getTime() - BUCKETS * periodMs);
+    const bounds = bucketBounds(granularity, offset, BUCKETS);
+    const windowStart = bounds[0].start;
+    const windowEnd = bounds[bounds.length - 1].end;
 
     let cellFilter = '';
     if (branchId) {
@@ -51,22 +51,16 @@ export async function GET(req: Request) {
     const records = await res.json();
     const rows: { present_count: number; absent_count: number; visitor_count: number; services: { service_date: string } | null }[] = Array.isArray(records) ? records : [];
 
-    const buckets: { label: string; present: number; absent: number; rate: number }[] = [];
-    for (let i = 0; i < BUCKETS; i++) {
-      const bucketStart = new Date(windowStart.getTime() + i * periodMs);
-      const bucketEnd = new Date(bucketStart.getTime() + periodMs);
+    const buckets = bounds.map(b => {
       const inBucket = rows.filter(r => {
         const d = r.services?.service_date ? new Date(r.services.service_date) : null;
-        return d && d >= bucketStart && d < bucketEnd;
+        return d && d >= b.start && d < b.end;
       });
       const present = inBucket.reduce((s, r) => s + (r.present_count || 0) + (r.visitor_count || 0), 0);
       const absent = inBucket.reduce((s, r) => s + (r.absent_count || 0), 0);
       const total = present + absent;
-      buckets.push({
-        label: granularity === 'year' ? String(bucketStart.getFullYear()) : granularity === 'month' ? bucketStart.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) : bucketStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-        present, absent, rate: total > 0 ? Math.round((present / total) * 100) : 0,
-      });
-    }
+      return { label: b.label, present, absent, rate: total > 0 ? Math.round((present / total) * 100) : 0 };
+    });
 
     return NextResponse.json({ data: { buckets, window_start: windowStart.toISOString().split('T')[0], window_end: windowEnd.toISOString().split('T')[0] }, error: null });
   } catch (err) {

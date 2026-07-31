@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { bucketBounds } from '@/lib/history-buckets';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -37,10 +38,9 @@ export async function GET(req: Request) {
     const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
 
-    const periodMs = granularity === 'year' ? 365 * 86400000 : granularity === 'month' ? 30 * 86400000 : 7 * 86400000;
-    const now = new Date();
-    const windowEnd = new Date(now.getTime() - offset * BUCKETS * periodMs);
-    const windowStart = new Date(windowEnd.getTime() - BUCKETS * periodMs);
+    const bounds = bucketBounds(granularity, offset, BUCKETS);
+    const windowStart = bounds[0].start;
+    const windowEnd = bounds[bounds.length - 1].end;
 
     const [timersRes, leadsRes] = await Promise.all([
       fetch(`${SURL}/rest/v1/first_timers?created_at=gte.${windowStart.toISOString()}&created_at=lt.${windowEnd.toISOString()}&select=created_at,status,outcome${branchFilter}`, { headers: H() }),
@@ -51,31 +51,17 @@ export async function GET(req: Request) {
     const timers: { created_at: string; status: string; outcome: string | null }[] = Array.isArray(timersData) ? timersData : [];
     const leads: { created_at: string; status: string }[] = Array.isArray(leadsData) ? leadsData : [];
 
-    const buckets: { label: string; present: number; absent: number; rate: number }[] = [];
-    for (let i = 0; i < BUCKETS; i++) {
-      const bucketStart = new Date(windowStart.getTime() + i * periodMs);
-      const bucketEnd = new Date(bucketStart.getTime() + periodMs);
-
-      const bucketTimers = timers.filter(r => {
-        const d = new Date(r.created_at);
-        return d >= bucketStart && d < bucketEnd;
-      });
-      const bucketLeads = leads.filter(r => {
-        const d = new Date(r.created_at);
-        return d >= bucketStart && d < bucketEnd;
-      });
+    const buckets = bounds.map(b => {
+      const bucketTimers = timers.filter(r => { const d = new Date(r.created_at); return d >= b.start && d < b.end; });
+      const bucketLeads = leads.filter(r => { const d = new Date(r.created_at); return d >= b.start && d < b.end; });
 
       const resolved = bucketTimers.filter(r => RESOLVED_TIMER.has(r.outcome || r.status)).length
         + bucketLeads.filter(r => RESOLVED_LEAD.has(r.status)).length;
       const total = bucketTimers.length + bucketLeads.length;
       const open = total - resolved;
 
-      buckets.push({
-        label: granularity === 'year' ? String(bucketStart.getFullYear()) : granularity === 'month' ? bucketStart.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) : bucketStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-        present: resolved, absent: open,
-        rate: total > 0 ? Math.round((resolved / total) * 100) : 0,
-      });
-    }
+      return { label: b.label, present: resolved, absent: open, rate: total > 0 ? Math.round((resolved / total) * 100) : 0 };
+    });
 
     return NextResponse.json({ data: { buckets, window_start: windowStart.toISOString().split('T')[0], window_end: windowEnd.toISOString().split('T')[0] }, error: null });
   } catch (err) {

@@ -81,7 +81,7 @@ export async function PATCH(req: Request) {
             user_id: i.assigned_to, type: 'service', read: false,
             title: 'You have a role in Sunday\'s service',
             body: `You are assigned to: ${i.title}. Check My Assignments for the full programme.`,
-            link: '/church-center',
+            link: '/church-center?tab=assignments',
           }));
           await fetch(`${SUPABASE_URL}/rest/v1/notifications`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(notifications) });
         }

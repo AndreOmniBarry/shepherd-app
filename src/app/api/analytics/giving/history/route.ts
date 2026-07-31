@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { bucketBounds } from '@/lib/history-buckets';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -33,10 +34,9 @@ export async function GET(req: Request) {
     const branchId = ['pa', 'branch_pastor'].includes(user.role) ? user.branch_id : searchParams.get('branch_id');
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
 
-    const periodMs = granularity === 'year' ? 365 * 86400000 : granularity === 'week' ? 7 * 86400000 : 30 * 86400000;
-    const now = new Date();
-    const windowEnd = new Date(now.getTime() - offset * BUCKETS * periodMs);
-    const windowStart = new Date(windowEnd.getTime() - BUCKETS * periodMs);
+    const bounds = bucketBounds(granularity, offset, BUCKETS);
+    const windowStart = bounds[0].start;
+    const windowEnd = bounds[bounds.length - 1].end;
 
     const res = await fetch(
       `${SURL}/rest/v1/income_records?service_date=gte.${windowStart.toISOString().split('T')[0]}&service_date=lte.${windowEnd.toISOString().split('T')[0]}&select=amount,service_date${branchFilter}`,
@@ -45,19 +45,10 @@ export async function GET(req: Request) {
     const records = await res.json();
     const rows: { amount: number; service_date: string }[] = Array.isArray(records) ? records : [];
 
-    const buckets: { label: string; total: number }[] = [];
-    for (let i = 0; i < BUCKETS; i++) {
-      const bucketStart = new Date(windowStart.getTime() + i * periodMs);
-      const bucketEnd = new Date(bucketStart.getTime() + periodMs);
-      const total = rows.filter(r => {
-        const d = new Date(r.service_date + 'T00:00:00');
-        return d >= bucketStart && d < bucketEnd;
-      }).reduce((s, r) => s + Number(r.amount || 0), 0);
-      buckets.push({
-        label: granularity === 'year' ? String(bucketStart.getFullYear()) : granularity === 'week' ? bucketStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : bucketStart.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }),
-        total,
-      });
-    }
+    const buckets = bounds.map(b => ({
+      label: b.label,
+      total: rows.filter(r => { const d = new Date(r.service_date + 'T00:00:00'); return d >= b.start && d < b.end; }).reduce((s, r) => s + Number(r.amount || 0), 0),
+    }));
 
     return NextResponse.json({ data: { buckets, window_start: windowStart.toISOString().split('T')[0], window_end: windowEnd.toISOString().split('T')[0] }, error: null });
   } catch (err) {
