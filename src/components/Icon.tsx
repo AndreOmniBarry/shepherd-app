@@ -35,6 +35,7 @@ const PATHS: Record<string, ReactNode> = {
   'ti-check': <><path d="M20 6 9 17l-5-5"/></>,
   'ti-search': <><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
   'ti-arrow-left': <><line x1="5" y1="12" x2="19" y2="12"/><polyline points="11,6 5,12 11,18"/></>,
+  'ti-trash': <><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></>,
 };
 
 export default function Icon({ name, size = 15, style, className }: { name?: string; size?: number; style?: CSSProperties; className?: string }) {

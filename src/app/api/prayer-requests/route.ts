@@ -87,6 +87,7 @@ export async function POST(req: Request) {
             title: 'New prayer request',
             body: `${is_anonymous ? 'Anonymous' : requester_name || user.name || 'A member'} — ${request.slice(0, 80)}${request.length > 80 ? '...' : ''}`,
             read: false,
+            link: '/dashboard?page=prayer',
           }))),
         });
       }
