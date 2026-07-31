@@ -1,6 +1,9 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useState, useEffect, useCallback } from 'react';
+import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+
+type HistoryBucket = { label: string; total: number };
+const HISTORY_MAX_LOOKBACK = 24;
 
 type GivingData = {
   kpi: { ytd: number; mtd: number; wtd: number; today: number; yoy_growth: number | null; last_year: number };
@@ -38,9 +41,14 @@ interface PastorGivingProps { dark: boolean; t: Record<string, string>; branchId
 export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
   const [data, setData] = useState<GivingData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'month' | 'week' | 'day' | 'custom'>('month');
+  const [view, setView] = useState<'history' | 'day' | 'custom'>('history');
   const [selectedMonth, setSelectedMonth] = useState<string>(`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`);
-  const [range, setRange] = useState<'3m' | '6m' | '1y'>('6m');
+
+  const [historyGranularity, setHistoryGranularity] = useState<'week' | 'month' | 'year'>('month');
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [historyBuckets, setHistoryBuckets] = useState<HistoryBucket[] | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historySearching, setHistorySearching] = useState<'earlier' | 'later' | null>(null);
 
   const fmtNGN = (n: number) => n >= 1e9 ? `₦${(n/1e9).toFixed(2)}B` : n >= 1e6 ? `₦${(n/1e6).toFixed(2)}M` : `₦${Math.round(n).toLocaleString('en-NG')}`;
   const fmtDate = (d: string) => { const [y,mo,dy] = d.split('-').map(Number); return `${dy} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo-1]}`; };
@@ -63,13 +71,37 @@ export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
     return () => clearInterval(interval);
   }, [branchId]);
 
+  const fetchHistoryBuckets = useCallback((g: 'week' | 'month' | 'year', o: number) => {
+    const bq = branchId ? `&branch_id=${branchId}` : '';
+    return fetch(`/api/analytics/giving/history?granularity=${g}&offset=${o}${bq}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => (data?.buckets as HistoryBucket[] | undefined) || null)
+      .catch(() => null);
+  }, [branchId]);
+
+  useEffect(() => {
+    setHistoryLoading(true);
+    fetchHistoryBuckets(historyGranularity, historyOffset).then(b => { setHistoryBuckets(b); setHistoryLoading(false); });
+  }, [historyGranularity, historyOffset, fetchHistoryBuckets]);
+
+  async function jumpHistory(direction: 'earlier' | 'later') {
+    setHistorySearching(direction);
+    let o = historyOffset;
+    for (let i = 0; i < HISTORY_MAX_LOOKBACK; i++) {
+      o = direction === 'earlier' ? o + 1 : o - 1;
+      if (o < 0) { o = 0; break; }
+      const b = await fetchHistoryBuckets(historyGranularity, o);
+      if (b && b.some(x => x.total > 0)) { setHistoryOffset(o); setHistoryBuckets(b); setHistorySearching(null); return; }
+      if (direction === 'later' && o === 0) break;
+    }
+    setHistoryOffset(o);
+    setHistorySearching(null);
+  }
+
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: t.muted, fontSize: 13 }}>Loading giving intelligence...</div>;
   if (!data) return <div style={{ textAlign: 'center', padding: 60, color: t.muted, fontSize: 13 }}>No giving data available.</div>;
 
-  const monthsToShow = range === '3m' ? 3 : range === '6m' ? 6 : 12;
-  const chartData = data.monthly_trend.slice(-monthsToShow);
-  const monthlyStats = givingTrendStats(chartData.filter(m => m.total > 0).map(m => ({ label: m.label, total: m.total })));
-  const weeklyStats = givingTrendStats(data.weekly_trend.filter(w => w.total > 0).map(w => ({ label: w.week, total: w.total })));
+  const historyStats = givingTrendStats((historyBuckets || []).filter(b => b.total > 0));
 
   function TrendStatsStrip({ stats }: { stats: ReturnType<typeof givingTrendStats> }) {
     if (!stats) return null;
@@ -87,32 +119,19 @@ export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
     );
   }
 
-  // Get top 4 income types for stacked chart
-  const topTypes = data.by_type.slice(0, 4);
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* View toggle */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', background: t.input, borderRadius: 10, padding: 3, border: `0.5px solid ${t.border}`, gap: 2 }}>
-          {[{ id: 'month', label: 'Monthly' }, { id: 'week', label: 'Weekly' }, { id: 'day', label: 'Today' }, { id: 'custom', label: 'By Month' }].map(v => (
+          {[{ id: 'history', label: 'History' }, { id: 'day', label: 'Today' }, { id: 'custom', label: 'By Month' }].map(v => (
             <button key={v.id} onClick={() => setView(v.id as typeof view)}
               style={{ padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: view === v.id ? 600 : 400, background: view === v.id ? (dark ? 'rgba(83,74,183,0.5)' : '#534AB7') : 'transparent', color: view === v.id ? '#fff' : t.sub, transition: 'all 0.15s', fontFamily: 'inherit' }}>
               {v.label}
             </button>
           ))}
         </div>
-        {view === 'month' && (
-          <div style={{ display: 'flex', gap: 6 }}>
-            {[{ id: '3m', label: '3M' }, { id: '6m', label: '6M' }, { id: '1y', label: '1Y' }].map(r => (
-              <button key={r.id} onClick={() => setRange(r.id as typeof range)}
-                style={{ padding: '5px 12px', borderRadius: 20, border: `0.5px solid ${range === r.id ? '#534AB7' : t.border}`, cursor: 'pointer', fontSize: 11, background: range === r.id ? '#534AB7' : 'transparent', color: range === r.id ? '#fff' : t.sub, fontFamily: 'inherit' }}>
-                {r.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* KPI Row */}
@@ -132,61 +151,48 @@ export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
       </div>
 
       {/* Main chart */}
-      {view === 'month' && (
+      {view === 'history' && (
         <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '16px' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Monthly giving — {new Date().getFullYear()}</div>
-          <div style={{ fontSize: 11, color: t.muted, marginBottom: 14 }}>{monthsToShow} months · all income types</div>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={dark ? 'rgba(168,159,255,0.06)' : '#F0EEF9'} />
-              <XAxis dataKey="label" tick={{ fontSize: 10, fill: dark ? 'rgba(168,159,255,0.5)' : '#9990CC' }} />
-              <YAxis tick={{ fontSize: 10, fill: dark ? 'rgba(168,159,255,0.5)' : '#9990CC' }} tickFormatter={v => `₦${(v/1000000).toFixed(1)}M`} width={48} />
-              <Tooltip
-                contentStyle={{ fontSize: 11, borderRadius: 8, background: t.card, color: t.text, border: `0.5px solid ${t.border}` }}
-                formatter={(v: number) => [fmtNGN(v), '']}
-              />
-              {topTypes.length > 0 ? (
-                topTypes.map((type, i) => (
-                  <Bar key={type.id} dataKey={type.id} name={type.name} fill={TYPE_COLORS[i]} radius={i === topTypes.length - 1 ? [3,3,0,0] : [0,0,0,0]} stackId="a" />
-                ))
-              ) : (
-                <Bar dataKey="total" fill="#534AB7" radius={[3,3,0,0]} />
-              )}
-            </BarChart>
-          </ResponsiveContainer>
-          {topTypes.length > 0 && (
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 10 }}>
-              {topTypes.map((type, i) => (
-                <div key={type.id} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: t.sub }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 2, background: TYPE_COLORS[i], flexShrink: 0 }} />
-                  {type.name}
-                </div>
-              ))}
-            </div>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            {(['week', 'month', 'year'] as const).map(g => (
+              <button key={g} onClick={() => { setHistoryGranularity(g); setHistoryOffset(0); }}
+                style={{ padding: '4px 10px', borderRadius: 20, border: '0.5px solid', cursor: 'pointer', fontSize: 11, fontWeight: historyGranularity === g ? 500 : 400, background: historyGranularity === g ? '#534AB7' : t.input, borderColor: historyGranularity === g ? '#534AB7' : t.border, color: historyGranularity === g ? '#fff' : t.sub }}>
+                {g === 'week' ? 'By Week' : g === 'month' ? 'By Month' : 'By Year'}
+              </button>
+            ))}
+            <div style={{ width: 1, alignSelf: 'stretch', background: t.border, margin: '0 2px' }} />
+            <button onClick={() => jumpHistory('earlier')} disabled={historySearching !== null} title="Jump back to the previous period with giving logged"
+              style={{ padding: '4px 10px', borderRadius: 20, border: `0.5px solid ${t.border}`, cursor: historySearching ? 'wait' : 'pointer', fontSize: 11, background: t.input, color: t.sub }}>
+              {historySearching === 'earlier' ? 'Searching…' : '← Older'}
+            </button>
+            <button onClick={() => jumpHistory('later')} disabled={historyOffset === 0 || historySearching !== null} title="Jump forward to the next period with giving logged"
+              style={{ padding: '4px 10px', borderRadius: 20, border: `0.5px solid ${t.border}`, cursor: historyOffset === 0 || historySearching ? 'default' : 'pointer', fontSize: 11, background: t.input, color: historyOffset === 0 ? t.muted : t.sub, opacity: historyOffset === 0 ? 0.5 : 1 }}>
+              {historySearching === 'later' ? 'Searching…' : 'Newer →'}
+            </button>
+            {historyBuckets && <span style={{ fontSize: 11, color: t.muted }}>{historyBuckets[0]?.label} – {historyBuckets[historyBuckets.length - 1]?.label}</span>}
+          </div>
+          {historyLoading ? (
+            <div style={{ padding: '40px 0', textAlign: 'center', fontSize: 12, color: t.muted }}>Loading giving history…</div>
+          ) : !historyBuckets || historyBuckets.every(b => b.total === 0) ? (
+            <div style={{ padding: '40px 0', textAlign: 'center', fontSize: 12, color: t.muted }}>No giving recorded for this window yet.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={historyBuckets} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="givingHistFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#534AB7" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#534AB7" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={dark ? 'rgba(168,159,255,0.06)' : '#F0EEF9'} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: dark ? 'rgba(168,159,255,0.5)' : '#9990CC' }} />
+                <YAxis tick={{ fontSize: 10, fill: dark ? 'rgba(168,159,255,0.5)' : '#9990CC' }} tickFormatter={v => fmtNGN(v)} width={56} />
+                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: t.card, color: t.text, border: `0.5px solid ${t.border}` }} formatter={(v: number) => [fmtNGN(v), 'Total']} />
+                <Area type="monotone" dataKey="total" stroke="#534AB7" strokeWidth={2} fill="url(#givingHistFill)" />
+              </AreaChart>
+            </ResponsiveContainer>
           )}
-          <TrendStatsStrip stats={monthlyStats} />
-        </div>
-      )}
-
-      {view === 'week' && (
-        <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '16px' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 14 }}>Weekly giving — last 8 weeks</div>
-          <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={data.weekly_trend} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-              <defs>
-                <linearGradient id="wkGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#534AB7" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#534AB7" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={dark ? 'rgba(168,159,255,0.06)' : '#F0EEF9'} />
-              <XAxis dataKey="week" tick={{ fontSize: 10, fill: dark ? 'rgba(168,159,255,0.5)' : '#9990CC' }} />
-              <YAxis tick={{ fontSize: 10, fill: dark ? 'rgba(168,159,255,0.5)' : '#9990CC' }} tickFormatter={v => `₦${(v/1000).toFixed(0)}k`} width={48} />
-              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: t.card, color: t.text, border: `0.5px solid ${t.border}` }} formatter={(v: number) => [fmtNGN(v), 'Total']} />
-              <Area type="monotone" dataKey="total" stroke="#534AB7" strokeWidth={2} fill="url(#wkGrad)" />
-            </AreaChart>
-          </ResponsiveContainer>
-          <TrendStatsStrip stats={weeklyStats} />
+          <TrendStatsStrip stats={historyStats} />
         </div>
       )}
 

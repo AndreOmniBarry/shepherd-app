@@ -25,7 +25,8 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     let cell_id = searchParams.get('cell_id');
-    const granularity = searchParams.get('granularity') === 'month' ? 'month' : 'week';
+    const granularityParam = searchParams.get('granularity');
+    const granularity = granularityParam === 'year' ? 'year' : granularityParam === 'month' ? 'month' : 'week';
     const offset = Math.max(0, parseInt(searchParams.get('offset') || '0', 10));
     const BUCKETS = 12;
 
@@ -47,7 +48,7 @@ export async function GET(req: Request) {
     }
     if (!cell_id) return NextResponse.json({ data: null, error: { message: 'cell_id is required' } }, { status: 400 });
 
-    const periodMs = granularity === 'month' ? 30 * 86400000 : 7 * 86400000;
+    const periodMs = granularity === 'year' ? 365 * 86400000 : granularity === 'month' ? 30 * 86400000 : 7 * 86400000;
     const now = new Date();
     const windowEnd = new Date(now.getTime() - offset * BUCKETS * periodMs);
     const windowStart = new Date(windowEnd.getTime() - BUCKETS * periodMs);
@@ -71,7 +72,7 @@ export async function GET(req: Request) {
       const absent = inBucket.reduce((s, r) => s + (r.absent_count || 0), 0);
       const total = present + absent;
       buckets.push({
-        label: granularity === 'month' ? bucketStart.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) : `${bucketStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`,
+        label: granularity === 'year' ? String(bucketStart.getFullYear()) : granularity === 'month' ? bucketStart.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) : `${bucketStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`,
         present, absent, rate: total > 0 ? Math.round((present / total) * 100) : 0,
       });
     }

@@ -29,14 +29,15 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const granularity = searchParams.get('granularity') === 'month' ? 'month' : 'week';
+    const granularityParam = searchParams.get('granularity');
+    const granularity = granularityParam === 'year' ? 'year' : granularityParam === 'month' ? 'month' : 'week';
     const offset = Math.max(0, parseInt(searchParams.get('offset') || '0', 10));
     const BUCKETS = 12;
 
     const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
 
-    const periodMs = granularity === 'month' ? 30 * 86400000 : 7 * 86400000;
+    const periodMs = granularity === 'year' ? 365 * 86400000 : granularity === 'month' ? 30 * 86400000 : 7 * 86400000;
     const now = new Date();
     const windowEnd = new Date(now.getTime() - offset * BUCKETS * periodMs);
     const windowStart = new Date(windowEnd.getTime() - BUCKETS * periodMs);
@@ -70,7 +71,7 @@ export async function GET(req: Request) {
       const open = total - resolved;
 
       buckets.push({
-        label: granularity === 'month' ? bucketStart.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) : bucketStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+        label: granularity === 'year' ? String(bucketStart.getFullYear()) : granularity === 'month' ? bucketStart.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) : bucketStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
         present: resolved, absent: open,
         rate: total > 0 ? Math.round((resolved / total) * 100) : 0,
       });
