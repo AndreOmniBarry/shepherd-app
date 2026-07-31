@@ -13,6 +13,7 @@ import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import ServicePlannerPanel from '@/components/ServicePlannerPanel';
 import EventsPanel from '@/components/EventsPanel';
 import CareFollowupPanel from '@/components/CareFollowupPanel';
+import ChatNavButton from '@/components/ChatNavButton';
 import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -1932,6 +1933,7 @@ export default function DashboardPage(){
             ) : (
               <button onClick={()=>router.push('/church-feed')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-speakerphone" size={13}/>Church Feed</button>
             )}
+            <ChatNavButton t={t} compact={isMobile} />
             {!isMobile&&<button onClick={()=>router.push('/calendar')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-calendar-event" size={13}/>Calendar</button>}
             <NotificationBell dark={dark} /><MyAccountButton dark={dark} />
             {!isMobile&&<div onClick={()=>setDark(v=>!v)} style={{width:32,height:32,borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:t.sub}}>{dark?<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}</div>}

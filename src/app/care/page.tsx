@@ -6,6 +6,7 @@ import BirthdayPanel from '@/components/BirthdayPanel';
 import CareEventsTab from '@/components/CareEventsTab';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import ChatNavButton from '@/components/ChatNavButton';
 
 type Lead = {
   id: string;
@@ -277,7 +278,7 @@ export default function CareTeamPage() {
             {dark ? '☀' : '◑'}
           </div>
           <button onClick={() => router.push("/church-center")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Center</button>
-          <button onClick={() => router.push("/church-feed")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Feed</button>
+          <button onClick={() => router.push("/church-feed")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Feed</button><ChatNavButton t={t} />
           <button onClick={() => router.push("/calendar")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Calendar</button><NotificationBell dark={dark} /><MyAccountButton dark={dark} /><button onClick={logout} style={{ background: "transparent", color: t.muted, border: "none", fontSize: 12, cursor: "pointer" }}>Sign out</button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
     const branchFilter = user.branch_id && !['general_overseer', 'lead_tech'].includes(user.role) ? `&branch_id=eq.${user.branch_id}` : '';
-    const res = await fetch(`${SURL}/rest/v1/users?is_active=eq.true&id=neq.${user.id}&select=id,full_name,role&order=full_name.asc${branchFilter}`, { headers: H() });
+    const res = await fetch(`${SURL}/rest/v1/users?is_active=eq.true&id=neq.${user.id}&select=id,full_name,role&order=full_name.asc${branchFilter}${EXCLUDE_DEMO_IDS}`, { headers: H() });
     const data = await res.json().catch(() => []);
     return NextResponse.json({ data: { people: Array.isArray(data) ? data : [] }, error: null });
   } catch (err) {
