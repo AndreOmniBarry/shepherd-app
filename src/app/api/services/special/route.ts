@@ -21,7 +21,7 @@ async function getUser(req: Request) {
 export async function GET(req: Request) {
   try {
     const user = await getUser(req);
-    if (!user || !['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+    if (!user || !['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     }
 

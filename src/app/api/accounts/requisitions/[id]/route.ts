@@ -13,8 +13,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const p = await verifyToken(token);
   if (!p) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
   const user = payloadToAuthUser(p);
-  if (!['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+  if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
     return NextResponse.json({ data: null, error: { message: 'Not authorized' } }, { status: 403 });
+  }
+
+  // A branch_pastor/pa can only ever act on their own branch's requisition,
+  // regardless of which id was requested.
+  if (['pa', 'branch_pastor'].includes(user.role)) {
+    const ownRes = await fetch(`${S}/rest/v1/expense_requisitions?id=eq.${params.id}&select=branch_id`, { headers: h() });
+    const ownRows = await ownRes.json();
+    const reqBranchId = Array.isArray(ownRows) ? ownRows[0]?.branch_id : null;
+    if (!reqBranchId || reqBranchId !== user.branch_id) {
+      return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
+    }
   }
 
   const body = await req.json();

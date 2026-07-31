@@ -17,7 +17,7 @@ async function getUser(req: Request) {
   return payloadToAuthUser(payload);
 }
 
-const ADMIN_ROLES = ['overseer', 'pa', 'lead_tech'];
+const ADMIN_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
 const RECOMMEND_ROLES = ['fellowship_head', 'department_head'];
 
 // Recommend a member's removal — fellowship/department heads only. Cell

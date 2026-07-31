@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 
 type Notification = {
   id: string;
@@ -41,6 +42,7 @@ interface NotificationBellProps {
 }
 
 export default function NotificationBell({ dark = false }: NotificationBellProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -147,6 +149,14 @@ export default function NotificationBell({ dark = false }: NotificationBellProps
     setNotifications(prev => prev.filter(n => n.id !== id));
   }
 
+  async function openNotification(n: Notification) {
+    if (!n.read) {
+      setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x));
+      fetch(`/api/notifications/${n.id}`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ read: true }) }).catch(() => {});
+    }
+    if (n.link) { setOpen(false); router.push(n.link); }
+  }
+
   function handleOpen() {
     setOpen(v => !v);
     setNewCount(0);
@@ -238,6 +248,7 @@ export default function NotificationBell({ dark = false }: NotificationBellProps
                 const cfg = TYPE_CONFIG[n.type] || TYPE_CONFIG.system;
                 return (
                   <div key={n.id}
+                    onClick={() => openNotification(n)}
                     style={{
                       display: 'flex', gap: 11, padding: '11px 16px',
                       borderBottom: i < notifications.length - 1 ? `0.5px solid ${t.divider}` : 'none',

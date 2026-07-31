@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    if (!['overseer','pa','lead_tech'].includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
+    if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     const body = await req.json();
     const { title, event_date, end_date, description, event_type, start_time, end_time, location, is_free, price, capacity, banner_url, whatsapp_confirmation, sms_confirmation } = body;
     if (!title || !event_date) return NextResponse.json({ data: null, error: { message: 'Title and date required' } }, { status: 400 });
@@ -59,7 +59,7 @@ export async function PATCH(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    if (!['overseer','pa','lead_tech'].includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
+    if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     const { id, ...rest } = await req.json();
     await fetch(`${SURL}/rest/v1/church_events?id=eq.${id}`, { method: 'PATCH', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify({ ...rest, updated_at: new Date().toISOString() }) });
     return NextResponse.json({ data: { updated: true }, error: null });

@@ -42,7 +42,7 @@ export async function GET(req: Request) {
       if (!cellFellowshipId || cellFellowshipId !== user.fellowship_id) {
         return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
       }
-    } else if (!['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+    } else if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     }
     if (!cell_id) return NextResponse.json({ data: null, error: { message: 'cell_id is required' } }, { status: 400 });

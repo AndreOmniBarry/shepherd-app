@@ -52,7 +52,10 @@ export async function PATCH(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    if (!['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+    // Church-wide billing — the top authority only (overseer covers the
+    // single-congregation case where general_overseer doesn't exist yet),
+    // never a branch_pastor or pa scoped to one branch.
+    if (!['overseer', 'general_overseer', 'lead_tech'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Not authorized' } }, { status: 403 });
     }
 

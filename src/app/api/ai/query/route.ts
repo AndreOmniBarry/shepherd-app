@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
-import type { AgentName } from '@/types';
+import type { AgentName, AuthUser } from '@/types';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -16,6 +16,19 @@ async function getUser(req: Request) {
   const payload = await verifyToken(token);
   if (!payload) return null;
   return payloadToAuthUser(payload);
+}
+
+// Only general_overseer and lead_tech have unrestricted reach — every other
+// role that can reach Moshe at all is either blocked from financial tables
+// entirely (pa) or hard-scoped to their own branch (overseer, branch_pastor).
+// This is enforced here in code, not just described in the prompt, since an
+// LLM's own judgement about what it should or shouldn't say is not a
+// security boundary.
+const FINANCIAL_TABLES = ['income_records', 'income_types', 'giving_records', 'expense_requisitions', 'financial_periods'];
+
+function touchesFinancialData(sql: string): boolean {
+  const lower = sql.toLowerCase();
+  return FINANCIAL_TABLES.some(t => new RegExp(`\\b${t}\\b`).test(lower));
 }
 
 const BASE_RULES = `
@@ -57,16 +70,18 @@ The database contains records from January 2021 through May 2026. If a user asks
 5. If results are empty, say the data does not exist for that period.
 
 ## SCHEMA
-- cells (id, name, fellowship_id, target_size, is_active)
-- fellowships (id, name)
+- branches (id, name, is_headquarters)
+- cells (id, name, fellowship_id, branch_id, target_size, is_active)
+- fellowships (id, name, branch_id)
 - attendance_records (id, service_id, cell_id, present_count, absent_count, visitor_count, submitted_at)
-- services (id, service_date, service_number, service_type)
-- income_records (id, income_type_id, amount, service_date, created_at, notes)
+- services (id, service_date, service_number, service_type, branch_id)
+- income_records (id, income_type_id, amount, service_date, created_at, notes, branch_id)
 - income_types (id, name, category) — category is 'individual', 'aggregate', or 'partnership'
 - giving_records (id, fellowship_id, service_date, tithe, offering, special, project, submitted_by) — fellowship-level giving summary
-- members (id, full_name, gender, date_of_birth, phone, email, cell_id, fellowship_id, sub_group, join_date, membership_status, conversion_source, is_new_convert, created_at)
-- departments (id, name)
+- members (id, full_name, gender, date_of_birth, phone, email, cell_id, fellowship_id, branch_id, sub_group, join_date, membership_status, conversion_source, is_new_convert, created_at)
+- departments (id, name, branch_id)
 - department_members (id, department_id, member_id)
+- expense_requisitions (id, title, amount_requested, amount_approved, status, branch_id, created_at)
 
 JOIN KEYS:
 - attendance_records.service_id -> services.id
@@ -78,6 +93,17 @@ JOIN KEYS:
 - cells.fellowship_id -> fellowships.id
 - department_members.member_id -> members.id
 - department_members.department_id -> departments.id
+- cells.branch_id / fellowships.branch_id / members.branch_id / departments.branch_id / income_records.branch_id / expense_requisitions.branch_id -> branches.id
+
+## ACCESS SCOPE
+Every message is prefixed with a [SCOPE] line telling you the caller's role and, if they are
+branch-scoped, their exact branch_id. If a branch_id is given, every query you write that touches
+a table with a branch_id column MUST filter WHERE branch_id = '<that exact uuid>' — never omit it,
+never query another branch's id, and never write a query with no branch filter at all on a
+branch-scoped table. If [SCOPE] says financial data is restricted, do not call query_database for
+any question about giving, income, requisitions, or financial trends — instead say plainly that
+financial data access is restricted for this role and suggest they ask their General Overseer or
+Branch Pastor.
 
 IMPORTANT: For total church income use income_records joined with income_types. For fellowship-level giving totals use giving_records. Always show income_types.name not 'Anonymous' as the category label.
 
@@ -117,7 +143,7 @@ const DB_TOOL: Anthropic.Tool = {
   },
 };
 
-async function executeSQL(rawSql: string): Promise<string> {
+async function executeSQL(rawSql: string, user: AuthUser): Promise<string> {
   const sql = rawSql.replace(/```sql/gi, '').replace(/```/g, '').trim();
   console.log('[SQL]', sql.slice(0, 400));
 
@@ -129,6 +155,21 @@ async function executeSQL(rawSql: string): Promise<string> {
   const dangerous = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'TRUNCATE', 'ALTER', 'CREATE'];
   if (dangerous.some(kw => upper.includes(kw))) {
     return JSON.stringify({ error: 'Prohibited keyword detected.' });
+  }
+
+  // Financial guardrail — enforced in code, not trusted to the model.
+  if (touchesFinancialData(sql)) {
+    if (user.role === 'pa') {
+      console.log('[SQL BLOCKED — pa financial query]');
+      return JSON.stringify({ error: 'Financial data access is restricted for this role. Ask your General Overseer or Branch Pastor.' });
+    }
+    if (['overseer', 'branch_pastor'].includes(user.role)) {
+      if (!user.branch_id || !sql.includes(user.branch_id)) {
+        console.log('[SQL BLOCKED — branch-scoped role missing branch filter]');
+        return JSON.stringify({ error: `Financial queries for this role must be scoped to your own branch (branch_id = '${user.branch_id || ''}'). Please rephrase or ask about your own branch specifically.` });
+      }
+    }
+    // general_overseer and lead_tech: unrestricted.
   }
 
   try {
@@ -180,7 +221,7 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
-    if (!['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+    if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
       return NextResponse.json(
         { data: null, error: { message: 'Overseer access required', code: 'FORBIDDEN' } },
         { status: 403 }
@@ -205,11 +246,17 @@ export async function POST(req: Request) {
     const systemTime = now.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Lagos' });
     const dateContext = `[SYSTEM: Today is ${systemDate}, ${systemTime} WAT]`;
 
+    const scopeContext = user.role === 'pa'
+      ? '[SCOPE: role=pa. Financial data access is restricted — do not query income_records, income_types, giving_records, expense_requisitions, or financial_periods for this user under any circumstance.]'
+      : ['overseer', 'branch_pastor'].includes(user.role)
+        ? `[SCOPE: role=${user.role}, branch_id=${user.branch_id || 'none'}. Every query touching a table with a branch_id column must filter WHERE branch_id = '${user.branch_id || ''}'.]`
+        : `[SCOPE: role=${user.role}. Unrestricted — no branch or financial limits apply.]`;
+
     const messages: Anthropic.MessageParam[] = [];
     for (const turn of history) {
       messages.push({ role: turn.role, content: turn.content });
     }
-    messages.push({ role: 'user', content: `${dateContext}\n\n${query}` });
+    messages.push({ role: 'user', content: `${dateContext}\n${scopeContext}\n\n${query}` });
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
@@ -239,7 +286,7 @@ export async function POST(req: Request) {
             const toolBlock = firstResponse.content.find(b => b.type === 'tool_use');
             if (toolBlock && toolBlock.type === 'tool_use') {
               emitMeta({ status: 'querying_database' });
-              const sqlResult = await executeSQL((toolBlock.input as { sql: string }).sql);
+              const sqlResult = await executeSQL((toolBlock.input as { sql: string }).sql, user);
 
               messages.push({ role: 'assistant', content: firstResponse.content });
               messages.push({

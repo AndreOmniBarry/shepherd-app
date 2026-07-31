@@ -26,7 +26,7 @@ export async function GET(req: Request) {
 
     // PA and overseer see all
     let cellFilter = '';
-    if (fellowship_id && !['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+    if (fellowship_id && !['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
       // Get cells in this fellowship
       const cellsRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?fellowship_id=eq.${fellowship_id}&select=id`, { headers: hdrs() });
       const cells = await cellsRes.json();

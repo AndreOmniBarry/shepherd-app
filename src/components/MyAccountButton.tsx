@@ -8,7 +8,7 @@ const PREVIEW_ROLES: { value: string; label: string; refKind: 'cell' | 'fellowsh
   { value: 'overseer', label: 'Overseer / Pastor', refKind: null },
   { value: 'general_overseer', label: 'General Overseer', refKind: null },
   { value: 'branch_pastor', label: 'Branch Pastor', refKind: 'branch' },
-  { value: 'pa', label: 'PA', refKind: null },
+  { value: 'pa', label: 'PA', refKind: 'branch' },
   { value: 'fellowship_head', label: 'Fellowship Head', refKind: 'fellowship' },
   { value: 'cell_leader', label: 'Cell Leader', refKind: 'cell' },
   { value: 'department_head', label: 'Department Head', refKind: 'department' },

@@ -74,6 +74,7 @@ export async function POST(req: Request) {
           user_id: e.member_id, type: 'service', read: false,
           title: `You are on the ${deptName} rota`,
           body: `${service_date} · Your role: ${e.role_title}${e.position ? ` — ${e.position}` : ''}. Check My Assignments.`,
+          link: '/my-assignments',
         }));
         if (notifications.length > 0) {
           await fetch(`${SURL}/rest/v1/notifications`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(notifications) });

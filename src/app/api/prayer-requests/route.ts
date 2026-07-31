@@ -15,9 +15,11 @@ async function getUser(req: Request) {
   return payloadToAuthUser(payload);
 }
 
+const ADMIN_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
+
 async function getOverseerIds(): Promise<string[]> {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&select=id`,
+    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,general_overseer,pa,lead_tech)&select=id`,
     { headers: hdrs() }
   );
   const data = await res.json();
@@ -35,8 +37,8 @@ export async function GET(req: Request) {
     let url = `${SUPABASE_URL}/rest/v1/prayer_requests?order=created_at.desc&limit=50&select=id,request,requester_name,category,status,is_anonymous,submitted_by,submitted_by_role,created_at`;
     if (status !== 'all') url += `&status=eq.${status}`;
 
-    // Non-overseer roles only see their own submissions
-    if (!['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+    // Non-admin roles only see their own submissions
+    if (!ADMIN_ROLES.includes(user.role)) {
       url += `&submitted_by=eq.${user.id}`;
     }
 
@@ -102,7 +104,7 @@ export async function PATCH(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    if (!['overseer', 'pa', 'lead_tech'].includes(user.role)) {
+    if (!ADMIN_ROLES.includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Not authorized' } }, { status: 403 });
     }
 
@@ -127,7 +129,7 @@ export async function DELETE(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
+    if (!ADMIN_ROLES.includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Not authorized' } }, { status: 403 });
     }
 
