@@ -20,17 +20,18 @@ const PORTAL_PATH: Record<string, string> = {
 };
 
 // Real, full-access impersonation — any leader, any cell, any department,
-// not a fixed read-only demo account. This exists so lead_tech can test and
-// iterate as any actual user during the pilot without ever touching that
-// person's password: no password is generated, seen, or stored anywhere,
+// not a fixed read-only demo account. Restricted to the top-tier admin roles
+// (overseer, general_overseer, lead_tech) so they can help a real leader who
+// is stuck without ever touching that person's password: no password is
+// generated, seen, or stored anywhere,
 // it's a straight session swap. Reuses the same shepherd_admin_token
 // stash/restore pair as the existing read-only portal preview, so "Exit
 // preview -> back to my account" (MyAccountButton) already works unchanged.
 export async function POST(req: Request) {
   try {
     const admin = await getUser(req);
-    if (!admin || admin.role !== 'lead_tech') {
-      return NextResponse.json({ data: null, error: { message: 'Only lead tech can log in as another user' } }, { status: 403 });
+    if (!admin || !['overseer', 'general_overseer', 'lead_tech'].includes(admin.role)) {
+      return NextResponse.json({ data: null, error: { message: 'You do not have permission to log in as another user' } }, { status: 403 });
     }
 
     const { userId } = await req.json();
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
       name: target.full_name,
     });
 
-    console.log(`[login-as] lead_tech ${admin.id} logged in as ${target.role} ${target.id} (${target.full_name})`);
+    console.log(`[login-as] ${admin.role} ${admin.id} logged in as ${target.role} ${target.id} (${target.full_name})`);
 
     const res = NextResponse.json({ data: { path: PORTAL_PATH[target.role] || '/dashboard', full_name: target.full_name, role: target.role }, error: null });
 

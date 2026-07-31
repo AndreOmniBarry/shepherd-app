@@ -28,6 +28,7 @@ export default function ChurchFeedPage() {
   const [loading, setLoading] = useState(true);
 
   const [groups, setGroups] = useState<Group[]>([]);
+  const [groupsError, setGroupsError] = useState('');
   const [activeGroupId, setActiveGroupId] = useState('');
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
@@ -66,12 +67,13 @@ export default function ChurchFeedPage() {
   }, [router]);
 
   const loadGroups = useCallback(() => {
-    setLoading(true);
-    fetch('/api/feed/groups', { credentials: 'include' }).then(r => r.json()).then(({ data }) => {
-      const list: Group[] = data?.groups || [];
+    setLoading(true); setGroupsError('');
+    fetch('/api/feed/groups', { credentials: 'include' }).then(r => r.json().then(json => ({ ok: r.ok, json }))).then(({ ok, json }) => {
+      if (!ok) { setGroupsError(json?.error?.message || 'Could not load Church Feed groups.'); setGroups([]); return; }
+      const list: Group[] = json?.data?.groups || [];
       setGroups(list);
       setActiveGroupId(prev => list.some(g => g.id === prev) ? prev : (list[0]?.id || ''));
-    }).finally(() => setLoading(false));
+    }).catch(() => setGroupsError('Network error — could not load Church Feed groups.')).finally(() => setLoading(false));
   }, []);
   useEffect(() => { loadGroups(); }, [loadGroups]);
 
@@ -168,6 +170,16 @@ export default function ChurchFeedPage() {
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 40, color: t.muted, fontSize: 13 }}>Loading…</div>
+        ) : groupsError ? (
+          <div style={{ ...card, background: t.coralBg, border: `0.5px solid ${t.coral}` }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: t.coral, marginBottom: 4 }}>Church Feed couldn&apos;t load</div>
+            <div style={{ fontSize: 12, color: t.text }}>{groupsError}</div>
+          </div>
+        ) : groups.length === 0 ? (
+          <div style={card}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>No feed groups yet</div>
+            <div style={{ fontSize: 12, color: t.sub }}>The church-wide feed hasn&apos;t been set up for your account yet. Ask your overseer or technical admin to check the Church Feed setup.</div>
+          </div>
         ) : (
           <>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
