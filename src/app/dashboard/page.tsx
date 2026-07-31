@@ -1793,7 +1793,7 @@ export default function DashboardPage(){
     chartTipText: dark?'#E8E5FF':'#1A1040',
     chartBorder: dark?'rgba(168,159,255,0.08)':'rgba(83,74,183,0.10)',
   };
-  const card=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,backdropFilter:'blur(14px) saturate(150%)',WebkitBackdropFilter:'blur(14px) saturate(150%)',border:`0.5px solid ${t.border}`,borderRadius:'var(--radius-md)',padding:'16px 20px',transition:'transform var(--motion-medium) var(--ease-out-expo), box-shadow var(--motion-medium) var(--ease-out-expo)',...e});
+  const card=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,backdropFilter:'blur(14px) saturate(150%)',WebkitBackdropFilter:'blur(14px) saturate(150%)',border:`0.5px solid ${t.border}`,borderRadius:'var(--radius-md)',padding:isMobile?'12px 14px':'16px 20px',transition:'transform var(--motion-medium) var(--ease-out-expo), box-shadow var(--motion-medium) var(--ease-out-expo)',...e});
   const ss=(s:string)=>s==='rising'?{bg:'#E1F5EE',c:'#085041'}:s==='stable'?{bg:'#F3F4F6',c:'#374151'}:s==='watch'?{bg:'#FAEEDA',c:'#633806'}:{bg:'#FAECE7',c:'#993C1D'};
 
   const navItems=[
@@ -1866,23 +1866,23 @@ export default function DashboardPage(){
       {/* Main */}
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,background:dark?`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}`:`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`}}>
         {/* Topbar */}
-        <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,padding:'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            {isMobile&&<button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,color:'#534AB7',padding:'0 4px',lineHeight:1}}>☰</button>}
-            <div>
-              <span style={{fontSize:14,fontWeight:500,color:t.text}}>{navItems.find(n=>n.id===page)?.label}</span>
+        <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,padding:isMobile?'8px 10px':'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,position:'sticky',top:0,zIndex:30}}>
+          <div style={{display:'flex',alignItems:'center',gap:isMobile?6:10,minWidth:0}}>
+            {isMobile&&<button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,color:'#534AB7',padding:'0 4px',lineHeight:1,flexShrink:0}}>☰</button>}
+            <div style={{minWidth:0,overflow:'hidden'}}>
+              <span style={{fontSize:isMobile?12:14,fontWeight:500,color:t.text,whiteSpace:'nowrap'}}>{navItems.find(n=>n.id===page)?.label}</span>
               {!isMobile&&<span suppressHydrationWarning style={{fontSize:11,color:t.muted,marginLeft:10}}>{new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>}
-              {userName&&userName!=='General'&&<span style={{fontSize:12,color:'#534AB7',marginLeft:isMobile?6:10}}>· {greeting()}, {userName.split(' ')[0]}</span>}
+              {!isMobile&&userName&&userName!=='General'&&<span style={{fontSize:12,color:'#534AB7',marginLeft:10}}>· {greeting()}, {userName.split(' ')[0]}</span>}
             </div>
           </div>
-          <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <div style={{display:'flex',alignItems:'center',gap:isMobile?6:12,flexShrink:0}}>
             {userRole==='branch_pastor' ? (
               <div title="You are scoped to your own branch — every figure and action here applies only to it"
-                style={{display:'flex',alignItems:'center',gap:7,padding:'6px 12px',borderRadius:20,border:'0.5px solid rgba(29,158,117,0.3)',background:dark?'rgba(29,158,117,0.12)':'#E1F5EE'}}>
+                style={{display:'flex',alignItems:'center',gap:isMobile?5:7,padding:isMobile?'4px 8px':'6px 12px',borderRadius:20,border:'0.5px solid rgba(29,158,117,0.3)',background:dark?'rgba(29,158,117,0.12)':'#E1F5EE'}}>
                 <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',flexShrink:0,boxShadow:'0 0 0 3px rgba(29,158,117,0.2)'}}/>
-                <span style={{fontSize:11,fontWeight:700,color:'#085041'}}>Viewing: {branchesList.find(b=>b.id===userBranchId)?.name || 'Your Branch'}</span>
+                {!isMobile&&<span style={{fontSize:11,fontWeight:700,color:'#085041'}}>Viewing: {branchesList.find(b=>b.id===userBranchId)?.name || 'Your Branch'}</span>}
               </div>
-            ) : branchesList.length>1&&(
+            ) : branchesList.length>1&&!isMobile&&(
               <div style={{position:'relative',display:'flex',alignItems:'center'}}>
                 <div style={{position:'absolute',left:10,display:'flex',alignItems:'center',gap:6,pointerEvents:'none',zIndex:1}}>
                   <span style={{width:7,height:7,borderRadius:'50%',background:selectedBranch?'#BA7517':'#534AB7',flexShrink:0,boxShadow:`0 0 0 3px ${selectedBranch?'rgba(186,117,23,0.18)':'rgba(83,74,183,0.18)'}`}}/>
@@ -1896,19 +1896,26 @@ export default function DashboardPage(){
               </div>
             )}
             {!isMobile&&!dark&&(<div style={{display:'flex',background:t.cardInner,border:`0.5px solid ${t.border}`,borderRadius:20,padding:2,gap:2}}><button onClick={()=>setSidebarStyle('light')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='light'?'#534AB7':'transparent',color:sidebarStyle==='light'?'#fff':t.muted,fontFamily:'inherit'}}>Light sidebar</button><button onClick={()=>setSidebarStyle('dark')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='dark'?'#534AB7':'transparent',color:sidebarStyle==='dark'?'#fff':t.muted,fontFamily:'inherit'}}>Dark sidebar</button></div>)}
-            <button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Search</button>
-            <button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:'none',background:'#534AB7',color:'#fff',fontSize:11,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>Add member</button>
-            <button onClick={()=>router.push('/church-feed')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-speakerphone" size={13}/>Church Feed</button>
-            <button onClick={()=>router.push('/calendar')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-calendar-event" size={13}/>Calendar</button>
-            <NotificationBell dark={dark} /><MyAccountButton dark={dark} /><div onClick={()=>setDark(v=>!v)} style={{width:32,height:32,borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:t.sub}}>{dark?<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}</div>
-            <div style={{display:'flex',alignItems:'center',gap:5,fontSize:12,color:'#1D9E75'}}>
-              <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',display:'inline-block'}}/>Live
-            </div>
-            <div style={{width:32,height:32,borderRadius:'50%',background:'#CECBF6',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:500,color:'#3C3489'}}>{userName?userName.slice(0,2).toUpperCase():'GO'}</div>
+            {!isMobile&&<button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Search</button>}
+            {!isMobile&&<button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:'none',background:'#534AB7',color:'#fff',fontSize:11,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>Add member</button>}
+            {isMobile ? (
+              <button onClick={()=>router.push('/church-feed')} title="Church Feed" style={{width:30,height:30,borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:t.sub,flexShrink:0}}><Icon name="ti-speakerphone" size={14}/></button>
+            ) : (
+              <button onClick={()=>router.push('/church-feed')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-speakerphone" size={13}/>Church Feed</button>
+            )}
+            {!isMobile&&<button onClick={()=>router.push('/calendar')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-calendar-event" size={13}/>Calendar</button>}
+            <NotificationBell dark={dark} /><MyAccountButton dark={dark} />
+            {!isMobile&&<div onClick={()=>setDark(v=>!v)} style={{width:32,height:32,borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:t.sub}}>{dark?<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}</div>}
+            {!isMobile&&(
+              <div style={{display:'flex',alignItems:'center',gap:5,fontSize:12,color:'#1D9E75'}}>
+                <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',display:'inline-block'}}/>Live
+              </div>
+            )}
+            {!isMobile&&<div style={{width:32,height:32,borderRadius:'50%',background:'#CECBF6',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:500,color:'#3C3489'}}>{userName?userName.slice(0,2).toUpperCase():'GO'}</div>}
           </div>
         </div>
 
-        <div key={page} className="shep-tab-enter" style={{flex:1,padding:'20px',overflowY:'auto',background:'transparent',maxWidth:'100%'}}>
+        <div key={page} className="shep-tab-enter" style={{flex:1,padding:isMobile?'12px':'20px',overflowY:'auto',background:'transparent',maxWidth:'100%'}}>
 
           {/* ══ DASHBOARD ══ */}
           {page==='dashboard'&&(
@@ -1927,9 +1934,9 @@ export default function DashboardPage(){
                   <div key={m.label} onClick={()=>setPage(m.page)} style={{...card(),cursor:'pointer'}}
                     onMouseEnter={e=>e.currentTarget.style.boxShadow='0 2px 8px rgba(83,74,183,0.15)'}
                     onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
-                    <div style={{fontSize:11,color:t.sub,marginBottom:4}}>{m.label}</div>
-                    <div style={{fontSize:26,fontWeight:600,color:t.text,lineHeight:1.1}}>{m.value}</div>
-                    <div style={{fontSize:11,color:'#1D9E75',marginTop:3}}>{m.delta}</div>
+                    <div style={{fontSize:isMobile?10:11,color:t.sub,marginBottom:4}}>{m.label}</div>
+                    <div style={{fontSize:isMobile?19:26,fontWeight:600,color:t.text,lineHeight:1.1}}>{m.value}</div>
+                    <div style={{fontSize:isMobile?10:11,color:'#1D9E75',marginTop:3}}>{m.delta}</div>
                   </div>
                 ))}
               </div>
@@ -2837,7 +2844,7 @@ export default function DashboardPage(){
           {page==='settings'&&(
             <div>
               <ChurchSettingsPanel t={t} dark={dark} userRole={userRole} onConfigSaved={(cfg)=>setChurchConfig(cfg)} />
-              {userRole==='lead_tech' && <TeamAccessPanel t={t} />}
+              {['overseer','general_overseer','lead_tech'].includes(userRole) && <TeamAccessPanel t={t} />}
             </div>
           )}
           {page==='admin'&&(

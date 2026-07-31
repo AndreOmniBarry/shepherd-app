@@ -25,6 +25,11 @@ export async function GET(req: Request) {
 
   const churchFilter = user.branch_id ? `&or=(branch_id.eq.${user.branch_id},branch_id.is.null)` : '&branch_id=is.null';
   const churchRes = await fetch(`${S}/rest/v1/feed_groups?type=eq.church${churchFilter}&select=id,type,name,department_id,branch_id&limit=1`, { headers: H() });
+  if (!churchRes.ok) {
+    const err = await churchRes.text();
+    console.error('[GET /api/feed/groups] church query failed', churchRes.status, err);
+    return NextResponse.json({ data: null, error: { message: 'Church Feed is not set up yet — the feed_groups table may be missing. Contact your administrator.' } }, { status: 502 });
+  }
   const churchGroups = await churchRes.json().catch(() => []);
 
   let deptGroups: Record<string, unknown>[] = [];

@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 interface Props { dark?: boolean; }
 
 const ADMIN_ROLES = ['overseer', 'general_overseer', 'lead_tech'];
+// overseer and general_overseer are the same effective top tier (full access,
+// same portal) — previewing one from the other is a no-op, not a real test.
+const SAME_TIER = ['overseer', 'general_overseer'];
 const PREVIEW_ROLES: { value: string; label: string; refKind: 'cell' | 'fellowship' | 'department' | 'branch' | null }[] = [
   { value: 'overseer', label: 'Overseer / Pastor', refKind: null },
   { value: 'general_overseer', label: 'General Overseer', refKind: null },
@@ -193,7 +196,7 @@ export default function MyAccountButton({ dark = false }: Props) {
                     <div style={label}>Preview a portal (no password needed)</div>
                     <select value={previewRole} onChange={e => setPreviewRole(e.target.value)} style={{ ...inp, marginBottom: 8 }}>
                       <option value="">Choose a role…</option>
-                      {PREVIEW_ROLES.filter(r => r.value !== role).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      {PREVIEW_ROLES.filter(r => r.value !== role && !(SAME_TIER.includes(role) && SAME_TIER.includes(r.value))).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                     </select>
                     {PREVIEW_ROLES.find(r => r.value === previewRole)?.refKind && (
                       <select value={refId} onChange={e => setRefId(e.target.value)} style={{ ...inp, marginBottom: 8 }}>
