@@ -137,16 +137,18 @@ export default function ChurchFeedPage() {
     } finally { setCreatingGroup(false); }
   }
 
-  const card: React.CSSProperties = { background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' };
+  const card: React.CSSProperties = { background: 'var(--glass-bg)', WebkitBackdropFilter: 'blur(var(--glass-blur)) saturate(160%)', backdropFilter: 'blur(var(--glass-blur)) saturate(160%)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', padding: '14px 16px', transition: 'transform var(--motion-medium) var(--ease-out-expo), box-shadow var(--motion-medium) var(--ease-out-expo)' };
   const activeGroup = groups.find(g => g.id === activeGroupId);
   const canCreateDeptGroup = userRole === 'department_head' && !groups.some(g => g.type === 'department');
 
   return (
-    <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>
-      <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
+    <div data-theme={dark ? 'dark' : 'light'} className="shep-page-enter" style={{ minHeight: '100vh', background: dark ? `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}` : `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`, fontFamily: 'Inter,system-ui,sans-serif' }}>
+      <div style={{ background: t.navBg, WebkitBackdropFilter: 'blur(18px) saturate(160%)', backdropFilter: 'blur(18px) saturate(160%)', borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={() => router.push(homePath)} title="Back to dashboard"
-            style={{ background: t.purpleBg, border: 'none', borderRadius: 8, width: 30, height: 30, cursor: 'pointer', color: t.purple, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+            style={{ background: t.purpleBg, border: 'none', borderRadius: 'var(--radius-sm)', width: 30, height: 30, cursor: 'pointer', color: t.purple, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform var(--motion-fast) var(--ease-spring)' }}>
             <Icon name="ti-arrow-left" size={15} />
           </button>
           <div>
@@ -185,13 +187,17 @@ export default function ChurchFeedPage() {
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
               {groups.map(g => (
                 <button key={g.id} onClick={() => setActiveGroupId(g.id)}
-                  style={{ padding: '6px 14px', borderRadius: 20, border: '0.5px solid', cursor: 'pointer', fontSize: 12, fontWeight: activeGroupId === g.id ? 600 : 400, background: activeGroupId === g.id ? '#534AB7' : t.card, borderColor: activeGroupId === g.id ? '#534AB7' : t.border, color: activeGroupId === g.id ? '#fff' : t.sub }}>
+                  onMouseEnter={e => { if (activeGroupId !== g.id) e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
+                  style={{ padding: '7px 15px', borderRadius: 20, border: '0.5px solid', cursor: 'pointer', fontSize: 12, fontWeight: activeGroupId === g.id ? 600 : 400, background: activeGroupId === g.id ? '#534AB7' : 'var(--glass-bg)', borderColor: activeGroupId === g.id ? '#534AB7' : t.border, color: activeGroupId === g.id ? '#fff' : t.sub, boxShadow: activeGroupId === g.id ? '0 2px 10px rgba(83,74,183,0.3)' : 'none', transition: 'all var(--motion-fast) var(--ease-out-expo)' }}>
                   {g.type === 'church' ? g.name : (g.departments?.name || g.name)}
                 </button>
               ))}
               {canCreateDeptGroup && (
                 <button onClick={() => setCreatingGroup(v => !v)}
-                  style={{ padding: '6px 14px', borderRadius: 20, border: `0.5px dashed ${t.purple}`, cursor: 'pointer', fontSize: 12, background: 'transparent', color: t.purple }}>
+                  onMouseEnter={e => { e.currentTarget.style.background = t.purpleBg; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                  style={{ padding: '7px 15px', borderRadius: 20, border: `0.5px dashed ${t.purple}`, cursor: 'pointer', fontSize: 12, background: 'transparent', color: t.purple, transition: 'background var(--motion-fast) var(--ease-out-expo)' }}>
                   + Create my department's group
                 </button>
               )}
@@ -213,11 +219,13 @@ export default function ChurchFeedPage() {
               <div>
                 {!composerOpen ? (
                   <button onClick={() => setComposerOpen(true)}
-                    style={{ width: '100%', textAlign: 'left', background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '12px 16px', fontSize: 13, color: t.muted, cursor: 'pointer' }}>
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = t.purple; e.currentTarget.style.color = t.purple; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.muted; }}
+                    style={{ ...card, width: '100%', textAlign: 'left', color: t.muted, cursor: 'pointer' }}>
                     + Post to {activeGroup.type === 'church' ? activeGroup.name : (activeGroup.departments?.name || activeGroup.name)}…
                   </button>
                 ) : (
-                  <div style={card}>
+                  <div className="shep-pop-enter" style={card}>
                     <textarea value={composerBody} onChange={e => setComposerBody(e.target.value)} rows={3} placeholder="What do you need to say?"
                       style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 13, background: t.input, color: t.text, outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                     <div style={{ display: 'flex', gap: 14, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' as const }}>
@@ -250,8 +258,10 @@ export default function ChurchFeedPage() {
               <div style={{ textAlign: 'center', padding: 24, color: t.muted, fontSize: 13 }}>Loading posts…</div>
             ) : posts.length === 0 ? (
               <div style={card}><div style={{ textAlign: 'center', padding: 24, color: t.muted, fontSize: 13 }}>Nothing posted here yet.</div></div>
-            ) : posts.map(p => (
-              <div key={p.id} style={{ ...card, borderLeft: p.urgent ? `3px solid ${t.coral}` : card.border ? undefined : undefined, borderLeftWidth: p.urgent ? 3 : undefined, borderLeftColor: p.urgent ? t.coral : undefined }}>
+            ) : posts.map((p, pi) => (
+              <div key={p.id} className="shep-tab-enter" style={{ ...card, borderLeftWidth: p.urgent ? 3 : undefined, borderLeftColor: p.urgent ? t.coral : undefined, animationDelay: `${Math.min(pi, 6) * 40}ms` }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = dark ? '0 4px 20px rgba(0,0,0,0.5)' : '0 4px 20px rgba(83,74,183,0.14)'; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--glass-shadow)'; }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{p.author_name} <span style={{ fontWeight: 400, color: t.muted, textTransform: 'capitalize' }}>· {p.author_role.replace(/_/g, ' ')}</span></div>
@@ -265,10 +275,10 @@ export default function ChurchFeedPage() {
                 <div style={{ fontSize: 13, color: t.text, marginTop: 8, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{p.body}</div>
                 <div style={{ display: 'flex', gap: 14, marginTop: 10, alignItems: 'center' }}>
                   <button onClick={() => toggleAck(p.id)}
-                    style={{ background: p.acknowledged_by_me ? t.tealBg : 'transparent', color: p.acknowledged_by_me ? t.teal : t.muted, border: `0.5px solid ${p.acknowledged_by_me ? t.teal : t.border}`, borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                    style={{ background: p.acknowledged_by_me ? t.tealBg : 'transparent', color: p.acknowledged_by_me ? t.teal : t.muted, border: `0.5px solid ${p.acknowledged_by_me ? t.teal : t.border}`, borderRadius: 20, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all var(--motion-fast) var(--ease-spring)' }}>
                     {p.acknowledged_by_me ? 'Acknowledged' : 'Acknowledge'}{p.ack_count > 0 ? ` · ${p.ack_count}` : ''}
                   </button>
-                  <button onClick={() => toggleExpand(p.id)} style={{ background: 'transparent', border: 'none', color: t.purple, fontSize: 11, cursor: 'pointer' }}>
+                  <button onClick={() => toggleExpand(p.id)} style={{ background: 'transparent', border: 'none', color: t.purple, fontSize: 11, cursor: 'pointer', fontWeight: 500 }}>
                     {p.comment_count > 0 ? `${p.comment_count} comment${p.comment_count !== 1 ? 's' : ''}` : 'Comment'}
                   </button>
                 </div>

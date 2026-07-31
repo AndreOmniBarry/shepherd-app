@@ -104,15 +104,17 @@ export default function ChurchCenterPage() {
     load();
   }
 
-  const card: React.CSSProperties = { background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '16px 18px' };
+  const card: React.CSSProperties = { background: 'var(--glass-bg)', WebkitBackdropFilter: 'blur(var(--glass-blur)) saturate(160%)', backdropFilter: 'blur(var(--glass-blur)) saturate(160%)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', padding: '16px 18px', transition: 'box-shadow var(--motion-medium) var(--ease-out-expo)' };
   const statusColor = (s: string) => s === 'accepted' ? { bg: t.tealBg, c: t.teal } : s === 'declined' || s === 'cancelled' ? { bg: t.coralBg, c: t.coral } : { bg: t.purpleBg, c: t.purple };
 
   return (
-    <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>
-      <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
+    <div data-theme={dark ? 'dark' : 'light'} className="shep-page-enter" style={{ minHeight: '100vh', background: dark ? `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}` : `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`, fontFamily: 'Inter,system-ui,sans-serif' }}>
+      <div style={{ background: t.navBg, WebkitBackdropFilter: 'blur(18px) saturate(160%)', backdropFilter: 'blur(18px) saturate(160%)', borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={() => router.push(homePath)} title="Back to dashboard"
-            style={{ background: t.purpleBg, border: 'none', borderRadius: 8, width: 30, height: 30, cursor: 'pointer', color: t.purple, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
+            style={{ background: t.purpleBg, border: 'none', borderRadius: 'var(--radius-sm)', width: 30, height: 30, cursor: 'pointer', color: t.purple, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform var(--motion-fast) var(--ease-spring)' }}>
             <Icon name="ti-arrow-left" size={15} />
           </button>
           <div>
@@ -137,7 +139,9 @@ export default function ChurchCenterPage() {
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {TABS.map(tb => (
             <button key={tb} onClick={() => setTab(tb)}
-              style={{ padding: '6px 14px', borderRadius: 20, border: '0.5px solid', cursor: 'pointer', fontSize: 12, fontWeight: tab === tb ? 600 : 400, background: tab === tb ? '#534AB7' : t.card, borderColor: tab === tb ? '#534AB7' : t.border, color: tab === tb ? '#fff' : t.sub }}>
+              onMouseEnter={e => { if (tab !== tb) e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
+              style={{ padding: '7px 15px', borderRadius: 20, border: '0.5px solid', cursor: 'pointer', fontSize: 12, fontWeight: tab === tb ? 600 : 400, background: tab === tb ? '#534AB7' : 'var(--glass-bg)', borderColor: tab === tb ? '#534AB7' : t.border, color: tab === tb ? '#fff' : t.sub, boxShadow: tab === tb ? '0 2px 10px rgba(83,74,183,0.3)' : 'none', transition: 'all var(--motion-fast) var(--ease-out-expo)' }}>
               {TAB_LABEL[tb]}
             </button>
           ))}
@@ -145,7 +149,9 @@ export default function ChurchCenterPage() {
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 40, color: t.muted, fontSize: 13 }}>Loading…</div>
-        ) : tab === 'recognition' ? (
+        ) : (
+        <div key={tab} className="shep-tab-enter" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {tab === 'recognition' ? (
           <div style={card}>
             <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Recognition received</div>
             {commendations.length === 0 ? (
@@ -268,6 +274,8 @@ export default function ChurchCenterPage() {
               </>
             )}
           </>
+        )}
+        </div>
         )}
       </div>
     </div>

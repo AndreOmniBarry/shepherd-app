@@ -2828,7 +2828,9 @@ export default function DashboardPage(){
                   {id:'programs' as const,label:'Programs & Registration',desc:'Special events, crusades, conferences — plus their registration links.'},
                 ].map(s=>(
                   <button key={s.id} onClick={()=>setEventsSubTab(s.id)}
-                    style={{padding:'8px 14px',borderRadius:9,border:`0.5px solid ${eventsSubTab===s.id?'#534AB7':t.border}`,cursor:'pointer',background:eventsSubTab===s.id?'#534AB7':t.card,color:eventsSubTab===s.id?'#fff':t.text,fontSize:12,fontWeight:600,textAlign:'left' as const}}>
+                    onMouseEnter={e=>{ if(eventsSubTab!==s.id) e.currentTarget.style.transform='translateY(-1px)'; }}
+                    onMouseLeave={e=>{ e.currentTarget.style.transform='translateY(0)'; }}
+                    style={{padding:'8px 14px',borderRadius:'var(--radius-sm)',border:`0.5px solid ${eventsSubTab===s.id?'#534AB7':t.border}`,cursor:'pointer',background:eventsSubTab===s.id?'#534AB7':t.card,color:eventsSubTab===s.id?'#fff':t.text,fontSize:12,fontWeight:600,textAlign:'left' as const,boxShadow:eventsSubTab===s.id?'0 2px 10px rgba(83,74,183,0.3)':'none',transition:'all var(--motion-fast) var(--ease-out-expo)'}}>
                     {s.label}
                   </button>
                 ))}
