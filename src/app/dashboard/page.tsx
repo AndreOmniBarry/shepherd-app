@@ -24,7 +24,7 @@ import {
 type KPI = { total_members:number; active_members:number; today_present:number; today_cells_reported:number; today_cells_total:number; ytd_giving_ngn:number; active_cells:number; new_members_month:number; giving_breakdown?:{name:string;amount:number;pct:number}[]; growth_trend?:{month:string;count:number}[]; gender_distribution?:{name:string;count:number;pct:number}[]; gender_known?:number; age_bands?:{band:string;n:number;p:number}[]; age_known?:number; };
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
 type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
-type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'care_followup'|'requisitions'|'validation'|'settings'|'admin'|'workforce'|'events';
+type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'care_followup'|'requisitions'|'validation'|'settings'|'admin'|'workforce'|'events'|'action_board';
 type CellRow = { id:string; cell:string; fel:string; leader:string; members:number; avg:number; rate:number; trend:string; status:string };
 
 
@@ -156,6 +156,75 @@ type WorkforceData = {
   reliability_rankings: {member_id:string;full_name:string;reliability_score:number;total_assigned:number;total_attended:number;last_served:string|null;departments:WorkforceMemberDept[]}[];
   next_sunday: string;
 };
+
+type ActionFlag = { severity: 'high' | 'medium'; category: string; entity: string; message: string; link: string };
+
+const ACTION_CATEGORY_ICON: Record<string, string> = { attendance: 'ti-calendar-stats', care: 'ti-heart-handshake', workforce: 'ti-user-check', requisitions: 'ti-receipt' };
+
+function ActionBoardPanel({t, branchId}: {t: Record<string,string>; branchId?: string}) {
+  const [flags, setFlags] = React.useState<ActionFlag[]|null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [filter, setFilter] = React.useState<'all'|'high'|'medium'>('all');
+  const router = useRouter();
+
+  React.useEffect(() => {
+    setLoading(true);
+    const bq = branchId ? `?branch_id=${branchId}` : '';
+    fetch(`/api/analytics/action-board${bq}`, { credentials: 'include' })
+      .then(r => r.json()).then(({ data }) => setFlags(data?.flags || []))
+      .finally(() => setLoading(false));
+  }, [branchId]);
+
+  if (loading) return <div style={{fontSize:12,color:t.sub,padding:20}}>Scanning church health…</div>;
+  if (!flags) return <div style={{fontSize:12,color:t.sub,padding:20}}>Could not load the action board.</div>;
+
+  const shown = filter==='all' ? flags : flags.filter(f=>f.severity===filter);
+  const highCount = flags.filter(f=>f.severity==='high').length;
+  const medCount = flags.filter(f=>f.severity==='medium').length;
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:14}}>
+      <div>
+        <div style={{fontSize:15,fontWeight:700,color:t.text}}>Action Board</div>
+        <div style={{fontSize:12,color:t.muted,marginTop:2}}>Every metric SHEP.HERD tracks, scanned against its own history — nothing here is hardcoded to a specific cell, department, or branch.</div>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
+        {[
+          {label:'Needs immediate action',value:highCount,accent:'#D85A30',key:'high' as const},
+          {label:'Worth a look',value:medCount,accent:'#BA7517',key:'medium' as const},
+          {label:'All clear',value:flags.length===0?'✓':flags.length,accent:'#1D9E75',key:'all' as const},
+        ].map(s=>(
+          <div key={s.label} onClick={()=>setFilter(s.key)}
+            style={{background:t.card,border:`0.5px solid ${filter===s.key?s.accent:t.border}`,borderRadius:12,padding:'14px 16px',cursor:'pointer',borderTop:`2.5px solid ${s.accent}`}}>
+            <div style={{fontSize:22,fontWeight:700,color:t.text}}>{s.value}</div>
+            <div style={{fontSize:11,color:t.muted,marginTop:2}}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {shown.length === 0 ? (
+        <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:40,textAlign:'center'}}>
+          <div style={{fontSize:24,marginBottom:8}}>✓</div>
+          <div style={{fontSize:13,color:t.sub}}>{filter==='all' ? 'Nothing needs attention right now.' : `Nothing in this category right now.`}</div>
+        </div>
+      ) : (
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {shown.map((f,i)=>(
+            <div key={i} onClick={()=>router.push(f.link)}
+              style={{background:t.card,border:`0.5px solid ${t.border}`,borderLeft:`3px solid ${f.severity==='high'?'#D85A30':'#BA7517'}`,borderRadius:10,padding:'12px 16px',cursor:'pointer',display:'flex',gap:12,alignItems:'flex-start'}}>
+              <div style={{color:f.severity==='high'?'#D85A30':'#BA7517',flexShrink:0,marginTop:1}}><Icon name={ACTION_CATEGORY_ICON[f.category]||'ti-alert-triangle'} size={16}/></div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,color:t.text}}>{f.message}</div>
+                <div style={{fontSize:10,color:t.muted,marginTop:3,textTransform:'uppercase',letterSpacing:'0.4px'}}>{f.category} · {f.entity}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; branchId?: string}) {
   const [data, setData] = React.useState<WorkforceData|null>(null);
@@ -1729,6 +1798,7 @@ export default function DashboardPage(){
 
   const navItems=[
     {id:'dashboard' as NavPage,icon:'ti-layout-dashboard',label:'Dashboard'},
+    {id:'action_board' as NavPage,icon:'ti-alert-triangle',label:'Action Board'},
     {id:'members' as NavPage,icon:'ti-users',label:'Members'},
     {id:'departments' as NavPage,icon:'ti-building',label:'Departments'},
     {id:'attendance' as NavPage,icon:'ti-calendar-stats',label:'Attendance'},
@@ -1828,6 +1898,7 @@ export default function DashboardPage(){
             {!isMobile&&!dark&&(<div style={{display:'flex',background:t.cardInner,border:`0.5px solid ${t.border}`,borderRadius:20,padding:2,gap:2}}><button onClick={()=>setSidebarStyle('light')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='light'?'#534AB7':'transparent',color:sidebarStyle==='light'?'#fff':t.muted,fontFamily:'inherit'}}>Light sidebar</button><button onClick={()=>setSidebarStyle('dark')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='dark'?'#534AB7':'transparent',color:sidebarStyle==='dark'?'#fff':t.muted,fontFamily:'inherit'}}>Dark sidebar</button></div>)}
             <button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>Search</button>
             <button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:'none',background:'#534AB7',color:'#fff',fontSize:11,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>Add member</button>
+            <button onClick={()=>router.push('/church-feed')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-speakerphone" size={13}/>Church Feed</button>
             <button onClick={()=>router.push('/calendar')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-calendar-event" size={13}/>Calendar</button>
             <NotificationBell dark={dark} /><MyAccountButton dark={dark} /><div onClick={()=>setDark(v=>!v)} style={{width:32,height:32,borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:t.sub}}>{dark?<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}</div>
             <div style={{display:'flex',alignItems:'center',gap:5,fontSize:12,color:'#1D9E75'}}>
@@ -2730,6 +2801,9 @@ export default function DashboardPage(){
           )}
           {page==='workforce'&&(
             <WorkforceIntelligencePanel t={t} branchId={selectedBranch||undefined} />
+          )}
+          {page==='action_board'&&(
+            <ActionBoardPanel t={t} branchId={selectedBranch||undefined} />
           )}
           {page==='events'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
