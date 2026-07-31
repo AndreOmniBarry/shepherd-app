@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import UpcomingEventsCard from '@/components/UpcomingEventsCard';
+import Icon from '@/components/Icon';
 
 type MemberProfile = {
   id: string;
@@ -219,7 +220,7 @@ export default function CellOverview({ dark = false, t }: CellOverviewProps) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>
                       {m.full_name}
-                      {m.birthdayStatus === 'today' && <span style={{ marginLeft: 6, fontSize: 11 }}>🎂</span>}
+                      {m.birthdayStatus === 'today' && <span style={{ marginLeft: 6, display: 'inline-flex', color: t.amber, verticalAlign: 'middle' }}><Icon name="ti-cake" size={12} /></span>}
                     </div>
                     <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 8, background: hcfg.bg, color: hcfg.text, fontWeight: 500, flexShrink: 0 }}>{hcfg.label}</span>
                   </div>
@@ -252,7 +253,7 @@ export default function CellOverview({ dark = false, t }: CellOverviewProps) {
           <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 12 }}>Birthdays</div>
           {birthdayToday.map(m => (
             <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: '#FAEEDA', borderRadius: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 18 }}>🎂</span>
+              <span style={{ color: '#BA7517', display: 'inline-flex' }}><Icon name="ti-cake" size={18} /></span>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: '#633806' }}>{m.full_name} — Birthday today!</div>
                 <div style={{ fontSize: 10, color: '#BA7517' }}>Celebrate them in your next cell meeting or send a message</div>

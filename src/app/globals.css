@@ -211,6 +211,40 @@
   .shep-page-enter, .shep-tab-enter, .shep-pop-enter { animation: none; }
 }
 
+/* ── Skeleton shimmer (content-shaped loading, not a spinner) ── */
+@keyframes shep-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.shep-skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--glass-bg) 25%, rgba(168,159,255,0.16) 37%, var(--glass-bg) 63%);
+  background-size: 800px 100%;
+  animation: shep-shimmer 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .shep-skeleton { animation: none; }
+}
+
+/* ── Full-screen loading overlay (page opening / heavy transitions) ── */
+@keyframes shep-orbit {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes shep-pulse-dot {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50%      { opacity: 1;   transform: scale(1); }
+}
+.shep-loading-ring {
+  animation: shep-orbit 1.1s linear infinite;
+}
+.shep-loading-dot {
+  animation: shep-pulse-dot 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .shep-loading-ring, .shep-loading-dot { animation: none; }
+}
+
 /* ── Base resets ──────────────────────────────────────────── */
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }

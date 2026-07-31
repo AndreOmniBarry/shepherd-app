@@ -334,11 +334,11 @@ export default function DepartmentHeadPage() {
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', display: 'flex' }}>
         {[{ id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' }, { id: 'submit', label: 'Attendance', icon: 'ti-calendar-check' }, { id: 'history', label: 'History', icon: 'ti-history' }, { id: 'roster', label: 'Members', icon: 'ti-list' },
         { id: 'serving', label: 'Serving Schedule', icon: 'ti-user-check' },
-        { id: 'birthdays', label: '🎂 Birthdays' },
+        { id: 'birthdays', label: 'Birthdays', icon: 'ti-cake' },
         ...(/protocol|ushering/i.test(deptName) ? [{ id: 'events' as const, label: 'Events', icon: 'ti-calendar-event' }] : [])].map(n => (
           <button key={n.id} onClick={() => setTab(n.id as typeof tab)}
-            style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: tab === n.id ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', marginBottom: -0.5 }}>
-            {n.label}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: tab === n.id ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', marginBottom: -0.5 }}>
+            {n.icon && <Icon name={n.icon} size={13} />}{n.label}
           </button>
         ))}
       </div>

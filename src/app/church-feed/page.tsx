@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import Icon from '@/components/Icon';
+import { SkeletonCard } from '@/components/Skeleton';
 import { rolePortal } from '@/lib/role-portal';
 
 type Group = { id: string; type: 'church' | 'department'; name: string; department_id: string | null; departments?: { name: string } | null };
@@ -171,7 +172,13 @@ export default function ChurchFeedPage() {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: t.muted, fontSize: 13 }}>Loading…</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <div className="shep-skeleton" style={{ width: 90, height: 28, borderRadius: 20 }} />
+              <div className="shep-skeleton" style={{ width: 120, height: 28, borderRadius: 20 }} />
+            </div>
+            {[0, 1, 2].map(i => <SkeletonCard key={i} lines={2} />)}
+          </div>
         ) : groupsError ? (
           <div style={{ ...card, background: t.coralBg, border: `0.5px solid ${t.coral}` }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: t.coral, marginBottom: 4 }}>Church Feed couldn&apos;t load</div>
@@ -255,7 +262,9 @@ export default function ChurchFeedPage() {
             )}
 
             {postsLoading ? (
-              <div style={{ textAlign: 'center', padding: 24, color: t.muted, fontSize: 13 }}>Loading posts…</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {[0, 1].map(i => <SkeletonCard key={i} lines={2} />)}
+              </div>
             ) : posts.length === 0 ? (
               <div style={card}><div style={{ textAlign: 'center', padding: 24, color: t.muted, fontSize: 13 }}>Nothing posted here yet.</div></div>
             ) : posts.map((p, pi) => (
