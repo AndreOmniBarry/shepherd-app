@@ -103,7 +103,7 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
       </div>
       {requests.length===0?(
         <div style={{background:t.card,borderRadius:12,border:`0.5px solid ${t.border}`,padding:40,textAlign:'center'}}>
-          <div style={{fontSize:24,marginBottom:8}}>🙏</div>
+          <div style={{marginBottom:8,color:t.muted,display:'flex',justifyContent:'center'}}><Icon name="ti-heart" size={26}/></div>
           <div style={{fontSize:13,color:t.sub}}>No {filter==='all'?'':(PRAYER_FILTER_LABEL[filter]||filter).toLowerCase()+' '}prayer requests</div>
         </div>
       ):(
@@ -678,12 +678,12 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
   }
 
   const STRUCTURES = [
-    { value: 'cell_church', label: '⛪ Cell Church', sub: 'Fellowship → Cell → Member' },
-    { value: 'zonal', label: '🗺 Zonal Church', sub: 'Zone → District → Cell → Member' },
-    { value: 'campus', label: '🏙 Multi-Campus', sub: 'Campus → Fellowship → Cell → Member' },
-    { value: 'department', label: '🏛 Department Church', sub: 'Department → Unit → Member' },
-    { value: 'house_network', label: '🏠 House Church Network', sub: 'Network → Home Group → Member' },
-    { value: 'single', label: '🤲 Single Congregation', sub: 'Pastor → Member' },
+    { value: 'cell_church', label: 'Cell Church', sub: 'Fellowship → Cell → Member' },
+    { value: 'zonal', label: 'Zonal Church', sub: 'Zone → District → Cell → Member' },
+    { value: 'campus', label: 'Multi-Campus', sub: 'Campus → Fellowship → Cell → Member' },
+    { value: 'department', label: 'Department Church', sub: 'Department → Unit → Member' },
+    { value: 'house_network', label: 'House Church Network', sub: 'Network → Home Group → Member' },
+    { value: 'single', label: 'Single Congregation', sub: 'Pastor → Member' },
   ];
 
   const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -1773,7 +1773,7 @@ export default function DashboardPage(){
     text:      dark?'#E8E5FF':'#1A1040',
     sub:       dark?'rgba(232,229,255,0.55)':'#5A5180',
     muted:     dark?'rgba(232,229,255,0.28)':'#9990CC',
-    nav:       dark?'#080618':sidebarStyle==='dark'?'#0D0A24':'#FFFFFF',
+    nav:       dark?'rgba(8,6,24,0.72)':sidebarStyle==='dark'?'rgba(13,10,36,0.85)':'rgba(255,255,255,0.78)',
     navBorder: dark?'rgba(168,159,255,0.06)':sidebarStyle==='dark'?'rgba(255,255,255,0.07)':'rgba(83,74,183,0.10)',
     hover:     dark?'rgba(168,159,255,0.06)':'rgba(83,74,183,0.04)',
     input:     dark?'rgba(255,255,255,0.05)':'#F7F6FF',
@@ -1793,7 +1793,7 @@ export default function DashboardPage(){
     chartTipText: dark?'#E8E5FF':'#1A1040',
     chartBorder: dark?'rgba(168,159,255,0.08)':'rgba(83,74,183,0.10)',
   };
-  const card=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,border:`0.5px solid ${t.border}`,borderRadius:10,padding:'16px 20px',...e});
+  const card=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,backdropFilter:'blur(14px) saturate(150%)',WebkitBackdropFilter:'blur(14px) saturate(150%)',border:`0.5px solid ${t.border}`,borderRadius:'var(--radius-md)',padding:'16px 20px',transition:'transform var(--motion-medium) var(--ease-out-expo), box-shadow var(--motion-medium) var(--ease-out-expo)',...e});
   const ss=(s:string)=>s==='rising'?{bg:'#E1F5EE',c:'#085041'}:s==='stable'?{bg:'#F3F4F6',c:'#374151'}:s==='watch'?{bg:'#FAEEDA',c:'#633806'}:{bg:'#FAECE7',c:'#993C1D'};
 
   const navItems=[
@@ -1864,9 +1864,9 @@ export default function DashboardPage(){
       </div>
 
       {/* Main */}
-      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,background:t.bg}}>
+      <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,background:dark?`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}`:`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`}}>
         {/* Topbar */}
-        <div style={{background:t.nav,borderBottom:`0.5px solid ${t.navBorder}`,padding:'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
+        <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,padding:'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:30}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             {isMobile&&<button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,color:'#534AB7',padding:'0 4px',lineHeight:1}}>☰</button>}
             <div>
@@ -1908,7 +1908,7 @@ export default function DashboardPage(){
           </div>
         </div>
 
-        <div style={{flex:1,padding:'20px',overflowY:'auto',background:t.bg,maxWidth:'100%'}}>
+        <div key={page} className="shep-tab-enter" style={{flex:1,padding:'20px',overflowY:'auto',background:'transparent',maxWidth:'100%'}}>
 
           {/* ══ DASHBOARD ══ */}
           {page==='dashboard'&&(
@@ -2603,9 +2603,9 @@ export default function DashboardPage(){
                             <td style={{padding:'10px 10px'}}><span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:tierColor.bg,color:tierColor.c,fontWeight:500,whiteSpace:'nowrap'}}>{tier}</span></td>
                             <td style={{padding:'10px 10px'}}>
                               <div style={{display:'flex',gap:4}}>
-                                {slaScore!=null&&slaScore>=90&&<span title="Unbroken — 12 consecutive on-time" style={{fontSize:14}}>🏆</span>}
-                                {c.rate>=85&&<span title="Fellowship Excellence" style={{fontSize:14}}>⭐</span>}
-                                {c.trend.startsWith('+')&&parseInt(c.trend)>=10&&<span title="Soul Winner" style={{fontSize:14}}>🌱</span>}
+                                {slaScore!=null&&slaScore>=90&&<span title="Unbroken — 12 consecutive on-time" style={{color:t.purple}}><Icon name="ti-trophy" size={14}/></span>}
+                                {c.rate>=85&&<span title="Fellowship Excellence" style={{color:t.amber}}><Icon name="ti-star" size={14}/></span>}
+                                {c.trend.startsWith('+')&&parseInt(c.trend)>=10&&<span title="Soul Winner" style={{color:t.teal}}><Icon name="ti-sprout" size={14}/></span>}
                               </div>
                             </td>
                           </tr>
@@ -2653,21 +2653,21 @@ export default function DashboardPage(){
                 <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Badge System</div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
                   {[
-                    {icon:'⏰',name:'On Time',desc:'4 consecutive on-time submissions',cat:'Promptness'},
-                    {icon:'🕐',name:'Clockwork',desc:'8 consecutive on-time submissions',cat:'Promptness'},
-                    {icon:'⚡',name:'Unbroken',desc:'12 consecutive on-time — full quarter',cat:'Promptness'},
-                    {icon:'🏆',name:'Legendary',desc:'52 consecutive on-time — full year',cat:'Promptness'},
-                    {icon:'👁',name:'Sharp Eye',desc:'Zero disputed submissions in a month',cat:'Accuracy'},
-                    {icon:'💎',name:'Crystal Clear',desc:'Zero disputes for a full quarter',cat:'Accuracy'},
-                    {icon:'🛡',name:'Ironclad',desc:'Zero disputes pilot to year end',cat:'Accuracy'},
-                    {icon:'🌱',name:'First Harvest',desc:'First new convert in your cell',cat:'Growth'},
-                    {icon:'⭐',name:'Soul Winner',desc:'5 new converts retained',cat:'Growth'},
-                    {icon:'🚀',name:'Multiplier',desc:'Cell membership doubled',cat:'Growth'},
-                    {icon:'❤',name:'Restorer',desc:'5 members restored after absence',cat:'Care'},
-                    {icon:'👑',name:'Crown Carrier',desc:'Crown of Excellence for full quarter',cat:'Leadership'},
+                    {icon:'ti-clock',name:'On Time',desc:'4 consecutive on-time submissions',cat:'Promptness'},
+                    {icon:'ti-clock',name:'Clockwork',desc:'8 consecutive on-time submissions',cat:'Promptness'},
+                    {icon:'ti-zap',name:'Unbroken',desc:'12 consecutive on-time — full quarter',cat:'Promptness'},
+                    {icon:'ti-trophy',name:'Legendary',desc:'52 consecutive on-time — full year',cat:'Promptness'},
+                    {icon:'ti-eye',name:'Sharp Eye',desc:'Zero disputed submissions in a month',cat:'Accuracy'},
+                    {icon:'ti-gem',name:'Crystal Clear',desc:'Zero disputes for a full quarter',cat:'Accuracy'},
+                    {icon:'ti-shield',name:'Ironclad',desc:'Zero disputes pilot to year end',cat:'Accuracy'},
+                    {icon:'ti-sprout',name:'First Harvest',desc:'First new convert in your cell',cat:'Growth'},
+                    {icon:'ti-star',name:'Soul Winner',desc:'5 new converts retained',cat:'Growth'},
+                    {icon:'ti-rocket',name:'Multiplier',desc:'Cell membership doubled',cat:'Growth'},
+                    {icon:'ti-heart',name:'Restorer',desc:'5 members restored after absence',cat:'Care'},
+                    {icon:'ti-crown',name:'Crown Carrier',desc:'Crown of Excellence for full quarter',cat:'Leadership'},
                   ].map(b=>(
-                    <div key={b.name} style={{background:t.cardInner,borderRadius:8,padding:'10px 12px',border:`0.5px solid ${t.border}`}}>
-                      <div style={{fontSize:22,marginBottom:6}}>{b.icon}</div>
+                    <div key={b.name} className="shep-tab-enter" style={{background:t.cardInner,borderRadius:'var(--radius-sm)',padding:'10px 12px',border:`0.5px solid ${t.border}`,transition:'transform var(--motion-fast) var(--ease-out-expo)'}}>
+                      <div style={{marginBottom:6,color:t.purple}}><Icon name={b.icon} size={20}/></div>
                       <div style={{fontSize:11,fontWeight:600,color:t.text,marginBottom:2}}>{b.name}</div>
                       <div style={{fontSize:10,color:t.muted,lineHeight:1.4,marginBottom:4}}>{b.desc}</div>
                       <div style={{fontSize:9,color:t.purple,fontWeight:500,textTransform:'uppercase',letterSpacing:'0.4px'}}>{b.cat}</div>

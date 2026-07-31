@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Icon from '@/components/Icon';
+import DateTimePicker from '@/components/DateTimePicker';
 
 type PlanItem = { id?: string; item_type: string; title: string; description?: string; duration_minutes: number; assigned_to: string | null; assigned_to_name: string; color?: string };
 type Plan = { id: string; service_date: string; service_type: string; title: string; theme: string | null; status: string; published_at: string | null };
@@ -155,8 +156,7 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
         </div>
         {showSpecial && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap', marginTop: 10 }}>
-            <input type="date" value={specialDate} onChange={e => setSpecialDate(e.target.value)}
-              style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }} />
+            <div style={{ width: 190 }}><DateTimePicker t={t} value={specialDate} onChange={setSpecialDate} placeholder="Select date" /></div>
             <input value={specialLabel} onChange={e => setSpecialLabel(e.target.value)} placeholder="e.g. Congress Day 1, New Year Vigil"
               style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, background: t.input, color: t.text, outline: 'none', flex: 1, minWidth: 180 }} />
             <button onClick={createSpecialDay} disabled={specialSaving} style={{ background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
@@ -176,7 +176,7 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
         </div>
         {showNew && (
           <div style={{ background: t.input, borderRadius: 8, padding: 10, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} style={{ border: `0.5px solid ${t.border}`, borderRadius: 7, padding: '6px 9px', fontSize: 11, background: t.card, color: t.text, outline: 'none' }} />
+            <DateTimePicker t={t} value={newDate} onChange={setNewDate} placeholder="Service date" />
             <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Title" style={{ border: `0.5px solid ${t.border}`, borderRadius: 7, padding: '6px 9px', fontSize: 11, background: t.card, color: t.text, outline: 'none' }} />
             <input value={newTheme} onChange={e => setNewTheme(e.target.value)} placeholder="Theme (optional)" style={{ border: `0.5px solid ${t.border}`, borderRadius: 7, padding: '6px 9px', fontSize: 11, background: t.card, color: t.text, outline: 'none' }} />
             {error && <div style={{ fontSize: 10, color: t.coral }}>{error}</div>}
