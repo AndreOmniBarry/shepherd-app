@@ -74,6 +74,18 @@ export async function POST(req: Request) {
     });
     const data = await res.json();
 
+    // The insert response was never actually checked before — a failed
+    // insert (e.g. a bad constraint) still fell through to sending the
+    // overseer notification and returning 201, so a pastor could get "New
+    // prayer request" pinged while no row was ever created, and the
+    // member's submission looked successful even though it silently
+    // vanished. This is exactly the "logged but can't find it" report.
+    if (!res.ok || !Array.isArray(data) || !data[0]) {
+      console.error('[POST /api/prayer-requests] insert failed:', res.status, JSON.stringify(data));
+      const detail = !Array.isArray(data) && data?.message ? data.message : '';
+      return NextResponse.json({ data: null, error: { message: detail ? `Failed to submit prayer request: ${detail}` : 'Failed to submit prayer request' } }, { status: 502 });
+    }
+
     // Notify all overseers/PAs - best effort, don't break main flow
     try {
       const overseerIds = await getOverseerIds();
@@ -95,7 +107,7 @@ export async function POST(req: Request) {
       console.error('Prayer notify error (non-fatal):', notifyErr);
     }
 
-    return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
+    return NextResponse.json({ data: data[0], error: null }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ data: null, error: { message: 'Failed to submit prayer request' } }, { status: 500 });
   }

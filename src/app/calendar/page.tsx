@@ -156,13 +156,13 @@ export default function CalendarPage() {
                 const dayItems = itemsByDay[key] || [];
                 return (
                   <div key={key} onClick={() => setSelectedDay(key)}
-                    style={{ minHeight: 76, padding: '6px 6px', borderRight: `0.5px solid ${t.border}`, borderBottom: `0.5px solid ${t.border}`, cursor: 'pointer', background: key === selectedDay ? t.purpleBg : 'transparent', opacity: inMonth ? 1 : 0.35 }}>
+                    style={{ minWidth: 0, minHeight: 76, padding: '6px 6px', borderRight: `0.5px solid ${t.border}`, borderBottom: `0.5px solid ${t.border}`, cursor: 'pointer', background: key === selectedDay ? t.purpleBg : 'transparent', opacity: inMonth ? 1 : 0.35, overflow: 'hidden', boxSizing: 'border-box' }}>
                     <div style={{ fontSize: 11, fontWeight: key === todayStr ? 700 : 400, color: key === todayStr ? '#fff' : t.text, background: key === todayStr ? t.purple : 'transparent', width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 3 }}>
                       {day.getDate()}
                     </div>
                     {dayItems.slice(0, 2).map(it => {
                       const c = TYPE_COLORS[it.type] || TYPE_COLORS.other;
-                      return <div key={it.id} style={{ fontSize: 9, background: c.bg, color: c.text, borderRadius: 4, padding: '1px 4px', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.title}</div>;
+                      return <div key={it.id} style={{ fontSize: 9, background: c.bg, color: c.text, borderRadius: 4, padding: '1px 4px', marginBottom: 2, width: '100%', boxSizing: 'border-box', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.3 }}>{it.title}</div>;
                     })}
                     {dayItems.length > 2 && <div style={{ fontSize: 9, color: t.muted }}>+{dayItems.length - 2} more</div>}
                   </div>
