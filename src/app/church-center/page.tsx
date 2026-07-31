@@ -61,6 +61,14 @@ export default function ChurchCenterPage() {
     fetch('/api/auth/me', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (!data) router.push('/login'); else setHomePath(rolePortal(data.role)); }).catch(() => router.push('/login'));
   }, [router]);
 
+  // Deep-link support — a notification can send someone straight to the
+  // right sub-tab (e.g. a meeting request lands on "Meeting Requests", not
+  // whatever tab happened to be selected first).
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('tab');
+    if (requested && (TABS as readonly string[]).includes(requested)) setTab(requested as Tab);
+  }, []);
+
   const load = useCallback(() => {
     setLoading(true);
     fetch('/api/church-center', { credentials: 'include' }).then(r => r.json()).then(({ data }) => {

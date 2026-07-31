@@ -139,9 +139,13 @@ export async function middleware(req: NextRequest) {
 
   const { role, cell_id } = payload;
   const portal = rolePortal(role || '');
-  // /calendar is shared across every role — everyone should be able to
-  // see upcoming/past church programs regardless of their own portal.
-  const allowed = [...allowedPrefixes(role || ''), '/calendar'];
+  // /calendar and /church-center are shared across every role — everyone
+  // should be able to see upcoming/past church programs and their own
+  // recognition/meetings/assignments regardless of their own portal. This
+  // was the actual reason Church Center (and My Assignments before it)
+  // "did nothing" when clicked — middleware bounced every role straight
+  // back to their own portal since neither path was ever in the allow list.
+  const allowed = [...allowedPrefixes(role || ''), '/calendar', '/church-center'];
 
   // Root redirect → role portal
   if (pathname === '/') {

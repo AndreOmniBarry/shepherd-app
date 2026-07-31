@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { bucketBounds } from '@/lib/history-buckets';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -31,25 +32,18 @@ export async function GET(req: Request) {
     const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
 
-    const periodMs = granularity === 'year' ? 365 * 86400000 : granularity === 'week' ? 7 * 86400000 : 30 * 86400000;
-    const now = new Date();
-    const windowEnd = new Date(now.getTime() - offset * BUCKETS * periodMs);
-    const windowStart = new Date(windowEnd.getTime() - BUCKETS * periodMs);
+    const bounds = bucketBounds(granularity, offset, BUCKETS);
+    const windowStart = bounds[0].start;
+    const windowEnd = bounds[bounds.length - 1].end;
 
     const res = await fetch(`${SURL}/rest/v1/members?join_date=lte.${windowEnd.toISOString().split('T')[0]}&select=join_date${branchFilter}`, { headers: H() });
     const data = await res.json();
     const rows: { join_date: string | null }[] = Array.isArray(data) ? data : [];
 
-    const buckets: { label: string; total: number }[] = [];
-    for (let i = 0; i < BUCKETS; i++) {
-      const bucketEnd = new Date(windowStart.getTime() + (i + 1) * periodMs);
-      const total = rows.filter(r => r.join_date && new Date(r.join_date) < bucketEnd).length;
-      const bucketStart = new Date(windowStart.getTime() + i * periodMs);
-      buckets.push({
-        label: granularity === 'year' ? String(bucketStart.getFullYear()) : granularity === 'week' ? bucketStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : bucketStart.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }),
-        total,
-      });
-    }
+    // Cumulative count as of each bucket's END (running total, not a
+    // per-bucket delta) — a member counts toward every bucket from the one
+    // they joined in onward.
+    const buckets = bounds.map(b => ({ label: b.label, total: rows.filter(r => r.join_date && new Date(r.join_date) < b.end).length }));
 
     return NextResponse.json({ data: { buckets, window_start: windowStart.toISOString().split('T')[0], window_end: windowEnd.toISOString().split('T')[0] }, error: null });
   } catch (err) {

@@ -53,7 +53,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       body: JSON.stringify({
         user_id: notifyUserId, type: 'meeting_request', read: false,
         title: `📅 Meeting request ${statusLabel}`, body: `"${row.subject}" was ${statusLabel} by ${user.name || 'the other party'}.`,
-        link: '/church-center',
+        link: '/church-center?tab=meetings',
       }),
     }).catch(() => {});
 

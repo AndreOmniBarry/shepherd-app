@@ -161,7 +161,7 @@ export default function CellPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [serviceDate, setServiceDate] = useState('');
   const [serviceNumber, setServiceNumber] = useState(1);
-  const [servicesPerDay, setServicesPerDay] = useState(1);
+  const [dayServiceCounts, setDayServiceCounts] = useState<Record<string, number>>({});
   const [attendance, setAttendance] = useState<Record<string, 'present' | 'absent'>>({});
   const [absenceReasons, setAbsenceReasons] = useState<Record<string, string>>({});
   const [visitorCount, setVisitorCount] = useState(0);
@@ -216,7 +216,7 @@ export default function CellPage() {
         if (data.branch_id) {
           fetch('/api/branches', { credentials: 'include' }).then(r => r.json()).then(({ data: bd }) => {
             const mine = (bd?.branches || []).find((b: { id: string }) => b.id === data.branch_id);
-            if (mine?.services_per_day) setServicesPerDay(mine.services_per_day);
+            if (mine?.day_service_counts) setDayServiceCounts(mine.day_service_counts);
           }).catch(() => {});
         }
       })
@@ -286,6 +286,7 @@ export default function CellPage() {
 
   const serviceDayName = serviceDate ? dayNameOf(serviceDate) : '';
   const isValidServiceDay = !serviceDate || (churchConfig.service_days || ['Sunday']).includes(serviceDayName);
+  const servicesForSelectedDay = dayServiceCounts[serviceDayName] || 1;
 
   async function submit() {
     if (!serviceDate) { setError('Please select a date.'); return; }
@@ -435,14 +436,14 @@ export default function CellPage() {
             <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Service date</div>
               <input type="date" value={serviceDate} max={new Date().toISOString().split('T')[0]} min={new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0]}
-                onChange={e => setServiceDate(e.target.value)}
+                onChange={e => { setServiceDate(e.target.value); setServiceNumber(1); }}
                 style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 13, outline: 'none', background: t.input, color: t.text }} />
-              {servicesPerDay > 1 && (
+              {servicesForSelectedDay > 1 && (
                 <div style={{ marginTop: 10 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Which service?</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Which {serviceDayName} service?</div>
                   <select value={serviceNumber} onChange={e => setServiceNumber(Number(e.target.value))}
                     style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '7px 10px', fontSize: 13, outline: 'none', background: t.input, color: t.text }}>
-                    {Array.from({ length: servicesPerDay }, (_, i) => i + 1).map(n => (
+                    {Array.from({ length: servicesForSelectedDay }, (_, i) => i + 1).map(n => (
                       <option key={n} value={n}>Service {n}</option>
                     ))}
                   </select>

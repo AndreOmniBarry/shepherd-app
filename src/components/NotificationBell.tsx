@@ -154,7 +154,18 @@ export default function NotificationBell({ dark = false }: NotificationBellProps
       setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x));
       fetch(`/api/notifications/${n.id}`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ read: true }) }).catch(() => {});
     }
-    if (n.link) { setOpen(false); router.push(n.link); }
+    if (n.link) {
+      setOpen(false);
+      // router.push to the same pathname (e.g. already on /dashboard,
+      // notification links to /dashboard?page=prayer) updates the URL bar
+      // but doesn't remount the page, so a mount-only deep-link reader
+      // would never see it — dispatch a custom event the page can listen
+      // for directly in that case, in addition to the normal push.
+      if (typeof window !== 'undefined' && window.location.pathname === n.link.split('?')[0]) {
+        window.dispatchEvent(new CustomEvent('shepherd:deep-link', { detail: n.link }));
+      }
+      router.push(n.link);
+    }
   }
 
   function handleOpen() {

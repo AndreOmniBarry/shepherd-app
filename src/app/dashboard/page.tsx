@@ -25,180 +25,14 @@ type KPI = { total_members:number; active_members:number; today_present:number; 
 type ChatMessage = { role:'user'|'agent'; text:string; agent?:string; loading?:boolean; };
 type AgentName = 'ktava'|'arkwind'|'moshe'|'numbers';
 type NavPage = 'dashboard'|'attendance'|'giving'|'members'|'cells'|'departments'|'reports'|'recognition'|'commendation'|'prayer'|'care_followup'|'requisitions'|'validation'|'settings'|'admin'|'workforce'|'events';
+type CellRow = { id:string; cell:string; fel:string; leader:string; members:number; avg:number; rate:number; trend:string; status:string };
 
-// ── Unique cell data with realistic, differentiated trends ─────
-const CELLS_DATA = [
-  // Youth - 12 cells (indices 0-11)
-  {cell:'Glory House Cell',fel:'Youth',leader:'Bro. Emeka Okafor',members:22,avg:18,rate:82,trend:'+18%',status:'rising',
-   history:[14,15,16,17,18,19,20,21,22,22,23,22],members_list:['Bro. Emeka Okafor','Sis. Chidinma Eze','Bro. Uche Nwosu','Sis. Ada Okafor','Bro. Tobi Akin','Sis. Yetunde Bello','Bro. Dare Ogun','Sis. Kemi Ojo','Bro. Sola Adex','Sis. Nike Labi','Bro. Gbenga Fash','Sis. Bisi Cole','Bro. Tayo Adey','Sis. Lola Babs','Bro. Wale Okon','Sis. Funke Ade','Bro. Seun Ayo','Sis. Toyin Olu']},
-  {cell:'Zion Cell',fel:'Youth',leader:'Sis. Chioma Uzoma',members:14,avg:15,rate:78,trend:'+7%',status:'stable',
-   history:[11,12,12,13,13,14,14,14,15,15,16,15],members_list:['Sis. Chioma Uzoma','Bro. Ifeanyi Obi','Sis. Ngozi Eze','Bro. Chukwu Nwa','Sis. Amaka Obi','Bro. Obiora Eze','Sis. Nneka Nwa','Bro. Emeka Okon','Sis. Adaeze Enu','Bro. Chidi Ogu','Sis. Ifeoma Ada','Bro. Kene Ike','Sis. Uju Onw','Bro. Oge Nna']},
-  {cell:'Achievers Cell',fel:'Youth',leader:'Bro. Kelvin Nnamdi',members:16,avg:17,rate:76,trend:'+6%',status:'stable',
-   history:[13,13,14,14,15,15,16,16,17,17,18,17],members_list:['Bro. Kelvin Nnamdi','Sis. Precious Obi','Bro. Victor Eze','Sis. Blessing Nwa','Bro. Emmanuel Okon','Sis. Grace Enu','Bro. Samuel Ogu','Sis. Faith Ada','Bro. Joshua Nna','Sis. Joy Ike','Bro. Daniel Onw','Sis. Peace Ogu','Bro. Caleb Nwa','Sis. Hope Eze','Bro. Aaron Obi','Sis. Ruth Nna']},
-  {cell:'Champions Cell',fel:'Youth',leader:'Bro. Tunde Adeleke',members:17,avg:19,rate:88,trend:'+12%',status:'rising',
-   history:[14,15,15,16,16,17,17,18,19,19,20,19],members_list:['Bro. Tunde Adeleke','Sis. Funmi Adey','Bro. Segun Ayo','Sis. Lola Babs','Bro. Wale Okon','Sis. Nike Labi','Bro. Dare Ogun','Sis. Kemi Ojo','Bro. Sola Adex','Sis. Yetunde Bello','Bro. Tobi Akin','Sis. Ada Okafor','Bro. Uche Nwosu','Sis. Chidinma Eze','Bro. Gbenga Fash','Sis. Bisi Cole','Bro. Tayo Adey']},
-  {cell:'New Dawn Cell',fel:'Youth',leader:'Bro. Segun Afolabi',members:14,avg:16,rate:85,trend:'+14%',status:'rising',
-   history:[11,11,12,12,13,14,14,15,15,16,17,16],members_list:['Bro. Segun Afolabi','Sis. Toyin Olu','Bro. Bayo Ade','Sis. Folake Ogun','Bro. Kunle Ojo','Sis. Shade Labi','Bro. Rotimi Adex','Sis. Taiwo Bello','Bro. Kehinde Akin','Sis. Yemi Okafor','Bro. Biodun Nwosu','Sis. Jumoke Eze','Bro. Lanre Nwa','Sis. Bolanle Okon']},
-  {cell:'Eagles Cell',fel:'Youth',leader:'Sis. Funmi Adeyemi',members:13,avg:14,rate:79,trend:'+8%',status:'stable',
-   history:[10,11,11,12,12,13,13,13,14,14,15,14],members_list:['Sis. Funmi Adeyemi','Bro. Gbola Ade','Sis. Remi Ogun','Bro. Femi Ojo','Sis. Dupe Labi','Bro. Tunji Adex','Sis. Kike Bello','Bro. Bade Akin','Sis. Lade Okafor','Bro. Sade Nwosu','Sis. Tope Eze','Bro. Yomi Nwa','Sis. Joke Okon']},
-  {cell:'Dayspring Cell',fel:'Youth',leader:'Bro. Felix Okeke',members:11,avg:12,rate:82,trend:'+9%',status:'stable',
-   history:[8,9,9,10,10,11,11,11,12,12,13,12],members_list:['Bro. Felix Okeke','Sis. Amaka Eze','Bro. Chuka Obi','Sis. Nkechi Nwa','Bro. Obi Okon','Sis. Ada Enu','Bro. Ike Ogu','Sis. Chi Ada','Bro. Nna Ike','Sis. Uju Onw','Bro. Oge Nna']},
-  {cell:'Overflow Cell',fel:'Youth',leader:'Sis. Amaka Igwe',members:13,avg:14,rate:108,trend:'+5%',status:'stable',
-   history:[11,11,12,12,12,13,13,13,14,14,14,14],members_list:['Sis. Amaka Igwe','Bro. Chidi Obi','Sis. Ify Eze','Bro. Emeka Nwa','Sis. Ngo Okon','Bro. Chi Enu','Sis. Ada Ogu','Bro. Ike Ada','Sis. Uju Nna','Bro. Obi Ike','Sis. Nkechi Onw','Bro. Chuka Nna','Sis. Adaeze Nna']},
-  {cell:'Breakthrough Cell',fel:'Youth',leader:'Bro. Dayo Ogunleye',members:15,avg:14,rate:70,trend:'+3%',status:'stable',
-   history:[11,12,12,13,13,13,14,14,14,15,15,14],members_list:['Bro. Dayo Ogunleye','Sis. Tola Adex','Bro. Ola Fash','Sis. Ronke Ade','Bro. Lekan Ogun','Sis. Sola Ojo','Bro. Wole Labi','Sis. Yemi Adex','Bro. Kola Bello','Sis. Bola Akin','Bro. Toye Okafor','Sis. Toyin Nwosu','Bro. Segun Eze','Sis. Remi Nwa','Bro. Kunle Okon']},
-  {cell:'Burning Bush Cell',fel:'Youth',leader:'Bro. Ola Fashola',members:11,avg:13,rate:58,trend:'−14%',status:'alert',
-   history:[18,18,17,17,16,16,15,14,14,13,12,13],members_list:['Bro. Ola Fashola','Sis. Bisi Cole','Bro. Tayo Adey','Sis. Lola Babs','Bro. Wale Okon','Sis. Nike Labi','Bro. Dare Ogun','Sis. Kemi Ojo','Bro. Sola Adex','Sis. Yetunde Bello','Bro. Tobi Akin']},
-  {cell:'Trumpet Cell',fel:'Youth',leader:'Bro. Seun Ayo',members:12,avg:11,rate:68,trend:'+2%',status:'stable',
-   history:[9,9,10,10,10,11,11,11,11,12,12,11],members_list:['Bro. Seun Ayo','Sis. Toyin Olu','Bro. Bayo Ade','Sis. Folake Ogun','Bro. Kunle Ojo','Sis. Shade Labi','Bro. Rotimi Adex','Sis. Taiwo Bello','Bro. Kehinde Akin','Sis. Yemi Okafor','Bro. Biodun Nwosu','Sis. Jumoke Eze']},
-  {cell:'Elevation Cell',fel:'Youth',leader:'Bro. Femi Oladele',members:16,avg:15,rate:72,trend:'+4%',status:'stable',
-   history:[12,12,13,13,14,14,15,15,15,16,16,15],members_list:['Bro. Femi Oladele','Sis. Gbola Ade','Sis. Remi Ogun','Bro. Tunji Adex','Sis. Kike Bello','Bro. Bade Akin','Sis. Lade Okafor','Bro. Sade Nwosu','Sis. Tope Eze','Bro. Yomi Nwa','Sis. Joke Okon','Bro. Gbola Ade','Sis. Remi Ogu','Bro. Femi Ojo','Sis. Dupe Labi','Bro. Tunji Adex']},
-  // Women - 15 cells (indices 12-26)
-  {cell:'Fountain of Life Cell',fel:'Women',leader:'Sis. Adaeze Nwosu',members:25,avg:22,rate:88,trend:'+9%',status:'rising',
-   history:[18,19,20,20,21,22,22,23,24,24,25,24],members_list:['Sis. Adaeze Nwosu','Sis. Ngozi Obi','Sis. Chioma Uzoma','Sis. Amaka Igwe','Sis. Ifeoma Ada','Sis. Nneka Nwa','Sis. Ada Okafor','Sis. Nkechi Eze','Sis. Adaeze Enu','Sis. Ifeoma Obi','Sis. Ngozi Eze','Sis. Chioma Nwa','Sis. Amaka Okon','Sis. Ngo Enu','Sis. Chi Ada','Sis. Ada Ogu','Sis. Ike Nna','Sis. Uju Ike','Sis. Obi Onw','Sis. Chi Nna','Sis. Nna Nne','Sis. Oge Obi']},
-  {cell:'Peace Cell',fel:'Women',leader:'Sis. Ngozi Obi',members:20,avg:21,rate:71,trend:'−2%',status:'watch',
-   history:[22,22,22,21,21,21,21,20,20,20,19,21],members_list:['Sis. Ngozi Obi','Sis. Blessing Nnaji','Sis. Joy Okonkwo','Sis. Patience Eze','Sis. Grace Obi','Sis. Mercy Nwosu','Sis. Hope Afolabi','Sis. Faith Adeyemi','Sis. Ruth Adeleke','Sis. Mary Okeke','Sis. Sarah Igwe','Sis. Deborah Uzoma','Sis. Esther Fashola','Sis. Love Nnamdi','Sis. Miriam Okeke','Sis. Hannah Igwe','Sis. Naomi Uzoma','Sis. Abigail Fashola','Sis. Lydia Nnamdi','Sis. Priscilla Okeke']},
-  {cell:'Graceland Cell',fel:'Women',leader:'Sis. Joy Okonkwo',members:17,avg:18,rate:76,trend:'+6%',status:'stable',
-   history:[14,14,15,15,16,16,17,17,18,18,19,18],members_list:['Sis. Joy Okonkwo','Sis. Dupe Ade','Sis. Tola Ogun','Sis. Bola Ojo','Sis. Yemi Labi','Sis. Sola Adex','Sis. Kike Bello','Sis. Bade Akin','Sis. Lade Okafor','Sis. Sade Nwosu','Sis. Tope Eze','Sis. Yomi Nwa','Sis. Joke Okon','Sis. Gbola Ade','Sis. Remi Ogu','Sis. Femi Ojo','Sis. Tunji Adex']},
-  {cell:'Shalom Cell',fel:'Women',leader:'Sis. Blessing Nnaji',members:19,avg:20,rate:74,trend:'+5%',status:'stable',
-   history:[16,16,17,17,18,18,19,19,20,20,21,20],members_list:['Sis. Blessing Nnaji','Sis. Peace Obi','Sis. Grace Eze','Sis. Faith Nwa','Sis. Hope Okon','Sis. Joy Enu','Sis. Love Ada','Sis. Ruth Ogu','Sis. Mary Nna','Sis. Sarah Ike','Sis. Deborah Onw','Sis. Esther Nna','Sis. Miriam Nne','Sis. Hannah Obi','Sis. Naomi Eze','Sis. Abigail Nwa','Sis. Lydia Okon','Sis. Priscilla Enu','Sis. Felicia Ada']},
-  {cell:'Living Waters Cell',fel:'Women',leader:'Sis. Grace Obi',members:16,avg:17,rate:76,trend:'+6%',status:'stable',
-   history:[13,13,14,14,15,15,16,16,17,17,18,17],members_list:['Sis. Grace Obi','Sis. Mercy Nwosu','Sis. Hope Afolabi','Sis. Faith Adeyemi','Sis. Ruth Adeleke','Sis. Mary Okeke','Sis. Sarah Igwe','Sis. Deborah Uzoma','Sis. Esther Fashola','Sis. Love Nnamdi','Sis. Miriam Okeke','Sis. Hannah Igwe','Sis. Naomi Uzoma','Sis. Abigail Fashola','Sis. Lydia Nnamdi','Sis. Priscilla Okeke']},
-  {cell:'Harvest Cell',fel:'Women',leader:'Sis. Patience Eze',members:21,avg:22,rate:74,trend:'+5%',status:'stable',
-   history:[17,18,18,19,20,20,21,21,22,22,23,22],members_list:['Sis. Patience Eze','Sis. Adaeze Nwosu','Sis. Ngozi Obi','Sis. Chioma Uzoma','Sis. Amaka Igwe','Sis. Ifeoma Ada','Sis. Nneka Nwa','Sis. Ada Okafor','Sis. Nkechi Eze','Sis. Adaeze Enu','Sis. Ifeoma Obi','Sis. Ngozi Eze','Sis. Chioma Nwa','Sis. Amaka Okon','Sis. Ngo Enu','Sis. Chi Ada','Sis. Ada Ogu','Sis. Ike Nna','Sis. Uju Ike','Sis. Obi Onw','Sis. Chi Nna']},
-  {cell:'Restoration Cell',fel:'Women',leader:'Sis. Mercy Nwosu',members:18,avg:19,rate:76,trend:'+6%',status:'stable',
-   history:[15,15,16,16,17,17,18,18,19,19,20,19],members_list:['Sis. Mercy Nwosu','Sis. Peace Obi','Sis. Grace Eze','Sis. Faith Nwa','Sis. Hope Okon','Sis. Joy Enu','Sis. Love Ada','Sis. Ruth Ogu','Sis. Mary Nna','Sis. Sarah Ike','Sis. Deborah Onw','Sis. Esther Nna','Sis. Miriam Nne','Sis. Hannah Obi','Sis. Naomi Eze','Sis. Abigail Nwa','Sis. Lydia Okon','Sis. Priscilla Enu']},
-  {cell:'Tabernacle Cell',fel:'Women',leader:'Sis. Ruth Adeleke',members:10,avg:11,rate:52,trend:'−18%',status:'alert',
-   history:[18,18,17,16,15,14,13,13,12,12,11,11],members_list:['Sis. Ruth Adeleke','Sis. Mary Okeke','Sis. Sarah Igwe','Sis. Deborah Uzoma','Sis. Esther Fashola','Sis. Love Nnamdi','Sis. Miriam Okeke','Sis. Hannah Igwe','Sis. Naomi Uzoma','Sis. Abigail Fashola']},
-  {cell:'Anchor Cell',fel:'Women',leader:'Sis. Hope Afolabi',members:15,avg:16,rate:78,trend:'+7%',status:'stable',
-   history:[12,12,13,13,14,14,15,15,16,16,17,16],members_list:['Sis. Hope Afolabi','Sis. Faith Adeyemi','Sis. Ruth Adeleke','Sis. Mary Okeke','Sis. Sarah Igwe','Sis. Deborah Uzoma','Sis. Esther Fashola','Sis. Love Nnamdi','Sis. Miriam Okeke','Sis. Hannah Igwe','Sis. Naomi Uzoma','Sis. Abigail Fashola','Sis. Lydia Nnamdi','Sis. Priscilla Okeke','Sis. Felicia Ada']},
-  {cell:'Emmanuel Cell',fel:'Women',leader:'Sis. Faith Adeyemi',members:17,avg:18,rate:76,trend:'+6%',status:'stable',
-   history:[14,14,15,15,16,16,17,17,18,18,19,18],members_list:['Sis. Faith Adeyemi','Sis. Hope Afolabi','Sis. Ruth Adeleke','Sis. Mary Okeke','Sis. Sarah Igwe','Sis. Deborah Uzoma','Sis. Esther Fashola','Sis. Love Nnamdi','Sis. Miriam Okeke','Sis. Hannah Igwe','Sis. Naomi Uzoma','Sis. Abigail Fashola','Sis. Lydia Nnamdi','Sis. Priscilla Okeke','Sis. Felicia Ada','Sis. Grace Obi','Sis. Mercy Nwosu']},
-  {cell:'Kingdom Builders Cell',fel:'Women',leader:'Sis. Love Nnamdi',members:19,avg:20,rate:74,trend:'+5%',status:'stable',
-   history:[16,16,17,17,18,18,19,19,20,20,21,20],members_list:['Sis. Love Nnamdi','Sis. Faith Adeyemi','Sis. Hope Afolabi','Sis. Ruth Adeleke','Sis. Mary Okeke','Sis. Sarah Igwe','Sis. Deborah Uzoma','Sis. Esther Fashola','Sis. Miriam Okeke','Sis. Hannah Igwe','Sis. Naomi Uzoma','Sis. Abigail Fashola','Sis. Lydia Nnamdi','Sis. Priscilla Okeke','Sis. Felicia Ada','Sis. Grace Obi','Sis. Mercy Nwosu','Sis. Peace Obi','Sis. Joy Enu']},
-  {cell:'Cornerstone Cell',fel:'Women',leader:'Sis. Esther Fashola',members:20,avg:21,rate:74,trend:'+5%',status:'stable',
-   history:[17,17,18,18,19,19,20,20,21,21,22,21],members_list:['Sis. Esther Fashola','Sis. Love Nnamdi','Sis. Faith Adeyemi','Sis. Hope Afolabi','Sis. Ruth Adeleke','Sis. Mary Okeke','Sis. Sarah Igwe','Sis. Deborah Uzoma','Sis. Miriam Okeke','Sis. Hannah Igwe','Sis. Naomi Uzoma','Sis. Abigail Fashola','Sis. Lydia Nnamdi','Sis. Priscilla Okeke','Sis. Felicia Ada','Sis. Grace Obi','Sis. Mercy Nwosu','Sis. Peace Obi','Sis. Joy Enu','Sis. Love Ada']},
-  {cell:'Manifold Blessings Cell',fel:'Women',leader:'Sis. Deborah Uzoma',members:14,avg:15,rate:78,trend:'+7%',status:'stable',
-   history:[11,11,12,12,13,13,14,14,15,15,16,15],members_list:['Sis. Deborah Uzoma','Sis. Esther Fashola','Sis. Love Nnamdi','Sis. Faith Adeyemi','Sis. Hope Afolabi','Sis. Ruth Adeleke','Sis. Mary Okeke','Sis. Sarah Igwe','Sis. Miriam Okeke','Sis. Hannah Igwe','Sis. Naomi Uzoma','Sis. Abigail Fashola','Sis. Lydia Nnamdi','Sis. Priscilla Okeke']},
-  {cell:'Jubilee Cell',fel:'Women',leader:'Sis. Mary Okeke',members:16,avg:17,rate:76,trend:'+6%',status:'stable',
-   history:[13,13,14,14,15,15,16,16,17,17,18,17],members_list:['Sis. Mary Okeke','Sis. Sarah Igwe','Sis. Deborah Uzoma','Sis. Esther Fashola','Sis. Love Nnamdi','Sis. Faith Adeyemi','Sis. Hope Afolabi','Sis. Ruth Adeleke','Sis. Miriam Okeke','Sis. Hannah Igwe','Sis. Naomi Uzoma','Sis. Abigail Fashola','Sis. Lydia Nnamdi','Sis. Priscilla Okeke','Sis. Felicia Ada','Sis. Grace Obi']},
-  {cell:'Promised Land Cell',fel:'Women',leader:'Sis. Sarah Igwe',members:15,avg:16,rate:78,trend:'+7%',status:'stable',
-   history:[12,12,13,13,14,14,15,15,16,16,17,16],members_list:['Sis. Sarah Igwe','Sis. Mary Okeke','Sis. Deborah Uzoma','Sis. Esther Fashola','Sis. Love Nnamdi','Sis. Faith Adeyemi','Sis. Hope Afolabi','Sis. Ruth Adeleke','Sis. Miriam Okeke','Sis. Hannah Igwe','Sis. Naomi Uzoma','Sis. Abigail Fashola','Sis. Lydia Nnamdi','Sis. Priscilla Okeke','Sis. Felicia Ada']},
-  // Men - 8 cells (indices 27-34)
-  {cell:'Power House Cell',fel:'Men',leader:'Bro. Daniel Okafor',members:14,avg:15,rate:78,trend:'+7%',status:'stable',
-   history:[11,12,12,13,13,14,14,14,15,15,16,15],members_list:['Bro. Daniel Okafor','Bro. Moses Eze','Bro. Aaron Nwosu','Bro. Elijah Adeleke','Bro. Joshua Afolabi','Bro. Samuel Adeyemi','Bro. Paul Nnamdi','Bro. David Okeke','Bro. Solomon Igwe','Bro. Isaiah Uzoma','Bro. Jeremiah Fashola','Bro. Ezekiel Nnamdi','Bro. Daniel Okeke','Bro. Hosea Igwe']},
-  {cell:'Covenant Cell',fel:'Men',leader:'Bro. Chukwudi Eze',members:15,avg:17,rate:87,trend:'+13%',status:'rising',
-   history:[11,12,12,13,14,14,15,15,16,17,17,17],members_list:['Bro. Chukwudi Eze','Bro. Ifeanyi Obi','Bro. Obiora Nwa','Bro. Emeka Okon','Bro. Chidi Enu','Bro. Kene Ada','Bro. Ike Ogu','Bro. Obi Nna','Bro. Chi Ike','Bro. Nna Onw','Bro. Oge Nna','Bro. Nke Nne','Bro. Uju Obi','Bro. Ada Eze','Bro. Ngo Nwa']},
-  {cell:'Dominion Cell',fel:'Men',leader:'Bro. Moses Eze',members:12,avg:13,rate:79,trend:'+8%',status:'stable',
-   history:[9,10,10,11,11,12,12,12,13,13,14,13],members_list:['Bro. Moses Eze','Bro. Aaron Nwosu','Bro. Elijah Adeleke','Bro. Joshua Afolabi','Bro. Samuel Adeyemi','Bro. Paul Nnamdi','Bro. David Okeke','Bro. Solomon Igwe','Bro. Isaiah Uzoma','Bro. Jeremiah Fashola','Bro. Ezekiel Nnamdi','Bro. Daniel Okeke']},
-  {cell:'Rock of Ages Cell',fel:'Men',leader:'Bro. Aaron Nwosu',members:13,avg:14,rate:79,trend:'+8%',status:'stable',
-   history:[10,11,11,12,12,13,13,13,14,14,15,14],members_list:['Bro. Aaron Nwosu','Bro. Elijah Adeleke','Bro. Joshua Afolabi','Bro. Samuel Adeyemi','Bro. Paul Nnamdi','Bro. David Okeke','Bro. Solomon Igwe','Bro. Isaiah Uzoma','Bro. Jeremiah Fashola','Bro. Ezekiel Nnamdi','Bro. Daniel Okeke','Bro. Hosea Igwe','Bro. Amos Uzoma']},
-  {cell:'Fortress Cell',fel:'Men',leader:'Bro. Elijah Adeleke',members:11,avg:12,rate:82,trend:'+9%',status:'stable',
-   history:[8,9,9,10,10,11,11,11,12,12,13,12],members_list:['Bro. Elijah Adeleke','Bro. Joshua Afolabi','Bro. Samuel Adeyemi','Bro. Paul Nnamdi','Bro. David Okeke','Bro. Solomon Igwe','Bro. Isaiah Uzoma','Bro. Jeremiah Fashola','Bro. Ezekiel Nnamdi','Bro. Daniel Okeke','Bro. Hosea Igwe']},
-  {cell:'Solid Rock Cell',fel:'Men',leader:'Bro. Joshua Afolabi',members:15,avg:16,rate:78,trend:'+7%',status:'stable',
-   history:[12,12,13,13,14,14,15,15,16,16,17,16],members_list:['Bro. Joshua Afolabi','Bro. Samuel Adeyemi','Bro. Paul Nnamdi','Bro. David Okeke','Bro. Solomon Igwe','Bro. Isaiah Uzoma','Bro. Jeremiah Fashola','Bro. Ezekiel Nnamdi','Bro. Daniel Okeke','Bro. Hosea Igwe','Bro. Amos Uzoma','Bro. Joel Fashola','Bro. Micah Nnamdi','Bro. Nahum Okeke','Bro. Habakkuk Igwe']},
-  {cell:'Victory Cell',fel:'Men',leader:'Bro. Samuel Adeyemi',members:13,avg:14,rate:79,trend:'+8%',status:'stable',
-   history:[10,11,11,12,12,13,13,13,14,14,15,14],members_list:['Bro. Samuel Adeyemi','Bro. Paul Nnamdi','Bro. David Okeke','Bro. Solomon Igwe','Bro. Isaiah Uzoma','Bro. Jeremiah Fashola','Bro. Ezekiel Nnamdi','Bro. Daniel Okeke','Bro. Hosea Igwe','Bro. Amos Uzoma','Bro. Joel Fashola','Bro. Micah Nnamdi','Bro. Nahum Okeke']},
-  {cell:'Lighthouse Cell',fel:'Men',leader:'Bro. Paul Nnamdi',members:10,avg:11,rate:85,trend:'+10%',status:'rising',
-   history:[7,7,8,8,9,9,10,10,11,11,12,11],members_list:['Bro. Paul Nnamdi','Bro. David Okeke','Bro. Solomon Igwe','Bro. Isaiah Uzoma','Bro. Jeremiah Fashola','Bro. Ezekiel Nnamdi','Bro. Daniel Okeke','Bro. Hosea Igwe','Bro. Amos Uzoma','Bro. Joel Fashola']},
-];
-
-
-
-const ALL_MEMBERS = [
-  // Glory House Cell - Youth
-  {name:'Bro. Emeka Okafor',phone:'0801-234-5678',cell:'Glory House Cell',fellowship:'Youth',joined:'Jan 12 2022',status:'Active',gender:'Male',age:28},
-  {name:'Sis. Chidinma Eze',phone:'0802-345-6789',cell:'Glory House Cell',fellowship:'Youth',joined:'Mar 5 2022',status:'Active',gender:'Female',age:24},
-  {name:'Bro. Uche Nwosu',phone:'0803-456-7890',cell:'Glory House Cell',fellowship:'Youth',joined:'Jun 18 2022',status:'Active',gender:'Male',age:26},
-  {name:'Sis. Ada Okafor',phone:'0804-567-8901',cell:'Glory House Cell',fellowship:'Youth',joined:'Aug 2 2022',status:'Active',gender:'Female',age:22},
-  {name:'Bro. Tobi Akin',phone:'0805-678-9012',cell:'Glory House Cell',fellowship:'Youth',joined:'Sep 14 2022',status:'Active',gender:'Male',age:25},
-  {name:'Sis. Yetunde Bello',phone:'0806-789-0123',cell:'Glory House Cell',fellowship:'Youth',joined:'Nov 8 2022',status:'Active',gender:'Female',age:23},
-  {name:'Bro. Dare Ogun',phone:'0807-890-1234',cell:'Glory House Cell',fellowship:'Youth',joined:'Jan 20 2023',status:'Active',gender:'Male',age:27},
-  {name:'Sis. Kemi Ojo',phone:'0808-901-2345',cell:'Glory House Cell',fellowship:'Youth',joined:'Feb 14 2023',status:'Active',gender:'Female',age:21},
-  // Covenant Cell - Men
-  {name:'Bro. Chukwudi Eze',phone:'0801-111-2001',cell:'Covenant Cell',fellowship:'Men',joined:'Feb 3 2021',status:'Active',gender:'Male',age:35},
-  {name:'Bro. Ifeanyi Obi',phone:'0802-111-2002',cell:'Covenant Cell',fellowship:'Men',joined:'Apr 17 2021',status:'Active',gender:'Male',age:38},
-  {name:'Bro. Obiora Nwa',phone:'0803-111-2003',cell:'Covenant Cell',fellowship:'Men',joined:'Jul 9 2021',status:'Active',gender:'Male',age:32},
-  {name:'Bro. Emeka Okon',phone:'0804-111-2004',cell:'Covenant Cell',fellowship:'Men',joined:'Oct 22 2021',status:'Active',gender:'Male',age:41},
-  {name:'Bro. Chidi Enu',phone:'0805-111-2005',cell:'Covenant Cell',fellowship:'Men',joined:'Jan 5 2022',status:'Active',gender:'Male',age:36},
-  {name:'Bro. Kene Ada',phone:'0806-111-2006',cell:'Covenant Cell',fellowship:'Men',joined:'Mar 19 2022',status:'Active',gender:'Male',age:29},
-  {name:'Bro. Ike Ogu',phone:'0807-111-2007',cell:'Covenant Cell',fellowship:'Men',joined:'Jun 1 2022',status:'Active',gender:'Male',age:44},
-  {name:'Bro. Obi Nna',phone:'0808-111-2008',cell:'Covenant Cell',fellowship:'Men',joined:'Aug 15 2022',status:'Active',gender:'Male',age:33},
-  // Fountain of Life Cell - Women
-  {name:'Sis. Adaeze Nwosu',phone:'0801-222-3001',cell:'Fountain of Life Cell',fellowship:'Women',joined:'Jan 8 2020',status:'Active',gender:'Female',age:34},
-  {name:'Sis. Ngozi Obi',phone:'0802-222-3002',cell:'Fountain of Life Cell',fellowship:'Women',joined:'Mar 12 2020',status:'Active',gender:'Female',age:31},
-  {name:'Sis. Chioma Uzoma',phone:'0803-222-3003',cell:'Fountain of Life Cell',fellowship:'Women',joined:'May 25 2020',status:'Active',gender:'Female',age:28},
-  {name:'Sis. Amaka Igwe',phone:'0804-222-3004',cell:'Fountain of Life Cell',fellowship:'Women',joined:'Aug 7 2020',status:'Active',gender:'Female',age:36},
-  {name:'Sis. Ifeoma Ada',phone:'0805-222-3005',cell:'Fountain of Life Cell',fellowship:'Women',joined:'Nov 19 2020',status:'Active',gender:'Female',age:29},
-  {name:'Sis. Nneka Nwa',phone:'0806-222-3006',cell:'Fountain of Life Cell',fellowship:'Women',joined:'Feb 14 2021',status:'Active',gender:'Female',age:33},
-  {name:'Sis. Ada Okafor',phone:'0807-222-3007',cell:'Fountain of Life Cell',fellowship:'Women',joined:'May 8 2021',status:'Active',gender:'Female',age:27},
-  {name:'Sis. Nkechi Eze',phone:'0808-222-3008',cell:'Fountain of Life Cell',fellowship:'Women',joined:'Aug 22 2021',status:'Active',gender:'Female',age:30},
-  // Power House Cell - Men
-  {name:'Bro. Daniel Okafor',phone:'0801-333-4001',cell:'Power House Cell',fellowship:'Men',joined:'Mar 4 2021',status:'Active',gender:'Male',age:40},
-  {name:'Bro. Moses Eze',phone:'0802-333-4002',cell:'Power House Cell',fellowship:'Men',joined:'Jun 18 2021',status:'Active',gender:'Male',age:37},
-  {name:'Bro. Aaron Nwosu',phone:'0803-333-4003',cell:'Power House Cell',fellowship:'Men',joined:'Sep 2 2021',status:'Active',gender:'Male',age:43},
-  {name:'Bro. Elijah Adeleke',phone:'0804-333-4004',cell:'Power House Cell',fellowship:'Men',joined:'Dec 14 2021',status:'Active',gender:'Male',age:39},
-  {name:'Bro. Joshua Afolabi',phone:'0805-333-4005',cell:'Power House Cell',fellowship:'Men',joined:'Mar 9 2022',status:'Active',gender:'Male',age:35},
-  {name:'Bro. Samuel Adeyemi',phone:'0806-333-4006',cell:'Power House Cell',fellowship:'Men',joined:'Jun 21 2022',status:'Active',gender:'Male',age:42},
-  {name:'Bro. Paul Nnamdi',phone:'0807-333-4007',cell:'Power House Cell',fellowship:'Men',joined:'Sep 5 2022',status:'Active',gender:'Male',age:38},
-  // Peace Cell - Women (watch status)
-  {name:'Sis. Ngozi Obi',phone:'0801-444-5001',cell:'Peace Cell',fellowship:'Women',joined:'Apr 11 2021',status:'Active',gender:'Female',age:35},
-  {name:'Sis. Blessing Nnaji',phone:'0802-444-5002',cell:'Peace Cell',fellowship:'Women',joined:'Jul 3 2021',status:'Active',gender:'Female',age:32},
-  {name:'Sis. Joy Okonkwo',phone:'0803-444-5003',cell:'Peace Cell',fellowship:'Women',joined:'Oct 15 2021',status:'Active',gender:'Female',age:28},
-  {name:'Sis. Patience Eze',phone:'0804-444-5004',cell:'Peace Cell',fellowship:'Women',joined:'Jan 8 2022',status:'Active',gender:'Female',age:37},
-  {name:'Sis. Grace Obi',phone:'0805-444-5005',cell:'Peace Cell',fellowship:'Women',joined:'Apr 22 2022',status:'Active',gender:'Female',age:30},
-  // Burning Bush Cell - Youth (alert status)
-  {name:'Bro. Ola Fashola',phone:'0801-555-6001',cell:'Burning Bush Cell',fellowship:'Youth',joined:'Feb 14 2022',status:'Active',gender:'Male',age:24},
-  {name:'Sis. Bisi Cole',phone:'0802-555-6002',cell:'Burning Bush Cell',fellowship:'Youth',joined:'May 7 2022',status:'Active',gender:'Female',age:22},
-  {name:'Bro. Tayo Adey',phone:'0803-555-6003',cell:'Burning Bush Cell',fellowship:'Youth',joined:'Aug 19 2022',status:'Active',gender:'Male',age:25},
-  {name:'Sis. Lola Babs',phone:'0804-555-6004',cell:'Burning Bush Cell',fellowship:'Youth',joined:'Nov 2 2022',status:'Inactive',gender:'Female',age:23},
-  {name:'Bro. Wale Okon',phone:'0805-555-6005',cell:'Burning Bush Cell',fellowship:'Youth',joined:'Jan 16 2023',status:'Inactive',gender:'Male',age:26},
-  {name:'Sis. Nike Labi',phone:'0806-555-6006',cell:'Burning Bush Cell',fellowship:'Youth',joined:'Mar 30 2023',status:'Inactive',gender:'Female',age:21},
-  {name:'Bro. Dare Ogun',phone:'0807-555-6007',cell:'Burning Bush Cell',fellowship:'Youth',joined:'Jun 13 2023',status:'Active',gender:'Male',age:27},
-  {name:'Sis. Kemi Ojo',phone:'0808-555-6008',cell:'Burning Bush Cell',fellowship:'Youth',joined:'Aug 27 2023',status:'Active',gender:'Female',age:20},
-];
-
-const GIVING_DATA = [
-  {p:'Jan 21',t:820000,o:590000,s:45000},{p:'Feb 21',t:798000,o:572000,s:32000},{p:'Mar 21',t:912000,o:654000,s:88000},
-  {p:'Apr 21',t:881000,o:631000,s:55000},{p:'May 21',t:944000,o:677000,s:102000},{p:'Jun 21',t:921000,o:661000,s:71000},
-  {p:'Jul 21',t:899000,o:645000,s:48000},{p:'Aug 21',t:872000,o:625000,s:38000},{p:'Sep 21',t:935000,o:671000,s:65000},
-  {p:'Oct 21',t:958000,o:688000,s:78000},{p:'Nov 21',t:982000,o:704000,s:95000},{p:'Dec 21',t:1248000,o:895000,s:312000},
-  {p:'Jan 22',t:891000,o:639000,s:52000},{p:'Feb 22',t:918000,o:659000,s:61000},{p:'Mar 22',t:1024000,o:735000,s:98000},
-  {p:'Apr 22',t:998000,o:716000,s:74000},{p:'May 22',t:1045000,o:750000,s:118000},{p:'Jun 22',t:1021000,o:732000,s:85000},
-  {p:'Jul 22',t:995000,o:714000,s:62000},{p:'Aug 22',t:968000,o:694000,s:49000},{p:'Sep 22',t:1038000,o:745000,s:88000},
-  {p:'Oct 22',t:1065000,o:764000,s:105000},{p:'Nov 22',t:1092000,o:784000,s:125000},{p:'Dec 22',t:1385000,o:993000,s:345000},
-  {p:'Jan 23',t:982000,o:704000,s:58000},{p:'Feb 23',t:1015000,o:728000,s:72000},{p:'Mar 23',t:1128000,o:809000,s:112000},
-  {p:'Apr 23',t:1098000,o:787000,s:84000},{p:'May 23',t:1154000,o:828000,s:138000},{p:'Jun 23',t:1125000,o:808000,s:98000},
-  {p:'Jul 23',t:1098000,o:787000,s:75000},{p:'Aug 23',t:1065000,o:764000,s:55000},{p:'Sep 23',t:1145000,o:821000,s:102000},
-  {p:'Oct 23',t:1178000,o:845000,s:128000},{p:'Nov 23',t:1212000,o:870000,s:155000},{p:'Dec 23',t:1542000,o:1106000,s:412000},
-  {p:'Jan 24',t:1085000,o:778000,s:65000},{p:'Feb 24',t:1124000,o:807000,s:85000},{p:'Mar 24',t:1248000,o:895000,s:132000},
-  {p:'Apr 24',t:1215000,o:872000,s:98000},{p:'May 24',t:1278000,o:917000,s:162000},{p:'Jun 24',t:1248000,o:895000,s:115000},
-  {p:'Jul 24',t:1215000,o:872000,s:88000},{p:'Aug 24',t:1178000,o:845000,s:65000},{p:'Sep 24',t:1268000,o:910000,s:118000},
-  {p:'Oct 24',t:1305000,o:937000,s:148000},{p:'Nov 24',t:1342000,o:963000,s:178000},{p:'Dec 24',t:1698000,o:1219000,s:465000},
-  {p:'Jan 25',t:1198000,o:860000,s:72000},{p:'Feb 25',t:1242000,o:891000,s:95000},{p:'Mar 25',t:1381000,o:991000,s:148000},
-  {p:'Apr 25',t:1345000,o:965000,s:112000},{p:'May 25',t:1412000,o:1014000,s:188000},{p:'Jun 25',t:1378000,o:989000,s:138000},
-  {p:'Jul 25',t:1342000,o:963000,s:102000},{p:'Aug 25',t:1305000,o:937000,s:78000},{p:'Sep 25',t:1398000,o:1003000,s:135000},
-  {p:'Oct 25',t:1438000,o:1032000,s:168000},{p:'Nov 25',t:1481000,o:1063000,s:205000},{p:'Dec 25',t:1878000,o:1348000,s:525000},
-  {p:'Jan 26',t:1240000,o:890000,s:72000},{p:'Feb 26',t:1180000,o:820000,s:55000},{p:'Mar 26',t:1320000,o:940000,s:112000},
-  {p:'Apr 26',t:1290000,o:910000,s:88000},{p:'May 26',t:1410000,o:1020000,s:158000},{p:'Jun 26',t:1380000,o:980000,s:128000},
-];
-
-const LIVE_FEED = [
-  {cell:'Glory House Cell',fellowship:'Youth Fellowship',present:18,visitors:2,mins:3},
-  {cell:'Covenant Cell',fellowship:'Men Fellowship',present:14,visitors:1,mins:8},
-  {cell:'Fountain of Life Cell',fellowship:'Women Fellowship',present:22,visitors:3,mins:15},
-  {cell:'Champions Cell',fellowship:'Youth Fellowship',present:16,visitors:0,mins:22},
-  {cell:'Peace Cell',fellowship:'Women Fellowship',present:19,visitors:2,mins:31},
-];
-
-const GIVING_PIE = [{name:'Tithe',value:75,color:'#534AB7'},{name:'Offering',value:15,color:'#1D9E75'},{name:'Special',value:7,color:'#BA7517'},{name:'Project',value:3,color:'#D85A30'}];
 
 // ── Helpers ────────────────────────────────────────────────────
 function fmt(n:number|undefined|null){return n!=null?n.toLocaleString():'—';}
 function fmtNGN(n:number){if(n>=1_000_000)return`₦${(n/1_000_000).toFixed(1)}M`;if(n>=1_000)return`₦${(n/1_000).toFixed(0)}k`;return`₦${n}`;}
 function greeting(){const h=new Date().getHours();return h<12?'Good morning':h<17?'Good afternoon':'Good evening';}
 
-function givingSlice(range:string){const m:Record<string,number>={'6m':6,'1y':12,'2y':24,'5y':60};return GIVING_DATA.slice(-(m[range]||12));}
 
 // Export helpers
 function exportCSV(data:Record<string,unknown>[], filename:string){
@@ -937,77 +771,199 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
   );
 }
 
+type BranchRow = {id:string;name:string;service_days:string[];day_service_counts:Record<string,number>};
+
 function BranchScheduleEditor({t, userRole, allDays}: {t: Record<string,string>; userRole: string; allDays: string[]}) {
-  const [branches, setBranches] = React.useState<{id:string;name:string;service_days:string[];services_per_day:number}[]>([]);
+  const [branches, setBranches] = React.useState<BranchRow[]>([]);
   const [selectedId, setSelectedId] = React.useState('');
   const [days, setDays] = React.useState<string[]>(['Sunday']);
-  const [perDay, setPerDay] = React.useState(1);
+  const [counts, setCounts] = React.useState<Record<string,number>>({Sunday:1});
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
+  const [showCreate, setShowCreate] = React.useState(false);
 
-  React.useEffect(() => {
+  function load() {
+    setLoading(true);
     fetch('/api/branches', { credentials: 'include' }).then(r=>r.json()).then(({data})=>{
-      const list = data?.branches || [];
+      const list: BranchRow[] = data?.branches || [];
       setBranches(list);
-      if (list.length > 0) setSelectedId(list[0].id);
+      setSelectedId(prev => list.some(b=>b.id===prev) ? prev : (list[0]?.id || ''));
     }).finally(()=>setLoading(false));
-  }, []);
+  }
+  React.useEffect(() => { load(); }, []);
 
   React.useEffect(() => {
     const b = branches.find(x => x.id === selectedId);
-    if (b) { setDays(b.service_days?.length ? b.service_days : ['Sunday']); setPerDay(b.services_per_day || 1); }
+    if (b) {
+      const d = b.service_days?.length ? b.service_days : ['Sunday'];
+      setDays(d);
+      const c: Record<string,number> = {};
+      d.forEach(day => { c[day] = b.day_service_counts?.[day] || 1; });
+      setCounts(c);
+    }
   }, [selectedId, branches]);
+
+  function toggleDay(day: string) {
+    setDays(prev => {
+      if (prev.includes(day)) return prev.filter(d=>d!==day);
+      setCounts(c => ({...c, [day]: c[day] || 1}));
+      return [...prev, day];
+    });
+  }
 
   async function save() {
     setSaving(true);
     try {
       const res = await fetch('/api/branches', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ id: selectedId, service_days: days, services_per_day: perDay }),
+        body: JSON.stringify({ id: selectedId, service_days: days, day_service_counts: counts }),
       });
       if (res.ok) {
         setSaved(true); setTimeout(()=>setSaved(false), 3000);
-        setBranches(prev => prev.map(b => b.id === selectedId ? { ...b, service_days: days, services_per_day: perDay } : b));
+        setBranches(prev => prev.map(b => b.id === selectedId ? { ...b, service_days: days, day_service_counts: counts } : b));
       }
     } catch {}
     setSaving(false);
   }
 
   if (loading) return null;
-  if (branches.length === 0) return null;
 
   return (
     <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'18px 20px'}}>
-      <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:2}}>Branch Schedule</div>
-      <div style={{fontSize:12,color:t.muted,marginBottom:14}}>Each branch can run its own service days and its own number of services per day — a branch pastor only ever edits their own branch.</div>
-
-      {userRole !== 'branch_pastor' && branches.length > 1 && (
-        <select value={selectedId} onChange={e=>setSelectedId(e.target.value)}
-          style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',fontSize:13,background:t.input,color:t.text,outline:'none',marginBottom:14}}>
-          {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select>
-      )}
-
-      <div style={{fontSize:11,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:8}}>Service days</div>
-      <div style={{display:'flex',gap:8,flexWrap:'wrap' as const,marginBottom:16}}>
-        {allDays.map(day => (
-          <button key={day} onClick={()=>setDays(prev => prev.includes(day) ? prev.filter(d=>d!==day) : [...prev,day])}
-            style={{padding:'7px 14px',borderRadius:20,border:`0.5px solid ${days.includes(day)?t.purple:t.border}`,background:days.includes(day)?t.purple:t.input,color:days.includes(day)?'#fff':t.sub,fontSize:12,fontWeight:days.includes(day)?600:400,cursor:'pointer'}}>
-            {day}
-          </button>
-        ))}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:2}}>
+        <div style={{fontSize:13,fontWeight:600,color:t.text}}>Branch Schedule</div>
+        {userRole !== 'branch_pastor' && (
+          <button onClick={()=>setShowCreate(true)} style={{background:t.purpleBg,color:t.purple,border:'none',borderRadius:8,padding:'6px 12px',fontSize:12,fontWeight:600,cursor:'pointer'}}>+ Create Branch</button>
+        )}
       </div>
+      <div style={{fontSize:12,color:t.muted,marginBottom:14}}>Each branch can run its own service days, and its own number of services on each of those days (e.g. 3 Sunday services but only 1 midweek service) — a branch pastor only ever edits their own branch.</div>
 
-      <div style={{fontSize:11,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:8}}>Services per day</div>
-      <input type="number" min={1} max={10} value={perDay} onChange={e=>setPerDay(Math.max(1,Math.min(10,Number(e.target.value)||1)))}
-        style={{width:80,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',fontSize:13,background:t.input,color:t.text,outline:'none'}} />
-      <div style={{fontSize:11,color:t.muted,marginTop:6}}>e.g. a branch running 3 Sunday services would set this to 3 — attendance submission will offer Service 1/2/3.</div>
+      {showCreate && <CreateBranchModal t={t} allDays={allDays} onClose={()=>setShowCreate(false)} onCreated={()=>{setShowCreate(false);load();}} />}
 
-      <button onClick={save} disabled={saving || days.length===0}
-        style={{marginTop:16,background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'9px 18px',fontSize:13,fontWeight:600,cursor:saving?'wait':'pointer',opacity:days.length===0?0.5:1}}>
-        {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save branch schedule'}
-      </button>
+      {branches.length === 0 ? (
+        <div style={{fontSize:12,color:t.muted}}>No branches yet — create one to configure its schedule.</div>
+      ) : (
+        <>
+          {userRole !== 'branch_pastor' && branches.length > 1 && (
+            <select value={selectedId} onChange={e=>setSelectedId(e.target.value)}
+              style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',fontSize:13,background:t.input,color:t.text,outline:'none',marginBottom:14}}>
+              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          )}
+
+          <div style={{fontSize:11,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:8}}>Service days</div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap' as const,marginBottom:16}}>
+            {allDays.map(day => (
+              <button key={day} onClick={()=>toggleDay(day)}
+                style={{padding:'7px 14px',borderRadius:20,border:`0.5px solid ${days.includes(day)?t.purple:t.border}`,background:days.includes(day)?t.purple:t.input,color:days.includes(day)?'#fff':t.sub,fontSize:12,fontWeight:days.includes(day)?600:400,cursor:'pointer'}}>
+                {day}
+              </button>
+            ))}
+          </div>
+
+          {days.length > 0 && (
+            <>
+              <div style={{fontSize:11,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:8}}>Services per day</div>
+              <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:8}}>
+                {days.map(day => (
+                  <div key={day} style={{display:'flex',alignItems:'center',gap:10}}>
+                    <span style={{fontSize:12,color:t.text,width:90}}>{day}</span>
+                    <input type="number" min={1} max={10} value={counts[day]||1}
+                      onChange={e=>setCounts(c=>({...c,[day]:Math.max(1,Math.min(10,Number(e.target.value)||1))}))}
+                      style={{width:70,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 10px',fontSize:13,background:t.input,color:t.text,outline:'none'}} />
+                    <span style={{fontSize:11,color:t.muted}}>service{counts[day]>1?'s':''}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{fontSize:11,color:t.muted,marginBottom:6}}>e.g. Sunday = 3 services, Wednesday = 1 — attendance submission on each date will offer exactly that many.</div>
+            </>
+          )}
+
+          <button onClick={save} disabled={saving || days.length===0}
+            style={{marginTop:10,background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'9px 18px',fontSize:13,fontWeight:600,cursor:saving?'wait':'pointer',opacity:days.length===0?0.5:1}}>
+            {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save branch schedule'}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function CreateBranchModal({t, allDays, onClose, onCreated}: {t: Record<string,string>; allDays: string[]; onClose: ()=>void; onCreated: ()=>void}) {
+  const [name, setName] = React.useState('');
+  const [days, setDays] = React.useState<string[]>(['Sunday']);
+  const [counts, setCounts] = React.useState<Record<string,number>>({Sunday:1});
+  const [creating, setCreating] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  function toggleDay(day: string) {
+    setDays(prev => {
+      if (prev.includes(day)) return prev.filter(d=>d!==day);
+      setCounts(c => ({...c, [day]: c[day] || 1}));
+      return [...prev, day];
+    });
+  }
+
+  async function create() {
+    if (!name.trim()) { setError('Branch name is required.'); return; }
+    if (days.length === 0) { setError('Select at least one service day.'); return; }
+    setCreating(true); setError('');
+    try {
+      const res = await fetch('/api/branches', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ branches: [{ name: name.trim(), service_days: days, day_service_counts: counts }] }),
+      });
+      const json = await res.json();
+      if (res.ok && (json.data?.branches?.length ?? 0) > 0) onCreated();
+      else setError(json.error?.message || 'A branch with that name may already exist.');
+    } catch { setError('Network error — branch was not created.'); }
+    setCreating(false);
+  }
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={()=>!creating&&onClose()}>
+      <div onClick={e=>e.stopPropagation()} style={{background:t.card,borderRadius:16,padding:22,maxWidth:420,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,0.4)'}}>
+        <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:14}}>Create a new branch</div>
+        <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:6}}>Branch name</div>
+        <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Redemption Camp"
+          style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:13,background:t.input,color:t.text,outline:'none',marginBottom:14,boxSizing:'border-box'}} />
+
+        <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:8}}>Service days</div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap' as const,marginBottom:14}}>
+          {allDays.map(day => (
+            <button key={day} onClick={()=>toggleDay(day)}
+              style={{padding:'6px 12px',borderRadius:20,border:`0.5px solid ${days.includes(day)?t.purple:t.border}`,background:days.includes(day)?t.purple:t.input,color:days.includes(day)?'#fff':t.sub,fontSize:11,fontWeight:days.includes(day)?600:400,cursor:'pointer'}}>
+              {day}
+            </button>
+          ))}
+        </div>
+
+        {days.length > 0 && (
+          <>
+            <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:8}}>Services per day</div>
+            <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:16}}>
+              {days.map(day => (
+                <div key={day} style={{display:'flex',alignItems:'center',gap:10}}>
+                  <span style={{fontSize:12,color:t.text,width:90}}>{day}</span>
+                  <input type="number" min={1} max={10} value={counts[day]||1}
+                    onChange={e=>setCounts(c=>({...c,[day]:Math.max(1,Math.min(10,Number(e.target.value)||1))}))}
+                    style={{width:70,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 10px',fontSize:13,background:t.input,color:t.text,outline:'none'}} />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {error && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12,marginBottom:14}}>{error}</div>}
+
+        <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+          <button onClick={onClose} disabled={creating} style={{background:t.input,color:t.text,border:'none',borderRadius:8,padding:'9px 16px',fontSize:13,cursor:'pointer'}}>Cancel</button>
+          <button onClick={create} disabled={creating} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'9px 16px',fontSize:13,fontWeight:600,cursor:creating?'wait':'pointer'}}>
+            {creating ? 'Creating…' : 'Create & activate branch'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1489,11 +1445,24 @@ export default function DashboardPage(){
   // Deep-link support (e.g. /dashboard?page=validation from the /update
   // redirect for admin roles) — read once on mount, not via useSearchParams,
   // to avoid forcing a Suspense boundary around the whole page for one param.
-  React.useEffect(()=>{
-    const requested = new URLSearchParams(window.location.search).get('page');
+  function applyDeepLink(search: string) {
+    const requested = new URLSearchParams(search).get('page');
     if (requested === 'service_planner') { setPage('events'); setEventsSubTab('planner'); }
     else if (requested) setPage(requested as NavPage);
-  },[]);
+  }
+  React.useEffect(()=>{ applyDeepLink(window.location.search); },[]);
+  // Clicking a notification while already on /dashboard (e.g. a new prayer
+  // request) updates the URL but doesn't remount this page, so the
+  // mount-only reader above would never see it — NotificationBell
+  // dispatches this event in that exact case.
+  React.useEffect(() => {
+    function onDeepLink(e: Event) {
+      const link = (e as CustomEvent<string>).detail || '';
+      applyDeepLink(link.split('?')[1] ? `?${link.split('?')[1]}` : '');
+    }
+    window.addEventListener('shepherd:deep-link', onDeepLink);
+    return () => window.removeEventListener('shepherd:deep-link', onDeepLink);
+  }, []);
   const [showAlertOnly,setShowAlertOnly]=useState(false);
   const [churchConfig,setChurchConfig]=React.useState<{structure_type:string;tier1_label:string|null;tier2_label:string|null;tier1_head_label:string;tier2_head_label:string;church_name:string;currency:string}>({structure_type:'cell_church',tier1_label:'Fellowship',tier2_label:'Cell',tier1_head_label:'Fellowship Head',tier2_head_label:'Cell Leader',church_name:'',currency:'NGN'});
   const [kpi,setKpi]=useState<KPI|null>(null);
@@ -1501,9 +1470,8 @@ export default function DashboardPage(){
   const [selectedBranch,setSelectedBranch]=useState('');
   const [userName,setUserName]=useState('');
   const [userRole,setUserRole]=useState('');
-  const [givingRange,setGivingRange]=useState('6m');
   const [eventsSubTab,setEventsSubTab]=useState<'planner'|'programs'>('planner');
-  const [selectedCell,setSelectedCell]=useState<typeof CELLS_DATA[0]|null>(null);
+  const [selectedCell,setSelectedCell]=useState<CellRow|null>(null);
   const [cellFilter,setCellFilter]=useState<string>('all');
   const [memberSearch,setMemberSearch]=useState('');
   const [memberFilter,setMemberFilter]=useState('all');
@@ -1555,11 +1523,14 @@ export default function DashboardPage(){
   const [sidebarStyle,setSidebarStyle]=useState<'light'|'dark'>('light');
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [isMobile,setIsMobile]=useState(false);
-  const [dbCells,setDbCells]=useState<(typeof CELLS_DATA[number] & {last_meeting_date?:string|null;meeting_this_week?:boolean;meeting_sla_grade?:string|null;submission_sla_score?:number|null;meeting_sla_score?:number|null;accuracy?:number;overall_score?:number})[]|null>(null);
+  const [dbCells,setDbCells]=useState<(CellRow & {last_meeting_date?:string|null;meeting_this_week?:boolean;meeting_sla_grade?:string|null;submission_sla_score?:number|null;meeting_sla_score?:number|null;accuracy?:number;overall_score?:number})[]|null>(null);
   const [leaderOptions,setLeaderOptions]=useState<{id:string;full_name:string;role:string}[]>([]);
   const [memberFellowshipId,setMemberFellowshipId]=useState('');
   const [memberFellowshipsList,setMemberFellowshipsList]=useState<{id:string;name:string}[]>([]);
   const [commendType,setCommendType]=useState<'commendation'|'meeting'|'encouragement'|'announcement'>('commendation');
+  const [commendScope,setCommendScope]=useState<'individual'|'fellowship'|'department'|'all'>('individual');
+  const [commendFellowshipId,setCommendFellowshipId]=useState('');
+  const [commendDepartmentId,setCommendDepartmentId]=useState('');
   const [commendLeader,setCommendLeader]=useState('');
   const [commendMsg,setCommendMsg]=useState('');
   const [commendSending,setCommendSending]=useState(false);
@@ -1922,8 +1893,8 @@ export default function DashboardPage(){
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Giving breakdown</span><span style={{fontSize:12,color:t.purple}}>Drill down →</span></div>
                   {(()=>{
                     const palette=['#534AB7','#1D9E75','#BA7517','#D85A30','#2563EB','#9333EA'];
-                    const real=(kpi?.giving_breakdown||[]).map((g,i)=>({name:g.name,value:g.pct,color:palette[i%palette.length]}));
-                    const pieData=real.length>0?real:GIVING_PIE;
+                    const pieData=(kpi?.giving_breakdown||[]).map((g,i)=>({name:g.name,value:g.pct,color:palette[i%palette.length]}));
+                    if(pieData.length===0) return <div style={{fontSize:12,color:t.muted,textAlign:'center',padding:'16px 0'}}>No giving recorded yet.</div>;
                     return (
                       <div style={{display:'flex',alignItems:'center',gap:10}}>
                         <ResponsiveContainer width={80} height={80}>
@@ -1942,13 +1913,17 @@ export default function DashboardPage(){
                 </div>
                 <div onClick={()=>setPage('cells')} style={{...card(),cursor:'pointer'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}><span style={{fontSize:13,fontWeight:500,color:t.text}}>Cell alerts</span><span style={{fontSize:12,color:t.purple}}>View all →</span></div>
-                  {(dbCells||CELLS_DATA).filter(c=>c.status==='alert'||c.status==='watch').slice(0,3).map(c=>(
+                  {(dbCells||[]).length===0 ? (
+                    <div style={{fontSize:12,color:t.muted}}>No cells yet.</div>
+                  ) : (dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length===0 ? (
+                    <div style={{fontSize:12,color:t.muted}}>No cells need attention right now.</div>
+                  ) : (dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').slice(0,3).map(c=>(
                     <div key={c.cell} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
                       <div><div style={{fontSize:12,color:dark?'#E5E7EB':'#374151',fontWeight:500}}>{c.cell}</div><div style={{fontSize:11,color:t.muted}}>{c.fel}</div></div>
                       <span style={{fontSize:11,padding:'2px 8px',borderRadius:10,fontWeight:500,background:ss(c.status).bg,color:ss(c.status).c}}>{c.trend}</span>
                     </div>
                   ))}
-                  <div style={{fontSize:11,color:'#1D9E75',marginTop:4}}>✓ {(dbCells||CELLS_DATA).filter(c=>c.status==='rising').length} cells rising</div>
+                  <div style={{fontSize:11,color:'#1D9E75',marginTop:4}}>✓ {(dbCells||[]).filter(c=>c.status==='rising').length} cells rising</div>
                 </div>
               </div>
               {/* Membership Goals */}
@@ -2372,22 +2347,22 @@ export default function DashboardPage(){
           {page==='cells'&&!selectedCell&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
-                {[{label:'Total Active Cells',value:String((dbCells||CELLS_DATA).length)},{label:'Rising',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='rising').length)},{label:'Need Attention',value:String((dbCells||CELLS_DATA).filter(c=>c.status==='alert'||c.status==='watch').length)},{label:'Avg Attendance Rate',value:(()=>{const cells=(dbCells||CELLS_DATA);const withRate=cells.filter(c=>c.members>0);return withRate.length>0?`${Math.round(withRate.reduce((s,c)=>s+(c.avg/c.members*100),0)/withRate.length)}%`:'—';})()}].map(s=>(
+                {[{label:'Total Active Cells',value:String((dbCells||[]).length)},{label:'Rising',value:String((dbCells||[]).filter(c=>c.status==='rising').length)},{label:'Need Attention',value:String((dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length)},{label:'Avg Attendance Rate',value:(()=>{const cells=(dbCells||[]);const withRate=cells.filter(c=>c.members>0);return withRate.length>0?`${Math.round(withRate.reduce((s,c)=>s+(c.avg/c.members*100),0)/withRate.length)}%`:'—';})()}].map(s=>(
                   <div key={s.label} style={card({padding:'10px 12px'})}><div style={{fontSize:11,color:t.sub,marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500,color:t.text}}>{s.value}</div></div>
                 ))}
               </div>
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>All {(dbCells||CELLS_DATA).length} Cells - click any cell to drill down</div>
+                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>All {(dbCells||[]).length} Cells - click any cell to drill down</div>
                   <div style={{display:'flex',gap:8}}>
                     <button onClick={()=>setShowCreateCell(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Create Cell</button>
                     <button onClick={()=>setShowMergeCells(true)} style={{background:'transparent',color:t.coral,border:`0.5px solid ${t.coral}`,borderRadius:8,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>Merge Cells</button>
-                    <button onClick={()=>exportCSV((dbCells||CELLS_DATA).map(c=>({Cell:c.cell,Fellowship:c.fel,Leader:c.leader,Members:c.members,AvgAttendance:c.avg,Rate:`${c.rate}%`,Trend:c.trend,Status:c.status})),'cells_export')}
+                    <button onClick={()=>exportCSV((dbCells||[]).map(c=>({Cell:c.cell,Fellowship:c.fel,Leader:c.leader,Members:c.members,AvgAttendance:c.avg,Rate:`${c.rate}%`,Trend:c.trend,Status:c.status})),'cells_export')}
                       style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'5px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export CSV</button>
                   </div>
                 </div>
                 <div style={{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'}}>
-                  {[{key:'all',label:`All ${(dbCells||CELLS_DATA).length}`},{key:'rising',label:'Rising'},{key:'stable',label:'Stable'},{key:'watch',label:'Watch'},{key:'alert',label:'Intervention'},{key:'Youth',label:'Youth'},{key:'Women',label:'Women'},{key:'Men',label:'Men'}].map(f=>(
+                  {[{key:'all',label:`All ${(dbCells||[]).length}`},{key:'rising',label:'Rising'},{key:'stable',label:'Stable'},{key:'watch',label:'Watch'},{key:'alert',label:'Intervention'},{key:'Youth',label:'Youth'},{key:'Women',label:'Women'},{key:'Men',label:'Men'}].map(f=>(
                     <button key={f.key} onClick={()=>setCellFilter(f.key)}
                       style={{padding:'4px 10px',borderRadius:20,border:'0.5px solid',cursor:'pointer',fontSize:11,fontWeight:cellFilter===f.key?500:400,
                         background:cellFilter===f.key?(f.key==='alert'?'#FAECE7':f.key==='watch'?'#FAEEDA':f.key==='rising'?'#E1F5EE':'#EEEDFE'):'transparent',
@@ -2402,7 +2377,7 @@ export default function DashboardPage(){
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse',minWidth:600}}>
                     <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Cell','Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status','Weekly Meeting'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
-                      {(dbCells||CELLS_DATA).filter(row=>cellFilter==='all'||(row.status===cellFilter)||(row.fel===cellFilter)).map((row,i)=>{const s=ss(row.status);return(
+                      {(dbCells||[]).filter(row=>cellFilter==='all'||(row.status===cellFilter)||(row.fel===cellFilter)).map((row,i)=>{const s=ss(row.status);return(
                         <tr key={i} onClick={()=>setSelectedCell(row)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
                           onMouseEnter={e=>e.currentTarget.style.background=t.hover}
                           onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
@@ -2439,54 +2414,9 @@ export default function DashboardPage(){
                   }}
                   style={{fontSize:15,fontWeight:600,color:t.text,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'4px 8px',background:t.input,outline:'none',fontFamily:'inherit',marginBottom:6,width:'100%',boxSizing:'border-box'}} />
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} Fellowship · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
-                {!selectedCell.members_list&&<div style={{fontSize:12,color:t.muted,marginBottom:12,padding:'8px 12px',background:t.cardInner,borderRadius:8}}>Connect live database to see individual member roster for this cell.</div>}
                 <AttendanceHistoryPanel t={t} color={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'}
                   fetchUrl={(g,o)=>`/api/cells/history?cell_id=${(selectedCell as unknown as {id?:string})?.id}&granularity=${g}&offset=${o}`} />
               </div>
-              {(selectedCell.members_list||[]).length>0&&<div style={card()}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>Cell Members - Last Sunday Attendance</div>
-                  <button onClick={()=>exportCSV((selectedCell.members_list||[]).map((n,i)=>({Name:n,Status:i<selectedCell.avg?'Present':'Absent',LeaderInformed:i>=selectedCell.avg?(i%2===0?'Yes':'No'):'N/A'})),`${selectedCell.cell.replace(/ /g,'_')}_members`)}
-                    style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export</button>
-                </div>
-                <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                  <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Last Sunday','Leader Informed'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
-                  <tbody>
-                    {(selectedCell.members_list||[]).map((name,i)=>{
-                      const total=(selectedCell.members_list||[]).length;
-                      // presentCount based on actual avg attendance
-                      const presentCount=Math.min(selectedCell.avg, total);
-                      // Spread absences: for alert cells absences are clustered (people stopped coming)
-                      // For stable/rising cells absences are scattered (random misses)
-                      let present=true;
-                      if(selectedCell.status==='alert'){
-                        // Last N members absent (they dropped off)
-                        present = i < presentCount;
-                      } else if(selectedCell.status==='watch'){
-                        // Every ~5th member absent
-                        present = i < presentCount || (i%5!==4);
-                        present = i < presentCount;
-                      } else {
-                        // Randomly scattered absences - every nth
-                        const absentCount=total-presentCount;
-                        const interval=absentCount>0?Math.floor(total/absentCount):999;
-                        present = interval===999 ? true : (i+1)%interval!==0;
-                        // Ensure count is right
-                        if(i>=presentCount+(total-presentCount)) present=false;
-                        present = i<presentCount;
-                      }
-                      const informed = i%3===0?'Yes':i%3===1?'No':'Yes';
-                      return(
-                        <tr key={i} style={{borderBottom:`0.5px solid ${t.border}`}}>
-                          <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151'}}>{name}</td>
-                          <td style={{padding:'7px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:present?'#E1F5EE':'#FAECE7',color:present?'#085041':'#993C1D'}}>{present?'Present':'Absent'}</span></td>
-                          <td style={{padding:'7px 8px'}}>{!present?<span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:informed==='Yes'?'#E1F5EE':'#FAECE7',color:informed==='Yes'?'#085041':'#993C1D'}}>{informed}</span>:<span style={{fontSize:11,color:t.muted}}>N/A</span>}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>}
             </div>
           )}
 
@@ -2692,37 +2622,72 @@ export default function DashboardPage(){
                 <div style={{display:'flex',flexDirection:'column',gap:10}}>
                   <div>
                     <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Send to</div>
-                    <select value={commendLeader} onChange={e=>setCommendLeader(e.target.value)}
-                      style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
-                      <option value="">Select a leader...</option>
-                      {leaderOptions.map(l=>(
-                        <option key={l.id} value={l.id}>{l.full_name} — {l.role.replace('_',' ')}</option>
+                    <div style={{display:'flex',gap:6,marginBottom:8,flexWrap:'wrap' as const}}>
+                      {[{v:'individual',label:'One leader'},{v:'fellowship',label:'A fellowship'},{v:'department',label:'A department'},{v:'all',label:'Everyone'}].map(s=>(
+                        <button key={s.v} onClick={()=>setCommendScope(s.v as typeof commendScope)}
+                          style={{padding:'5px 12px',borderRadius:20,border:`0.5px solid ${commendScope===s.v?'#534AB7':t.border}`,background:commendScope===s.v?'#534AB7':t.input,color:commendScope===s.v?'#fff':t.sub,fontSize:11,fontWeight:commendScope===s.v?600:400,cursor:'pointer'}}>
+                          {s.label}
+                        </button>
                       ))}
-                    </select>
+                    </div>
+                    {commendScope==='individual' && (
+                      <select value={commendLeader} onChange={e=>setCommendLeader(e.target.value)}
+                        style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
+                        <option value="">Select a leader...</option>
+                        {leaderOptions.map(l=>(
+                          <option key={l.id} value={l.id}>{l.full_name} — {l.role.replace('_',' ')}</option>
+                        ))}
+                      </select>
+                    )}
+                    {commendScope==='fellowship' && (
+                      <select value={commendFellowshipId} onChange={e=>setCommendFellowshipId(e.target.value)}
+                        style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
+                        <option value="">Select a fellowship...</option>
+                        {memberFellowshipsList.map(f=>(<option key={f.id} value={f.id}>{f.name}</option>))}
+                      </select>
+                    )}
+                    {commendScope==='department' && (
+                      <select value={commendDepartmentId} onChange={e=>setCommendDepartmentId(e.target.value)}
+                        style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
+                        <option value="">Select a department...</option>
+                        {deptsList.map(d=>(<option key={d.id} value={d.id}>{d.name}</option>))}
+                      </select>
+                    )}
+                    {commendScope==='all' && (
+                      <div style={{fontSize:11,color:t.muted,padding:'8px 0'}}>Every cell leader, fellowship head, and department head in your branch.</div>
+                    )}
                   </div>
                   <div>
                     <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Message</div>
-                    <textarea rows={4} value={commendMsg} onChange={e=>setCommendMsg(e.target.value)} placeholder="Write your message here... The leader will receive this as an in-app notification."
+                    <textarea rows={4} value={commendMsg} onChange={e=>setCommendMsg(e.target.value)} placeholder="Write your message here... Recipients receive this as an in-app notification."
                       style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none',resize:'none',fontFamily:'inherit'}}/>
                   </div>
                   {commendError && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12}}>{commendError}</div>}
-                  <button disabled={commendSending||!commendLeader||!commendMsg.trim()} onClick={async()=>{
-                      setCommendSending(true); setCommendError('');
-                      try{
-                        const leader=leaderOptions.find(l=>l.id===commendLeader);
-                        const res=await fetch('/api/recognition/commend',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
-                          body:JSON.stringify({leader_id:commendLeader,commendation:commendMsg.trim(),category:commendType})});
-                        const json=await res.json();
-                        if(res.ok){
-                          setSentCommendations(prev=>[{to:leader?.full_name||'Leader',type:commendType,msg:commendMsg.trim(),time:'Just now'},...prev]);
-                          setCommendMsg(''); setCommendLeader('');
-                        } else setCommendError(json.error?.message||'Failed to send.');
-                      }catch{ setCommendError('Network error — message was not sent.'); }
-                      setCommendSending(false);
-                    }}
-                    style={{background:'#534AB7',color:'#fff',border:'none',borderRadius:10,padding:'12px',fontSize:13,fontWeight:600,cursor:commendSending?'wait':'pointer',opacity:!commendLeader||!commendMsg.trim()?0.5:1}}>
-                    {commendSending?'Sending…':'Send notification'}
-                  </button>
+                  {(()=>{
+                    const canSend = commendScope==='individual'?!!commendLeader : commendScope==='fellowship'?!!commendFellowshipId : commendScope==='department'?!!commendDepartmentId : true;
+                    return (
+                      <button disabled={commendSending||!canSend||!commendMsg.trim()} onClick={async()=>{
+                          setCommendSending(true); setCommendError('');
+                          try{
+                            const leader=leaderOptions.find(l=>l.id===commendLeader);
+                            const fellowship=memberFellowshipsList.find(f=>f.id===commendFellowshipId);
+                            const dept=deptsList.find(d=>d.id===commendDepartmentId);
+                            const res=await fetch('/api/recognition/commend',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+                              body:JSON.stringify({leader_id:commendLeader,fellowship_id:commendFellowshipId,department_id:commendDepartmentId,scope:commendScope,commendation:commendMsg.trim(),category:commendType})});
+                            const json=await res.json();
+                            if(res.ok){
+                              const to=commendScope==='individual'?(leader?.full_name||'Leader'):commendScope==='fellowship'?`${fellowship?.name||'Fellowship'} (${json.data?.recipient_count||0} recipients)`:commendScope==='department'?`${dept?.name||'Department'} (${json.data?.recipient_count||0} recipients)`:`Everyone (${json.data?.recipient_count||0} recipients)`;
+                              setSentCommendations(prev=>[{to,type:commendType,msg:commendMsg.trim(),time:'Just now'},...prev]);
+                              setCommendMsg(''); setCommendLeader(''); setCommendFellowshipId(''); setCommendDepartmentId('');
+                            } else setCommendError(json.error?.message||'Failed to send.');
+                          }catch{ setCommendError('Network error — message was not sent.'); }
+                          setCommendSending(false);
+                        }}
+                        style={{background:'#534AB7',color:'#fff',border:'none',borderRadius:10,padding:'12px',fontSize:13,fontWeight:600,cursor:commendSending?'wait':'pointer',opacity:!canSend||!commendMsg.trim()?0.5:1}}>
+                        {commendSending?'Sending…':'Send notification'}
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
 
