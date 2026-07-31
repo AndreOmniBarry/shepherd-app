@@ -5,6 +5,7 @@ import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import Icon from '@/components/Icon';
 import { SkeletonCard } from '@/components/Skeleton';
+import ChatNavButton from '@/components/ChatNavButton';
 import { rolePortal } from '@/lib/role-portal';
 
 type Group = { id: string; type: 'church' | 'department'; name: string; department_id: string | null; departments?: { name: string } | null };
@@ -158,7 +159,7 @@ export default function ChurchFeedPage() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <NotificationBell dark={dark} /><MyAccountButton dark={dark} />
+          <ChatNavButton t={t} compact /><NotificationBell dark={dark} /><MyAccountButton dark={dark} />
           <div onClick={() => setDark(v => !v)} style={{ width: 30, height: 30, borderRadius: 8, border: `0.5px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.muted, fontSize: 14 }}>
             {dark ? '☀' : '◑'}
           </div>

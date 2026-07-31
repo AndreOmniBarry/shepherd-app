@@ -10,6 +10,8 @@ import DateTimePicker from '@/components/DateTimePicker';
 import Icon from '@/components/Icon';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import ChatNavButton from '@/components/ChatNavButton';
+import LoadingScreen from '@/components/LoadingScreen';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar
@@ -140,6 +142,7 @@ export default function FellowshipHeadPage() {
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('overview');
   const [dark, setDark] = useState(false);
+  const [pageReady, setPageReady] = useState(false);
   const [nudgeMsg, setNudgeMsg] = useState('');
   const [fellowshipName, setFellowshipName] = useState('');
   const [leaderName, setLeaderName] = useState('');
@@ -208,6 +211,7 @@ export default function FellowshipHeadPage() {
         if (!data) { router.push('/login'); return; }
         setFellowshipName(data.fellowship_name || 'Your Fellowship');
         setLeaderName(data.name || '');
+        setPageReady(true);
       })
       .catch(() => router.push('/login'));
 
@@ -381,6 +385,8 @@ export default function FellowshipHeadPage() {
       { id: 'disputes', label: `Disputes${disputes.filter(d => d.status === 'pending').length > 0 ? ` (${disputes.filter(d => d.status === 'pending').length})` : ''}` },
   ];
 
+  if (!pageReady) return <LoadingScreen dark={dark} label="Loading your fellowship…" />;
+
   return (
     <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>
 
@@ -405,7 +411,7 @@ export default function FellowshipHeadPage() {
             {dark ? '☀' : '◑'}
           </div>
           <button onClick={() => router.push("/church-center")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Center</button>
-          <button onClick={() => router.push("/church-feed")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Feed</button>
+          <button onClick={() => router.push("/church-feed")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Feed</button><ChatNavButton t={t} />
           <button onClick={() => router.push("/calendar")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Calendar</button><NotificationBell dark={dark} /><MyAccountButton dark={dark} /><button onClick={logout} style={{ background: "transparent", color: t.muted, border: "none", fontSize: 12, cursor: "pointer" }}>Sign out</button>
         </div>
       </div>
@@ -414,7 +420,9 @@ export default function FellowshipHeadPage() {
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', display: 'flex', gap: 0, overflowX: 'auto' }}>
         {navItems.map(n => (
           <button key={n.id} onClick={() => setTab(n.id)}
-            style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: tab === n.id ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', whiteSpace: 'nowrap', marginBottom: -0.5 }}>
+            onMouseEnter={e => { if (tab !== n.id) { e.currentTarget.style.color = t.purple; e.currentTarget.style.textShadow = '0 0 12px rgba(168,159,255,0.5)'; } }}
+            onMouseLeave={e => { if (tab !== n.id) { e.currentTarget.style.color = t.muted; e.currentTarget.style.textShadow = 'none'; } }}
+            style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: tab === n.id ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', transition: 'all var(--motion-fast) var(--ease-out-expo)', whiteSpace: 'nowrap', marginBottom: -0.5 }}>
             {n.label}
           </button>
         ))}

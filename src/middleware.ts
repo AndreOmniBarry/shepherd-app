@@ -145,7 +145,7 @@ export async function middleware(req: NextRequest) {
   // was the actual reason Church Center (and My Assignments before it)
   // "did nothing" when clicked — middleware bounced every role straight
   // back to their own portal since neither path was ever in the allow list.
-  const allowed = [...allowedPrefixes(role || ''), '/calendar', '/church-center', '/church-feed'];
+  const allowed = [...allowedPrefixes(role || ''), '/calendar', '/church-center', '/church-feed', '/chat'];
 
   // Root redirect → role portal
   if (pathname === '/') {

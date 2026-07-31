@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
+import ChatNavButton from '@/components/ChatNavButton';
+import LoadingScreen from '@/components/LoadingScreen';
 
 type Entry = {
   id: string;
@@ -74,6 +76,8 @@ export default function WorkforcePage() {
     router.push('/login');
   }
 
+  if (loading) return <LoadingScreen dark={dark} label="Loading your workforce schedule…" />;
+
   return (
     <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
@@ -89,7 +93,7 @@ export default function WorkforcePage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={() => router.push("/church-center")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Center</button>
-          <button onClick={() => router.push("/church-feed")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Feed</button>
+          <button onClick={() => router.push("/church-feed")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Feed</button><ChatNavButton t={t} />
           <button onClick={() => router.push("/calendar")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Calendar</button><NotificationBell dark={dark} /><MyAccountButton dark={dark} />
           <div onClick={() => setDark(v => !v)} style={{ width: 30, height: 30, borderRadius: 8, border: `0.5px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.muted, fontSize: 14 }}>
             {dark ? '☀' : '◑'}

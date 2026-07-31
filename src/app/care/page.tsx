@@ -6,6 +6,8 @@ import BirthdayPanel from '@/components/BirthdayPanel';
 import CareEventsTab from '@/components/CareEventsTab';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import ChatNavButton from '@/components/ChatNavButton';
+import LoadingScreen from '@/components/LoadingScreen';
 
 type Lead = {
   id: string;
@@ -90,6 +92,7 @@ export default function CareTeamPage() {
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('queue');
   const [dark, setDark] = useState(false);
+  const [pageReady, setPageReady] = useState(false);
   const [leaderName, setLeaderName] = useState('');
   const [leads, setLeads] = useState<Lead[]>([]);
   const [firstTimers, setFirstTimers] = useState<FirstTimer[]>([]);
@@ -134,6 +137,7 @@ export default function CareTeamPage() {
       .then(({ data }) => {
         if (!data) { router.push('/login'); return; }
         setLeaderName(data.name || '');
+        setPageReady(true);
       })
       .catch(() => router.push('/login'));
 
@@ -252,6 +256,8 @@ export default function CareTeamPage() {
     { id: 'events' as NavTab, label: 'Events', icon: 'ti-calendar-event' },
   ];
 
+  if (!pageReady) return <LoadingScreen dark={dark} label="Loading care & follow-up…" />;
+
   return (
     <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>
 
@@ -277,7 +283,7 @@ export default function CareTeamPage() {
             {dark ? '☀' : '◑'}
           </div>
           <button onClick={() => router.push("/church-center")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Center</button>
-          <button onClick={() => router.push("/church-feed")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Feed</button>
+          <button onClick={() => router.push("/church-feed")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Feed</button><ChatNavButton t={t} />
           <button onClick={() => router.push("/calendar")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Calendar</button><NotificationBell dark={dark} /><MyAccountButton dark={dark} /><button onClick={logout} style={{ background: "transparent", color: t.muted, border: "none", fontSize: 12, cursor: "pointer" }}>Sign out</button>
         </div>
       </div>
@@ -286,7 +292,9 @@ export default function CareTeamPage() {
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', display: 'flex' }}>
         {navItems.map(n => (
           <button key={n.id} onClick={() => setTab(n.id)}
-            style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: tab === n.id ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', marginBottom: -0.5, whiteSpace: 'nowrap' }}>
+            onMouseEnter={e => { if (tab !== n.id) { e.currentTarget.style.color = t.purple; e.currentTarget.style.textShadow = '0 0 12px rgba(168,159,255,0.5)'; } }}
+            onMouseLeave={e => { if (tab !== n.id) { e.currentTarget.style.color = t.muted; e.currentTarget.style.textShadow = 'none'; } }}
+            style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: tab === n.id ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', transition: 'all var(--motion-fast) var(--ease-out-expo)', marginBottom: -0.5, whiteSpace: 'nowrap' }}>
             {n.label}
           </button>
         ))}
