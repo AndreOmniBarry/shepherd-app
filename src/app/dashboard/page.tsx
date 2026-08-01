@@ -1825,30 +1825,41 @@ export default function DashboardPage(){
   const card=(e?:React.CSSProperties):React.CSSProperties=>({background:t.card,backdropFilter:'blur(14px) saturate(150%)',WebkitBackdropFilter:'blur(14px) saturate(150%)',border:`0.5px solid ${t.border}`,borderRadius:'var(--radius-md)',padding:isMobile?'12px 14px':'16px 20px',transition:'transform var(--motion-medium) var(--ease-out-expo), box-shadow var(--motion-medium) var(--ease-out-expo)',...e});
   const ss=(s:string)=>s==='rising'?{bg:'#E1F5EE',c:'#085041'}:s==='stable'?{bg:'#F3F4F6',c:'#374151'}:s==='watch'?{bg:'#FAEEDA',c:'#633806'}:{bg:'#FAECE7',c:'#993C1D'};
 
-  const navItems=[
-    {id:'dashboard' as NavPage,icon:'ti-layout-dashboard',label:'Dashboard'},
-    {id:'action_board' as NavPage,icon:'ti-alert-triangle',label:'Action Board'},
-    {id:'members' as NavPage,icon:'ti-users',label:'Members'},
-    {id:'departments' as NavPage,icon:'ti-building',label:'Departments'},
-    {id:'attendance' as NavPage,icon:'ti-calendar-stats',label:'Attendance'},
-    // Financial visibility is deliberately restricted for PA — they can
-    // approve/query requisitions but not view giving/financial totals.
-    ...(userRole!=='pa'?[{id:'giving' as NavPage,icon:'ti-coin',label:'Giving'}]:[]),
-    // The Cell Ministry tab only applies to the two-tier fellowship→cell structure —
-    // hidden entirely for zonal/campus/department/house_network/single churches.
-    ...(churchConfig.structure_type==='cell_church'?[{id:'cells' as NavPage,icon:'ti-circles',label:`${churchConfig.tier2_label||'Cell'} Ministry`}]:[]),
-    {id:'reports' as NavPage,icon:'ti-chart-bar',label:'Reports'},
-    {id:'recognition' as NavPage,icon:'ti-award',label:'Recognition'},
-    {id:'commendation' as NavPage,icon:'ti-star',label:'Commend Leaders'},
-    {id:'prayer' as NavPage,icon:'ti-heart',label:'Prayer Requests'},
-    {id:'care_followup' as NavPage,icon:'ti-heart-handshake',label:'Care & Follow-up'},
-    {id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'},
-    {id:'workforce' as NavPage,icon:'ti-user-check',label:'Workforce'},
-    {id:'events' as NavPage,icon:'ti-ticket',label:'Events & Service Planning'},
-    {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
-    {id:'settings' as NavPage,icon:'ti-settings',label:'Settings'},
-    ...(userRole === 'lead_tech' ? [{id:'admin' as NavPage,icon:'ti-shield',label:'Admin Portal'}] : []),
+  const navGroups=[
+    {label:'Overview', items:[
+      {id:'dashboard' as NavPage,icon:'ti-layout-dashboard',label:'Dashboard'},
+      {id:'action_board' as NavPage,icon:'ti-alert-triangle',label:'Action Board'},
+      {id:'reports' as NavPage,icon:'ti-chart-bar',label:'Reports'},
+    ]},
+    {label:'People', items:[
+      {id:'members' as NavPage,icon:'ti-users',label:'Members'},
+      {id:'departments' as NavPage,icon:'ti-building',label:'Departments'},
+      {id:'attendance' as NavPage,icon:'ti-calendar-stats',label:'Attendance'},
+      // The Cell Ministry tab only applies to the two-tier fellowship→cell structure —
+      // hidden entirely for zonal/campus/department/house_network/single churches.
+      ...(churchConfig.structure_type==='cell_church'?[{id:'cells' as NavPage,icon:'ti-circles',label:`${churchConfig.tier2_label||'Cell'} Ministry`}]:[]),
+      {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
+    ]},
+    {label:'Finance', items:[
+      // Financial visibility is deliberately restricted for PA — they can
+      // approve/query requisitions but not view giving/financial totals.
+      ...(userRole!=='pa'?[{id:'giving' as NavPage,icon:'ti-coin',label:'Giving'}]:[]),
+      {id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'},
+    ]},
+    {label:'Ministry', items:[
+      {id:'recognition' as NavPage,icon:'ti-award',label:'Recognition'},
+      {id:'commendation' as NavPage,icon:'ti-star',label:'Commend Leaders'},
+      {id:'prayer' as NavPage,icon:'ti-heart',label:'Prayer Requests'},
+      {id:'care_followup' as NavPage,icon:'ti-heart-handshake',label:'Care & Follow-up'},
+      {id:'workforce' as NavPage,icon:'ti-user-check',label:'Workforce'},
+      {id:'events' as NavPage,icon:'ti-ticket',label:'Events & Service Planning'},
+    ]},
+    {label:'Admin', items:[
+      {id:'settings' as NavPage,icon:'ti-settings',label:'Settings'},
+      ...(userRole === 'lead_tech' ? [{id:'admin' as NavPage,icon:'ti-shield',label:'Admin Portal'}] : []),
+    ]},
   ];
+  const navItems=navGroups.flatMap(g=>g.items);
 
   const agentOpts=[
     {id:'moshe' as AgentName,label:'Moshe',desc:'Church intelligence — all domains'},
@@ -1867,23 +1878,28 @@ export default function DashboardPage(){
           <div><div style={{fontSize:14,fontWeight:700,color:dark?'#E8E5FF':sidebarStyle==='dark'?'#FFFFFF':'#1A1040',letterSpacing:'1px',lineHeight:1}}>SHEP.HERD</div><div style={{fontSize:9,color:dark?'rgba(232,229,255,0.3)':sidebarStyle==='dark'?'rgba(255,255,255,0.35)':'#9990CC',marginTop:2}}>Church Intelligence</div></div>
         </div>
         <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
-          {navItems.map(n=>(
-            <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDeptId(null);setPage(n.id);}}
-              className="sh-nav-item"
-              style={{
-                background: page===n.id ? (dark?'rgba(83,74,183,0.45)':'rgba(83,74,183,0.10)') : 'transparent',
-                color: page===n.id ? (dark?'#E8E5FF':'#3C3489') : undefined,
-                fontWeight: page===n.id ? 600 : 400,
-                borderLeft: `2px solid ${page===n.id?'#534AB7':'transparent'}`,
-                boxShadow: page===n.id ? (dark?'0 0 20px rgba(83,74,183,0.3), inset 0 0 0 0.5px rgba(168,159,255,0.2)':'0 0 12px rgba(83,74,183,0.10)') : 'none',
-                borderRadius: '0 8px 8px 0',
-                margin: '1px 8px 1px 0',
-                width: 'calc(100% - 8px)',
-                transition: 'all 0.2s ease',
-              }}>
-              {n.icon && <Icon name={n.icon} size={15} style={{opacity:page===n.id?1:0.5,flexShrink:0}} />}
-              {n.label}
-            </button>
+          {navGroups.filter(g=>g.items.length>0).map(g=>(
+            <div key={g.label} style={{marginBottom:4}}>
+              <div style={{fontSize:9.5,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase' as const,color:dark?'rgba(232,229,255,0.28)':sidebarStyle==='dark'?'rgba(255,255,255,0.28)':'#B4ACD9',padding:'10px 20px 4px'}}>{g.label}</div>
+              {g.items.map(n=>(
+                <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDeptId(null);setPage(n.id);}}
+                  className="sh-nav-item"
+                  style={{
+                    background: page===n.id ? (dark?'rgba(83,74,183,0.45)':'rgba(83,74,183,0.10)') : 'transparent',
+                    color: page===n.id ? (dark?'#E8E5FF':'#3C3489') : undefined,
+                    fontWeight: page===n.id ? 600 : 400,
+                    borderLeft: `2px solid ${page===n.id?'#534AB7':'transparent'}`,
+                    boxShadow: page===n.id ? (dark?'0 0 20px rgba(83,74,183,0.3), inset 0 0 0 0.5px rgba(168,159,255,0.2)':'0 0 12px rgba(83,74,183,0.10)') : 'none',
+                    borderRadius: '0 8px 8px 0',
+                    margin: '1px 8px 1px 0',
+                    width: 'calc(100% - 8px)',
+                    transition: 'all 0.2s ease',
+                  }}>
+                  {n.icon && <Icon name={n.icon} size={15} style={{opacity:page===n.id?1:0.5,flexShrink:0}} />}
+                  {n.label}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
         <div style={{padding:12,borderTop:`0.5px solid ${t.navBorder}`}}>
@@ -1956,23 +1972,47 @@ export default function DashboardPage(){
           {/* ══ DASHBOARD ══ */}
           {page==='dashboard'&&(
             <div>
-              <div style={{background:t.tealBg,borderRadius:8,padding:'8px 14px',marginBottom:18,display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#085041'}}>
-                <span>●</span>
-                <span>Attendance session live &mdash; <strong>{fmt(kpi?.today_present)}</strong> check-ins · <strong>{kpi?.today_cells_reported??'—'}/{kpi?.today_cells_total??'—'}</strong> cells reported</span>
+              <div style={{background:'linear-gradient(135deg, #6C5FC7 0%, #534AB7 55%, #3C3489 100%)',borderRadius:'var(--radius-lg)',padding:isMobile?'18px 20px':'22px 26px',marginBottom:18,boxShadow:'0 12px 32px rgba(83,74,183,0.35)',position:'relative',overflow:'hidden'}}>
+                <div style={{position:'absolute',top:-40,right:-40,width:160,height:160,borderRadius:'50%',background:'rgba(255,255,255,0.08)'}}/>
+                <div style={{position:'absolute',bottom:-60,right:60,width:180,height:180,borderRadius:'50%',background:'rgba(255,255,255,0.05)'}}/>
+                <div style={{position:'relative',display:'flex',justifyContent:'space-between',alignItems:'flex-end',flexWrap:'wrap' as const,gap:14}}>
+                  <div>
+                    <div style={{fontSize:isMobile?16:19,fontWeight:700,color:'#fff'}}>{greeting()}{userName&&userName!=='General'?`, ${userName.split(' ')[0]}`:''}</div>
+                    <div style={{fontSize:12,color:'rgba(255,255,255,0.65)',marginTop:3,display:'flex',alignItems:'center',gap:6}}>
+                      <span style={{width:6,height:6,borderRadius:'50%',background:'#2DD4AA',display:'inline-block',boxShadow:'0 0 0 3px rgba(45,212,170,0.25)'}}/>
+                      Attendance session live
+                    </div>
+                  </div>
+                  <div style={{display:'flex',gap:isMobile?16:28}}>
+                    <div>
+                      <div style={{fontSize:isMobile?22:28,fontWeight:700,color:'#fff',lineHeight:1}}>{fmt(kpi?.today_present)}</div>
+                      <div style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginTop:3}}>check-ins today</div>
+                    </div>
+                    <div>
+                      <div style={{fontSize:isMobile?22:28,fontWeight:700,color:'#fff',lineHeight:1}}>{kpi?.today_cells_reported??'—'}<span style={{fontSize:16,opacity:0.6}}>/{kpi?.today_cells_total??'—'}</span></div>
+                      <div style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginTop:3}}>cells reported</div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10,marginBottom:18}}>
                 {[
-                  {label:'Total members',value:fmt(kpi?.total_members),delta:`+${kpi?.new_members_month??0} this month`,page:'members' as NavPage},
-                  {label:"Today's check-ins",value:fmt(kpi?.today_present),delta:`${kpi?.today_cells_reported??'—'}/${kpi?.today_cells_total??'—'} cells in`,page:'attendance' as NavPage},
-                  {label:'YTD giving',value:kpi?fmtNGN(kpi.ytd_giving_ngn):'—',delta:'Year to date',page:'giving' as NavPage},
-                  {label:'Active cells',value:fmt(kpi?.active_cells),delta:`${new Set((dbCells||[]).map(c=>c.fel)).size} fellowships`,page:'cells' as NavPage},
+                  {label:'Total members',value:fmt(kpi?.total_members),delta:`+${kpi?.new_members_month??0} this month`,page:'members' as NavPage,icon:'ti-users',color:'#534AB7',bg:'rgba(83,74,183,0.12)',up:true},
+                  {label:"Today's check-ins",value:fmt(kpi?.today_present),delta:`${kpi?.today_cells_reported??'—'}/${kpi?.today_cells_total??'—'} cells in`,page:'attendance' as NavPage,icon:'ti-calendar-stats',color:'#1D9E75',bg:'rgba(29,158,117,0.12)',up:true},
+                  {label:'YTD giving',value:kpi?fmtNGN(kpi.ytd_giving_ngn):'—',delta:'Year to date',page:'giving' as NavPage,icon:'ti-coin',color:'#BA7517',bg:'rgba(186,117,23,0.12)',up:true},
+                  {label:'Active cells',value:fmt(kpi?.active_cells),delta:`${new Set((dbCells||[]).map(c=>c.fel)).size} fellowships`,page:'cells' as NavPage,icon:'ti-circles',color:'#2563EB',bg:'rgba(37,99,235,0.12)',up:true},
                 ].map(m=>(
                   <div key={m.label} onClick={()=>setPage(m.page)} style={{...card(),cursor:'pointer'}}
-                    onMouseEnter={e=>e.currentTarget.style.boxShadow='0 2px 8px rgba(83,74,183,0.15)'}
-                    onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
-                    <div style={{fontSize:isMobile?10:11,color:t.sub,marginBottom:4}}>{m.label}</div>
-                    <div style={{fontSize:isMobile?19:26,fontWeight:600,color:t.text,lineHeight:1.1}}>{m.value}</div>
-                    <div style={{fontSize:isMobile?10:11,color:'#1D9E75',marginTop:3}}>{m.delta}</div>
+                    onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 8px 24px rgba(83,74,183,0.18)'; e.currentTarget.style.transform='translateY(-2px)';}}
+                    onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'; e.currentTarget.style.transform='translateY(0)';}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
+                      <div style={{fontSize:isMobile?10:11,color:t.sub,fontWeight:500}}>{m.label}</div>
+                      <div style={{width:30,height:30,borderRadius:9,background:m.bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,color:m.color}}><Icon name={m.icon} size={15}/></div>
+                    </div>
+                    <div style={{fontSize:isMobile?19:26,fontWeight:700,color:t.text,lineHeight:1.1}}>{m.value}</div>
+                    <div style={{display:'inline-flex',alignItems:'center',gap:3,marginTop:8,fontSize:isMobile?10:11,fontWeight:600,color:'#1D9E75',background:'rgba(29,158,117,0.1)',borderRadius:20,padding:'3px 9px'}}>
+                      <Icon name="ti-zap" size={10}/>{m.delta}
+                    </div>
                   </div>
                 ))}
               </div>
