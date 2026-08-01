@@ -20,7 +20,7 @@ const STATUS_LABEL: Record<string, string> = {
   in_progress: 'In progress', reached: 'Reached', visited: 'Visited', restored: 'Restored', unreachable: 'Unreachable', closed: 'Closed',
 };
 
-export default function CareFollowupPanel({ t, branchId }: { t: Record<string, string>; branchId?: string }) {
+export default function CareFollowupPanel({ t, branchId, isMobile = false }: { t: Record<string, string>; branchId?: string; isMobile?: boolean }) {
   const [data, setData] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +39,7 @@ export default function CareFollowupPanel({ t, branchId }: { t: Record<string, s
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
         {[0, 1, 2, 3].map(i => <SkeletonCard key={i} lines={1} />)}
       </div>
       <SkeletonCard lines={0} style={{ gap: 0 }}>
@@ -56,7 +56,7 @@ export default function CareFollowupPanel({ t, branchId }: { t: Record<string, s
         <div style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>First-timer pipeline and absentee restoration — real-time from the care team&apos;s own portal.</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
         {[
           { label: 'First-timers (all-time)', value: data.summary.total_first_timers, accent: '#534AB7' },
           { label: 'New first-timers (30d)', value: data.summary.new_first_timers_30d, accent: '#1D9E75' },
@@ -78,7 +78,7 @@ export default function CareFollowupPanel({ t, branchId }: { t: Record<string, s
           emptyText="No first-timer or absentee follow-up logged for this window yet." />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
         <div style={card()}>
           <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>First-timer pipeline</div>
           {Object.entries(data.timer_counts).filter(([, v]) => v > 0).map(([k, v]) => (
@@ -103,6 +103,22 @@ export default function CareFollowupPanel({ t, branchId }: { t: Record<string, s
         <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Care team engagement</div>
         {data.roster.length === 0 ? (
           <div style={{ fontSize: 12, color: t.muted }}>No care team members yet.</div>
+        ) : isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {data.roster.map(m => {
+              const rate = m.assigned > 0 ? Math.round((m.resolved / m.assigned) * 100) : 0;
+              return (
+                <div key={m.id} style={{ background: t.cardInner || t.input, borderRadius: 10, padding: '10px 12px' }}>
+                  <div style={{ fontWeight: 500, fontSize: 12, color: t.text, marginBottom: 4 }}>{m.full_name}{!m.is_active && <span style={{ color: t.coral, fontSize: 10, marginLeft: 6 }}>(inactive)</span>}</div>
+                  <div style={{ display: 'flex', gap: 12, fontSize: 11, color: t.sub, alignItems: 'center' }}>
+                    <span>{m.resolved}/{m.assigned} resolved</span>
+                    <span style={{ color: rate >= 60 ? t.teal : t.coral, fontWeight: 600 }}>{rate}%</span>
+                    <span style={{ color: t.muted }}>SLA: {m.avg_sla_score == null ? '—' : `${m.avg_sla_score}%`}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -132,7 +148,7 @@ export default function CareFollowupPanel({ t, branchId }: { t: Record<string, s
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
         <div style={card()}>
           <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>Recent first-timers</div>
           {data.recent_first_timers.length === 0 ? <div style={{ fontSize: 12, color: t.muted }}>None yet.</div> : data.recent_first_timers.map(r => (

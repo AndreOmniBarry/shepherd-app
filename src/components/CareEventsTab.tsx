@@ -5,7 +5,7 @@ import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 type EventRow = { id: string; title: string; event_date: string; location: string; registration_open: boolean; status: string; registration_count: number };
 type Registrant = { id: string; full_name: string; phone: string; whatsapp: string; email: string | null; is_member: boolean; preferred_comms: string; payment_status: string; attended: boolean; registered_at: string };
 
-export default function CareEventsTab({ t }: { t: Record<string, string> }) {
+export default function CareEventsTab({ t, isMobile = false }: { t: Record<string, string>; isMobile?: boolean }) {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<EventRow | null>(null);
@@ -52,6 +52,20 @@ export default function CareEventsTab({ t }: { t: Record<string, string> }) {
             <>{[0, 1].map(i => <SkeletonRow key={i} />)}</>
           ) : registrants.length === 0 ? (
             <div style={{ fontSize: 12, color: t.muted }}>No registrations yet.</div>
+          ) : isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {registrants.map(r => (
+                <div key={r.id} style={{ background: t.cardInner || t.input, borderRadius: 10, padding: '10px 12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
+                    <div style={{ fontWeight: 500, fontSize: 12, color: t.text }}>{r.full_name}</div>
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, flexShrink: 0, background: r.attended ? t.tealBg : t.amberBg, color: r.attended ? t.teal : t.amber, fontWeight: 500 }}>
+                      {r.attended ? 'Attended' : 'Not yet'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: t.sub }}>{r.phone} · {r.is_member ? 'Member' : 'Guest'} · <span style={{ textTransform: 'capitalize' }}>{r.preferred_comms}</span></div>
+                </div>
+              ))}
+            </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>

@@ -3186,11 +3186,11 @@ export default function DashboardPage(){
               <div style={{fontSize:12,color:t.muted,marginTop:-6}}>
                 {eventsSubTab==='planner'?'Order of Service — who\'s anchoring what, and for how long — the run of a single service.':'Programs & Registration — special events, crusades, conferences, and their registration links.'}
               </div>
-              {eventsSubTab==='planner'?<ServicePlannerPanel t={t} branchId={selectedBranch||undefined} />:<EventsPanel t={t} />}
+              {eventsSubTab==='planner'?<ServicePlannerPanel t={t} branchId={selectedBranch||undefined} />:<EventsPanel t={t} isMobile={isMobile} />}
             </div>
           )}
           {page==='care_followup'&&(
-            <CareFollowupPanel t={t} branchId={selectedBranch||undefined} />
+            <CareFollowupPanel t={t} branchId={selectedBranch||undefined} isMobile={isMobile} />
           )}
           {page==='validation'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
