@@ -53,6 +53,13 @@ type FellowshipCell = { id: string; name: string; leader_name: string; member_co
 export default function UpdatePage() {
   const router = useRouter();
   const {dark, setDark} = useTheme();
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   const [tab, setTab] = useState<Tab>('profiles');
   const [members, setMembers] = useState<Member[]>([]);
   const [editing, setEditing] = useState<Record<string, EditState>>({});

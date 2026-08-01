@@ -58,9 +58,10 @@ const ACTION_CFG = {
 interface DeptOverviewProps {
   dark?: boolean;
   t: Record<string, string>;
+  isMobile?: boolean;
 }
 
-export default function DeptOverview({ dark = false, t }: DeptOverviewProps) {
+export default function DeptOverview({ dark = false, t, isMobile = false }: DeptOverviewProps) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
   const [memberView, setMemberView] = useState<'all' | 'critical' | 'healthy'>('all');
@@ -196,6 +197,37 @@ export default function DeptOverview({ dark = false, t }: DeptOverviewProps) {
 
         {filteredMembers.length === 0 ? (
           <div style={{ padding: 24, textAlign: 'center', color: t.muted, fontSize: 12 }}>No members in this category</div>
+        ) : isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {filteredMembers.map(m => {
+              const hcfg = HEALTH_CFG[m.health] || HEALTH_CFG.new;
+              return (
+                <div key={m.id} style={{ background: dark ? 'rgba(255,255,255,0.03)' : '#F7F6FF', borderRadius: 10, padding: '11px 13px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: t.text }}>
+                        {m.full_name}
+                        {m.birthdayStatus === 'today' && <span style={{ marginLeft: 6, display: 'inline-flex', color: '#BA7517', verticalAlign: 'middle' }}><Icon name="ti-cake" size={12} /></span>}
+                      </div>
+                      <div style={{ fontSize: 11, color: t.muted }}>{m.role}</div>
+                    </div>
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, flexShrink: 0, background: hcfg.bg, color: hcfg.text, fontWeight: 500 }}>{hcfg.label}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <div style={{ width: 50, height: 4, background: dark ? '#2A2A2A' : '#F0F0F0', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ width: `${m.rate || 0}%`, height: '100%', background: m.rate && m.rate >= 80 ? '#1D9E75' : m.rate && m.rate >= 60 ? '#BA7517' : '#D85A30', borderRadius: 2 }} />
+                    </div>
+                    <span style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{m.rate !== null ? `${m.rate}%` : '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, fontSize: 11, color: t.sub }}>
+                    <span><span style={{ color: '#1D9E75', fontWeight: 500 }}>{m.present}</span> present</span>
+                    <span style={{ color: m.absent > 0 ? '#D85A30' : t.muted }}>{m.absent} absent</span>
+                    {m.consecutiveAbsences > 0 && <span style={{ color: m.consecutiveAbsences >= 2 ? '#D85A30' : t.muted, fontWeight: m.consecutiveAbsences >= 2 ? 600 : 400 }}>{m.consecutiveAbsences} in a row</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>

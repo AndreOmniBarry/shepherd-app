@@ -144,6 +144,13 @@ export default function FellowshipHeadPage() {
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('overview');
   const {dark, setDark} = useTheme();
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   const [pageReady, setPageReady] = useState(false);
   const [nudgeMsg, setNudgeMsg] = useState('');
   const [fellowshipName, setFellowshipName] = useState('');
@@ -636,6 +643,33 @@ export default function FellowshipHeadPage() {
                   </div>
                 )}
 
+                {isMobile ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {cells.map(c => {
+                      const sla = SLA_COLORS[c.sla_grade || ''] || null;
+                      return (
+                        <div key={c.id} onClick={() => setSelectedCell(c)} style={{ ...card({ padding: '11px 13px' }), cursor: 'pointer' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: 13, color: t.text }}>{c.name}</div>
+                              <div style={{ fontSize: 11, color: t.sub }}>{c.leader_name} · {c.member_count} members</div>
+                            </div>
+                            <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500, flexShrink: 0, background: c.status === 'submitted' ? t.tealBg : c.status === 'pending' ? t.amberBg : t.coralBg, color: c.status === 'submitted' ? t.teal : c.status === 'pending' ? t.amber : t.coral }}>
+                              {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: 11 }}>
+                            <span style={{ color: c.last_rate && c.last_rate >= 75 ? t.teal : t.coral, fontWeight: 500 }}>{c.last_rate ? `${c.last_rate}% last rate` : 'No rate yet'}</span>
+                            {sla && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, background: sla.bg, color: sla.text, fontWeight: 600 }}>{c.sla_grade}</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {cells.length === 0 && !loading && (
+                      <div style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No cells assigned to your fellowship yet.</div>
+                    )}
+                  </div>
+                ) : (
                 <div style={{ ...card({ padding: 0 }), overflowX: 'auto', overflowY: 'hidden' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                     <thead>
@@ -671,6 +705,7 @@ export default function FellowshipHeadPage() {
                     <div style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No cells assigned to your fellowship yet.</div>
                   )}
                 </div>
+                )}
               </div>
             )}
           </div>
@@ -689,6 +724,40 @@ export default function FellowshipHeadPage() {
                 {filteredMembers.length} members
               </div>
             </div>
+            {isMobile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {filteredMembers.map(m => (
+                  <div key={m.id} style={card({ padding: '11px 13px' })}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: t.text }}>{m.full_name}</div>
+                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, flexShrink: 0, background: m.membership_status === 'active' ? t.tealBg : t.coralBg, color: m.membership_status === 'active' ? t.teal : t.coral, fontWeight: 500 }}>
+                        {m.membership_status}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: t.sub, marginBottom: 8 }}>{m.cell_name} · Last seen {m.last_seen || '—'}</div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <select defaultValue="" onChange={async e => {
+                        const cellId = e.target.value; if (!cellId) return;
+                        const res = await fetch('/api/fellowship/members', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ member_id: m.id, cell_id: cellId }) });
+                        if (res.ok) { const newCell = cells.find(c => c.id === cellId); setMembers(ms => ms.map(x => x.id === m.id ? { ...x, cell_name: newCell?.name || x.cell_name } : x)); }
+                        else window.alert('Failed to move member.');
+                        e.target.value = '';
+                      }} style={{ flex: 1, fontSize: 11, border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '6px', background: t.input, color: t.sub, outline: 'none' }}>
+                        <option value="">Move to cell...</option>
+                        {cells.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                      <button onClick={() => recommendRemoval(m.id, m.full_name)}
+                        style={{ background: 'transparent', color: t.coral, border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '6px 9px', fontSize: 10, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {filteredMembers.length === 0 && (
+                  <div style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No members found. If this is unexpected, please sign out and sign back in to refresh your session.</div>
+                )}
+              </div>
+            ) : (
             <div style={{ ...card({ padding: 0 }), overflowX: 'auto', overflowY: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
@@ -735,6 +804,7 @@ export default function FellowshipHeadPage() {
                 <div style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No members found. If this is unexpected, please sign out and sign back in to refresh your session.</div>
               )}
             </div>
+            )}
           </div>
         )}
 
@@ -964,6 +1034,21 @@ export default function FellowshipHeadPage() {
               <div style={{ ...card(), textAlign: 'center', padding: 32 }}>
                 <div style={{ fontSize: 13, color: t.muted }}>No disputes raised yet.</div>
                 <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>Click &ldquo;Raise dispute&rdquo; above to flag an inaccurate cell submission.</div>
+              </div>
+            ) : isMobile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {disputes.map(d => (
+                  <div key={d.id} style={card({ padding: '11px 13px' })}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: t.text }}>{d.cell_name}</div>
+                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500, flexShrink: 0, background: d.status === 'resolved' ? t.tealBg : d.status === 'dismissed' ? t.purpleBg : t.amberBg, color: d.status === 'resolved' ? t.teal : d.status === 'dismissed' ? t.purple : t.amber }}>
+                        {d.status.charAt(0).toUpperCase() + d.status.slice(1)}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: t.sub }}>{DISPUTE_REASONS.find(r => r.value === d.dispute_reason)?.label || d.dispute_reason}</div>
+                    <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>Service {new Date(d.service_date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · Raised {new Date(d.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</div>
+                  </div>
+                ))}
               </div>
             ) : (
               <div style={{ ...card({ padding: 0 }), overflowX: 'auto', overflowY: 'hidden' }}>

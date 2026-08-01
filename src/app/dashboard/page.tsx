@@ -236,7 +236,7 @@ function ActionBoardPanel({t, branchId}: {t: Record<string,string>; branchId?: s
   );
 }
 
-function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; branchId?: string}) {
+function WorkforceIntelligencePanel({t, branchId, isMobile=false}: {t: Record<string,string>; branchId?: string; isMobile?: boolean}) {
   const [data, setData] = React.useState<WorkforceData|null>(null);
   const [loading, setLoading] = React.useState(true);
   const [expandedDept, setExpandedDept] = React.useState<string|null>(null);
@@ -290,6 +290,47 @@ function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; br
       <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'16px 18px'}}>
         <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:2}}>Department Coverage</div>
         <div style={{fontSize:11,color:t.muted,marginBottom:10}}>Click a department to drill into its roster and every member serving there.</div>
+        {isMobile ? (
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {data.department_stats.map(d=>(
+              <div key={d.id} style={{background:t.cardInner||t.purpleBg,borderRadius:10,border:`0.5px solid ${t.border}`,overflow:'hidden'}}>
+                <div onClick={()=>setExpandedDept(v=>v===d.id?null:d.id)} style={{padding:'11px 13px',cursor:'pointer',background:expandedDept===d.id?t.purpleBg:'transparent'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:6}}>
+                    <div style={{fontWeight:expandedDept===d.id?600:500,fontSize:13,color:t.text}}>{expandedDept===d.id?'▾ ':'▸ '}{d.name}</div>
+                    <span style={{fontSize:10,padding:'3px 9px',borderRadius:8,fontWeight:600,flexShrink:0,background:d.next_roster_coverage==='scheduled'?'#E1F5EE':'#FAECE7',color:d.next_roster_coverage==='scheduled'?'#085041':'#993C1D'}}>
+                      {d.next_roster_coverage==='scheduled'?'Covered':'No roster yet'}
+                    </span>
+                  </div>
+                  <div style={{fontSize:11,color:t.sub}}>{d.member_count} in workforce · {d.next_roster_date ? `${d.next_roster_date} · ${d.assigned_next} assigned` : 'No next-service date'}</div>
+                </div>
+                {expandedDept===d.id && (
+                  <div style={{padding:'0 13px 14px',background:t.purpleBg}}>
+                    <div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:6}}>
+                      <div>
+                        <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:6}}>Members ({d.members.length})</div>
+                        {d.members.length===0 ? <div style={{fontSize:12,color:t.muted}}>No members assigned yet.</div> : d.members.map(m=>(
+                          <div key={m.member_id} style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'4px 0'}}>
+                            <span style={{color:t.text}}>{m.full_name}</span>
+                            <span style={{color:t.sub}}>{m.reliability_score!=null?`${m.reliability_score.toFixed(1)} · ${m.total_attended}/${m.total_assigned}`:'No history'}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div>
+                        <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:6}}>Recent rosters</div>
+                        {d.recent_rosters.length===0 ? <div style={{fontSize:12,color:t.muted}}>No rosters yet.</div> : d.recent_rosters.map(r=>(
+                          <div key={r.id} style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'4px 0'}}>
+                            <span style={{color:t.text}}>{r.service_date}</span>
+                            <span style={{color:t.sub}}>{r.entries_count} assigned{r.published?'':' · draft'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
         <div style={{overflowX:'auto'}}>
         <table style={{width:'100%',borderCollapse:'collapse'}}>
           <thead>
@@ -344,6 +385,7 @@ function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; br
           </tbody>
         </table>
         </div>
+        )}
       </div>
 
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
@@ -2229,10 +2271,10 @@ export default function DashboardPage(){
 
           {/* ══ ATTENDANCE ══ */}
           {page==='attendance'&&(
-            <PastorAttendance dark={dark} t={t} branchId={selectedBranch||undefined} />
+            <PastorAttendance dark={dark} t={t} branchId={selectedBranch||undefined} isMobile={isMobile} />
           )}          {/* ══ GIVING ══ */}
           {page==='giving'&&(
-            <PastorGiving dark={dark} t={t} branchId={selectedBranch||undefined} />
+            <PastorGiving dark={dark} t={t} branchId={selectedBranch||undefined} isMobile={isMobile} />
           )}
           {/* ══ MEMBERS ══ */}
           {page==='members'&&(
@@ -2368,54 +2410,99 @@ export default function DashboardPage(){
                     </button>
                   ))}
                 </div>
-                <div style={{overflowX:'auto',maxHeight:400,overflowY:'auto'}}>
-                  <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                    <thead style={{position:'sticky',top:0,background:t.card}}>
-                      <tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>
-                        {[...['Name','Phone','Cell','Fellowship','Joined','Status'],...(['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(userRole)?['']:[])].map((h,hi)=>(
-                          <th key={h||`action-${hi}`} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap',background:t.card}}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
+                {(()=>{
+                  const canManage=['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(userRole);
+                  const filtered=membersList.filter(m=>memberFilter==='all'?true:m.membership_status===memberFilter);
+                  if(isMobile) return (
+                    <div style={{maxHeight:480,overflowY:'auto',display:'flex',flexDirection:'column',gap:8}}>
                       {membersLoading?(
-                        <tr><td colSpan={['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(userRole)?7:6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>Loading members…</td></tr>
-                      ):membersList.filter(m=>memberFilter==='all'?true:m.membership_status===memberFilter).length===0?(
-                        <tr><td colSpan={['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(userRole)?7:6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>No members found.</td></tr>
-                      ):membersList
-                        .filter(m=>memberFilter==='all'?true:m.membership_status===memberFilter)
-                        .map((m,i)=>(
-                        <tr key={m.id||i} style={{borderBottom:`0.5px solid ${t.border}`}}>
-                          <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.full_name}</td>
-                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone||'—'}</td>
-                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.cell_name||'—'}</td>
-                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.fellowship_name||'—'}</td>
-                          <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.join_date?new Date(m.join_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</td>
-                          <td style={{padding:'7px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.membership_status==='active'?'#E1F5EE':'#FAECE7',color:m.membership_status==='active'?'#085041':'#993C1D',textTransform:'capitalize' as const}}>{m.membership_status}</span></td>
-                          {['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(userRole)&&(
-                            <td style={{padding:'7px 8px',whiteSpace:'nowrap'}}>
+                        <div style={{padding:'20px 0',textAlign:'center',color:t.muted,fontSize:12}}>Loading members…</div>
+                      ):filtered.length===0?(
+                        <div style={{padding:'20px 0',textAlign:'center',color:t.muted,fontSize:12}}>No members found.</div>
+                      ):filtered.map((m,i)=>(
+                        <div key={m.id||i} style={{background:t.cardInner,borderRadius:10,border:`0.5px solid ${t.border}`,padding:'11px 13px'}}>
+                          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:6}}>
+                            <div style={{fontWeight:600,fontSize:13,color:dark?'#E5E7EB':'#374151'}}>{m.full_name}</div>
+                            <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,flexShrink:0,background:m.membership_status==='active'?'#E1F5EE':'#FAECE7',color:m.membership_status==='active'?'#085041':'#993C1D',textTransform:'capitalize' as const}}>{m.membership_status}</span>
+                          </div>
+                          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,fontSize:11,color:t.sub,marginBottom:canManage?8:0}}>
+                            <div><span style={{color:t.muted}}>Phone: </span>{m.phone||'—'}</div>
+                            <div><span style={{color:t.muted}}>Cell: </span>{m.cell_name||'—'}</div>
+                            <div><span style={{color:t.muted}}>Fellowship: </span>{m.fellowship_name||'—'}</div>
+                            <div><span style={{color:t.muted}}>Joined: </span>{m.join_date?new Date(m.join_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</div>
+                          </div>
+                          {canManage&&(
+                            <div style={{display:'flex',gap:6}}>
                               <button onClick={()=>{setMoveTarget({id:m.id,name:m.full_name});setMoveCellId('');setMoveError('');}}
-                                style={{background:'transparent',color:t.purple,border:`0.5px solid ${t.border}`,borderRadius:6,padding:'4px 9px',fontSize:10,fontWeight:600,cursor:'pointer',marginRight:6}}>
+                                style={{flex:1,background:'transparent',color:t.purple,border:`0.5px solid ${t.border}`,borderRadius:6,padding:'6px 9px',fontSize:11,fontWeight:600,cursor:'pointer'}}>
                                 Move
                               </button>
                               {userRole==='overseer'&&(
                                 <button onClick={()=>{setDeleteTarget({id:m.id,name:m.full_name});setDeleteConfirmText('');}}
-                                  style={{background:'transparent',color:'#D85A30',border:'0.5px solid rgba(216,90,48,0.3)',borderRadius:6,padding:'4px 9px',fontSize:10,fontWeight:600,cursor:'pointer'}}>
+                                  style={{flex:1,background:'transparent',color:'#D85A30',border:'0.5px solid rgba(216,90,48,0.3)',borderRadius:6,padding:'6px 9px',fontSize:11,fontWeight:600,cursor:'pointer'}}>
                                   Delete
                                 </button>
                               )}
-                            </td>
+                            </div>
                           )}
-                        </tr>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
-                  {!membersLoading&&(
-                    <div style={{fontSize:11,color:t.muted,padding:'8px',textAlign:'center'}}>
-                      Showing {membersList.filter(m=>memberFilter==='all'?true:m.membership_status===memberFilter).length} member{membersList.length===1?'':'s'}{memberSearch?` matching "${memberSearch}"`:' (capped at 200 — search to find others)'}
+                      {!membersLoading&&(
+                        <div style={{fontSize:11,color:t.muted,padding:'8px 0',textAlign:'center'}}>
+                          Showing {filtered.length} member{membersList.length===1?'':'s'}{memberSearch?` matching "${memberSearch}"`:' (capped at 200 — search to find others)'}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  );
+                  return (
+                  <div style={{overflowX:'auto',maxHeight:400,overflowY:'auto'}}>
+                    <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
+                      <thead style={{position:'sticky',top:0,background:t.card}}>
+                        <tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>
+                          {[...['Name','Phone','Cell','Fellowship','Joined','Status'],...(canManage?['']:[])].map((h,hi)=>(
+                            <th key={h||`action-${hi}`} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap',background:t.card}}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {membersLoading?(
+                          <tr><td colSpan={canManage?7:6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>Loading members…</td></tr>
+                        ):filtered.length===0?(
+                          <tr><td colSpan={canManage?7:6} style={{padding:'20px 8px',textAlign:'center' as const,color:t.muted}}>No members found.</td></tr>
+                        ):filtered.map((m,i)=>(
+                          <tr key={m.id||i} style={{borderBottom:`0.5px solid ${t.border}`}}>
+                            <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.full_name}</td>
+                            <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone||'—'}</td>
+                            <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.cell_name||'—'}</td>
+                            <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.fellowship_name||'—'}</td>
+                            <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.join_date?new Date(m.join_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</td>
+                            <td style={{padding:'7px 8px'}}><span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.membership_status==='active'?'#E1F5EE':'#FAECE7',color:m.membership_status==='active'?'#085041':'#993C1D',textTransform:'capitalize' as const}}>{m.membership_status}</span></td>
+                            {canManage&&(
+                              <td style={{padding:'7px 8px',whiteSpace:'nowrap'}}>
+                                <button onClick={()=>{setMoveTarget({id:m.id,name:m.full_name});setMoveCellId('');setMoveError('');}}
+                                  style={{background:'transparent',color:t.purple,border:`0.5px solid ${t.border}`,borderRadius:6,padding:'4px 9px',fontSize:10,fontWeight:600,cursor:'pointer',marginRight:6}}>
+                                  Move
+                                </button>
+                                {userRole==='overseer'&&(
+                                  <button onClick={()=>{setDeleteTarget({id:m.id,name:m.full_name});setDeleteConfirmText('');}}
+                                    style={{background:'transparent',color:'#D85A30',border:'0.5px solid rgba(216,90,48,0.3)',borderRadius:6,padding:'4px 9px',fontSize:10,fontWeight:600,cursor:'pointer'}}>
+                                    Delete
+                                  </button>
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {!membersLoading&&(
+                      <div style={{fontSize:11,color:t.muted,padding:'8px',textAlign:'center'}}>
+                        Showing {filtered.length} member{membersList.length===1?'':'s'}{memberSearch?` matching "${memberSearch}"`:' (capped at 200 — search to find others)'}
+                      </div>
+                    )}
+                  </div>
+                  );
+                })()}
                 </>}
               </div>
             </div>
@@ -2483,6 +2570,21 @@ export default function DashboardPage(){
                 <>{[0,1,2,3].map(i=><SkeletonRow key={i}/>)}</>
               ) : deptsList.length===0 ? (
                 <div style={{fontSize:12,color:t.muted,padding:'12px 0'}}>No departments yet.</div>
+              ) : isMobile ? (
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                {deptsList.map(d=>(
+                  <div key={d.id} onClick={()=>setSelectedDeptId(d.id)} style={{background:t.cardInner,borderRadius:10,border:`0.5px solid ${t.border}`,padding:'11px 13px',cursor:'pointer'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:6}}>
+                      <div style={{fontWeight:600,fontSize:13,color:dark?'#E5E7EB':'#374151'}}>{d.name}</div>
+                      <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,flexShrink:0,background:d.status==='healthy'?'#E1F5EE':d.status==='alert'?'#FAECE7':d.status==='no_data'?'#F3F4F6':'#FAEEDA',color:d.status==='healthy'?'#085041':d.status==='alert'?'#993C1D':d.status==='no_data'?'#6B7280':'#633806',textTransform:'capitalize' as const}}>{d.status.replace('_',' ')}</span>
+                    </div>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11,color:t.sub}}>
+                      <span>{d.leader} · {d.count} members</span>
+                      {!d.submitted?<span style={{background:'#F3F4F6',color:'#6B7280',fontSize:10,padding:'2px 8px',borderRadius:10}}>No data yet</span>:d.absent>0?<span style={{background:'#FAECE7',color:'#993C1D',fontSize:10,padding:'2px 8px',borderRadius:10}}>{d.absent} absent</span>:<span style={{background:'#E1F5EE',color:'#085041',fontSize:10,padding:'2px 8px',borderRadius:10}}>Full attendance</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
               ) : (
               <div style={{overflowX:'auto'}}>
               <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
@@ -2516,6 +2618,26 @@ export default function DashboardPage(){
                 <div style={{fontSize:15,fontWeight:600,color:t.text,marginBottom:2}}>{deptDetail.department.name}</div>
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>{deptDetail.members.length} total members{deptDetail.last_submission?` · Last submitted ${new Date(deptDetail.last_submission).toLocaleDateString()}`:' · No attendance submitted yet'}</div>
                 <div style={{fontSize:12,fontWeight:500,color:dark?'#E5E7EB':'#374151',marginBottom:8}}>Full Member Roster — {deptDetail.members.length} members</div>
+                {isMobile ? (
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    {deptDetail.members.length===0 ? (
+                      <div style={{padding:'16px 0',color:t.muted,textAlign:'center',fontSize:12}}>No members on this department&apos;s roster yet.</div>
+                    ) : deptDetail.members.map(m=>(
+                      <div key={m.id} style={{background:t.cardInner,borderRadius:10,border:`0.5px solid ${t.border}`,padding:'11px 13px'}}>
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:4}}>
+                          <div style={{fontWeight:600,fontSize:13,color:dark?'#E5E7EB':'#374151'}}>{m.name}</div>
+                          {m.status?<span style={{fontSize:10,padding:'2px 8px',borderRadius:10,flexShrink:0,background:m.status==='present'?'#E1F5EE':'#FAECE7',color:m.status==='present'?'#085041':'#993C1D',textTransform:'capitalize' as const}}>{m.status}</span>:<span style={{fontSize:10,color:t.muted,flexShrink:0}}>No data</span>}
+                        </div>
+                        <div style={{fontSize:11,color:t.sub,marginBottom:8}}>{m.role} · {m.phone||'—'}</div>
+                        <button onClick={async()=>{
+                          if(!confirm(`Remove ${m.name} from ${deptDetail.department.name}?`))return;
+                          await fetch(`/api/admin/departments/members?department_id=${selectedDeptId}&member_id=${m.id}`,{method:'DELETE',credentials:'include'});
+                          reloadDeptDetail();reloadDeptsList();
+                        }} style={{width:'100%',background:'transparent',border:`0.5px solid rgba(216,90,48,0.3)`,borderRadius:6,color:t.coral,fontSize:11,fontWeight:600,padding:'6px 9px',cursor:'pointer'}}>Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
                 <div style={{overflowX:'auto'}}>
                 <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
                   <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Role','Phone','Last Sunday',''].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
@@ -2540,6 +2662,7 @@ export default function DashboardPage(){
                   </tbody>
                 </table>
                 </div>
+                )}
               </div>
 
               <div style={card()}>
@@ -2639,6 +2762,27 @@ export default function DashboardPage(){
                     </button>
                   ))}
                 </div>
+                {isMobile ? (
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    {(dbCells||[]).filter(row=>cellFilter==='all'||(row.status===cellFilter)||(row.fel===cellFilter)).map((row,i)=>{const s=ss(row.status);return(
+                      <div key={i} onClick={()=>setSelectedCell(row)} style={{background:t.cardInner,borderRadius:10,border:`0.5px solid ${t.border}`,padding:'11px 13px',cursor:'pointer'}}>
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:6}}>
+                          <div>
+                            <div style={{fontWeight:600,fontSize:13,color:dark?'#E5E7EB':'#374151'}}>{row.cell}</div>
+                            <div style={{fontSize:11,color:t.sub}}>{row.fel} · {row.leader}</div>
+                          </div>
+                          <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,fontWeight:500,flexShrink:0,background:s.bg,color:s.c,whiteSpace:'nowrap'}}>{row.status==='alert'?'Intervention':row.status.charAt(0).toUpperCase()+row.status.slice(1)}</span>
+                        </div>
+                        <div style={{display:'flex',gap:12,alignItems:'center',fontSize:11,color:t.sub,marginBottom:6}}>
+                          <span>{row.members} members</span>
+                          <span style={{color:row.rate>=100?'#1D9E75':'#D85A30',fontWeight:500}}>{row.rate}% rate</span>
+                          <span style={{fontWeight:500,color:row.trend.startsWith('+')?'#1D9E75':'#D85A30'}}>{row.trend}</span>
+                        </div>
+                        {!row.last_meeting_date?<span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'#F3F4F6',color:'#6B7280'}}>No data yet</span>:row.meeting_this_week?<span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'#E1F5EE',color:'#085041'}}>Logged this week</span>:<span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:'#FAECE7',color:'#993C1D'}}>Not this week</span>}
+                      </div>
+                    );})}
+                  </div>
+                ) : (
                 <div className="table-wrap">
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse',minWidth:600}}>
                     <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Cell','Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status','Weekly Meeting'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
@@ -2661,6 +2805,7 @@ export default function DashboardPage(){
                     </tbody>
                   </table>
                 </div>
+                )}
               </div>
             </div>
           )}
@@ -2753,6 +2898,41 @@ export default function DashboardPage(){
               {/* Top Cell Leaders */}
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Top Cell Leaders</div>
+                {isMobile ? (
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    {(showAlertOnly
+                      ? (dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch')
+                      : [...(dbCells||[])].sort((a,b)=>(b.overall_score??0)-(a.overall_score??0)).slice(0,15)
+                    ).map((c,i)=>{
+                      const overall=c.overall_score??0;
+                      const slaScore=c.submission_sla_score;
+                      const tier=overall>=95?'Crown of Excellence':overall>=90?'Elite Shepherd':overall>=75?'Faithful Steward':overall>=60?'Consistent Servant':overall>=45?'Needs Improvement':'Requires Pastoral Review';
+                      const tierColor=overall>=90?{bg:'#EEEDFE',c:'#3C3489'}:overall>=75?{bg:'#E1F5EE',c:'#085041'}:overall>=60?{bg:'#F3F4F6',c:'#374151'}:{bg:'#FAEEDA',c:'#993C1D'};
+                      return(
+                        <div key={c.cell} style={{background:t.cardInner,borderRadius:10,border:`0.5px solid ${t.border}`,padding:'11px 13px'}}>
+                          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:6}}>
+                            <div style={{display:'flex',gap:8,alignItems:'baseline'}}>
+                              <span style={{fontWeight:700,fontSize:13,color:i===0?'#BA7517':i===1?t.muted:t.sub}}>#{i+1}</span>
+                              <div>
+                                <div style={{fontWeight:600,fontSize:13,color:t.text}}>{c.leader}</div>
+                                <div style={{fontSize:11,color:t.sub}}>{c.cell} · {c.fel}</div>
+                              </div>
+                            </div>
+                            <div style={{textAlign:'right',flexShrink:0}}>
+                              <div style={{fontWeight:700,fontSize:14,color:overall>=75?t.teal:t.coral}}>{overall}%</div>
+                              <div style={{display:'flex',gap:3,justifyContent:'flex-end'}}>
+                                {slaScore!=null&&slaScore>=90&&<span title="Unbroken — 12 consecutive on-time" style={{color:t.purple}}><Icon name="ti-trophy" size={12}/></span>}
+                                {c.rate>=85&&<span title="Fellowship Excellence" style={{color:t.amber}}><Icon name="ti-star" size={12}/></span>}
+                                {c.trend.startsWith('+')&&parseInt(c.trend)>=10&&<span title="Soul Winner" style={{color:t.teal}}><Icon name="ti-sprout" size={12}/></span>}
+                              </div>
+                            </div>
+                          </div>
+                          <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:tierColor.bg,color:tierColor.c,fontWeight:500}}>{tier}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
                 <div style={{overflowX:'auto'}}>
                   <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
                     <thead>
@@ -2796,12 +2976,13 @@ export default function DashboardPage(){
                     </tbody>
                   </table>
                 </div>
+                )}
               </div>
 
               {/* Top Fellowship Heads */}
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Fellowship Heads</div>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
+                <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:12}}>
                   {Object.entries((dbCells||[]).reduce((acc:Record<string,NonNullable<typeof dbCells>>,c)=>{(acc[c.fel]=acc[c.fel]||[]).push(c);return acc;},{}))
                     .map(([name,group])=>{
                       const n=group.length||1;
@@ -2982,7 +3163,7 @@ export default function DashboardPage(){
             <PastorRequisitions t={t} dark={dark} branchId={selectedBranch||undefined} />
           )}
           {page==='workforce'&&(
-            <WorkforceIntelligencePanel t={t} branchId={selectedBranch||undefined} />
+            <WorkforceIntelligencePanel t={t} branchId={selectedBranch||undefined} isMobile={isMobile} />
           )}
           {page==='action_board'&&(
             <ActionBoardPanel t={t} branchId={selectedBranch||undefined} />
@@ -3015,7 +3196,7 @@ export default function DashboardPage(){
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <MemberApprovalPanel t={t} dark={dark} />
               <RemovalApprovalPanel t={t} dark={dark} userRole={userRole} />
-              <FellowshipValidation t={t} dark={dark} />
+              <FellowshipValidation t={t} dark={dark} isMobile={isMobile} />
             </div>
           )}
           {page==='settings'&&(

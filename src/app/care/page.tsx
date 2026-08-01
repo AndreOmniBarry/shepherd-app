@@ -94,6 +94,13 @@ export default function CareTeamPage() {
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('queue');
   const {dark, setDark} = useTheme();
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   const [pageReady, setPageReady] = useState(false);
   const [leaderName, setLeaderName] = useState('');
   const [leads, setLeads] = useState<Lead[]>([]);

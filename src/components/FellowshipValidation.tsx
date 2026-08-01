@@ -14,9 +14,9 @@ const MONTHS: Record<string, string> = {
   '2026-05-01': 'May 2026', '2026-06-01': 'June 2026',
 };
 
-interface FellowshipValidationProps { t: Record<string, string>; dark: boolean; }
+interface FellowshipValidationProps { t: Record<string, string>; dark: boolean; isMobile?: boolean; }
 
-export default function FellowshipValidation({ t, dark }: FellowshipValidationProps) {
+export default function FellowshipValidation({ t, dark, isMobile = false }: FellowshipValidationProps) {
   const [records, setRecords] = useState<MonthlyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [validating, setValidating] = useState<Record<string, boolean>>({});
@@ -73,6 +73,34 @@ export default function FellowshipValidation({ t, dark }: FellowshipValidationPr
               <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{MONTHS[month] || month}</div>
               <div style={{ fontSize: 11, color: t.muted }}>{monthRecords.length} records pending</div>
             </div>
+            {isMobile ? (
+              <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {monthRecords.map(r => {
+                  const rate = r.total_services > 0 ? Math.round((r.times_present / r.total_services) * 100) : 0;
+                  return (
+                    <div key={r.id} style={{ background: dark ? 'rgba(255,255,255,0.03)' : '#F7F6FF', borderRadius: 10, padding: '11px 13px' }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: t.text, marginBottom: 2 }}>{r.member_name}</div>
+                      <div style={{ fontSize: 11, color: t.muted, marginBottom: 8 }}>{r.cell_name}</div>
+                      <div style={{ display: 'flex', gap: 12, fontSize: 11, color: t.sub, marginBottom: 10 }}>
+                        <span><span style={{ color: t.teal, fontWeight: 600 }}>{r.times_present}</span>/{r.total_services} present</span>
+                        <span style={{ color: rate >= 75 ? t.teal : rate >= 50 ? t.amber : t.coral, fontWeight: 500 }}>{rate}%</span>
+                        {r.exit_type !== 'none' && <span style={{ color: t.coral }}>{r.exit_type}</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => validate(r.id, true)} disabled={validating[r.id]}
+                          style={{ flex: 1, background: t.tealBg, color: t.teal, border: 'none', borderRadius: 6, padding: '6px 10px', fontSize: 11, cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>
+                          Validate
+                        </button>
+                        <button onClick={() => validate(r.id, false)} disabled={validating[r.id]}
+                          style={{ flex: 1, background: t.coralBg, color: t.coral, border: 'none', borderRadius: 6, padding: '6px 10px', fontSize: 11, cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
             <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
@@ -113,6 +141,7 @@ export default function FellowshipValidation({ t, dark }: FellowshipValidationPr
               </tbody>
             </table>
             </div>
+            )}
           </div>
         ))
       )}
