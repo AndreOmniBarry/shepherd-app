@@ -16,7 +16,7 @@ type EventStats = ChurchEvent & { registrations: number; attended: number; expec
 
 const EVENT_TYPES = ['programme','conference','vigil','concert','outreach','training','thanksgiving','dedication','other'];
 
-export default function EventsPanel({ t }: { t: Record<string, string> }) {
+export default function EventsPanel({ t, isMobile = false }: { t: Record<string, string>; isMobile?: boolean }) {
   const [events, setEvents] = useState<ChurchEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
@@ -185,7 +185,7 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
 
       {showNew && view === 'manage' && (
         <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 10 }}>
             <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Event title"
               style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }} />
             <div>
@@ -199,7 +199,7 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
                 style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', boxSizing: 'border-box' }} />
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 10 }}>
             <select value={form.event_type} onChange={e => setForm(f => ({ ...f, event_type: e.target.value }))}
               style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
               {EVENT_TYPES.map(ty => (<option key={ty} value={ty}>{ty}</option>))}
@@ -228,7 +228,7 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
       )}
 
       {view === 'manage' && (
-      <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 1fr' : '1fr', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: selected && !isMobile ? '1fr 1fr' : '1fr', gap: 14 }}>
         <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>All Events</div>
           {events.length === 0 ? (
@@ -359,6 +359,19 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
             <>{[0, 1, 2].map(i => <SkeletonRow key={i} />)}</>
           ) : eventStats.length === 0 ? (
             <div style={{ fontSize: 12, color: t.muted }}>No events yet.</div>
+          ) : isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {eventStats.map(ev => (
+                <div key={ev.id} style={{ background: t.cardInner || t.input, borderRadius: 10, padding: '10px 12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
+                    <div style={{ fontWeight: 500, fontSize: 12, color: t.text }}>{ev.title}</div>
+                    <span style={{ fontSize: 12, fontWeight: 600, flexShrink: 0, color: ev.attendance_rate >= 60 ? t.teal : ev.attendance_rate > 0 ? t.amber : t.muted }}>{ev.registrations > 0 ? `${ev.attendance_rate}%` : '—'}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: t.sub }}>{ev.event_date}{ev.end_date && ev.end_date !== ev.event_date ? ` – ${ev.end_date}` : ''}</div>
+                  <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{ev.registrations} registered · {ev.expected_headcount} expected · {ev.attended} attended</div>
+                </div>
+              ))}
+            </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>

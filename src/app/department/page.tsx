@@ -365,7 +365,7 @@ export default function DepartmentHeadPage() {
         )}
 
         {tab === 'events' && (
-          <CareEventsTab t={t} />
+          <CareEventsTab t={t} isMobile={isMobile} />
         )}
 
         {/* SUBMIT */}

@@ -617,7 +617,7 @@ export default function CareTeamPage() {
         {/* ── EVENTS ── */}
         {tab === 'events' && (
           <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 0' }}>
-            <CareEventsTab t={t} />
+            <CareEventsTab t={t} isMobile={isMobile} />
           </div>
         )}
 
