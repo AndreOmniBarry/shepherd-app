@@ -46,6 +46,13 @@ export default function ChatPage() {
   const [homePath, setHomePath] = useState('/dashboard');
   const [myId, setMyId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState('');
@@ -237,8 +244,10 @@ export default function ChatPage() {
       </div>
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {/* Thread list */}
-        <div style={{ width: 280, borderRight: `0.5px solid ${t.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+        {/* Thread list — on mobile this is a full-screen view of its own,
+            hidden once a chat is opened, instead of squeezing beside the
+            conversation pane at a fixed 280px. */}
+        <div style={{ width: isMobile ? '100%' : 280, borderRight: `0.5px solid ${t.border}`, display: (isMobile && activeThreadId) ? 'none' : 'flex', flexDirection: 'column', flexShrink: 0 }}>
           <div style={{ padding: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: t.text, display: 'flex', alignItems: 'center', gap: 6 }}>
               Chats
@@ -277,12 +286,17 @@ export default function ChatPage() {
         </div>
 
         {/* Conversation */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <div style={{ flex: 1, display: (isMobile && !activeThreadId) ? 'none' : 'flex', flexDirection: 'column', minWidth: 0 }}>
           {!activeThread ? (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.muted, fontSize: 13 }}>Select a chat, or start a new one.</div>
           ) : (
             <>
               <div style={{ padding: '12px 18px', borderBottom: `0.5px solid ${t.border}`, fontSize: 13, fontWeight: 700, color: t.text, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {isMobile && (
+                  <button onClick={() => setActiveThreadId('')} style={{ background: t.purpleBg, border: 'none', borderRadius: 'var(--radius-sm)', width: 26, height: 26, cursor: 'pointer', color: t.purple, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: 2 }}>
+                    <Icon name="ti-arrow-left" size={14} />
+                  </button>
+                )}
                 {activeThread.type === 'group' && <Icon name="ti-users" size={14} />}{activeThread.name}
               </div>
               <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>

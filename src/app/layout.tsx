@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/hooks/useTheme';
+import AudioUnlocker from '@/components/AudioUnlocker';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -35,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
       </head>
       <body className="bg-gray-50 text-gray-900 antialiased min-h-screen">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider><AudioUnlocker />{children}</ThemeProvider>
       </body>
     </html>
   );
