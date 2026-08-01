@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 
 type LeadStats = {
   total: number;
@@ -122,7 +123,16 @@ export default function CareOverview({ dark = false, t }: CareOverviewProps) {
     }).catch(() => setLoading(false));
   }, []);
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: t.muted, fontSize: 13 }}>Loading care team intelligence...</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+        {[0, 1, 2].map(i => <SkeletonCard key={i} lines={1} />)}
+      </div>
+      <SkeletonCard>
+        {Array.from({ length: 4 }, (_, i) => <SkeletonRow key={i} />)}
+      </SkeletonCard>
+    </div>
+  );
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';

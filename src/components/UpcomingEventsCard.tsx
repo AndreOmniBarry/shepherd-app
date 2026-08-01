@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Icon from '@/components/Icon';
+import { SkeletonRow } from '@/components/Skeleton';
 
 type EventRow = { id: string; title: string; event_type: string; event_date: string; end_date: string | null; start_time: string | null; location: string | null; registration_count: number; registration_open: boolean };
 
@@ -22,7 +23,7 @@ export default function UpcomingEventsCard({ t }: { t: Record<string, string> })
         <Icon name="ti-calendar-event" size={12} /> Upcoming church events
       </div>
       {events === null ? (
-        <div style={{ fontSize: 12, color: t.muted }}>Loading…</div>
+        <>{[0, 1].map(i => <SkeletonRow key={i} />)}</>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {events.slice(0, 5).map(e => (

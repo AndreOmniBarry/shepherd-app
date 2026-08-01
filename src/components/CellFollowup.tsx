@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 
 type FollowupLog = {
   id: string;
@@ -83,7 +84,11 @@ export default function CellFollowup({ dark = false, t }: CellFollowupProps) {
     setSubmitting(false);
   }
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: t.muted, fontSize: 13 }}>Loading follow-up queue...</div>;
+  if (loading) return (
+    <SkeletonCard>
+      {Array.from({ length: 5 }, (_, i) => <SkeletonRow key={i} />)}
+    </SkeletonCard>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

@@ -42,9 +42,13 @@ export async function POST(req: Request) {
     const target = Array.isArray(profRows) ? profRows[0] : null;
     if (!target) return NextResponse.json({ data: null, error: { message: 'User not found' } }, { status: 404 });
     if (!target.is_active) return NextResponse.json({ data: null, error: { message: 'That account is inactive' } }, { status: 400 });
-    // Cross-church login-as is never allowed, even for lead_tech/overseer —
-    // each church's data is isolated from every other church's.
-    if (admin.church_id && target.church_id && admin.church_id !== target.church_id) {
+    // Cross-church login-as is blocked for every per-church role (overseer,
+    // general_overseer, pa, branch_pastor) — a church's own leadership must
+    // never reach into another church's data. lead_tech is SHEP.HERD's own
+    // platform-support role, not a church's role, so it's exempt: that's
+    // how the platform team helps any customer church, including ones
+    // onboarded after this one.
+    if (admin.role !== 'lead_tech' && admin.church_id && target.church_id && admin.church_id !== target.church_id) {
       return NextResponse.json({ data: null, error: { message: 'That user belongs to a different church' } }, { status: 403 });
     }
 

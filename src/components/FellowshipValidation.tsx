@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 
 type MonthlyRecord = {
   id: string; member_id: string; member_name: string;
@@ -46,7 +47,11 @@ export default function FellowshipValidation({ t, dark }: FellowshipValidationPr
     return acc;
   }, {} as Record<string, MonthlyRecord[]>);
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: t.muted, fontSize: 13 }}>Loading records...</div>;
+  if (loading) return (
+    <SkeletonCard>
+      {Array.from({ length: 4 }, (_, i) => <SkeletonRow key={i} />)}
+    </SkeletonCard>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

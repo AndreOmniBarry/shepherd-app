@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 
 type EventRow = { id: string; title: string; event_date: string; location: string; registration_open: boolean; status: string; registration_count: number };
 type Registrant = { id: string; full_name: string; phone: string; whatsapp: string; email: string | null; is_member: boolean; preferred_comms: string; payment_status: string; attended: boolean; registered_at: string };
@@ -31,7 +32,11 @@ export default function CareEventsTab({ t }: { t: Record<string, string> }) {
     background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '16px 18px', ...extra,
   });
 
-  if (loading) return <div style={{ fontSize: 12, color: t.sub, padding: 20 }}>Loading events…</div>;
+  if (loading) return (
+    <SkeletonCard>
+      {Array.from({ length: 3 }, (_, i) => <SkeletonRow key={i} />)}
+    </SkeletonCard>
+  );
 
   if (selected) {
     return (
@@ -44,7 +49,7 @@ export default function CareEventsTab({ t }: { t: Record<string, string> }) {
         <div style={card()}>
           <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>Registrants</div>
           {regLoading ? (
-            <div style={{ fontSize: 12, color: t.muted }}>Loading…</div>
+            <>{[0, 1].map(i => <SkeletonRow key={i} />)}</>
           ) : registrants.length === 0 ? (
             <div style={{ fontSize: 12, color: t.muted }}>No registrations yet.</div>
           ) : (
