@@ -1,4 +1,5 @@
 'use client';
+import { useTheme } from '@/hooks/useTheme';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
@@ -8,6 +9,7 @@ import { SkeletonCard } from '@/components/Skeleton';
 import LoadingScreen from '@/components/LoadingScreen';
 import ChatNavButton from '@/components/ChatNavButton';
 import { rolePortal } from '@/lib/role-portal';
+import ThemeToggle from '@/components/ThemeToggle';
 
 type Commendation = { id: string; title: string; body: string; read: boolean; created_at: string };
 type MeetingRequest = { id: string; subject: string; message: string | null; proposed_time: string | null; status: string; created_at: string; responded_at: string | null; direction: 'sent' | 'received'; other_party: string };
@@ -29,7 +31,7 @@ const TAB_LABEL: Record<Tab, string> = { recognition: 'Recognition', meetings: '
 
 export default function ChurchCenterPage() {
   const router = useRouter();
-  const [dark, setDark] = useState(false);
+  const {dark, setDark} = useTheme();
   const [pageReady, setPageReady] = useState(false);
   const [homePath, setHomePath] = useState('/dashboard');
   const [loading, setLoading] = useState(true);
@@ -130,9 +132,7 @@ export default function ChurchCenterPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <ChatNavButton t={t} compact /><NotificationBell dark={dark} /><MyAccountButton dark={dark} />
-          <div onClick={() => setDark(v => !v)} style={{ width: 30, height: 30, borderRadius: 8, border: `0.5px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.muted, fontSize: 14 }}>
-            {dark ? '☀' : '◑'}
-          </div>
+          <ThemeToggle dark={dark} setDark={setDark} border={t.border} />
         </div>
       </div>
 

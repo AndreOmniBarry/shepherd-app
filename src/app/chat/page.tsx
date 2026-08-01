@@ -1,4 +1,5 @@
 'use client';
+import { useTheme } from '@/hooks/useTheme';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
@@ -8,6 +9,7 @@ import { SkeletonRow } from '@/components/Skeleton';
 import LoadingScreen from '@/components/LoadingScreen';
 import { playNotificationSound, triggerHaptic } from '@/lib/notify-feedback';
 import { rolePortal } from '@/lib/role-portal';
+import ThemeToggle from '@/components/ThemeToggle';
 
 type Thread = {
   id: string; type: 'direct' | 'group'; name: string;
@@ -40,7 +42,7 @@ function timeAgo(dateStr: string): string {
 
 export default function ChatPage() {
   const router = useRouter();
-  const [dark, setDark] = useState(false);
+  const {dark, setDark} = useTheme();
   const [homePath, setHomePath] = useState('/dashboard');
   const [myId, setMyId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -230,9 +232,7 @@ export default function ChatPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <NotificationBell dark={dark} /><MyAccountButton dark={dark} />
-          <div onClick={() => setDark(v => !v)} style={{ width: 30, height: 30, borderRadius: 8, border: `0.5px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.muted, fontSize: 14 }}>
-            {dark ? '☀' : '◑'}
-          </div>
+          <ThemeToggle dark={dark} setDark={setDark} border={t.border} />
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 'use client';
+import { useTheme } from '@/hooks/useTheme';
 import React from 'react';
 import NotificationBell from "@/components/NotificationBell";
 import MyAccountButton from "@/components/MyAccountButton";
@@ -35,6 +36,8 @@ type CellRow = { id:string; cell:string; fel:string; leader:string; members:numb
 function fmt(n:number|undefined|null){return n!=null?n.toLocaleString():'—';}
 function fmtNGN(n:number){if(n>=1_000_000)return`₦${(n/1_000_000).toFixed(1)}M`;if(n>=1_000)return`₦${(n/1_000).toFixed(0)}k`;return`₦${n}`;}
 function greeting(){const h=new Date().getHours();return h<12?'Good morning':h<17?'Good afternoon':'Good evening';}
+const PASTOR_TIER_ROLES=['overseer','general_overseer','branch_pastor'];
+function greetingName(userName:string,userRole:string){const first=userName.split(' ')[0];return PASTOR_TIER_ROLES.includes(userRole)?`Pastor ${first}`:first;}
 
 
 // Export helpers
@@ -1607,11 +1610,23 @@ export default function DashboardPage(){
     }
     return {q3:1250,dec:1400};
   });
-  const [dark,setDark]=useState(false);
+  const {dark, setDark} = useTheme();
   const [pageReady,setPageReady]=useState(false);
   const [sidebarStyle,setSidebarStyle]=useState<'light'|'dark'>('light');
   const [sidebarOpen,setSidebarOpen]=useState(false);
+  const [sidebarCollapsed,setSidebarCollapsed]=useState(false);
   const [isMobile,setIsMobile]=useState(false);
+
+  useEffect(()=>{
+    try{ if(window.localStorage.getItem('shepherd-sidebar-collapsed')==='1') setSidebarCollapsed(true); }catch{}
+  },[]);
+  const toggleSidebarCollapsed=()=>{
+    setSidebarCollapsed(v=>{
+      const next=!v;
+      try{ window.localStorage.setItem('shepherd-sidebar-collapsed', next?'1':'0'); }catch{}
+      return next;
+    });
+  };
   const [dbCells,setDbCells]=useState<(CellRow & {last_meeting_date?:string|null;meeting_this_week?:boolean;meeting_sla_grade?:string|null;submission_sla_score?:number|null;meeting_sla_score?:number|null;accuracy?:number;overall_score?:number})[]|null>(null);
   const [leaderOptions,setLeaderOptions]=useState<{id:string;full_name:string;role:string}[]>([]);
   const [memberFellowshipId,setMemberFellowshipId]=useState('');
@@ -1872,18 +1887,22 @@ export default function DashboardPage(){
       {/* Sidebar overlay for mobile */}
       {isMobile&&sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.3)',zIndex:40}}/>}
       {/* Sidebar */}
-      <div style={{width:220,background:t.nav,borderRight:`0.5px solid ${t.navBorder}`,display:'flex',flexDirection:'column',position:isMobile?'fixed':'sticky',top:0,left:isMobile?(sidebarOpen?0:-196):0,height:'100vh',flexShrink:0,zIndex:50,transition:'left 0.3s cubic-bezier(0.4,0,0.2,1)',backdropFilter:'blur(20px)'}}>
-        <div style={{display:'flex',alignItems:'center',gap:10,padding:'16px 16px 14px',borderBottom:`0.5px solid ${t.navBorder}`}}>
+      <div style={{width:isMobile?220:(sidebarCollapsed?68:220),background:t.nav,borderRight:`0.5px solid ${t.navBorder}`,display:'flex',flexDirection:'column',position:isMobile?'fixed':'sticky',top:0,left:isMobile?(sidebarOpen?0:-196):0,height:'100vh',flexShrink:0,zIndex:50,transition:'left 0.3s cubic-bezier(0.4,0,0.2,1), width 0.25s cubic-bezier(0.4,0,0.2,1)',backdropFilter:'blur(20px)'}}>
+        {!isMobile&&<button onClick={toggleSidebarCollapsed} aria-label={sidebarCollapsed?'Expand sidebar':'Collapse sidebar'} style={{position:'absolute',top:22,right:-11,width:22,height:22,borderRadius:'50%',border:`0.5px solid ${t.navBorder}`,background:dark?'#2A2650':'#fff',color:dark?'#CFC9FF':'#534AB7',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:51,boxShadow:'0 1px 4px rgba(0,0,0,0.15)',transition:'transform 0.25s ease'}}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{transform:sidebarCollapsed?'rotate(180deg)':'none',transition:'transform 0.25s ease'}}><path d="M15 18l-6-6 6-6"/></svg>
+        </button>}
+        <div style={{display:'flex',alignItems:'center',gap:10,padding:sidebarCollapsed&&!isMobile?'16px 0 14px':'16px 16px 14px',justifyContent:sidebarCollapsed&&!isMobile?'center':'flex-start',borderBottom:`0.5px solid ${t.navBorder}`}}>
           <div style={{width:28,height:28,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><div style={{position:'absolute',width:4,height:20,background:'#A89FFF',borderRadius:2}}/><div style={{position:'absolute',width:15,height:4,background:'#A89FFF',borderRadius:2}}/></div>
-          <div><div style={{fontSize:14,fontWeight:700,color:dark?'#E8E5FF':sidebarStyle==='dark'?'#FFFFFF':'#1A1040',letterSpacing:'1px',lineHeight:1}}>SHEP.HERD</div><div style={{fontSize:9,color:dark?'rgba(232,229,255,0.3)':sidebarStyle==='dark'?'rgba(255,255,255,0.35)':'#9990CC',marginTop:2}}>Church Intelligence</div></div>
+          {(!sidebarCollapsed||isMobile)&&<div><div style={{fontSize:14,fontWeight:700,color:dark?'#E8E5FF':sidebarStyle==='dark'?'#FFFFFF':'#1A1040',letterSpacing:'1px',lineHeight:1,whiteSpace:'nowrap'}}>SHEP.HERD</div><div style={{fontSize:9,color:dark?'rgba(232,229,255,0.3)':sidebarStyle==='dark'?'rgba(255,255,255,0.35)':'#9990CC',marginTop:2,whiteSpace:'nowrap'}}>Church Intelligence</div></div>}
         </div>
-        <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
+        <nav style={{flex:1,padding:'8px 0',overflowY:'auto',overflowX:'hidden'}}>
           {navGroups.filter(g=>g.items.length>0).map(g=>(
             <div key={g.label} style={{marginBottom:4}}>
-              <div style={{fontSize:9.5,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase' as const,color:dark?'rgba(232,229,255,0.28)':sidebarStyle==='dark'?'rgba(255,255,255,0.28)':'#B4ACD9',padding:'10px 20px 4px'}}>{g.label}</div>
+              {(!sidebarCollapsed||isMobile)&&<div style={{fontSize:9.5,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase' as const,color:dark?'rgba(232,229,255,0.28)':sidebarStyle==='dark'?'rgba(255,255,255,0.28)':'#B4ACD9',padding:'10px 20px 4px',whiteSpace:'nowrap'}}>{g.label}</div>}
               {g.items.map(n=>(
                 <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDeptId(null);setPage(n.id);}}
                   className="sh-nav-item"
+                  title={sidebarCollapsed&&!isMobile?n.label:undefined}
                   style={{
                     background: page===n.id ? (dark?'rgba(83,74,183,0.45)':'rgba(83,74,183,0.10)') : 'transparent',
                     color: page===n.id ? (dark?'#E8E5FF':'#3C3489') : undefined,
@@ -1893,20 +1912,23 @@ export default function DashboardPage(){
                     borderRadius: '0 8px 8px 0',
                     margin: '1px 8px 1px 0',
                     width: 'calc(100% - 8px)',
+                    justifyContent: sidebarCollapsed&&!isMobile?'center':'flex-start',
                     transition: 'all 0.2s ease',
                   }}>
                   {n.icon && <Icon name={n.icon} size={15} style={{opacity:page===n.id?1:0.5,flexShrink:0}} />}
-                  {n.label}
+                  {(!sidebarCollapsed||isMobile)&&<span style={{whiteSpace:'nowrap',overflow:'hidden'}}>{n.label}</span>}
                 </button>
               ))}
             </div>
           ))}
         </nav>
         <div style={{padding:12,borderTop:`0.5px solid ${t.navBorder}`}}>
-          <button onClick={()=>setChatOpen(v=>!v)} style={{width:'100%',background:chatOpen?'#534AB7':'#EEEDFE',color:chatOpen?'#fff':'#3C3489',border:'none',borderRadius:8,padding:'8px 12px',fontSize:13,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',gap:8}}>
-            Ask AI Agents
+          <button onClick={()=>setChatOpen(v=>!v)} title={sidebarCollapsed&&!isMobile?'Ask AI Agents':undefined} style={{width:'100%',background:chatOpen?'#534AB7':'#EEEDFE',color:chatOpen?'#fff':'#3C3489',border:'none',borderRadius:8,padding:'8px 12px',fontSize:13,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:sidebarCollapsed&&!isMobile?'center':'flex-start',gap:8}}>
+            {sidebarCollapsed&&!isMobile?<Icon name="ti-message-circle" size={15}/>:'Ask AI Agents'}
           </button>
-          <button onClick={logout} style={{width:'100%',background:'transparent',color:t.muted,border:'none',borderRadius:8,padding:'6px 12px',fontSize:12,cursor:'pointer',marginTop:4}}>Sign out</button>
+          <button onClick={logout} title={sidebarCollapsed&&!isMobile?'Sign out':undefined} style={{width:'100%',background:'transparent',color:t.muted,border:'none',borderRadius:8,padding:'6px 12px',fontSize:12,cursor:'pointer',marginTop:4,display:'flex',justifyContent:sidebarCollapsed&&!isMobile?'center':'flex-start'}}>
+            {sidebarCollapsed&&!isMobile?<Icon name="ti-logout" size={13}/>:'Sign out'}
+          </button>
         </div>
       </div>
 
@@ -1916,10 +1938,12 @@ export default function DashboardPage(){
         <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,padding:isMobile?'8px 10px':'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,position:'sticky',top:0,zIndex:30}}>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:10,minWidth:0}}>
             {isMobile&&<button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,color:'#534AB7',padding:'0 4px',lineHeight:1,flexShrink:0}}>☰</button>}
-            <div style={{minWidth:0,overflow:'hidden'}}>
-              <span style={{fontSize:isMobile?12:14,fontWeight:500,color:t.text,whiteSpace:'nowrap'}}>{navItems.find(n=>n.id===page)?.label}</span>
-              {!isMobile&&<span suppressHydrationWarning style={{fontSize:11,color:t.muted,marginLeft:10}}>{new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>}
-              {!isMobile&&userName&&userName!=='General'&&<span style={{fontSize:12,color:'#534AB7',marginLeft:10}}>· {greeting()}, {userName.split(' ')[0]}</span>}
+            <div style={{minWidth:0,overflow:'hidden',display:'flex',alignItems:'center',gap:10}}>
+              <span style={{fontSize:isMobile?12:14,fontWeight:600,color:t.text,whiteSpace:'nowrap'}}>{navItems.find(n=>n.id===page)?.label}</span>
+              {!isMobile&&<span style={{width:3,height:3,borderRadius:'50%',background:t.muted,opacity:0.5,flexShrink:0}}/>}
+              {!isMobile&&<span suppressHydrationWarning style={{fontSize:11,color:t.muted,whiteSpace:'nowrap'}}>{new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>}
+              {!isMobile&&userName&&userName!=='General'&&<span style={{width:3,height:3,borderRadius:'50%',background:'#534AB7',opacity:0.5,flexShrink:0}}/>}
+              {!isMobile&&userName&&userName!=='General'&&<span style={{fontSize:12,color:'#534AB7',whiteSpace:'nowrap'}}>{greeting()}, {greetingName(userName,userRole)}</span>}
             </div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:12,flexShrink:0}}>
@@ -1957,7 +1981,11 @@ export default function DashboardPage(){
             <ChatNavButton t={t} compact={isMobile} />
             {!isMobile&&<button onClick={()=>router.push('/calendar')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-calendar-event" size={13}/>Calendar</button>}
             <NotificationBell dark={dark} /><MyAccountButton dark={dark} />
-            {!isMobile&&<div onClick={()=>setDark(v=>!v)} style={{width:32,height:32,borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:t.sub}}>{dark?<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}</div>}
+            {!isMobile&&<div onClick={()=>setDark(v=>!v)} role="switch" aria-checked={dark} style={{width:50,height:28,borderRadius:14,border:`0.5px solid ${t.navBorder}`,background:dark?'linear-gradient(135deg,#3C3489,#534AB7)':'#EEEDFE',display:'flex',alignItems:'center',padding:2,cursor:'pointer',position:'relative',transition:'background 0.25s ease'}}>
+              <div style={{width:22,height:22,borderRadius:'50%',background:dark?'#1A1730':'#fff',boxShadow:'0 1px 3px rgba(0,0,0,0.25)',display:'flex',alignItems:'center',justifyContent:'center',transform:dark?'translateX(22px)':'translateX(0)',transition:'transform 0.25s cubic-bezier(0.34,1.56,0.64,1)',color:dark?'#CFC9FF':'#8A7FD8'}}>
+                {dark?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}
+              </div>
+            </div>}
             {!isMobile&&(
               <div style={{display:'flex',alignItems:'center',gap:5,fontSize:12,color:'#1D9E75'}}>
                 <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',display:'inline-block'}}/>Live
@@ -1977,7 +2005,7 @@ export default function DashboardPage(){
                 <div style={{position:'absolute',bottom:-60,right:60,width:180,height:180,borderRadius:'50%',background:'rgba(255,255,255,0.05)'}}/>
                 <div style={{position:'relative',display:'flex',justifyContent:'space-between',alignItems:'flex-end',flexWrap:'wrap' as const,gap:14}}>
                   <div>
-                    <div style={{fontSize:isMobile?16:19,fontWeight:700,color:'#fff'}}>{greeting()}{userName&&userName!=='General'?`, ${userName.split(' ')[0]}`:''}</div>
+                    <div style={{fontSize:isMobile?16:19,fontWeight:700,color:'#fff'}}>{greeting()}{userName&&userName!=='General'?`, ${greetingName(userName,userRole)}`:''}</div>
                     <div style={{fontSize:12,color:'rgba(255,255,255,0.65)',marginTop:3,display:'flex',alignItems:'center',gap:6}}>
                       <span style={{width:6,height:6,borderRadius:'50%',background:'#2DD4AA',display:'inline-block',boxShadow:'0 0 0 3px rgba(45,212,170,0.25)'}}/>
                       Attendance session live
