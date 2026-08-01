@@ -45,17 +45,23 @@ export default function AttendanceHistoryPanel({ t, fetchUrl, color, metricLabel
   // or no history doesn't send this hunting for years/decades into empty
   // territory. If nothing turns up within the cap, stay exactly where we
   // are (never land on a fabricated-looking window like "the 1700s") and
-  // disable that direction until new data appears.
+  // disable that direction until new data appears. Candidates are fetched
+  // in parallel — sequential awaits meant up to MAX_LOOKBACK round-trips
+  // end to end before ever landing on "no records", which is slow.
   async function jump(direction: 'earlier' | 'later') {
     setSearching(direction);
+    const candidates: number[] = [];
     let o = offset;
-    let found: { offset: number; buckets: Bucket[] } | null = null;
     for (let i = 0; i < MAX_LOOKBACK; i++) {
       o = direction === 'earlier' ? o + 1 : o - 1;
-      if (o < 0) { o = 0; break; }
-      const b = await fetchBuckets(granularity, o);
-      if (hasData(b)) { found = { offset: o, buckets: b! }; break; }
+      if (o < 0) break;
+      candidates.push(o);
       if (direction === 'later' && o === 0) break;
+    }
+    const results = await Promise.all(candidates.map(c => fetchBuckets(granularity, c)));
+    let found: { offset: number; buckets: Bucket[] } | null = null;
+    for (let i = 0; i < candidates.length; i++) {
+      if (hasData(results[i])) { found = { offset: candidates[i], buckets: results[i]! }; break; }
     }
     if (found) {
       setOffset(found.offset); setBuckets(found.buckets);
@@ -89,11 +95,11 @@ export default function AttendanceHistoryPanel({ t, fetchUrl, color, metricLabel
         ))}
         <div style={{ width: 1, alignSelf: 'stretch', background: t.border, margin: '0 2px' }} />
         <button onClick={() => jump('earlier')} disabled={searching !== null || noEarlier} title={noEarlier ? 'No earlier records found' : 'Jump back to the previous window with activity logged'}
-          style={{ padding: '4px 10px', borderRadius: 20, border: `0.5px solid ${t.border}`, cursor: searching ? 'wait' : noEarlier ? 'default' : 'pointer', fontSize: 11, background: t.cardInner || t.input, color: noEarlier ? t.muted : t.sub, opacity: noEarlier ? 0.5 : 1 }}>
+          style={{ padding: '4px 10px', borderRadius: 20, border: `0.5px solid ${t.border}`, cursor: searching ? 'wait' : noEarlier ? 'not-allowed' : 'pointer', fontSize: 11, background: t.cardInner || t.input, color: noEarlier ? t.muted : t.sub, opacity: noEarlier ? 0.5 : 1 }}>
           {searching === 'earlier' ? 'Searching…' : '← Previous'}
         </button>
         <button onClick={() => jump('later')} disabled={offset === 0 || searching !== null || noLater} title={noLater ? 'No later records found' : 'Jump forward to the next window with activity logged'}
-          style={{ padding: '4px 10px', borderRadius: 20, border: `0.5px solid ${t.border}`, cursor: offset === 0 || searching || noLater ? 'default' : 'pointer', fontSize: 11, background: t.cardInner || t.input, color: offset === 0 || noLater ? t.muted : t.sub, opacity: offset === 0 || noLater ? 0.5 : 1 }}>
+          style={{ padding: '4px 10px', borderRadius: 20, border: `0.5px solid ${t.border}`, cursor: searching ? 'wait' : offset === 0 || noLater ? 'not-allowed' : 'pointer', fontSize: 11, background: t.cardInner || t.input, color: offset === 0 || noLater ? t.muted : t.sub, opacity: offset === 0 || noLater ? 0.5 : 1 }}>
           {searching === 'later' ? 'Searching…' : 'Next →'}
         </button>
         {buckets && <span style={{ fontSize: 11, color: t.muted }}>{buckets.length} {granularity}s · {buckets[0]?.label} – {buckets[buckets.length - 1]?.label}</span>}
