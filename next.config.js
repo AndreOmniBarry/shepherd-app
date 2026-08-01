@@ -19,10 +19,16 @@ const withPWA = require('next-pwa')({
       },
     },
     {
-      // Cache static assets aggressively
+      // NetworkFirst (not StaleWhileRevalidate) — with fast-moving daily
+      // deploys, "stale-while-revalidate" was serving the OLD bundle on
+      // every visit and only refreshing the cache in the background for
+      // next time, so a freshly deployed change could take multiple
+      // reloads to ever actually show up. NetworkFirst tries the network
+      // first and only falls back to cache if the network is genuinely
+      // unavailable, so testers see the real latest deploy immediately.
       urlPattern: /\.(js|css|woff2?)$/,
-      handler: 'StaleWhileRevalidate',
-      options: { cacheName: 'static-assets' },
+      handler: 'NetworkFirst',
+      options: { cacheName: 'static-assets', networkTimeoutSeconds: 5 },
     },
   ],
 });
@@ -66,6 +72,13 @@ const nextConfig = {
       {
         source: '/dashboard/(.*)',
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+      },
+      // The service worker file itself must never be cached — if a
+      // browser/CDN holds onto an old sw.js, it never even learns a new
+      // one exists, so every runtime-caching fix above becomes moot.
+      {
+        source: '/sw.js',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }],
       },
     ];
   },
