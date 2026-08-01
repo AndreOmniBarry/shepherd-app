@@ -28,6 +28,13 @@ function timeAgo(dateStr: string): string {
 export default function ChurchFeedPage() {
   const router = useRouter();
   const {dark, setDark} = useTheme();
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   const [homePath, setHomePath] = useState('/dashboard');
   const [userRole, setUserRole] = useState('');
   const [loading, setLoading] = useState(true);

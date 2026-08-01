@@ -21,6 +21,13 @@ type Entry = {
 export default function WorkforcePage() {
   const router = useRouter();
   const {dark, setDark} = useTheme();
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   const [name, setName] = useState('');
   const [upcoming, setUpcoming] = useState<Entry[]>([]);
   const [past, setPast] = useState<Entry[]>([]);

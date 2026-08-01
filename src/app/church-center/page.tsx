@@ -32,6 +32,13 @@ const TAB_LABEL: Record<Tab, string> = { recognition: 'Recognition', meetings: '
 export default function ChurchCenterPage() {
   const router = useRouter();
   const {dark, setDark} = useTheme();
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   const [pageReady, setPageReady] = useState(false);
   const [homePath, setHomePath] = useState('/dashboard');
   const [loading, setLoading] = useState(true);

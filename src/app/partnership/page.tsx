@@ -38,6 +38,13 @@ export default function PartnershipPage() {
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('partners');
   const {dark, setDark} = useTheme();
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   const [pageReady, setPageReady] = useState(false);
   const [leaderName, setLeaderName] = useState('');
   const [bands, setBands] = useState<Band[]>([]);

@@ -79,6 +79,13 @@ export default function DepartmentHeadPage() {
   const { config: churchConfig } = useChurchConfigStandalone();
   const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'roster' | 'serving' | 'birthdays' | 'events'>('overview');
   const {dark, setDark} = useTheme();
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   const [pageReady, setPageReady] = useState(false);
   const [deptName, setDeptName] = useState('');
   const [leaderName, setLeaderName] = useState('');
@@ -354,7 +361,7 @@ export default function DepartmentHeadPage() {
       <div style={{ maxWidth: 540, margin: '0 auto', padding: '20px 16px' }}>
 
         {tab === 'overview' && (
-          <DeptOverview dark={dark} t={t} />
+          <DeptOverview dark={dark} t={t} isMobile={isMobile} />
         )}
 
         {tab === 'events' && (
@@ -568,6 +575,25 @@ export default function DepartmentHeadPage() {
                 )}
               </div>
             )}
+            {members.length === 0 ? (
+              <div style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No roster found. Contact your administrator.</div>
+            ) : isMobile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {members.map(m => (
+                  <div key={m.id} style={{ background: t.card, borderRadius: 10, border: `0.5px solid ${t.border}`, padding: '11px 13px' }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: t.text, marginBottom: 2 }}>{m.full_name}</div>
+                    <div style={{ fontSize: 11, color: t.muted, marginBottom: 8 }}>{m.phone || '—'}</div>
+                    <input defaultValue={m.role || ''} placeholder="e.g. Chorister, Alter Protocol..."
+                      onBlur={e => { if (e.target.value.trim() && e.target.value.trim() !== (m.role || '')) saveRole(m.id, e.target.value.trim()); }}
+                      style={{ border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '6px 8px', fontSize: 12, background: t.input || 'transparent', color: t.sub, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', marginBottom: 8 }} />
+                    <button onClick={() => recommendRemoval(m.id, m.full_name)}
+                      style={{ width: '100%', background: 'transparent', color: '#D85A30', border: '0.5px solid rgba(216,90,48,0.3)', borderRadius: 6, padding: '6px 9px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                      Recommend removal
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
@@ -595,12 +621,10 @@ export default function DepartmentHeadPage() {
                     </td>
                   </tr>
                 ))}
-                {members.length === 0 && (
-                  <tr><td colSpan={4} style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No roster found. Contact your administrator.</td></tr>
-                )}
               </tbody>
             </table>
             </div>
+            )}
           </div>
         )}
       </div>

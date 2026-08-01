@@ -144,6 +144,13 @@ export default function FellowshipHeadPage() {
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('overview');
   const {dark, setDark} = useTheme();
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   const [pageReady, setPageReady] = useState(false);
   const [nudgeMsg, setNudgeMsg] = useState('');
   const [fellowshipName, setFellowshipName] = useState('');

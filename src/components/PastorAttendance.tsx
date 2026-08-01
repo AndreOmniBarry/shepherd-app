@@ -42,9 +42,10 @@ interface PastorAttendanceProps {
   dark: boolean;
   t: Record<string, string>;
   branchId?: string;
+  isMobile?: boolean;
 }
 
-export default function PastorAttendance({ dark, t, branchId }: PastorAttendanceProps) {
+export default function PastorAttendance({ dark, t, branchId, isMobile = false }: PastorAttendanceProps) {
   const [data, setData] = useState<AttendanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'sunday' | 'midweek'>('sunday');
@@ -180,6 +181,28 @@ export default function PastorAttendance({ dark, t, branchId }: PastorAttendance
           <div style={{ padding: '12px 16px', borderBottom: `0.5px solid ${t.border}`, fontSize: 12, fontWeight: 600, color: t.text }}>
             Department attendance — {view === 'sunday' ? 'Sunday' : 'Wednesday'}
           </div>
+          {isMobile ? (
+            <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {data.dept_status.map(d => {
+                const slaC = d.sla ? SLA_CFG[d.sla] : null;
+                return (
+                  <div key={d.dept_id} style={{ background: t.input, borderRadius: 10, padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                      <div style={{ fontWeight: 500, fontSize: 12, color: t.text }}>{d.dept_name}</div>
+                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, flexShrink: 0, background: d.submitted ? t.tealBg : t.coralBg, color: d.submitted ? t.teal : t.coral, fontWeight: 500 }}>
+                        {d.submitted ? 'Submitted' : 'Pending'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, fontSize: 11, color: t.sub, alignItems: 'center' }}>
+                      <span><span style={{ color: t.teal, fontWeight: 500 }}>{d.present}</span> present</span>
+                      <span style={{ color: d.absent > 0 ? t.coral : t.muted }}>{d.absent} absent</span>
+                      {slaC ? <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: slaC.bg, color: slaC.text, fontWeight: 600 }}>{d.sla}</span> : <span style={{ color: t.muted }}>—</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
           <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
@@ -211,6 +234,7 @@ export default function PastorAttendance({ dark, t, branchId }: PastorAttendance
             </tbody>
           </table>
           </div>
+          )}
         </div>
       )}
 
@@ -228,6 +252,37 @@ export default function PastorAttendance({ dark, t, branchId }: PastorAttendance
             </select>
           </div>
         </div>
+        {isMobile ? (
+          <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {filteredCells.length === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', color: t.muted, fontSize: 12 }}>No cells found.</div>
+            ) : filteredCells.map(c => {
+              const submitted = view === 'sunday' ? c.sunday_submitted : c.midweek_submitted;
+              const present = view === 'sunday' ? c.sunday_present : c.midweek_present;
+              const absent = view === 'sunday' ? c.sunday_absent : 0;
+              const sla = view === 'sunday' ? c.sunday_sla : c.midweek_sla;
+              const slaC = sla ? SLA_CFG[sla] : null;
+              return (
+                <div key={c.cell_id} style={{ background: t.input, borderRadius: 10, padding: '10px 12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
+                    <div>
+                      <div style={{ fontWeight: 500, fontSize: 12, color: t.text }}>{c.cell_name}</div>
+                      <div style={{ fontSize: 10, color: t.muted }}>{c.fellowship_name}</div>
+                    </div>
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, flexShrink: 0, background: submitted ? t.tealBg : t.coralBg, color: submitted ? t.teal : t.coral, fontWeight: 500 }}>
+                      {submitted ? 'Submitted' : 'Pending'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, fontSize: 11, color: t.sub, alignItems: 'center' }}>
+                    <span><span style={{ color: t.teal, fontWeight: 500 }}>{submitted ? present : '—'}</span> present</span>
+                    <span style={{ color: absent > 0 ? t.coral : t.muted }}>{submitted ? absent : '—'} absent</span>
+                    {slaC ? <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: slaC.bg, color: slaC.text, fontWeight: 600 }}>{sla}</span> : <span style={{ color: t.muted }}>—</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
         <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
@@ -268,6 +323,7 @@ export default function PastorAttendance({ dark, t, branchId }: PastorAttendance
           </tbody>
         </table>
         </div>
+        )}
       </div>
     </div>
   );
