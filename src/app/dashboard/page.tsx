@@ -1875,6 +1875,15 @@ export default function DashboardPage(){
     ]},
   ];
   const navItems=navGroups.flatMap(g=>g.items);
+  // Curated primary shortcuts for the mobile bottom tab bar — the full
+  // navGroups list stays reachable via the "More" tab's bottom sheet, so
+  // this is a shortlist, not a compressed copy of the desktop sidebar.
+  const bottomNavItems:{id:NavPage;icon:string;label:string}[]=[
+    {id:'dashboard' as NavPage,icon:'ti-layout-dashboard',label:'Home'},
+    {id:'members' as NavPage,icon:'ti-users',label:'Members'},
+    ...(userRole!=='pa'?[{id:'giving' as NavPage,icon:'ti-coin',label:'Giving'}]:[{id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requests'}]),
+    {id:'action_board' as NavPage,icon:'ti-alert-triangle',label:'Alerts'},
+  ];
 
   const agentOpts=[
     {id:'moshe' as AgentName,label:'Moshe',desc:'Church intelligence — all domains'},
@@ -1887,20 +1896,39 @@ export default function DashboardPage(){
       {/* Sidebar overlay for mobile */}
       {isMobile&&sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.3)',zIndex:40}}/>}
       {/* Sidebar */}
-      <div style={{width:isMobile?220:(sidebarCollapsed?68:220),background:t.nav,borderRight:`0.5px solid ${t.navBorder}`,display:'flex',flexDirection:'column',position:isMobile?'fixed':'sticky',top:0,left:isMobile?(sidebarOpen?0:-196):0,height:'100vh',flexShrink:0,zIndex:50,transition:'left 0.3s cubic-bezier(0.4,0,0.2,1), width 0.25s cubic-bezier(0.4,0,0.2,1)',backdropFilter:'blur(20px)'}}>
+      <div style={{
+          width:isMobile?'100%':(sidebarCollapsed?68:220),
+          background:t.nav,
+          borderRight:isMobile?undefined:`0.5px solid ${t.navBorder}`,
+          borderTop:isMobile?`0.5px solid ${t.navBorder}`:undefined,
+          borderRadius:isMobile?'20px 20px 0 0':0,
+          display:'flex',flexDirection:'column',
+          position:isMobile?'fixed':'sticky',
+          top:isMobile?undefined:0,
+          bottom:isMobile?0:undefined,
+          left:0,
+          height:isMobile?'80vh':'100vh',
+          transform:isMobile?(sidebarOpen?'translateY(0)':'translateY(100%)'):undefined,
+          flexShrink:0,zIndex:50,
+          transition:isMobile?'transform 0.3s cubic-bezier(0.4,0,0.2,1)':'left 0.3s cubic-bezier(0.4,0,0.2,1), width 0.25s cubic-bezier(0.4,0,0.2,1)',
+          backdropFilter:'blur(20px)',
+          boxShadow:isMobile?'0 -8px 32px rgba(0,0,0,0.25)':undefined,
+        }}>
+        {isMobile&&<div style={{display:'flex',justifyContent:'center',padding:'10px 0 2px'}}><div style={{width:36,height:4,borderRadius:2,background:t.navBorder}}/></div>}
         {!isMobile&&<button onClick={toggleSidebarCollapsed} aria-label={sidebarCollapsed?'Expand sidebar':'Collapse sidebar'} style={{position:'absolute',top:22,right:-11,width:22,height:22,borderRadius:'50%',border:`0.5px solid ${t.navBorder}`,background:dark?'#2A2650':'#fff',color:dark?'#CFC9FF':'#534AB7',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:51,boxShadow:'0 1px 4px rgba(0,0,0,0.15)',transition:'transform 0.25s ease'}}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{transform:sidebarCollapsed?'rotate(180deg)':'none',transition:'transform 0.25s ease'}}><path d="M15 18l-6-6 6-6"/></svg>
         </button>}
         <div style={{display:'flex',alignItems:'center',gap:10,padding:sidebarCollapsed&&!isMobile?'16px 0 14px':'16px 16px 14px',justifyContent:sidebarCollapsed&&!isMobile?'center':'flex-start',borderBottom:`0.5px solid ${t.navBorder}`}}>
           <div style={{width:28,height:28,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><div style={{position:'absolute',width:4,height:20,background:'#A89FFF',borderRadius:2}}/><div style={{position:'absolute',width:15,height:4,background:'#A89FFF',borderRadius:2}}/></div>
-          {(!sidebarCollapsed||isMobile)&&<div><div style={{fontSize:14,fontWeight:700,color:dark?'#E8E5FF':sidebarStyle==='dark'?'#FFFFFF':'#1A1040',letterSpacing:'1px',lineHeight:1,whiteSpace:'nowrap'}}>SHEP.HERD</div><div style={{fontSize:9,color:dark?'rgba(232,229,255,0.3)':sidebarStyle==='dark'?'rgba(255,255,255,0.35)':'#9990CC',marginTop:2,whiteSpace:'nowrap'}}>Church Intelligence</div></div>}
+          {(!sidebarCollapsed||isMobile)&&<div style={{flex:1}}><div style={{fontSize:14,fontWeight:700,color:dark?'#E8E5FF':sidebarStyle==='dark'?'#FFFFFF':'#1A1040',letterSpacing:'1px',lineHeight:1,whiteSpace:'nowrap'}}>SHEP.HERD</div><div style={{fontSize:9,color:dark?'rgba(232,229,255,0.3)':sidebarStyle==='dark'?'rgba(255,255,255,0.35)':'#9990CC',marginTop:2,whiteSpace:'nowrap'}}>Church Intelligence</div></div>}
+          {isMobile&&<button onClick={()=>setSidebarOpen(false)} aria-label="Close menu" style={{background:'none',border:'none',cursor:'pointer',color:t.muted,padding:4,display:'flex'}}><Icon name="ti-x" size={16}/></button>}
         </div>
         <nav style={{flex:1,padding:'8px 0',overflowY:'auto',overflowX:'hidden'}}>
           {navGroups.filter(g=>g.items.length>0).map(g=>(
             <div key={g.label} style={{marginBottom:4}}>
               {(!sidebarCollapsed||isMobile)&&<div style={{fontSize:9.5,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase' as const,color:dark?'rgba(232,229,255,0.28)':sidebarStyle==='dark'?'rgba(255,255,255,0.28)':'#B4ACD9',padding:'10px 20px 4px',whiteSpace:'nowrap'}}>{g.label}</div>}
               {g.items.map(n=>(
-                <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDeptId(null);setPage(n.id);}}
+                <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDeptId(null);setPage(n.id);if(isMobile)setSidebarOpen(false);}}
                   className="sh-nav-item"
                   title={sidebarCollapsed&&!isMobile?n.label:undefined}
                   style={{
@@ -1932,12 +1960,28 @@ export default function DashboardPage(){
         </div>
       </div>
 
+      {/* Mobile bottom tab bar — the real native-feeling primary nav on
+          mobile, not a hidden hamburger drawer. "More" opens the full
+          nav list as a bottom sheet (the sidebar div above, repurposed). */}
+      {isMobile&&(
+        <div style={{position:'fixed',bottom:0,left:0,right:0,height:60,paddingBottom:'env(safe-area-inset-bottom)',background:t.nav,borderTop:`0.5px solid ${t.navBorder}`,backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',display:'flex',alignItems:'stretch',zIndex:45}}>
+          {bottomNavItems.map(n=>(
+            <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDeptId(null);setPage(n.id);setSidebarOpen(false);}} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,background:'none',border:'none',cursor:'pointer',color:page===n.id&&!sidebarOpen?'#534AB7':t.muted,fontFamily:'inherit'}}>
+              <Icon name={n.icon} size={19} style={{opacity:page===n.id&&!sidebarOpen?1:0.65}} />
+              <span style={{fontSize:9.5,fontWeight:page===n.id&&!sidebarOpen?700:500}}>{n.label}</span>
+            </button>
+          ))}
+          <button onClick={()=>setSidebarOpen(v=>!v)} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,background:'none',border:'none',cursor:'pointer',color:sidebarOpen?'#534AB7':t.muted,fontFamily:'inherit'}}>
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{opacity:sidebarOpen?1:0.65}}><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+            <span style={{fontSize:9.5,fontWeight:sidebarOpen?700:500}}>More</span>
+          </button>
+        </div>
+      )}
       {/* Main */}
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,background:dark?`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}`:`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`}}>
         {/* Topbar */}
         <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,padding:isMobile?'8px 10px':'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,position:'sticky',top:0,zIndex:30}}>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:10,minWidth:0}}>
-            {isMobile&&<button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,color:'#534AB7',padding:'0 4px',lineHeight:1,flexShrink:0}}>☰</button>}
             <div style={{minWidth:0,overflow:'hidden',display:'flex',alignItems:'center',gap:10}}>
               <span style={{fontSize:isMobile?12:14,fontWeight:600,color:t.text,whiteSpace:'nowrap'}}>{navItems.find(n=>n.id===page)?.label}</span>
               {!isMobile&&<span style={{width:3,height:3,borderRadius:'50%',background:t.muted,opacity:0.5,flexShrink:0}}/>}
@@ -1995,7 +2039,7 @@ export default function DashboardPage(){
           </div>
         </div>
 
-        <div key={page} className="shep-tab-enter" style={{flex:1,padding:isMobile?'12px':'20px',overflowY:'auto',background:'transparent',maxWidth:'100%'}}>
+        <div key={page} className="shep-tab-enter" style={{flex:1,padding:isMobile?'12px 12px calc(76px + env(safe-area-inset-bottom))':'20px',overflowY:'auto',background:'transparent',maxWidth:'100%'}}>
 
           {/* ══ DASHBOARD ══ */}
           {page==='dashboard'&&(
