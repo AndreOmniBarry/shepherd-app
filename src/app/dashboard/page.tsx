@@ -236,7 +236,7 @@ function ActionBoardPanel({t, branchId}: {t: Record<string,string>; branchId?: s
   );
 }
 
-function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; branchId?: string}) {
+function WorkforceIntelligencePanel({t, branchId, isMobile=false}: {t: Record<string,string>; branchId?: string; isMobile?: boolean}) {
   const [data, setData] = React.useState<WorkforceData|null>(null);
   const [loading, setLoading] = React.useState(true);
   const [expandedDept, setExpandedDept] = React.useState<string|null>(null);
@@ -290,6 +290,47 @@ function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; br
       <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'16px 18px'}}>
         <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:2}}>Department Coverage</div>
         <div style={{fontSize:11,color:t.muted,marginBottom:10}}>Click a department to drill into its roster and every member serving there.</div>
+        {isMobile ? (
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {data.department_stats.map(d=>(
+              <div key={d.id} style={{background:t.cardInner||t.purpleBg,borderRadius:10,border:`0.5px solid ${t.border}`,overflow:'hidden'}}>
+                <div onClick={()=>setExpandedDept(v=>v===d.id?null:d.id)} style={{padding:'11px 13px',cursor:'pointer',background:expandedDept===d.id?t.purpleBg:'transparent'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:6}}>
+                    <div style={{fontWeight:expandedDept===d.id?600:500,fontSize:13,color:t.text}}>{expandedDept===d.id?'▾ ':'▸ '}{d.name}</div>
+                    <span style={{fontSize:10,padding:'3px 9px',borderRadius:8,fontWeight:600,flexShrink:0,background:d.next_roster_coverage==='scheduled'?'#E1F5EE':'#FAECE7',color:d.next_roster_coverage==='scheduled'?'#085041':'#993C1D'}}>
+                      {d.next_roster_coverage==='scheduled'?'Covered':'No roster yet'}
+                    </span>
+                  </div>
+                  <div style={{fontSize:11,color:t.sub}}>{d.member_count} in workforce · {d.next_roster_date ? `${d.next_roster_date} · ${d.assigned_next} assigned` : 'No next-service date'}</div>
+                </div>
+                {expandedDept===d.id && (
+                  <div style={{padding:'0 13px 14px',background:t.purpleBg}}>
+                    <div style={{display:'flex',flexDirection:'column',gap:14,paddingTop:6}}>
+                      <div>
+                        <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:6}}>Members ({d.members.length})</div>
+                        {d.members.length===0 ? <div style={{fontSize:12,color:t.muted}}>No members assigned yet.</div> : d.members.map(m=>(
+                          <div key={m.member_id} style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'4px 0'}}>
+                            <span style={{color:t.text}}>{m.full_name}</span>
+                            <span style={{color:t.sub}}>{m.reliability_score!=null?`${m.reliability_score.toFixed(1)} · ${m.total_attended}/${m.total_assigned}`:'No history'}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div>
+                        <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:6}}>Recent rosters</div>
+                        {d.recent_rosters.length===0 ? <div style={{fontSize:12,color:t.muted}}>No rosters yet.</div> : d.recent_rosters.map(r=>(
+                          <div key={r.id} style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'4px 0'}}>
+                            <span style={{color:t.text}}>{r.service_date}</span>
+                            <span style={{color:t.sub}}>{r.entries_count} assigned{r.published?'':' · draft'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
         <div style={{overflowX:'auto'}}>
         <table style={{width:'100%',borderCollapse:'collapse'}}>
           <thead>
@@ -344,6 +385,7 @@ function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; br
           </tbody>
         </table>
         </div>
+        )}
       </div>
 
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
@@ -2856,6 +2898,41 @@ export default function DashboardPage(){
               {/* Top Cell Leaders */}
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Top Cell Leaders</div>
+                {isMobile ? (
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    {(showAlertOnly
+                      ? (dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch')
+                      : [...(dbCells||[])].sort((a,b)=>(b.overall_score??0)-(a.overall_score??0)).slice(0,15)
+                    ).map((c,i)=>{
+                      const overall=c.overall_score??0;
+                      const slaScore=c.submission_sla_score;
+                      const tier=overall>=95?'Crown of Excellence':overall>=90?'Elite Shepherd':overall>=75?'Faithful Steward':overall>=60?'Consistent Servant':overall>=45?'Needs Improvement':'Requires Pastoral Review';
+                      const tierColor=overall>=90?{bg:'#EEEDFE',c:'#3C3489'}:overall>=75?{bg:'#E1F5EE',c:'#085041'}:overall>=60?{bg:'#F3F4F6',c:'#374151'}:{bg:'#FAEEDA',c:'#993C1D'};
+                      return(
+                        <div key={c.cell} style={{background:t.cardInner,borderRadius:10,border:`0.5px solid ${t.border}`,padding:'11px 13px'}}>
+                          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:6}}>
+                            <div style={{display:'flex',gap:8,alignItems:'baseline'}}>
+                              <span style={{fontWeight:700,fontSize:13,color:i===0?'#BA7517':i===1?t.muted:t.sub}}>#{i+1}</span>
+                              <div>
+                                <div style={{fontWeight:600,fontSize:13,color:t.text}}>{c.leader}</div>
+                                <div style={{fontSize:11,color:t.sub}}>{c.cell} · {c.fel}</div>
+                              </div>
+                            </div>
+                            <div style={{textAlign:'right',flexShrink:0}}>
+                              <div style={{fontWeight:700,fontSize:14,color:overall>=75?t.teal:t.coral}}>{overall}%</div>
+                              <div style={{display:'flex',gap:3,justifyContent:'flex-end'}}>
+                                {slaScore!=null&&slaScore>=90&&<span title="Unbroken — 12 consecutive on-time" style={{color:t.purple}}><Icon name="ti-trophy" size={12}/></span>}
+                                {c.rate>=85&&<span title="Fellowship Excellence" style={{color:t.amber}}><Icon name="ti-star" size={12}/></span>}
+                                {c.trend.startsWith('+')&&parseInt(c.trend)>=10&&<span title="Soul Winner" style={{color:t.teal}}><Icon name="ti-sprout" size={12}/></span>}
+                              </div>
+                            </div>
+                          </div>
+                          <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:tierColor.bg,color:tierColor.c,fontWeight:500}}>{tier}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
                 <div style={{overflowX:'auto'}}>
                   <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
                     <thead>
@@ -2899,12 +2976,13 @@ export default function DashboardPage(){
                     </tbody>
                   </table>
                 </div>
+                )}
               </div>
 
               {/* Top Fellowship Heads */}
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Fellowship Heads</div>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
+                <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:12}}>
                   {Object.entries((dbCells||[]).reduce((acc:Record<string,NonNullable<typeof dbCells>>,c)=>{(acc[c.fel]=acc[c.fel]||[]).push(c);return acc;},{}))
                     .map(([name,group])=>{
                       const n=group.length||1;
@@ -3085,7 +3163,7 @@ export default function DashboardPage(){
             <PastorRequisitions t={t} dark={dark} branchId={selectedBranch||undefined} />
           )}
           {page==='workforce'&&(
-            <WorkforceIntelligencePanel t={t} branchId={selectedBranch||undefined} />
+            <WorkforceIntelligencePanel t={t} branchId={selectedBranch||undefined} isMobile={isMobile} />
           )}
           {page==='action_board'&&(
             <ActionBoardPanel t={t} branchId={selectedBranch||undefined} />
