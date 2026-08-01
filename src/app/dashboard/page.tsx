@@ -3118,7 +3118,7 @@ export default function DashboardPage(){
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <MemberApprovalPanel t={t} dark={dark} />
               <RemovalApprovalPanel t={t} dark={dark} userRole={userRole} />
-              <FellowshipValidation t={t} dark={dark} />
+              <FellowshipValidation t={t} dark={dark} isMobile={isMobile} />
             </div>
           )}
           {page==='settings'&&(

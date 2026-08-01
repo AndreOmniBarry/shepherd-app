@@ -288,6 +288,32 @@ export default function PartnershipPage() {
               </div>
               {filteredPartners.length === 0 ? (
                 <div style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No partners found.</div>
+              ) : isMobile ? (
+                <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {filteredPartners.map(p => {
+                    const bc = BAND_CONFIG[p.band_name] || { color: t.purple, bg: t.purpleBg, text: t.purple };
+                    return (
+                      <div key={p.id} style={{ background: t.input, borderRadius: 10, padding: '11px 13px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: t.text }}>{p.full_name}</div>
+                          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, flexShrink: 0, background: p.status === 'active' ? t.tealBg : t.coralBg, color: p.status === 'active' ? t.teal : t.coral, fontWeight: 500 }}>
+                            {p.status.charAt(0).toUpperCase() + p.status.slice(1)}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                          <span style={{ fontSize: 10, padding: '2px 9px', borderRadius: 10, background: bc.bg, color: bc.text, fontWeight: 600 }}>{p.band_name}</span>
+                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: p.this_month_paid ? t.tealBg : t.coralBg, color: p.this_month_paid ? t.teal : t.coral, fontWeight: 500 }}>
+                            {p.this_month_paid ? 'Paid this month' : 'Pending this month'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 12, fontSize: 11, color: t.sub }}>
+                          <span>Pledge: <span style={{ color: t.purple, fontWeight: 500 }}>₦{p.band_amount.toLocaleString()}</span></span>
+                          <span>Total given: <span style={{ color: t.teal, fontWeight: 500 }}>{fmtNGN(p.total_given)}</span></span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -333,7 +359,7 @@ export default function PartnershipPage() {
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
               {[
                 { label: 'Active partners', value: activePartners.length, sub: `${lapsedPartners.length} lapsed`, accent: '#534AB7' },
                 { label: 'Monthly target', value: fmtNGN(totalMonthly), sub: 'If all active pay', accent: '#1D9E75' },
