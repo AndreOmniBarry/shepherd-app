@@ -636,7 +636,7 @@ export default function FellowshipHeadPage() {
                   </div>
                 )}
 
-                <div style={{ ...card({ padding: 0 }), overflow: 'hidden' }}>
+                <div style={{ ...card({ padding: 0 }), overflowX: 'auto', overflowY: 'hidden' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                     <thead>
                       <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
@@ -689,7 +689,7 @@ export default function FellowshipHeadPage() {
                 {filteredMembers.length} members
               </div>
             </div>
-            <div style={{ ...card({ padding: 0 }), overflow: 'hidden' }}>
+            <div style={{ ...card({ padding: 0 }), overflowX: 'auto', overflowY: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
@@ -966,7 +966,7 @@ export default function FellowshipHeadPage() {
                 <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>Click &ldquo;Raise dispute&rdquo; above to flag an inaccurate cell submission.</div>
               </div>
             ) : (
-              <div style={{ ...card({ padding: 0 }), overflow: 'hidden' }}>
+              <div style={{ ...card({ padding: 0 }), overflowX: 'auto', overflowY: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>

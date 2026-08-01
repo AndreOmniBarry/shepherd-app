@@ -290,6 +290,7 @@ function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; br
       <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'16px 18px'}}>
         <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:2}}>Department Coverage</div>
         <div style={{fontSize:11,color:t.muted,marginBottom:10}}>Click a department to drill into its roster and every member serving there.</div>
+        <div style={{overflowX:'auto'}}>
         <table style={{width:'100%',borderCollapse:'collapse'}}>
           <thead>
             <tr>
@@ -342,6 +343,7 @@ function WorkforceIntelligencePanel({t, branchId}: {t: Record<string,string>; br
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
@@ -1953,8 +1955,21 @@ export default function DashboardPage(){
               ))}
             </div>
           ))}
+          {isMobile&&(
+            <div style={{marginBottom:4}}>
+              <div style={{fontSize:9.5,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase' as const,color:dark?'rgba(232,229,255,0.28)':'#B4ACD9',padding:'10px 20px 4px',whiteSpace:'nowrap'}}>Quick Links</div>
+              {[{label:'Church Feed',icon:'ti-speakerphone',href:'/church-feed'},{label:'Calendar',icon:'ti-calendar-event',href:'/calendar'}].map(l=>(
+                <button key={l.href} onClick={()=>{setSidebarOpen(false);router.push(l.href);}}
+                  className="sh-nav-item"
+                  style={{background:'transparent',borderLeft:'2px solid transparent',borderRadius:'0 8px 8px 0',margin:'1px 8px 1px 0',width:'calc(100% - 8px)',transition:'all 0.2s ease'}}>
+                  <Icon name={l.icon} size={15} style={{opacity:0.5,flexShrink:0}} />
+                  <span style={{whiteSpace:'nowrap',overflow:'hidden'}}>{l.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </nav>
-        <div style={{padding:12,borderTop:`0.5px solid ${t.navBorder}`}}>
+        <div style={{padding:isMobile?'12px 12px calc(12px + env(safe-area-inset-bottom))':12,borderTop:`0.5px solid ${t.navBorder}`}}>
           <button onClick={()=>setChatOpen(v=>!v)} title={sidebarCollapsed&&!isMobile?'Ask AI Agents':undefined} style={{width:'100%',background:chatOpen?'#534AB7':'#EEEDFE',color:chatOpen?'#fff':'#3C3489',border:'none',borderRadius:8,padding:'8px 12px',fontSize:13,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:sidebarCollapsed&&!isMobile?'center':'flex-start',gap:8}}>
             {sidebarCollapsed&&!isMobile?<Icon name="ti-message-circle" size={15}/>:'Ask AI Agents'}
           </button>
@@ -1984,7 +1999,7 @@ export default function DashboardPage(){
       {/* Main */}
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,background:dark?`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}`:`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`}}>
         {/* Topbar */}
-        <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,padding:isMobile?'8px 10px':'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,position:'sticky',top:0,zIndex:30}}>
+        <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,padding:isMobile?'calc(10px + env(safe-area-inset-top)) 14px 10px':'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,position:'sticky',top:0,zIndex:30}}>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:10,minWidth:0}}>
             <div style={{minWidth:0,overflow:'hidden',display:'flex',alignItems:'center',gap:10}}>
               <span style={{fontSize:isMobile?12:14,fontWeight:600,color:t.text,whiteSpace:'nowrap'}}>{navItems.find(n=>n.id===page)?.label}</span>
@@ -2021,14 +2036,13 @@ export default function DashboardPage(){
               onFocusCapture={e=>{e.currentTarget.style.width='220px'; e.currentTarget.style.background=t.input;}}
               onBlurCapture={e=>{e.currentTarget.style.width='160px'; e.currentTarget.style.background='transparent';}} />}
             {!isMobile&&<button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:'none',background:'#534AB7',color:'#fff',fontSize:11,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>Add member</button>}
-            {isMobile ? (
-              <button onClick={()=>router.push('/church-feed')} title="Church Feed" style={{width:30,height:30,borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:t.sub,flexShrink:0}}><Icon name="ti-speakerphone" size={14}/></button>
-            ) : (
-              <button onClick={()=>router.push('/church-feed')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-speakerphone" size={13}/>Church Feed</button>
-            )}
+            {/* Church Feed moves into the "More" sheet on mobile — an
+                icon-only speaker glyph this small read as a mute/volume
+                toggle sitting next to the theme switch, not "announcements". */}
+            {!isMobile&&<button onClick={()=>router.push('/church-feed')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-speakerphone" size={13}/>Church Feed</button>}
             <ChatNavButton t={t} compact={isMobile} />
             {!isMobile&&<button onClick={()=>router.push('/calendar')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-calendar-event" size={13}/>Calendar</button>}
-            <NotificationBell dark={dark} /><MyAccountButton dark={dark} />
+            <NotificationBell dark={dark} compact={isMobile} /><MyAccountButton dark={dark} compact={isMobile} />
             {!isMobile&&<div onClick={()=>setDark(v=>!v)} role="switch" aria-checked={dark} style={{width:50,height:28,borderRadius:14,border:`0.5px solid ${t.navBorder}`,background:dark?'linear-gradient(135deg,#3C3489,#534AB7)':'#EEEDFE',display:'flex',alignItems:'center',padding:2,cursor:'pointer',position:'relative',transition:'background 0.25s ease'}}>
               <div style={{width:22,height:22,borderRadius:'50%',background:dark?'#1A1730':'#fff',boxShadow:'0 1px 3px rgba(0,0,0,0.25)',display:'flex',alignItems:'center',justifyContent:'center',transform:dark?'translateX(22px)':'translateX(0)',transition:'transform 0.25s cubic-bezier(0.34,1.56,0.64,1)',color:dark?'#CFC9FF':'#8A7FD8'}}>
                 {dark?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}
@@ -2470,6 +2484,7 @@ export default function DashboardPage(){
               ) : deptsList.length===0 ? (
                 <div style={{fontSize:12,color:t.muted,padding:'12px 0'}}>No departments yet.</div>
               ) : (
+              <div style={{overflowX:'auto'}}>
               <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
                 <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Department','Leader','Members','Absences','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 10px',fontSize:11,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</th>)}</tr></thead>
                 <tbody>
@@ -2486,6 +2501,7 @@ export default function DashboardPage(){
                   ))}
                 </tbody>
               </table>
+              </div>
               )}
             </div>
           )}

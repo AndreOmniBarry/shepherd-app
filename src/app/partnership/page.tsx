@@ -282,6 +282,7 @@ export default function PartnershipPage() {
               {filteredPartners.length === 0 ? (
                 <div style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No partners found.</div>
               ) : (
+                <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
@@ -316,6 +317,7 @@ export default function PartnershipPage() {
                     })}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           </div>

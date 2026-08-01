@@ -197,6 +197,7 @@ export default function DeptOverview({ dark = false, t }: DeptOverviewProps) {
         {filteredMembers.length === 0 ? (
           <div style={{ padding: 24, textAlign: 'center', color: t.muted, fontSize: 12 }}>No members in this category</div>
         ) : (
+          <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
@@ -236,6 +237,7 @@ export default function DeptOverview({ dark = false, t }: DeptOverviewProps) {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

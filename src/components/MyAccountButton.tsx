@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 
-interface Props { dark?: boolean; }
+interface Props { dark?: boolean; compact?: boolean; }
 
 const ADMIN_ROLES = ['overseer', 'general_overseer', 'lead_tech'];
 // overseer and general_overseer are the same effective top tier (full access,
@@ -21,7 +21,7 @@ const PREVIEW_ROLES: { value: string; label: string; refKind: 'cell' | 'fellowsh
   { value: 'workforce', label: 'Workforce', refKind: null },
 ];
 
-export default function MyAccountButton({ dark = false }: Props) {
+export default function MyAccountButton({ dark = false, compact = false }: Props) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -140,14 +140,14 @@ export default function MyAccountButton({ dark = false }: Props) {
     <div ref={ref} style={{ position: 'relative' }}>
       <button onClick={() => { setOpen(v => !v); setMsg(null); }}
         title="My account"
-        style={{ width: 34, height: 34, borderRadius: 9, border: `0.5px solid ${impersonating ? t.coral : t.border}`, background: impersonating ? t.coralBg : (open ? (dark ? 'rgba(83,74,183,0.3)' : '#EEEDFE') : 'transparent'), cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s ease' }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={impersonating ? t.coral : (dark ? '#A89FFF' : '#534AB7')} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        style={{ width: compact ? 28 : 34, height: compact ? 28 : 34, borderRadius: compact ? 8 : 9, border: `0.5px solid ${impersonating ? t.coral : t.border}`, background: impersonating ? t.coralBg : (open ? (dark ? 'rgba(83,74,183,0.3)' : '#EEEDFE') : 'transparent'), cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s ease' }}>
+        <svg width={compact ? 14 : 16} height={compact ? 14 : 16} viewBox="0 0 24 24" fill="none" stroke={impersonating ? t.coral : (dark ? '#A89FFF' : '#534AB7')} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="8" r="4" /><path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" />
         </svg>
       </button>
 
       {open && (
-        <div style={{ position: 'absolute', right: 0, top: 42, width: 320, background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 14, boxShadow: dark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 32px rgba(83,74,183,0.12)', zIndex: 100, padding: 16 }}>
+        <div style={{ position: 'absolute', right: 0, top: 42, width: 320, maxWidth: 'calc(100vw - 24px)', background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 14, boxShadow: dark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 32px rgba(83,74,183,0.12)', zIndex: 100, padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 2 }}>My account</div>
           <div style={{ fontSize: 11, color: t.muted, marginBottom: 14 }}>{email}{role ? ` · ${role.replace('_', ' ')}` : ''}</div>
 
