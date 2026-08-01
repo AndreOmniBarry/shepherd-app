@@ -15,9 +15,9 @@ type GivingData = {
 
 const TYPE_COLORS = ['#534AB7','#1D9E75','#BA7517','#D85A30','#9C27B0','#E91E63','#00BCD4','#FF5722'];
 
-interface PastorGivingProps { dark: boolean; t: Record<string, string>; branchId?: string; }
+interface PastorGivingProps { dark: boolean; t: Record<string, string>; branchId?: string; isMobile?: boolean; }
 
-export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
+export default function PastorGiving({ dark, t, branchId, isMobile = false }: PastorGivingProps) {
   const [data, setData] = useState<GivingData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -44,7 +44,7 @@ export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
         {[0, 1, 2, 3].map(i => <SkeletonCard key={i} lines={1} />)}
       </div>
       <SkeletonCard lines={5} style={{ minHeight: 220 }} />
@@ -56,17 +56,17 @@ export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* KPI Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 8 : 10 }}>
         {[
           { label: 'Today', value: fmtNGN(data.kpi.today), sub: 'Live', accent: '#1D9E75', bg: t.tealBg },
           { label: 'This week', value: fmtNGN(data.kpi.wtd), sub: 'Week to date', accent: '#534AB7', bg: t.purpleBg },
           { label: 'This month', value: fmtNGN(data.kpi.mtd), sub: 'Month to date', accent: '#BA7517', bg: t.amberBg },
           { label: 'YTD total', value: fmtNGN(data.kpi.ytd), sub: data.kpi.yoy_growth !== null ? `${data.kpi.yoy_growth >= 0 ? '+' : ''}${data.kpi.yoy_growth}% vs last year` : `${data.total_entries} entries`, accent: '#534AB7', bg: t.purpleBg },
         ].map(k => (
-          <div key={k.label} style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px', borderTop: `2.5px solid ${k.accent}` }}>
-            <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>{k.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: t.text, lineHeight: 1 }}>{k.value}</div>
-            <div style={{ fontSize: 10, color: t.muted, marginTop: 4 }}>{k.sub}</div>
+          <div key={k.label} style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: isMobile ? '12px 14px' : '14px', borderTop: `2.5px solid ${k.accent}` }}>
+            <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</div>
+            <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: t.text, lineHeight: 1.15 }}>{k.value}</div>
+            <div style={{ fontSize: 10, color: t.muted, marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.sub}</div>
           </div>
         ))}
       </div>
@@ -82,7 +82,7 @@ export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
       </div>
 
       {/* By type breakdown + recent entries */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
         {/* By type */}
         <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px' }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 12 }}>YTD by income type</div>

@@ -2232,7 +2232,7 @@ export default function DashboardPage(){
             <PastorAttendance dark={dark} t={t} branchId={selectedBranch||undefined} />
           )}          {/* ══ GIVING ══ */}
           {page==='giving'&&(
-            <PastorGiving dark={dark} t={t} branchId={selectedBranch||undefined} />
+            <PastorGiving dark={dark} t={t} branchId={selectedBranch||undefined} isMobile={isMobile} />
           )}
           {/* ══ MEMBERS ══ */}
           {page==='members'&&(
