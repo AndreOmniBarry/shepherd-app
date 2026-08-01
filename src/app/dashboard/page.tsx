@@ -15,6 +15,7 @@ import EventsPanel from '@/components/EventsPanel';
 import CareFollowupPanel from '@/components/CareFollowupPanel';
 import ChatNavButton from '@/components/ChatNavButton';
 import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
+import LoadingScreen from '@/components/LoadingScreen';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -1607,6 +1608,7 @@ export default function DashboardPage(){
     return {q3:1250,dec:1400};
   });
   const [dark,setDark]=useState(false);
+  const [pageReady,setPageReady]=useState(false);
   const [sidebarStyle,setSidebarStyle]=useState<'light'|'dark'>('light');
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [isMobile,setIsMobile]=useState(false);
@@ -1641,7 +1643,8 @@ export default function DashboardPage(){
       else if(data?.email)setUserName(data.email.split('@')[0]);
       if(data?.role)setUserRole(data.role);
       if(data?.branch_id)setUserBranchId(data.branch_id);
-    }).catch(()=>{});
+      setPageReady(true);
+    }).catch(()=>setPageReady(true));
     // Reload config fresh - especially after onboarding
     const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     const justOnboarded = urlParams?.get('onboarded') === '1';
@@ -1850,6 +1853,8 @@ export default function DashboardPage(){
   const agentOpts=[
     {id:'moshe' as AgentName,label:'Moshe',desc:'Church intelligence — all domains'},
   ];
+
+  if(!pageReady) return <LoadingScreen dark={dark} label="Loading your dashboard…" />;
 
   return(
     <div data-theme={dark?'dark':'light'} data-sidebar={dark?'dark':sidebarStyle} style={{display:'flex',minHeight:'100vh',background:t.bg,fontFamily:'Inter,system-ui,sans-serif'}}>

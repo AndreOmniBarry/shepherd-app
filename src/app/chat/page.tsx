@@ -5,6 +5,7 @@ import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import Icon from '@/components/Icon';
 import { SkeletonRow } from '@/components/Skeleton';
+import LoadingScreen from '@/components/LoadingScreen';
 import { rolePortal } from '@/lib/role-portal';
 
 type Thread = {
@@ -18,6 +19,13 @@ type Message = { id: string; sender_id: string; sender_name: string; sender_role
 type Person = { id: string; full_name: string; role: string };
 
 const REACTION_EMOJI = ['👍', '❤️', '😂', '🙏', '🎉'];
+
+function renderBody(body: string, mine: boolean): React.ReactNode {
+  const parts = body.split(/(@\w+)/g);
+  return parts.map((part, i) => part.startsWith('@') ? (
+    <span key={i} style={{ fontWeight: 700, color: mine ? '#fff' : '#A89FFF', background: mine ? 'rgba(255,255,255,0.18)' : 'rgba(168,159,255,0.15)', borderRadius: 4, padding: '0 3px' }}>{part}</span>
+  ) : part);
+}
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -194,6 +202,8 @@ export default function ChatPage() {
   const totalUnread = threads.reduce((a, th) => a + th.unread_count, 0);
   const mentionCandidates = mentionQuery !== null && activeThread ? activeThread.participants.filter(p => p.id !== myId && p.full_name.toLowerCase().includes(mentionQuery.toLowerCase())) : [];
 
+  if (loading) return <LoadingScreen dark={dark} label="Loading your chats…" />;
+
   return (
     <div data-theme={dark ? 'dark' : 'light'} className="shep-page-enter" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: dark ? `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}` : `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`, fontFamily: 'Inter,system-ui,sans-serif' }}>
       <div style={{ background: t.navBg, WebkitBackdropFilter: 'blur(18px) saturate(160%)', backdropFilter: 'blur(18px) saturate(160%)', borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
@@ -273,7 +283,7 @@ export default function ChatPage() {
                     <div key={m.id} className="shep-tab-enter" style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
                       {!mine && activeThread.type === 'group' && <div style={{ fontSize: 10, color: t.muted, marginBottom: 2, marginLeft: 4 }}>{m.sender_name}</div>}
                       <div style={{ ...glass, maxWidth: '70%', padding: '9px 13px', borderRadius: mine ? '14px 14px 3px 14px' : '14px 14px 14px 3px', background: mine ? t.purple : 'var(--glass-bg)', color: mine ? '#fff' : t.text }}>
-                        <div style={{ fontSize: 13, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{m.body}</div>
+                        <div style={{ fontSize: 13, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{renderBody(m.body, mine)}</div>
                       </div>
                       <div style={{ display: 'flex', gap: 4, marginTop: 3, alignItems: 'center' }}>
                         <span style={{ fontSize: 9, color: t.muted }}>{timeAgo(m.created_at)}</span>

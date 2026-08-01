@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Icon from '@/components/Icon';
 
 type PrayerRequest = {
   id: string;
@@ -151,7 +152,7 @@ export default function PrayerRequestPanel({ dark = false, t }: PrayerRequestPan
       {/* Request list */}
       {requests.length === 0 ? (
         <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: 32, textAlign: 'center' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>🙏</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8, color: t.muted }}><Icon name="ti-heart" size={22} /></div>
           <div style={{ fontSize: 13, color: t.sub }}>No prayer requests yet</div>
           <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>Requests from your cell members will appear here</div>
         </div>

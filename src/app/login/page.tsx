@@ -2,6 +2,7 @@
 import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { rolePortal } from '@/lib/role-portal';
+import Icon from '@/components/Icon';
 
 function LoginForm() {
   const router = useRouter();
@@ -303,11 +304,11 @@ function LoginForm() {
           {/* Security badges */}
           <div style={{ display: 'flex', justifyContent: 'center', gap: 16 }}>
             {[
-              { icon: '🔒', label: 'End-to-end encrypted' },
-              { icon: '🛡', label: 'Role-secured' },
+              { icon: 'ti-lock', label: 'End-to-end encrypted' },
+              { icon: 'ti-shield', label: 'Role-secured' },
             ].map(b => (
               <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'rgba(232,229,255,0.2)' }}>
-                <span style={{ fontSize: 12 }}>{b.icon}</span>
+                <Icon name={b.icon} size={12} />
                 {b.label}
               </div>
             ))}

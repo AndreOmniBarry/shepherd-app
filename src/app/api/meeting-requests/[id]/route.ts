@@ -52,7 +52,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' },
       body: JSON.stringify({
         user_id: notifyUserId, type: 'meeting_request', read: false,
-        title: `📅 Meeting request ${statusLabel}`, body: `"${row.subject}" was ${statusLabel} by ${user.name || 'the other party'}.`,
+        title: `Meeting request ${statusLabel}`, body: `"${row.subject}" was ${statusLabel} by ${user.name || 'the other party'}.`,
         link: '/church-center?tab=meetings',
       }),
     }).catch(() => {});

@@ -5,6 +5,7 @@ import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import Icon from '@/components/Icon';
 import { SkeletonCard } from '@/components/Skeleton';
+import LoadingScreen from '@/components/LoadingScreen';
 import ChatNavButton from '@/components/ChatNavButton';
 import { rolePortal } from '@/lib/role-portal';
 
@@ -29,6 +30,7 @@ const TAB_LABEL: Record<Tab, string> = { recognition: 'Recognition', meetings: '
 export default function ChurchCenterPage() {
   const router = useRouter();
   const [dark, setDark] = useState(false);
+  const [pageReady, setPageReady] = useState(false);
   const [homePath, setHomePath] = useState('/dashboard');
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('recognition');
@@ -78,7 +80,7 @@ export default function ChurchCenterPage() {
       setMeetingRequests(data?.meeting_requests || []);
       setServiceAssignments(data?.service_assignments || []);
       setWorkforceAssignments(data?.workforce_assignments || []);
-    }).finally(() => setLoading(false));
+    }).finally(() => { setLoading(false); setPageReady(true); });
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -108,6 +110,8 @@ export default function ChurchCenterPage() {
 
   const card: React.CSSProperties = { background: 'var(--glass-bg)', WebkitBackdropFilter: 'blur(var(--glass-blur)) saturate(160%)', backdropFilter: 'blur(var(--glass-blur)) saturate(160%)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', padding: '16px 18px', transition: 'box-shadow var(--motion-medium) var(--ease-out-expo)' };
   const statusColor = (s: string) => s === 'accepted' ? { bg: t.tealBg, c: t.teal } : s === 'declined' || s === 'cancelled' ? { bg: t.coralBg, c: t.coral } : { bg: t.purpleBg, c: t.purple };
+
+  if (!pageReady) return <LoadingScreen dark={dark} label="Loading Church Center…" />;
 
   return (
     <div data-theme={dark ? 'dark' : 'light'} className="shep-page-enter" style={{ minHeight: '100vh', background: dark ? `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}` : `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`, fontFamily: 'Inter,system-ui,sans-serif' }}>

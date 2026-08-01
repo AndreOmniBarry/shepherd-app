@@ -6,6 +6,7 @@ import MyAccountButton from '@/components/MyAccountButton';
 import FloatingCalculator from '@/components/FloatingCalculator';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import ChatNavButton from '@/components/ChatNavButton';
+import Icon from '@/components/Icon';
 import LoadingScreen from '@/components/LoadingScreen';
 
 type Band = { id: string; name: string; amount: number; color: string };
@@ -449,7 +450,7 @@ export default function PartnershipPage() {
                           <span style={{ fontSize: 11, color: t.muted }}>₦{p.band_amount.toLocaleString()}/month pledge</span>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                          {p.phone && <div style={{ fontSize: 12, color: t.sub }}>📞 {p.phone}</div>}
+                          {p.phone && <div style={{ fontSize: 12, color: t.sub, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="ti-phone" size={11} /> {p.phone}</div>}
                           {p.email && <div style={{ fontSize: 12, color: t.sub }}>✉ {p.email}</div>}
                           <div style={{ fontSize: 11, color: t.muted }}>Partner since {new Date(p.start_date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
                           <div style={{ fontSize: 11, color: t.muted }}>Total given: {fmtNGN(p.total_given)} · {p.months_consistent} consistent months before lapse</div>
