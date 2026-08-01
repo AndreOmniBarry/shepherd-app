@@ -2000,8 +2000,13 @@ export default function DashboardPage(){
           {isMobile&&(
             <div style={{marginBottom:4}}>
               <div style={{fontSize:9.5,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase' as const,color:dark?'rgba(232,229,255,0.28)':'#B4ACD9',padding:'10px 20px 4px',whiteSpace:'nowrap'}}>Quick Links</div>
-              {[{label:'Church Feed',icon:'ti-speakerphone',href:'/church-feed'},{label:'Calendar',icon:'ti-calendar-event',href:'/calendar'}].map(l=>(
-                <button key={l.href} onClick={()=>{setSidebarOpen(false);router.push(l.href);}}
+              {[
+                {label:'Church Feed',icon:'ti-speakerphone',href:'/church-feed'},
+                {label:'Calendar',icon:'ti-calendar-event',href:'/calendar'},
+                {label:'Events & Service Planning',icon:'ti-ticket',page:'events' as NavPage},
+                {label:'Care & Follow-up',icon:'ti-heart-handshake',page:'care_followup' as NavPage},
+              ].map(l=>(
+                <button key={l.label} onClick={()=>{setSidebarOpen(false); if('page' in l && l.page){setSelectedCell(null);setSelectedDeptId(null);setPage(l.page);} else if('href' in l && l.href){router.push(l.href);}}}
                   className="sh-nav-item"
                   style={{background:'transparent',borderLeft:'2px solid transparent',borderRadius:'0 8px 8px 0',margin:'1px 8px 1px 0',width:'calc(100% - 8px)',transition:'all 0.2s ease'}}>
                   <Icon name={l.icon} size={15} style={{opacity:0.5,flexShrink:0}} />
