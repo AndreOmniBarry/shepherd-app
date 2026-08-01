@@ -1,13 +1,39 @@
 // Shared sound + haptic feedback for anything that wants to announce new
 // content arriving in near-real-time (notifications, chat messages).
 
-// Short, synthesized two-tone chime — no audio asset to ship or fail to
-// load. Built fresh each call since AudioContext can't be reused after a
-// tab has been backgrounded on some browsers.
-export function playNotificationSound() {
+// A fresh AudioContext starts "suspended" under browser autoplay policy
+// and only unlocks once a real user gesture resumes it — polling-detected
+// events (new chat message, new notification) don't count as a gesture,
+// so a context created on-demand inside playNotificationSound() would
+// silently never produce sound. Keeping one shared context and unlocking
+// it from an actual click/touch/key elsewhere in the app (see
+// AudioUnlocker) means later calls from background polling can use it.
+let sharedCtx: AudioContext | null = null;
+
+function getCtx(): AudioContext | null {
   try {
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
+    if (!sharedCtx) {
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      sharedCtx = new Ctx();
+    }
+    if (sharedCtx.state === 'suspended') sharedCtx.resume().catch(() => {});
+    return sharedCtx;
+  } catch {
+    return null;
+  }
+}
+
+// Called once from a real user gesture (see AudioUnlocker) so the shared
+// context is already running by the time a background poll wants sound.
+export function unlockAudio() {
+  getCtx();
+}
+
+// Short, synthesized two-tone chime — no audio asset to ship or fail to load.
+export function playNotificationSound() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  try {
     const now = ctx.currentTime;
     [880, 1320].forEach((freq, i) => {
       const osc = ctx.createOscillator();
@@ -21,7 +47,6 @@ export function playNotificationSound() {
       osc.start(now + i * 0.09);
       osc.stop(now + i * 0.09 + 0.2);
     });
-    setTimeout(() => ctx.close().catch(() => {}), 500);
   } catch { /* Web Audio unavailable — silently skip, no sound is not a failure */ }
 }
 
