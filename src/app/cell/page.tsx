@@ -417,7 +417,7 @@ export default function CellPage() {
       <div style={{ maxWidth: isMobile ? 480 : 880, margin: '0 auto', padding: isMobile ? '20px 16px' : '28px 24px' }}>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', background: dark?'rgba(255,255,255,0.04)':t.input, borderRadius: 12, padding: 4, marginBottom: 20, border: `0.5px solid ${t.border}`, backdropFilter:'blur(10px)' }}>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 20, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           {([
             { id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' },
             { id: 'submit', label: 'Attendance', icon: 'ti-calendar-check' },
@@ -429,10 +429,10 @@ export default function CellPage() {
             { id: 'members', label: 'Members', icon: 'ti-users' },
           ] as {id:string;label:string;icon:string}[]).map(tabDef => (
             <button key={tabDef.id} onClick={() => setTab(tabDef.id)}
-              onMouseEnter={e => { if (tab !== tabDef.id) e.currentTarget.style.boxShadow = '0 0 10px rgba(168,159,255,0.4)'; }}
-              onMouseLeave={e => { if (tab !== tabDef.id) e.currentTarget.style.boxShadow = 'none'; }}
-              style={{ flex: 1, padding: '8px 4px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: tab === tabDef.id ? 600 : 400, background: tab === tabDef.id ? (dark?'rgba(83,74,183,0.4)':t.card) : 'transparent', color: tab === tabDef.id ? (dark?'#E8E5FF':t.purple) : t.sub, boxShadow: tab === tabDef.id ? (dark?'0 0 12px rgba(83,74,183,0.3)':'0 1px 4px rgba(83,74,183,0.12)') : 'none', transition: 'all var(--motion-fast) var(--ease-out-expo)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              {tabDef.icon && <Icon name={tabDef.icon} size={14} />}
+              onMouseEnter={e => { if (tab !== tabDef.id) e.currentTarget.style.background = dark ? 'rgba(83,74,183,0.18)' : t.purpleBg; }}
+              onMouseLeave={e => { if (tab !== tabDef.id) e.currentTarget.style.background = 'transparent'; }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: tab === tabDef.id ? 600 : 500, background: tab === tabDef.id ? '#534AB7' : 'transparent', color: tab === tabDef.id ? '#fff' : t.sub, whiteSpace: 'nowrap', transition: 'all var(--motion-fast) var(--ease-out-expo)', fontFamily: 'inherit', flexShrink: 0 }}>
+              {tabDef.icon && <Icon name={tabDef.icon} size={13} />}
               {tabDef.label}
             </button>
           ))}

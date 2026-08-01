@@ -344,15 +344,15 @@ export default function DepartmentHeadPage() {
       </div>
 
       {/* Sub-nav */}
-      <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', display: 'flex' }}>
+      <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '10px 20px', display: 'flex', gap: 6, overflowX: 'auto' }}>
         {[{ id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' }, { id: 'submit', label: 'Attendance', icon: 'ti-calendar-check' }, { id: 'history', label: 'History', icon: 'ti-history' }, { id: 'roster', label: 'Members', icon: 'ti-list' },
         { id: 'serving', label: 'Serving Schedule', icon: 'ti-user-check' },
         { id: 'birthdays', label: 'Birthdays', icon: 'ti-cake' },
         ...(/protocol|ushering/i.test(deptName) ? [{ id: 'events' as const, label: 'Events', icon: 'ti-calendar-event' }] : [])].map(n => (
           <button key={n.id} onClick={() => setTab(n.id as typeof tab)}
-            onMouseEnter={e => { if (tab !== n.id) { e.currentTarget.style.color = t.purple; e.currentTarget.style.textShadow = '0 0 12px rgba(168,159,255,0.5)'; } }}
-            onMouseLeave={e => { if (tab !== n.id) { e.currentTarget.style.color = t.muted; e.currentTarget.style.textShadow = 'none'; } }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: tab === n.id ? t.purpleBg : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', transition: 'all var(--motion-fast) var(--ease-out-expo)', marginBottom: -0.5 }}>
+            onMouseEnter={e => { if (tab !== n.id) e.currentTarget.style.background = t.purpleBg; }}
+            onMouseLeave={e => { if (tab !== n.id) e.currentTarget.style.background = 'transparent'; }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', border: 'none', borderRadius: 20, background: tab === n.id ? '#534AB7' : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 500, color: tab === n.id ? '#fff' : t.muted, cursor: 'pointer', transition: 'all var(--motion-fast) var(--ease-out-expo)', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
             {n.icon && <Icon name={n.icon} size={13} />}{n.label}
           </button>
         ))}

@@ -342,10 +342,12 @@ export default function UpdatePage() {
       </div>
 
       {/* Sub-nav */}
-      <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', display: 'flex' }}>
+      <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '10px 20px', display: 'flex', gap: 6, overflowX: 'auto' }}>
         {navTabs.map(n => (
           <button key={n.id} onClick={() => setTab(n.id)}
-            style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${tab === n.id ? t.purple : 'transparent'}`, background: 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 400, color: tab === n.id ? t.purple : t.muted, cursor: 'pointer', marginBottom: -0.5, whiteSpace: 'nowrap' }}>
+            onMouseEnter={e => { if (tab !== n.id) e.currentTarget.style.background = t.purpleBg; }}
+            onMouseLeave={e => { if (tab !== n.id) e.currentTarget.style.background = 'transparent'; }}
+            style={{ padding: '7px 16px', border: 'none', borderRadius: 20, background: tab === n.id ? '#534AB7' : 'transparent', fontSize: 12, fontWeight: tab === n.id ? 600 : 500, color: tab === n.id ? '#fff' : t.muted, cursor: 'pointer', transition: 'all var(--motion-fast) var(--ease-out-expo)', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
             {n.label}
           </button>
         ))}

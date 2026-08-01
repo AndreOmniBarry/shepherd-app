@@ -121,32 +121,37 @@ export default function CalendarPage() {
 
   return (
     <div data-theme={dark ? 'dark' : 'light'} className="shep-page-enter" style={{ minHeight: '100vh', background: dark ? `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}` : `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`, fontFamily: 'Inter,system-ui,sans-serif' }}>
-      <div style={{ background: t.navBg, WebkitBackdropFilter: 'blur(18px) saturate(160%)', backdropFilter: 'blur(18px) saturate(160%)', borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ background: t.navBg, WebkitBackdropFilter: 'blur(18px) saturate(160%)', backdropFilter: 'blur(18px) saturate(160%)', borderBottom: `0.5px solid ${t.navBorder}`, padding: isMobile ? 'calc(10px + env(safe-area-inset-top)) 14px 10px' : '0 20px', height: isMobile ? undefined : 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, position: 'sticky', top: 0, zIndex: 30 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10, minWidth: 0 }}>
           <button onClick={() => router.push(homePath)} title="Back to dashboard"
             onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-            style={{ background: t.purpleBg, border: 'none', borderRadius: 'var(--radius-sm)', width: 30, height: 30, cursor: 'pointer', color: t.purple, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform var(--motion-fast) var(--ease-spring)' }}>
-            <Icon name="ti-arrow-left" size={15} />
+            style={{ background: t.purpleBg, border: 'none', borderRadius: 'var(--radius-sm)', width: isMobile ? 26 : 30, height: isMobile ? 26 : 30, flexShrink: 0, cursor: 'pointer', color: t.purple, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform var(--motion-fast) var(--ease-spring)' }}>
+            <Icon name="ti-arrow-left" size={isMobile ? 13 : 15} />
           </button>
-          <div style={{ width: 24, height: 24, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ position: 'absolute', width: 3, height: 17, background: '#A89FFF', borderRadius: 2 }} />
-            <div style={{ position: 'absolute', width: 12, height: 3, background: '#A89FFF', borderRadius: 2 }} />
-          </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: t.purple, letterSpacing: '0.5px' }}>SHEP.HERD</div>
-            <div style={{ fontSize: 10, color: t.muted }}>Church Calendar</div>
-          </div>
+          {!isMobile && (
+            <>
+              <div style={{ width: 24, height: 24, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ position: 'absolute', width: 3, height: 17, background: '#A89FFF', borderRadius: 2 }} />
+                <div style={{ position: 'absolute', width: 12, height: 3, background: '#A89FFF', borderRadius: 2 }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: t.purple, letterSpacing: '0.5px' }}>SHEP.HERD</div>
+                <div style={{ fontSize: 10, color: t.muted }}>Church Calendar</div>
+              </div>
+            </>
+          )}
+          {isMobile && <div style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Calendar</div>}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <NotificationBell dark={dark} /><MyAccountButton dark={dark} />
-          <ThemeToggle dark={dark} setDark={setDark} border={t.border} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 5 : 8, flexShrink: 0 }}>
+          <NotificationBell dark={dark} compact={isMobile} /><MyAccountButton dark={dark} compact={isMobile} />
+          <ThemeToggle dark={dark} setDark={setDark} border={t.border} compact={isMobile} />
         </div>
       </div>
 
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: isMobile ? '14px 10px' : '20px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>{MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}</div>
+          <div style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: t.text }}>{MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}</div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={() => setCursor(c => { const d = new Date(c); d.setMonth(d.getMonth() - 1); return d; })}
               onMouseEnter={e => { e.currentTarget.style.background = t.purple; e.currentTarget.style.color = '#fff'; }}
