@@ -23,8 +23,9 @@ export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
-  const churchFilter = user.branch_id ? `&or=(branch_id.eq.${user.branch_id},branch_id.is.null)` : '&branch_id=is.null';
-  const churchRes = await fetch(`${S}/rest/v1/feed_groups?type=eq.church${churchFilter}&select=id,type,name,department_id,branch_id&limit=1`, { headers: H() });
+  const tenantFilter = user.church_id ? `&church_id=eq.${user.church_id}` : '';
+  const branchFilter = user.branch_id ? `&or=(branch_id.eq.${user.branch_id},branch_id.is.null)` : '&branch_id=is.null';
+  const churchRes = await fetch(`${S}/rest/v1/feed_groups?type=eq.church${branchFilter}${tenantFilter}&select=id,type,name,department_id,branch_id&limit=1`, { headers: H() });
   if (!churchRes.ok) {
     const err = await churchRes.text();
     console.error('[GET /api/feed/groups] church query failed', churchRes.status, err);
@@ -34,7 +35,7 @@ export async function GET(req: Request) {
 
   let deptGroups: Record<string, unknown>[] = [];
   if (LEADERSHIP.includes(user.role)) {
-    const res = await fetch(`${S}/rest/v1/feed_groups?type=eq.department&select=id,type,name,department_id,departments(name)`, { headers: H() });
+    const res = await fetch(`${S}/rest/v1/feed_groups?type=eq.department${tenantFilter}&select=id,type,name,department_id,departments(name)`, { headers: H() });
     deptGroups = await res.json().catch(() => []);
   } else {
     const memberRes = await fetch(`${S}/rest/v1/feed_group_members?user_id=eq.${user.id}&select=group_id`, { headers: H() });
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
   const { name } = await req.json().catch(() => ({ name: null }));
   const insertRes = await fetch(`${S}/rest/v1/feed_groups`, {
     method: 'POST', headers: { ...H(), 'Prefer': 'return=representation' },
-    body: JSON.stringify({ type: 'department', department_id: departmentId, branch_id: user.branch_id || null, name: name?.trim() || 'Department Group', created_by: user.id }),
+    body: JSON.stringify({ type: 'department', department_id: departmentId, branch_id: user.branch_id || null, church_id: user.church_id || null, name: name?.trim() || 'Department Group', created_by: user.id }),
   });
   if (!insertRes.ok) {
     const err = await insertRes.text();

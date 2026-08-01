@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 
     // Step 2: Fetch user profile via REST directly
     const profileRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(normalizedEmail)}&select=id,email,full_name,role,cell_id,fellowship_id,member_id,branch_id,is_active&limit=1`,
+      `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(normalizedEmail)}&select=id,email,full_name,role,cell_id,fellowship_id,member_id,branch_id,church_id,is_active&limit=1`,
       {
         headers: {
           'apikey': SERVICE_KEY,
@@ -74,11 +74,12 @@ export async function POST(req: Request) {
       fellowship_id: userProfile.fellowship_id || null,
       member_id:    userProfile.member_id || null,
       branch_id:    userProfile.branch_id || null,
+      church_id:    userProfile.church_id || null,
       name:         userProfile.full_name,
     });
 
     const res = NextResponse.json({
-      data: { token, user: { id: userProfile.id, email: userProfile.email, role: userProfile.role, cell_id: userProfile.cell_id, fellowship_id: userProfile.fellowship_id || null, member_id: userProfile.member_id || null, branch_id: userProfile.branch_id || null, name: userProfile.full_name } },
+      data: { token, user: { id: userProfile.id, email: userProfile.email, role: userProfile.role, cell_id: userProfile.cell_id, fellowship_id: userProfile.fellowship_id || null, member_id: userProfile.member_id || null, branch_id: userProfile.branch_id || null, church_id: userProfile.church_id || null, name: userProfile.full_name } },
       error: null,
     });
 

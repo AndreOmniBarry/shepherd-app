@@ -37,16 +37,22 @@ export async function POST(req: Request) {
     const { userId } = await req.json();
     if (!userId) return NextResponse.json({ data: null, error: { message: 'userId is required' } }, { status: 400 });
 
-    const profRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=id,email,full_name,role,cell_id,fellowship_id,member_id,branch_id,is_active&limit=1`, { headers: hdrs() });
+    const profRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=id,email,full_name,role,cell_id,fellowship_id,member_id,branch_id,church_id,is_active&limit=1`, { headers: hdrs() });
     const profRows = await profRes.json();
     const target = Array.isArray(profRows) ? profRows[0] : null;
     if (!target) return NextResponse.json({ data: null, error: { message: 'User not found' } }, { status: 404 });
     if (!target.is_active) return NextResponse.json({ data: null, error: { message: 'That account is inactive' } }, { status: 400 });
+    // Cross-church login-as is never allowed, even for lead_tech/overseer —
+    // each church's data is isolated from every other church's.
+    if (admin.church_id && target.church_id && admin.church_id !== target.church_id) {
+      return NextResponse.json({ data: null, error: { message: 'That user belongs to a different church' } }, { status: 403 });
+    }
 
     const token = await signToken({
       id: target.id, email: target.email, role: target.role,
       cell_id: target.cell_id || null, fellowship_id: target.fellowship_id || null,
       member_id: target.member_id || null, branch_id: target.branch_id || null,
+      church_id: target.church_id || null,
       name: target.full_name,
     });
 

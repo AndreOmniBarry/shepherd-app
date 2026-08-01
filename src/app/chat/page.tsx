@@ -6,6 +6,7 @@ import MyAccountButton from '@/components/MyAccountButton';
 import Icon from '@/components/Icon';
 import { SkeletonRow } from '@/components/Skeleton';
 import LoadingScreen from '@/components/LoadingScreen';
+import { playNotificationSound, triggerHaptic } from '@/lib/notify-feedback';
 import { rolePortal } from '@/lib/role-portal';
 
 type Thread = {
@@ -102,7 +103,15 @@ export default function ChatPage() {
       const incoming: Message[] = data?.messages || [];
       if (incoming.length === 0) return;
       if (initial) setMessages(incoming);
-      else setMessages(prev => [...prev, ...incoming.filter(m => !prev.some(p => p.id === m.id))]);
+      else {
+        let hasNewFromOther = false;
+        setMessages(prev => {
+          const fresh = incoming.filter(m => !prev.some(p => p.id === m.id));
+          hasNewFromOther = fresh.some(m => m.sender_id !== myId);
+          return [...prev, ...fresh];
+        });
+        if (hasNewFromOther) { playNotificationSound(); triggerHaptic(); }
+      }
       lastMessageTimeRef.current = incoming[incoming.length - 1].created_at;
     });
   }, [activeThreadId]);

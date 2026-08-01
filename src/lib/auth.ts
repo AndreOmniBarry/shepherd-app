@@ -21,6 +21,7 @@ export async function signToken(user: {
   fellowship_id: string | null;
   member_id?:   string | null;
   branch_id?:   string | null;
+  church_id?:   string | null;
   name:         string;
 }): Promise<string> {
   return new SignJWT({
@@ -31,6 +32,7 @@ export async function signToken(user: {
     fellowship_id: user.fellowship_id,
     member_id:    user.member_id ?? null,
     branch_id:    user.branch_id ?? null,
+    church_id:    user.church_id ?? null,
     name:         user.name,
   })
     .setProtectedHeader({ alg: 'HS256' })
@@ -59,6 +61,7 @@ export function payloadToAuthUser(payload: JWTPayload): AuthUser {
     fellowship_id: payload.fellowship_id ?? null,
     member_id:    payload.member_id ?? null,
     branch_id:    payload.branch_id ?? null,
+    church_id:    (payload as Record<string, unknown>)['church_id'] as string | null ?? null,
     name:         (payload as Record<string, unknown>)['name'] as string ?? '',
   };
 }
