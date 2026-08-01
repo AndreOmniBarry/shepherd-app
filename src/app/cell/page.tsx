@@ -439,7 +439,7 @@ export default function CellPage() {
         </div>
 
         {tab === 'overview' && (
-          <CellOverview dark={dark} t={t} />
+          <CellOverview dark={dark} t={t} isMobile={isMobile} />
         )}
         {tab === 'submit' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

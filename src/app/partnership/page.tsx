@@ -377,7 +377,7 @@ export default function PartnershipPage() {
             {/* Band breakdown */}
             <div style={card()}>
               <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 14 }}>Band breakdown</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
                 {bandBreakdown.map(b => (
                   <div key={b.name} style={{ background: b.bg, borderRadius: 10, padding: '14px', textAlign: 'center', border: `0.5px solid ${b.color}22` }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: b.color, marginBottom: 6 }}>{b.name}</div>

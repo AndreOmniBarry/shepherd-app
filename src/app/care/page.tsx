@@ -323,7 +323,7 @@ export default function CareTeamPage() {
         )}
 
         {tab === 'overview' && (
-          <CareOverview dark={dark} t={t} />
+          <CareOverview dark={dark} t={t} isMobile={isMobile} />
         )}
 
         {/* ── ABSENCE QUEUE ── */}
@@ -338,7 +338,7 @@ export default function CareTeamPage() {
                 <div style={card({ marginBottom: 14 })}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4 }}>{selectedLead.member_name}</div>
                   <div style={{ fontSize: 12, color: t.sub, marginBottom: 16 }}>{selectedLead.cell_name} · {selectedLead.fellowship} Fellowship</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
                     {[
                       { label: 'Weeks absent', value: selectedLead.weeks_absent, color: selectedLead.weeks_absent >= 3 ? t.coral : t.amber, bg: selectedLead.weeks_absent >= 3 ? t.coralBg : t.amberBg },
                       { label: 'Contact attempts', value: selectedLead.contact_attempts, color: t.purple, bg: t.purpleBg },
@@ -383,7 +383,7 @@ export default function CareTeamPage() {
             ) : (
               <div>
                 {/* Stats */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
                   {[
                     { label: 'Active leads', value: activeLeads.length, accent: '#534AB7' },
                     { label: 'Urgent (3+ weeks)', value: urgentLeads.length, accent: '#D85A30' },
@@ -624,7 +624,7 @@ export default function CareTeamPage() {
         {/* ── HISTORY ── */}
         {tab === 'history' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 6 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: 10, marginBottom: 6 }}>
               {[
                 { label: 'Total leads handled', value: leads.length, accent: '#534AB7' },
                 { label: 'Restored', value: leads.filter(l => l.status === 'restored').length, accent: '#1D9E75' },

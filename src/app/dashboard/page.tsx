@@ -167,10 +167,11 @@ type ActionFlag = { severity: 'high' | 'medium'; category: string; entity: strin
 
 const ACTION_CATEGORY_ICON: Record<string, string> = { attendance: 'ti-calendar-stats', care: 'ti-heart-handshake', workforce: 'ti-user-check', requisitions: 'ti-receipt' };
 
-function ActionBoardPanel({t, branchId}: {t: Record<string,string>; branchId?: string}) {
+function ActionBoardPanel({t, branchId, isMobile=false}: {t: Record<string,string>; branchId?: string; isMobile?: boolean}) {
   const [flags, setFlags] = React.useState<ActionFlag[]|null>(null);
   const [loading, setLoading] = React.useState(true);
   const [filter, setFilter] = React.useState<'all'|'high'|'medium'>('all');
+  const [openGroups, setOpenGroups] = React.useState<Record<string,boolean>>({});
   const router = useRouter();
 
   React.useEffect(() => {
@@ -192,6 +193,23 @@ function ActionBoardPanel({t, branchId}: {t: Record<string,string>; branchId?: s
   const highCount = flags.filter(f=>f.severity==='high').length;
   const medCount = flags.filter(f=>f.severity==='medium').length;
 
+  // Group flags that share the same underlying issue (same category +
+  // severity + message with the entity name stripped out) so e.g. 8
+  // separate "X has no roster set for the next service" rows collapse
+  // into one summary instead of repeating the same sentence 8 times —
+  // that repetition was the actual "everything just fills the screen"
+  // complaint, not a layout problem.
+  type FlagGroup = { key: string; severity: ActionFlag['severity']; category: string; rest: string; items: ActionFlag[] };
+  const groups: FlagGroup[] = [];
+  const groupIndex = new Map<string, number>();
+  shown.forEach(f=>{
+    const rest = f.entity && f.message.startsWith(f.entity) ? f.message.slice(f.entity.length) : f.message;
+    const key = `${f.severity}|${f.category}|${rest}`;
+    let idx = groupIndex.get(key);
+    if (idx === undefined) { idx = groups.length; groupIndex.set(key, idx); groups.push({ key, severity: f.severity, category: f.category, rest, items: [] }); }
+    groups[idx].items.push(f);
+  });
+
   return (
     <div style={{display:'flex',flexDirection:'column',gap:14}}>
       <div>
@@ -199,16 +217,16 @@ function ActionBoardPanel({t, branchId}: {t: Record<string,string>; branchId?: s
         <div style={{fontSize:12,color:t.muted,marginTop:2}}>Every metric SHEP.HERD tracks, scanned against its own history — nothing here is hardcoded to a specific cell, department, or branch.</div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:isMobile?6:10}}>
         {[
           {label:'Needs immediate action',value:highCount,accent:'#D85A30',key:'high' as const},
           {label:'Worth a look',value:medCount,accent:'#BA7517',key:'medium' as const},
           {label:'All clear',value:flags.length===0?'✓':flags.length,accent:'#1D9E75',key:'all' as const},
         ].map(s=>(
           <div key={s.label} onClick={()=>setFilter(s.key)}
-            style={{background:t.card,border:`0.5px solid ${filter===s.key?s.accent:t.border}`,borderRadius:12,padding:'14px 16px',cursor:'pointer',borderTop:`2.5px solid ${s.accent}`}}>
-            <div style={{fontSize:22,fontWeight:700,color:t.text}}>{s.value}</div>
-            <div style={{fontSize:11,color:t.muted,marginTop:2}}>{s.label}</div>
+            style={{background:t.card,border:`0.5px solid ${filter===s.key?s.accent:t.border}`,borderRadius:12,padding:isMobile?'10px 8px':'14px 16px',cursor:'pointer',borderTop:`2.5px solid ${s.accent}`}}>
+            <div style={{fontSize:isMobile?18:22,fontWeight:700,color:t.text}}>{s.value}</div>
+            <div style={{fontSize:isMobile?9.5:11,color:t.muted,marginTop:2}}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -220,16 +238,44 @@ function ActionBoardPanel({t, branchId}: {t: Record<string,string>; branchId?: s
         </div>
       ) : (
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
-          {shown.map((f,i)=>(
-            <div key={i} onClick={()=>router.push(f.link)}
-              style={{background:t.card,border:`0.5px solid ${t.border}`,borderLeft:`3px solid ${f.severity==='high'?'#D85A30':'#BA7517'}`,borderRadius:10,padding:'12px 16px',cursor:'pointer',display:'flex',gap:12,alignItems:'flex-start'}}>
-              <div style={{color:f.severity==='high'?'#D85A30':'#BA7517',flexShrink:0,marginTop:1}}><Icon name={ACTION_CATEGORY_ICON[f.category]||'ti-alert-triangle'} size={16}/></div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,color:t.text}}>{f.message}</div>
-                <div style={{fontSize:10,color:t.muted,marginTop:3,textTransform:'uppercase',letterSpacing:'0.4px'}}>{f.category} · {f.entity}</div>
+          {groups.map(g=>{
+            if (g.items.length < 3) {
+              return g.items.map((f,i)=>(
+                <div key={`${g.key}-${i}`} onClick={()=>router.push(f.link)}
+                  style={{background:t.card,border:`0.5px solid ${t.border}`,borderLeft:`3px solid ${f.severity==='high'?'#D85A30':'#BA7517'}`,borderRadius:10,padding:'12px 16px',cursor:'pointer',display:'flex',gap:12,alignItems:'flex-start'}}>
+                  <div style={{color:f.severity==='high'?'#D85A30':'#BA7517',flexShrink:0,marginTop:1}}><Icon name={ACTION_CATEGORY_ICON[f.category]||'ti-alert-triangle'} size={16}/></div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,color:t.text}}>{f.message}</div>
+                    <div style={{fontSize:10,color:t.muted,marginTop:3,textTransform:'uppercase',letterSpacing:'0.4px'}}>{f.category} · {f.entity}</div>
+                  </div>
+                </div>
+              ));
+            }
+            const isOpen = !!openGroups[g.key];
+            return (
+              <div key={g.key}>
+                <div onClick={()=>setOpenGroups(p=>({...p,[g.key]:!p[g.key]}))}
+                  style={{background:t.card,border:`0.5px solid ${t.border}`,borderLeft:`3px solid ${g.severity==='high'?'#D85A30':'#BA7517'}`,borderRadius:10,padding:'12px 16px',cursor:'pointer',display:'flex',gap:12,alignItems:'flex-start'}}>
+                  <div style={{color:g.severity==='high'?'#D85A30':'#BA7517',flexShrink:0,marginTop:1}}><Icon name={ACTION_CATEGORY_ICON[g.category]||'ti-alert-triangle'} size={16}/></div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,color:t.text,fontWeight:600}}>{g.items.length} items{g.rest}</div>
+                    <div style={{fontSize:10,color:t.muted,marginTop:3,textTransform:'uppercase',letterSpacing:'0.4px'}}>{g.category} · {g.items.map(f=>f.entity).slice(0,3).join(', ')}{g.items.length>3?` +${g.items.length-3} more`:''}</div>
+                  </div>
+                  <Icon name="ti-chevron-down" size={14} style={{flexShrink:0,marginTop:2,color:t.muted,transform:isOpen?'rotate(180deg)':'none',transition:'transform 0.2s ease'}}/>
+                </div>
+                {isOpen && (
+                  <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:6,paddingLeft:isMobile?12:20}}>
+                    {g.items.map((f,i)=>(
+                      <div key={i} onClick={()=>router.push(f.link)}
+                        style={{background:t.cardInner||t.card,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',cursor:'pointer',fontSize:12,color:t.sub,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                        {f.entity}<Icon name="ti-arrow-left" size={11} style={{transform:'rotate(180deg)',color:t.muted,flexShrink:0}}/>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -2854,7 +2900,7 @@ export default function DashboardPage(){
                   ))}
                 </div>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10}}>
+              <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(2,1fr)',gap:10}}>
                 {[{label:'Export All Attendance',data:(dbCells||[]).map(c=>({Cell:c.cell,Fellowship:c.fel,Avg:c.avg,Rate:`${c.rate}%`,Trend:c.trend})),file:'full_attendance'},{label:'Export Member List',data:membersList.map(m=>({Name:m.full_name,Phone:m.phone,Cell:m.cell_name||'—',Fellowship:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),file:'member_list'}].map(e=>(
                   <button key={e.label} onClick={()=>exportCSV(e.data,e.file)}
                     style={{...card(),border:'0.5px solid #534AB7',cursor:'pointer',textAlign:'left'}}>
@@ -3019,7 +3065,7 @@ export default function DashboardPage(){
               {/* Badge showcase */}
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Badge System</div>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
+                <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
                   {[
                     {icon:'ti-clock',name:'On Time',desc:'4 consecutive on-time submissions',cat:'Promptness'},
                     {icon:'ti-clock',name:'Clockwork',desc:'8 consecutive on-time submissions',cat:'Promptness'},
@@ -3055,7 +3101,7 @@ export default function DashboardPage(){
 
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Select message type</div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
+                <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:10,marginBottom:16}}>
                   {[
                     {type:'commendation' as const,icon:'ti-trophy',title:'Pastor Commends You',desc:'Celebrate a leader for outstanding performance'},
                     {type:'meeting' as const,icon:'ti-calendar-event',title:'Meeting Request',desc:'Request a one-on-one meeting with a leader'},
@@ -3171,7 +3217,7 @@ export default function DashboardPage(){
             <WorkforceIntelligencePanel t={t} branchId={selectedBranch||undefined} isMobile={isMobile} />
           )}
           {page==='action_board'&&(
-            <ActionBoardPanel t={t} branchId={selectedBranch||undefined} />
+            <ActionBoardPanel t={t} branchId={selectedBranch||undefined} isMobile={isMobile} />
           )}
           {page==='events'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>

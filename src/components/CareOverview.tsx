@@ -32,9 +32,10 @@ type WeeklyActivity = {
 interface CareOverviewProps {
   dark?: boolean;
   t: Record<string, string>;
+  isMobile?: boolean;
 }
 
-export default function CareOverview({ dark = false, t }: CareOverviewProps) {
+export default function CareOverview({ dark = false, t, isMobile = false }: CareOverviewProps) {
   const [leadStats, setLeadStats] = useState<LeadStats | null>(null);
   const [firstTimerStats, setFirstTimerStats] = useState<FirstTimerStats | null>(null);
   const [weeklyActivity, setWeeklyActivity] = useState<WeeklyActivity[]>([]);
@@ -125,7 +126,7 @@ export default function CareOverview({ dark = false, t }: CareOverviewProps) {
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: 10 }}>
         {[0, 1, 2].map(i => <SkeletonCard key={i} lines={1} />)}
       </div>
       <SkeletonCard>
@@ -182,7 +183,7 @@ export default function CareOverview({ dark = false, t }: CareOverviewProps) {
       )}
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
         {[
           { label: 'Total leads', value: leadStats?.total ?? '—', sub: 'All time', accent: '#534AB7' },
           { label: 'Restored', value: leadStats?.restored ?? '—', sub: 'Members back', accent: '#1D9E75' },
@@ -200,7 +201,7 @@ export default function CareOverview({ dark = false, t }: CareOverviewProps) {
       {/* Lead pipeline */}
       <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 12 }}>Lead pipeline status</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: 8 }}>
           {STATUS_PIPELINE.map(s => (
             <div key={s.label} style={{ background: s.bg, borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 20, fontWeight: 700, color: s.color }}>{s.value}</div>
@@ -217,7 +218,7 @@ export default function CareOverview({ dark = false, t }: CareOverviewProps) {
             <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>First timer pipeline</div>
             <div style={{ fontSize: 12, color: t.teal, fontWeight: 600 }}>{firstTimerStats.conversionRate}% conversion rate</div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 8 }}>
             {[
               { label: 'Total logged', value: firstTimerStats.total, color: t.purple, bg: t.purpleBg },
               { label: 'Contacted', value: firstTimerStats.contacted, color: t.amber, bg: t.amberBg },
