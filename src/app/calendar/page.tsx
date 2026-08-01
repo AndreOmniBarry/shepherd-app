@@ -5,6 +5,7 @@ import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import Icon from '@/components/Icon';
 import { SkeletonRow } from '@/components/Skeleton';
+import LoadingScreen from '@/components/LoadingScreen';
 import { rolePortal } from '@/lib/role-portal';
 
 type Item = { id: string; title: string; date: string; end_date: string | null; type: string; source: 'event' | 'service' | 'plan'; location: string | null; slug: string | null; plan_id?: string };
@@ -37,6 +38,7 @@ export default function CalendarPage() {
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [homePath, setHomePath] = useState('/dashboard');
+  const [pageReady, setPageReady] = useState(false);
   const [openPlanId, setOpenPlanId] = useState<string | null>(null);
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
   const [planItemsLoading, setPlanItemsLoading] = useState(false);
@@ -62,7 +64,7 @@ export default function CalendarPage() {
   };
 
   useEffect(() => {
-    fetch('/api/auth/me', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (!data) router.push('/login'); else setHomePath(rolePortal(data.role)); }).catch(() => router.push('/login'));
+    fetch('/api/auth/me', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (!data) router.push('/login'); else { setHomePath(rolePortal(data.role)); setPageReady(true); } }).catch(() => router.push('/login'));
   }, []);
 
   useEffect(() => {
@@ -105,6 +107,8 @@ export default function CalendarPage() {
 
   const todayStr = ymd(new Date());
   const glass: React.CSSProperties = { background: 'var(--glass-bg)', WebkitBackdropFilter: 'blur(var(--glass-blur)) saturate(160%)', backdropFilter: 'blur(var(--glass-blur)) saturate(160%)', border: '0.5px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', borderRadius: 'var(--radius-md)', transition: 'transform var(--motion-medium) var(--ease-out-expo), box-shadow var(--motion-medium) var(--ease-out-expo)' };
+
+  if (!pageReady) return <LoadingScreen dark={dark} label="Loading calendar…" />;
 
   return (
     <div data-theme={dark ? 'dark' : 'light'} className="shep-page-enter" style={{ minHeight: '100vh', background: dark ? `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}` : `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`, fontFamily: 'Inter,system-ui,sans-serif' }}>

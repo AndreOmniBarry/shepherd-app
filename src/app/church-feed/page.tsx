@@ -5,6 +5,7 @@ import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import Icon from '@/components/Icon';
 import { SkeletonCard } from '@/components/Skeleton';
+import LoadingScreen from '@/components/LoadingScreen';
 import ChatNavButton from '@/components/ChatNavButton';
 import { rolePortal } from '@/lib/role-portal';
 
@@ -142,6 +143,8 @@ export default function ChurchFeedPage() {
   const card: React.CSSProperties = { background: 'var(--glass-bg)', WebkitBackdropFilter: 'blur(var(--glass-blur)) saturate(160%)', backdropFilter: 'blur(var(--glass-blur)) saturate(160%)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', padding: '14px 16px', transition: 'transform var(--motion-medium) var(--ease-out-expo), box-shadow var(--motion-medium) var(--ease-out-expo)' };
   const activeGroup = groups.find(g => g.id === activeGroupId);
   const canCreateDeptGroup = userRole === 'department_head' && !groups.some(g => g.type === 'department');
+
+  if (loading) return <LoadingScreen dark={dark} label="Loading Church Feed…" />;
 
   return (
     <div data-theme={dark ? 'dark' : 'light'} className="shep-page-enter" style={{ minHeight: '100vh', background: dark ? `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}` : `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`, fontFamily: 'Inter,system-ui,sans-serif' }}>

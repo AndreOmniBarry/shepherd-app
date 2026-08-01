@@ -17,10 +17,10 @@ async function getUser(req: Request) {
 }
 
 const CATEGORY_CFG: Record<string, { title: string }> = {
-  commendation: { title: '🏆 You have been commended!' },
-  encouragement: { title: '❤ A word of encouragement' },
-  announcement: { title: '📢 Announcement' },
-  meeting: { title: '📅 Meeting request' },
+  commendation: { title: 'You have been commended!' },
+  encouragement: { title: 'A word of encouragement' },
+  announcement: { title: 'Announcement' },
+  meeting: { title: 'Meeting request' },
 };
 
 // Resolves a "send to" scope into the actual list of user ids to notify —

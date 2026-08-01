@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' },
       body: JSON.stringify({
         user_id: requested_of, type: 'meeting_request', read: false,
-        title: '📅 New meeting request', body: `${user.name || 'Someone'} requested a meeting: ${subject.trim()}`,
+        title: 'New meeting request', body: `${user.name || 'Someone'} requested a meeting: ${subject.trim()}`,
         link: '/church-center?tab=meetings',
       }),
     }).catch(() => {});
