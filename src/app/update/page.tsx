@@ -1,8 +1,10 @@
 'use client';
+import { useTheme } from '@/hooks/useTheme';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
+import ThemeToggle from '@/components/ThemeToggle';
 
 type Member = {
   id: string;
@@ -50,7 +52,7 @@ type FellowshipCell = { id: string; name: string; leader_name: string; member_co
 
 export default function UpdatePage() {
   const router = useRouter();
-  const [dark, setDark] = useState(false);
+  const {dark, setDark} = useTheme();
   const [tab, setTab] = useState<Tab>('profiles');
   const [members, setMembers] = useState<Member[]>([]);
   const [editing, setEditing] = useState<Record<string, EditState>>({});
@@ -327,9 +329,7 @@ export default function UpdatePage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={() => router.push("/calendar")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Calendar</button><NotificationBell dark={dark} /><MyAccountButton dark={dark} />
-          <div onClick={() => setDark(v => !v)} style={{ width: 30, height: 30, borderRadius: 8, border: `0.5px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.muted, fontSize: 14 }}>
-            {dark ? '☀' : '◑'}
-          </div>
+          <ThemeToggle dark={dark} setDark={setDark} border={t.border} />
           <button onClick={logout} style={{ background: 'transparent', color: t.muted, border: 'none', fontSize: 12, cursor: 'pointer' }}>Sign out</button>
         </div>
       </div>

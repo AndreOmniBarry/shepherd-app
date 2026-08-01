@@ -1,4 +1,5 @@
 'use client';
+import { useTheme } from '@/hooks/useTheme';
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
@@ -7,6 +8,7 @@ import Icon from '@/components/Icon';
 import { SkeletonRow } from '@/components/Skeleton';
 import LoadingScreen from '@/components/LoadingScreen';
 import { rolePortal } from '@/lib/role-portal';
+import ThemeToggle from '@/components/ThemeToggle';
 
 type Item = { id: string; title: string; date: string; end_date: string | null; type: string; source: 'event' | 'service' | 'plan'; location: string | null; slug: string | null; plan_id?: string };
 type PlanItem = { id: string; item_type: string; title: string; description: string | null; duration_minutes: number | null; assigned_to_name: string | null };
@@ -32,7 +34,7 @@ function ymd(d: Date) { return d.toISOString().split('T')[0]; }
 
 export default function CalendarPage() {
   const router = useRouter();
-  const [dark, setDark] = useState(false);
+  const {dark, setDark} = useTheme();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
@@ -131,9 +133,7 @@ export default function CalendarPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <NotificationBell dark={dark} /><MyAccountButton dark={dark} />
-          <div onClick={() => setDark(v => !v)} style={{ width: 30, height: 30, borderRadius: 8, border: `0.5px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.muted, fontSize: 14 }}>
-            {dark ? '☀' : '◑'}
-          </div>
+          <ThemeToggle dark={dark} setDark={setDark} border={t.border} />
         </div>
       </div>
 

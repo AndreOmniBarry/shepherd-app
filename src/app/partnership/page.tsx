@@ -1,4 +1,5 @@
 'use client';
+import { useTheme } from '@/hooks/useTheme';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
@@ -8,6 +9,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import ChatNavButton from '@/components/ChatNavButton';
 import Icon from '@/components/Icon';
 import LoadingScreen from '@/components/LoadingScreen';
+import ThemeToggle from '@/components/ThemeToggle';
 
 type Band = { id: string; name: string; amount: number; color: string };
 type Partner = {
@@ -35,7 +37,7 @@ const BAND_CONFIG: Record<string, { color: string; bg: string; text: string }> =
 export default function PartnershipPage() {
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('partners');
-  const [dark, setDark] = useState(false);
+  const {dark, setDark} = useTheme();
   const [pageReady, setPageReady] = useState(false);
   const [leaderName, setLeaderName] = useState('');
   const [bands, setBands] = useState<Band[]>([]);
@@ -187,7 +189,7 @@ export default function PartnershipPage() {
           <button onClick={() => router.push("/church-center")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Center</button>
           <button onClick={() => router.push("/church-feed")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Feed</button><ChatNavButton t={t} />
           <button onClick={() => router.push("/calendar")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Calendar</button><NotificationBell dark={dark} /><MyAccountButton dark={dark} />
-          <div onClick={() => setDark(v => !v)} style={{ width: 30, height: 30, borderRadius: 8, border: `0.5px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.muted, fontSize: 14 }}>{dark ? '☀' : '◑'}</div>
+          <ThemeToggle dark={dark} setDark={setDark} border={t.border} />
           <button onClick={logout} style={{ background: 'transparent', color: t.muted, border: 'none', fontSize: 12, cursor: 'pointer' }}>Sign out</button>
         </div>
       </div>

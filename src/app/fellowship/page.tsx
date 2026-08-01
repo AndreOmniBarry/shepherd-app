@@ -1,4 +1,5 @@
 'use client';
+import { useTheme } from '@/hooks/useTheme';
 import React from 'react';
 import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 import NotificationBell from "@/components/NotificationBell";
@@ -12,6 +13,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import ChatNavButton from '@/components/ChatNavButton';
 import LoadingScreen from '@/components/LoadingScreen';
+import ThemeToggle from '@/components/ThemeToggle';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar
@@ -141,7 +143,7 @@ export default function FellowshipHeadPage() {
   const { config: churchConfig } = useChurchConfigStandalone();
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('overview');
-  const [dark, setDark] = useState(false);
+  const {dark, setDark} = useTheme();
   const [pageReady, setPageReady] = useState(false);
   const [nudgeMsg, setNudgeMsg] = useState('');
   const [fellowshipName, setFellowshipName] = useState('');
@@ -407,9 +409,7 @@ export default function FellowshipHeadPage() {
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: t.teal, display: 'inline-block' }} />
             Live
           </div>
-          <div onClick={() => setDark(v => !v)} style={{ width: 30, height: 30, borderRadius: 8, border: `0.5px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.muted, fontSize: 14 }}>
-            {dark ? '☀' : '◑'}
-          </div>
+          <ThemeToggle dark={dark} setDark={setDark} border={t.border} />
           <button onClick={() => router.push("/church-center")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Center</button>
           <button onClick={() => router.push("/church-feed")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Feed</button><ChatNavButton t={t} />
           <button onClick={() => router.push("/calendar")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Calendar</button><NotificationBell dark={dark} /><MyAccountButton dark={dark} /><button onClick={logout} style={{ background: "transparent", color: t.muted, border: "none", fontSize: 12, cursor: "pointer" }}>Sign out</button>

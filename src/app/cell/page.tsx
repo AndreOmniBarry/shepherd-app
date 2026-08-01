@@ -1,4 +1,5 @@
 'use client';
+import { useTheme } from '@/hooks/useTheme';
 import React from 'react';
 import NotificationBell from "@/components/NotificationBell";
 import MyAccountButton from "@/components/MyAccountButton";
@@ -14,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 import ChatNavButton from '@/components/ChatNavButton';
 import LoadingScreen from '@/components/LoadingScreen';
+import ThemeToggle from '@/components/ThemeToggle';
 
 type Member = { id: string; full_name: string; membership_status: string; };
 type HistoryRecord = { id: string; service_date: string; service_number: number; present_count: number; absent_count: number; visitor_count: number; submitted_at: string; sla_grade?: string; };
@@ -180,7 +182,7 @@ export default function CellPage() {
   const [flagResult, setFlagResult] = useState('');
   const [cellName, setCellName] = useState('');
   const [leaderName, setLeaderName] = useState('');
-  const [dark, setDark] = useState(false);
+  const {dark, setDark} = useTheme();
   const [isMobile, setIsMobile] = useState(false);
   const [pageReady, setPageReady] = useState(false);
   useEffect(() => {
@@ -405,10 +407,7 @@ export default function CellPage() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div onClick={() => setDark(v => !v)}
-            style={{ width: 30, height: 30, borderRadius: 8, border: `0.5px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.muted, fontSize: 14 }}>
-            {dark ? '☀' : '◑'}
-          </div>
+          <ThemeToggle dark={dark} setDark={setDark} border={t.border} />
           <button onClick={() => router.push("/church-center")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Center</button>
           <button onClick={() => router.push("/church-feed")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Feed</button><ChatNavButton t={t} />
           <button onClick={() => router.push("/calendar")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Calendar</button><NotificationBell dark={dark} /><MyAccountButton dark={dark} /><button onClick={logout} style={{ background: "transparent", color: t.muted, border: "none", fontSize: 12, cursor: "pointer" }}>Sign out</button>

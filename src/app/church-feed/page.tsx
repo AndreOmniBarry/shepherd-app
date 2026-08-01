@@ -1,4 +1,5 @@
 'use client';
+import { useTheme } from '@/hooks/useTheme';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
@@ -8,6 +9,7 @@ import { SkeletonCard } from '@/components/Skeleton';
 import LoadingScreen from '@/components/LoadingScreen';
 import ChatNavButton from '@/components/ChatNavButton';
 import { rolePortal } from '@/lib/role-portal';
+import ThemeToggle from '@/components/ThemeToggle';
 
 type Group = { id: string; type: 'church' | 'department'; name: string; department_id: string | null; departments?: { name: string } | null };
 type Post = { id: string; author_id: string; author_name: string; author_role: string; body: string; urgent: boolean; pinned: boolean; created_at: string; comment_count: number; ack_count: number; acknowledged_by_me: boolean };
@@ -25,7 +27,7 @@ function timeAgo(dateStr: string): string {
 
 export default function ChurchFeedPage() {
   const router = useRouter();
-  const [dark, setDark] = useState(false);
+  const {dark, setDark} = useTheme();
   const [homePath, setHomePath] = useState('/dashboard');
   const [userRole, setUserRole] = useState('');
   const [loading, setLoading] = useState(true);
@@ -163,9 +165,7 @@ export default function ChurchFeedPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <ChatNavButton t={t} compact /><NotificationBell dark={dark} /><MyAccountButton dark={dark} />
-          <div onClick={() => setDark(v => !v)} style={{ width: 30, height: 30, borderRadius: 8, border: `0.5px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.muted, fontSize: 14 }}>
-            {dark ? '☀' : '◑'}
-          </div>
+          <ThemeToggle dark={dark} setDark={setDark} border={t.border} />
         </div>
       </div>
 
