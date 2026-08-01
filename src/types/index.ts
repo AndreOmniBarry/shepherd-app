@@ -159,6 +159,7 @@ export type JWTPayload = {
   fellowship_id: string | null;
   member_id?:   string | null;
   branch_id?:   string | null;
+  church_id?:   string | null;
   iat:          number;
   exp:          number;
 };
@@ -171,6 +172,7 @@ export type AuthUser = {
   fellowship_id: string | null;
   member_id?:   string | null;
   branch_id?:   string | null;
+  church_id?:   string | null;
   name:         string;
 };
 

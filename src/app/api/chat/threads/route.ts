@@ -90,8 +90,21 @@ export async function POST(req: Request) {
 
     const { type, participant_id, name, participant_ids } = await req.json();
 
+    // Every participant must belong to the same church — chat can never
+    // cross a church boundary, regardless of role.
+    const myChurchId = user.church_id;
+    async function allSameChurch(ids: string[]): Promise<boolean> {
+      if (!myChurchId) return true;
+      const res = await fetch(`${S}/rest/v1/users?id=in.(${ids.join(',')})&select=id,church_id`, { headers: H() });
+      const rows = await res.json().catch(() => []);
+      return Array.isArray(rows) && rows.length === ids.length && rows.every((r: { church_id: string | null }) => r.church_id === myChurchId);
+    }
+
     if (type === 'direct') {
       if (!participant_id) return NextResponse.json({ data: null, error: { message: 'participant_id is required' } }, { status: 400 });
+      if (!(await allSameChurch([participant_id]))) {
+        return NextResponse.json({ data: null, error: { message: 'That person is not in your church' } }, { status: 403 });
+      }
 
       // Look for an existing direct thread between exactly these two users.
       const mineRes = await fetch(`${S}/rest/v1/chat_participants?user_id=eq.${user.id}&select=thread_id`, { headers: H() });
@@ -109,7 +122,7 @@ export async function POST(req: Request) {
 
       const insertRes = await fetch(`${S}/rest/v1/chat_threads`, {
         method: 'POST', headers: { ...H(), 'Prefer': 'return=representation' },
-        body: JSON.stringify({ type: 'direct', created_by: user.id, branch_id: user.branch_id || null }),
+        body: JSON.stringify({ type: 'direct', created_by: user.id, branch_id: user.branch_id || null, church_id: user.church_id || null }),
       });
       const inserted = await insertRes.json();
       const thread = Array.isArray(inserted) ? inserted[0] : inserted;
@@ -127,9 +140,12 @@ export async function POST(req: Request) {
       if (!name?.trim() || !Array.isArray(participant_ids) || participant_ids.length === 0) {
         return NextResponse.json({ data: null, error: { message: 'Group chats need a name and at least one other participant' } }, { status: 400 });
       }
+      if (!(await allSameChurch(participant_ids))) {
+        return NextResponse.json({ data: null, error: { message: 'Everyone in a group chat must be in your church' } }, { status: 403 });
+      }
       const insertRes = await fetch(`${S}/rest/v1/chat_threads`, {
         method: 'POST', headers: { ...H(), 'Prefer': 'return=representation' },
-        body: JSON.stringify({ type: 'group', name: name.trim(), created_by: user.id, branch_id: user.branch_id || null }),
+        body: JSON.stringify({ type: 'group', name: name.trim(), created_by: user.id, branch_id: user.branch_id || null, church_id: user.church_id || null }),
       });
       const inserted = await insertRes.json();
       const thread = Array.isArray(inserted) ? inserted[0] : inserted;

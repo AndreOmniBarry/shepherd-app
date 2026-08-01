@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/Icon';
+import { playNotificationSound, triggerHaptic } from '@/lib/notify-feedback';
 
 type Notification = {
   id: string;
@@ -76,6 +77,8 @@ export default function NotificationBell({ dark = false }: NotificationBellProps
           const currentUnread = notifs.filter(n => !n.read).length;
           if (currentUnread > prevCountRef.current && prevCountRef.current > 0) {
             setNewCount(v => v + (currentUnread - prevCountRef.current));
+            playNotificationSound();
+            triggerHaptic();
           }
           prevCountRef.current = currentUnread;
         }

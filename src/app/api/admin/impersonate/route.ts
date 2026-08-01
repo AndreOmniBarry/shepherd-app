@@ -47,6 +47,7 @@ export async function POST(req: Request) {
       fellowship_id: role === 'fellowship_head' ? (ref_id || null) : null,
       department_id: role === 'department_head' ? (ref_id || null) : null,
       branch_id: (role === 'branch_pastor' || role === 'pa') ? (ref_id || null) : null,
+      church_id: user.church_id || null,
     };
     await fetch(`${SUPABASE_URL}/rest/v1/users`, {
       method: 'POST', headers: { ...hdrs(), Prefer: 'resolution=merge-duplicates,return=minimal' },
@@ -57,6 +58,7 @@ export async function POST(req: Request) {
       id: demoId, email: row.email as string, role,
       cell_id: (row.cell_id as string) || null, fellowship_id: (row.fellowship_id as string) || null,
       branch_id: (row.branch_id as string) || null,
+      church_id: user.church_id || null,
       name: label,
     });
 
