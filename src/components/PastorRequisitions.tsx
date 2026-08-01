@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 
 type Requisition = {
   id: string; title: string; category_name: string;
@@ -42,7 +43,11 @@ export default function PastorRequisitions({ t, dark, branchId }: PastorRequisit
   const filtered = filter === 'pending' ? requisitions.filter(r => r.status === 'approved') : requisitions;
   const pendingApproval = requisitions.filter(r => r.status === 'approved').length;
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: t.muted, fontSize: 13 }}>Loading requisitions...</div>;
+  if (loading) return (
+    <SkeletonCard>
+      {Array.from({ length: 5 }, (_, i) => <SkeletonRow key={i} />)}
+    </SkeletonCard>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

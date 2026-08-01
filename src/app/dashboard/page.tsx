@@ -2383,7 +2383,7 @@ export default function DashboardPage(){
                 <button onClick={()=>setShowCreateDept(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Create Department</button>
               </div>
               {deptsLoading ? (
-                <div style={{fontSize:12,color:t.sub,padding:'12px 0'}}>Loading…</div>
+                <>{[0,1,2,3].map(i=><SkeletonRow key={i}/>)}</>
               ) : deptsList.length===0 ? (
                 <div style={{fontSize:12,color:t.muted,padding:'12px 0'}}>No departments yet.</div>
               ) : (
@@ -2410,7 +2410,7 @@ export default function DashboardPage(){
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <button onClick={()=>setSelectedDeptId(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to Departments</button>
               {deptDetailLoading || !deptDetail ? (
-                <div style={card()}><div style={{fontSize:12,color:t.sub}}>Loading…</div></div>
+                <SkeletonCard>{Array.from({length:4},(_,i)=><SkeletonRow key={i}/>)}</SkeletonCard>
               ) : (
               <>
               <div style={card()}>

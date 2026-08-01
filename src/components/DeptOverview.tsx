@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Icon from '@/components/Icon';
+import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 
 type MemberProfile = {
   id: string;
@@ -72,7 +73,16 @@ export default function DeptOverview({ dark = false, t }: DeptOverviewProps) {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: t.muted, fontSize: 13 }}>Loading department intelligence...</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+        {[0, 1, 2].map(i => <SkeletonCard key={i} lines={1} />)}
+      </div>
+      <SkeletonCard>
+        {Array.from({ length: 4 }, (_, i) => <SkeletonRow key={i} />)}
+      </SkeletonCard>
+    </div>
+  );
   if (!overview || !overview.dept) return (
     <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: 32, textAlign: 'center' }}>
       <div style={{ fontSize: 13, color: t.sub }}>No department assigned. Contact your administrator.</div>

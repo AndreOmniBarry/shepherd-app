@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 
 type Meeting = { id: string; meeting_date: string; meeting_time: string | null; location: string | null; attendance_count: number; visitor_count: number; topic: string | null; minutes: string | null; sla_grade: string | null; created_at: string };
 
@@ -48,7 +49,11 @@ export default function CellMeetingsTab({ t }: { t: Record<string, string> }) {
     setSaving(false);
   }
 
-  if (loading) return <div style={{ fontSize: 12, color: t.sub, padding: 20 }}>Loading meetings…</div>;
+  if (loading) return (
+    <SkeletonCard>
+      {Array.from({ length: 3 }, (_, i) => <SkeletonRow key={i} />)}
+    </SkeletonCard>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

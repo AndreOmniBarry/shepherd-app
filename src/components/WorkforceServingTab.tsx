@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 
 type RosterEntry = { id?: string; member_id: string; member_name: string; role_title: string; position?: string; confirmed?: boolean };
 type Roster = { id: string; service_date: string; service_type: string; published: boolean; entries: RosterEntry[] };
@@ -91,7 +92,11 @@ export default function WorkforceServingTab({ t }: { t: Record<string, string> }
     setInviteSending(false);
   }
 
-  if (loading) return <div style={{ fontSize: 12, color: t.sub, padding: 20 }}>Loading serving roster…</div>;
+  if (loading) return (
+    <SkeletonCard>
+      {Array.from({ length: 4 }, (_, i) => <SkeletonRow key={i} />)}
+    </SkeletonCard>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

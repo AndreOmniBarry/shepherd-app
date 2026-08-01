@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Icon from '@/components/Icon';
+import { SkeletonRow } from '@/components/Skeleton';
 
 type ChurchEvent = {
   id: string; title: string; event_type: string; event_date: string; end_date: string | null; start_time: string | null;
@@ -265,7 +266,7 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
 
             <div style={{ maxHeight: 220, overflowY: 'auto', marginBottom: 14 }}>
               {loadingRegistrants ? (
-                <div style={{ fontSize: 12, color: t.sub }}>Loading…</div>
+                <>{[0, 1, 2].map(i => <SkeletonRow key={i} />)}</>
               ) : registrants.length === 0 ? (
                 <div style={{ fontSize: 12, color: t.muted }}>No one has registered yet.</div>
               ) : registrants.map(r => (
@@ -355,7 +356,7 @@ export default function EventsPanel({ t }: { t: Record<string, string> }) {
           <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Event History &amp; Analytics</div>
           <div style={{ fontSize: 11, color: t.muted, marginBottom: 14 }}>Registration-to-attendance for every program, oldest gaps first — use this to compare a recurring program (e.g. this year&apos;s convention vs last year&apos;s).</div>
           {statsLoading ? (
-            <div style={{ fontSize: 12, color: t.sub }}>Loading…</div>
+            <>{[0, 1, 2].map(i => <SkeletonRow key={i} />)}</>
           ) : eventStats.length === 0 ? (
             <div style={{ fontSize: 12, color: t.muted }}>No events yet.</div>
           ) : (

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import TotalHistoryPanel from '@/components/TotalHistoryPanel';
+import { SkeletonCard } from '@/components/Skeleton';
 
 type GivingData = {
   kpi: { ytd: number; mtd: number; wtd: number; today: number; yoy_growth: number | null; last_year: number };
@@ -41,7 +42,14 @@ export default function PastorGiving({ dark, t, branchId }: PastorGivingProps) {
     return () => clearInterval(interval);
   }, [branchId]);
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 60, color: t.muted, fontSize: 13 }}>Loading giving intelligence...</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+        {[0, 1, 2, 3].map(i => <SkeletonCard key={i} lines={1} />)}
+      </div>
+      <SkeletonCard lines={5} style={{ minHeight: 220 }} />
+    </div>
+  );
   if (!data) return <div style={{ textAlign: 'center', padding: 60, color: t.muted, fontSize: 13 }}>No giving data available.</div>;
 
   return (

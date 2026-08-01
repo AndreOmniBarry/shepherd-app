@@ -1,22 +1,27 @@
 'use client';
 
-// Full-screen loading state for page opens and heavy transitions — replaces
-// a bare "Loading…" string with the same glass/motion language as the rest
-// of the redesign: a soft radial backdrop, an orbiting ring around the
-// SHEP.HERD mark, and staggered pulsing dots instead of a static spinner.
+// Full-screen loading state for page opens and heavy transitions. Replaces
+// the earlier spinning-ring design (didn't read as premium) with a soft
+// breathing glow halo behind the SHEP.HERD mark and an indeterminate
+// gradient progress bar — no rotation, just a gentle pulse and a sweep,
+// closer to what a modern native app's launch screen feels like.
 export default function LoadingScreen({ label = 'Loading…', dark = false }: { label?: string; dark?: boolean }) {
   const bg = dark ? '#080614' : '#F0EFF8';
   const accent = dark ? '#A89FFF' : '#534AB7';
+  const accent2 = dark ? '#2DD4AA' : '#1D9E75';
   const text = dark ? 'rgba(232,229,255,0.6)' : '#5A5180';
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, background: `radial-gradient(circle at 50% 40%, ${dark ? 'rgba(83,74,183,0.16)' : 'rgba(83,74,183,0.08)'}, transparent 55%), ${bg}` }}>
-      <div style={{ position: 'relative', width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div className="shep-loading-ring" style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `2.5px solid ${dark ? 'rgba(168,159,255,0.15)' : 'rgba(83,74,183,0.12)'}`, borderTopColor: accent }} />
-        <div style={{ width: 28, height: 28, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22, background: `radial-gradient(circle at 50% 40%, ${dark ? 'rgba(83,74,183,0.16)' : 'rgba(83,74,183,0.08)'}, transparent 55%), ${bg}` }}>
+      <div style={{ position: 'relative', width: 72, height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="shep-loading-halo" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: `radial-gradient(circle, ${dark ? 'rgba(168,159,255,0.35)' : 'rgba(83,74,183,0.22)'} 0%, transparent 70%)` }} />
+        <div style={{ width: 28, height: 28, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
           <div style={{ position: 'absolute', width: 4, height: 22, background: accent, borderRadius: 2 }} />
           <div style={{ position: 'absolute', width: 15, height: 4, background: accent, borderRadius: 2 }} />
         </div>
+      </div>
+      <div style={{ width: 130, height: 3, borderRadius: 2, overflow: 'hidden', background: dark ? 'rgba(168,159,255,0.12)' : 'rgba(83,74,183,0.1)', position: 'relative' }}>
+        <div className="shep-loading-bar-fill" style={{ position: 'absolute', inset: 0, width: '40%', borderRadius: 2, background: `linear-gradient(90deg, transparent, ${accent}, ${accent2}, transparent)` }} />
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
         {[0, 1, 2].map(i => (

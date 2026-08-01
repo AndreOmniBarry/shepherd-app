@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
+import { SkeletonCard } from '@/components/Skeleton';
 
 type CellStatus = {
   cell_id: string; cell_name: string; fellowship_name: string;
@@ -69,7 +70,14 @@ export default function PastorAttendance({ dark, t, branchId }: PastorAttendance
     return () => clearInterval(interval);
   }, [branchId]);
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 60, color: t.muted, fontSize: 13 }}>Loading attendance intelligence...</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+        {[0, 1, 2, 3].map(i => <SkeletonCard key={i} lines={1} />)}
+      </div>
+      <SkeletonCard lines={5} style={{ minHeight: 220 }} />
+    </div>
+  );
   if (!data) return <div style={{ textAlign: 'center', padding: 60, color: t.muted, fontSize: 13 }}>No attendance data available.</div>;
 
   const trend = view === 'sunday' ? data.sunday_trend : data.midweek_trend;
