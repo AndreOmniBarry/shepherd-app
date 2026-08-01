@@ -1631,6 +1631,10 @@ export default function DashboardPage(){
   const [leaderOptions,setLeaderOptions]=useState<{id:string;full_name:string;role:string}[]>([]);
   const [memberFellowshipId,setMemberFellowshipId]=useState('');
   const [memberFellowshipsList,setMemberFellowshipsList]=useState<{id:string;name:string}[]>([]);
+  // Collapsed by default on small screens so a long member roll doesn't
+  // force scrolling past it to reach anything below — expanded by default
+  // on desktop where the table already has its own internal scroll box.
+  const [membersExpanded,setMembersExpanded]=useState(()=>typeof window!=='undefined'?window.innerWidth>=768:true);
   const [commendType,setCommendType]=useState<'commendation'|'meeting'|'encouragement'|'announcement'>('commendation');
   const [commendScope,setCommendScope]=useState<'individual'|'fellowship'|'department'|'all'>('individual');
   const [commendFellowshipId,setCommendFellowshipId]=useState('');
@@ -2321,13 +2325,19 @@ export default function DashboardPage(){
 
               {/* Full Member Database */}
               <div style={card()}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12,flexWrap:'wrap' as const,gap:8}}>
-                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>Full Member Database{kpi?` — ${fmt(kpi.total_members)} members`:''}</div>
-                  <div style={{display:'flex',gap:8}}>
-                    <button onClick={()=>setShowCreateMember(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Create Member</button>
-                    <button onClick={()=>exportCSV(membersList.map(m=>({Name:m.full_name,Phone:m.phone,Cell:m.cell_name||'—',Fellowship:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),'full_member_database')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export</button>
-                  </div>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:membersExpanded?12:0,flexWrap:'wrap' as const,gap:8}}>
+                  <button onClick={()=>setMembersExpanded(v=>!v)} style={{display:'flex',alignItems:'center',gap:8,background:'none',border:'none',cursor:'pointer',padding:0,fontFamily:'inherit'}}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{color:t.sub,transform:membersExpanded?'rotate(90deg)':'none',transition:'transform 0.2s ease',flexShrink:0}}><path d="M9 18l6-6-6-6"/></svg>
+                    <span style={{fontSize:13,fontWeight:500,color:t.text}}>Full Member Database{kpi?` — ${fmt(kpi.total_members)} members`:''}</span>
+                  </button>
+                  {membersExpanded&&(
+                    <div style={{display:'flex',gap:8}}>
+                      <button onClick={()=>setShowCreateMember(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Create Member</button>
+                      <button onClick={()=>exportCSV(membersList.map(m=>({Name:m.full_name,Phone:m.phone,Cell:m.cell_name||'—',Fellowship:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),'full_member_database')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export</button>
+                    </div>
+                  )}
                 </div>
+                {membersExpanded&&<>
                 <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
                   <input ref={memberSearchRef} value={memberSearch} onChange={e=>setMemberSearch(e.target.value)} placeholder="Search by name..." style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'6px 10px',fontSize:12,outline:'none',flex:1,minWidth:160,background:t.input,color:t.text}}/>
                   {['overseer','general_overseer','branch_pastor','pa','lead_tech'].includes(userRole) && memberFellowshipsList.length>0 && (
@@ -2392,6 +2402,7 @@ export default function DashboardPage(){
                     </div>
                   )}
                 </div>
+                </>}
               </div>
             </div>
           )}
