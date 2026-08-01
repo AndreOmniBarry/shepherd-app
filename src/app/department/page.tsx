@@ -568,6 +568,7 @@ export default function DepartmentHeadPage() {
                 )}
               </div>
             )}
+            <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
@@ -599,6 +600,7 @@ export default function DepartmentHeadPage() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>

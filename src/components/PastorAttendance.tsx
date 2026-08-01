@@ -180,6 +180,7 @@ export default function PastorAttendance({ dark, t, branchId }: PastorAttendance
           <div style={{ padding: '12px 16px', borderBottom: `0.5px solid ${t.border}`, fontSize: 12, fontWeight: 600, color: t.text }}>
             Department attendance — {view === 'sunday' ? 'Sunday' : 'Wednesday'}
           </div>
+          <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
@@ -209,6 +210,7 @@ export default function PastorAttendance({ dark, t, branchId }: PastorAttendance
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -226,6 +228,7 @@ export default function PastorAttendance({ dark, t, branchId }: PastorAttendance
             </select>
           </div>
         </div>
+        <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
@@ -264,6 +267,7 @@ export default function PastorAttendance({ dark, t, branchId }: PastorAttendance
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

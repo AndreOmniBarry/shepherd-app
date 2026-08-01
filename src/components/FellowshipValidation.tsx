@@ -73,6 +73,7 @@ export default function FellowshipValidation({ t, dark }: FellowshipValidationPr
               <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{MONTHS[month] || month}</div>
               <div style={{ fontSize: 11, color: t.muted }}>{monthRecords.length} records pending</div>
             </div>
+            <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
@@ -111,6 +112,7 @@ export default function FellowshipValidation({ t, dark }: FellowshipValidationPr
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         ))
       )}

@@ -41,9 +41,10 @@ function timeAgo(dateStr: string): string {
 interface NotificationBellProps {
   dark?: boolean;
   t?: Record<string, string>;
+  compact?: boolean;
 }
 
-export default function NotificationBell({ dark = false }: NotificationBellProps) {
+export default function NotificationBell({ dark = false, compact = false }: NotificationBellProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -182,15 +183,15 @@ export default function NotificationBell({ dark = false }: NotificationBellProps
       {/* Bell button */}
       <button onClick={handleOpen}
         style={{
-          width: 34, height: 34, borderRadius: 9,
+          width: compact ? 28 : 34, height: compact ? 28 : 34, borderRadius: compact ? 8 : 9,
           border: `0.5px solid ${t.border}`,
           background: open ? (dark ? 'rgba(83,74,183,0.3)' : '#EEEDFE') : 'transparent',
           cursor: 'pointer', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', position: 'relative',
+          justifyContent: 'center', position: 'relative', flexShrink: 0,
           transition: 'all 0.15s ease',
           boxShadow: open ? (dark ? '0 0 12px rgba(83,74,183,0.3)' : '0 0 8px rgba(83,74,183,0.1)') : 'none',
         }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={dark ? '#A89FFF' : '#534AB7'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <svg width={compact ? 14 : 16} height={compact ? 14 : 16} viewBox="0 0 24 24" fill="none" stroke={dark ? '#A89FFF' : '#534AB7'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
         </svg>
