@@ -205,7 +205,15 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 .shep-route-enter {
-  animation: shep-route-in 380ms var(--ease-out-expo) both;
+  /* fill-mode is 'backwards' (not 'both'/'forwards'): the final keyframe
+     resolves to a non-"none" transform matrix even though it's visually
+     identity (translateY(0) scale(1)), and CSS treats any non-"none"
+     transform as creating a new containing block. With 'forwards' that
+     matrix outlives the animation, silently turning every page wrapper
+     into an anchor for position:fixed descendants (modals, bottom nav,
+     the AI chat panel) instead of the real viewport — they'd pin to the
+     page's scrollable content box and require scrolling to reach. */
+  animation: shep-route-in 380ms var(--ease-out-expo) backwards;
 }
 @media (prefers-reduced-motion: reduce) {
   .shep-route-enter { animation: none; }
