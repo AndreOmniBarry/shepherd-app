@@ -14,7 +14,7 @@ async function getUser(req: Request) {
   return p ? payloadToAuthUser(p) : null;
 }
 
-const ALLOWED = ['overseer', 'pa', 'lead_tech', 'partnership'];
+const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech', 'partnership'];
 
 export async function GET(req: Request) {
   const user = await getUser(req);
