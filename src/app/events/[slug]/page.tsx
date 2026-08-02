@@ -39,13 +39,9 @@ export default function EventPage() {
     if (!slug) return;
     fetch(`/api/events/public?slug=${slug}`)
       .then(r => r.json())
-      .then(({ data }) => { if (data?.event) { setEvent(data.event); setAttendingDays(data.event.days || []); setCurrency(data.currency || 'NGN'); } })
+      .then(({ data }) => { if (data?.event) { setEvent(data.event); setAttendingDays(data.event.days || []); setCurrency(data.currency || 'NGN'); setLogoUrl(data.logo_url || null); } })
       .catch(() => {})
       .finally(() => setLoading(false));
-    fetch('/api/settings/church-config')
-      .then(r => r.json())
-      .then(({ data }) => { if (data?.config?.logo_url) setLogoUrl(data.config.logo_url); })
-      .catch(() => {});
   }, [slug]);
 
   async function register() {
