@@ -489,7 +489,7 @@ const CREATABLE_ROLES: {value:string;label:string;refKind:'cell'|'fellowship'|'d
   {value:'lead_tech',label:'Lead Tech',refKind:null},
 ];
 
-function TeamAccessPanel({t}: {t: Record<string,string>}) {
+function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boolean}) {
   const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string}[]>([]);
   const [invites, setInvites] = React.useState<{id:string;email:string;full_name:string;role:string;unit_name:string;used:boolean;expired:boolean;created_at:string}[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -601,25 +601,25 @@ function TeamAccessPanel({t}: {t: Record<string,string>}) {
           <div style={{fontSize:16,fontWeight:700,color:t.text}}>Team & Access</div>
           <div style={{fontSize:12,color:t.sub,marginTop:2}}>Invite a leader missed in the import — they pick their own password from the link. &quot;Log in as&quot; gives you a real, full-access session as anyone (any cell leader, department head, admin) for testing — no password touched. &quot;Exit preview&quot; in your account menu brings you back.</div>
         </div>
-        <div style={{display:'flex',gap:8}}>
+        <div style={{display:'flex',gap:8,width:isMobile?'100%':undefined,flexWrap:isMobile?'wrap':undefined}}>
           <button onClick={()=>{setShowAdd(v=>!v);setCreateError('');setNewLink('');}}
-            style={{background:showAdd?t.purpleBg:'#534AB7',color:showAdd?t.purple:'#fff',border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+            style={{background:showAdd?t.purpleBg:'#534AB7',color:showAdd?t.purple:'#fff',border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined}}>
             {showAdd?'Cancel':'+ Invite team member'}
           </button>
           <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search name or email"
-            style={{width:200,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',fontSize:12,background:t.input,color:t.text,outline:'none',fontFamily:'inherit'}} />
+            style={{width:isMobile?'100%':200,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',fontSize:12,background:t.input,color:t.text,outline:'none',fontFamily:'inherit'}} />
         </div>
       </div>
 
       {showAdd && (
         <div style={{background:t.cardInner||t.input,borderRadius:10,border:`0.5px solid ${t.border}`,padding:14,marginBottom:14,display:'flex',flexDirection:'column',gap:10}}>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:10}}>
             <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Full name"
               style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}} />
             <input value={newEmail} onChange={e=>setNewEmail(e.target.value)} placeholder="Email" type="email"
               style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}} />
           </div>
-          <div style={{display:'grid',gridTemplateColumns:selectedRoleDef?.refKind?'1fr 1fr':'1fr',gap:10}}>
+          <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':(selectedRoleDef?.refKind?'1fr 1fr':'1fr'),gap:10}}>
             <select value={newRole} onChange={e=>{setNewRole(e.target.value);setNewRefId('');}}
               style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
               {CREATABLE_ROLES.map(r=>(<option key={r.value} value={r.value}>{r.label}</option>))}
@@ -673,6 +673,26 @@ function TeamAccessPanel({t}: {t: Record<string,string>}) {
 
       {loading ? (
         <div style={{fontSize:12,color:t.sub}}>Loading team…</div>
+      ) : isMobile ? (
+        <div style={{maxHeight:360,overflowY:'auto',display:'flex',flexDirection:'column',gap:8}}>
+          {filtered.map(u => (
+            <div key={u.id} style={{background:t.cardInner||t.input,borderRadius:10,border:`0.5px solid ${t.border}`,padding:'11px 13px'}}>
+              <div style={{fontSize:13,fontWeight:600,color:t.text}}>{u.full_name}</div>
+              <div style={{fontSize:11,color:t.sub,marginTop:2}}>{u.email}</div>
+              <div style={{fontSize:11,color:t.muted,marginTop:1}}>{u.role}</div>
+              <div style={{display:'flex',gap:6,marginTop:8}}>
+                <button onClick={()=>doLoginAs(u)} disabled={loggingInAs===u.id||!u.id}
+                  style={{flex:1,background:t.purple,border:'none',borderRadius:7,padding:'6px 11px',fontSize:11,color:'#fff',cursor:loggingInAs===u.id?'wait':'pointer',fontFamily:'inherit'}}>
+                  {loggingInAs===u.id?'Logging in…':'Log in as'}
+                </button>
+                <button onClick={()=>doReset(u)} disabled={resetting===u.id}
+                  style={{flex:1,background:'transparent',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'6px 11px',fontSize:11,color:t.text,cursor:resetting===u.id?'wait':'pointer',fontFamily:'inherit'}}>
+                  {resetting===u.id?'Resetting…':'Reset password'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div style={{maxHeight:360,overflowY:'auto'}}>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
@@ -3253,7 +3273,7 @@ export default function DashboardPage(){
           {page==='settings'&&(
             <div>
               <ChurchSettingsPanel t={t} dark={dark} userRole={userRole} onConfigSaved={(cfg)=>setChurchConfig(cfg)} />
-              {['overseer','general_overseer','lead_tech'].includes(userRole) && <TeamAccessPanel t={t} />}
+              {['overseer','general_overseer','lead_tech'].includes(userRole) && <TeamAccessPanel t={t} isMobile={isMobile} />}
             </div>
           )}
           {page==='admin'&&(

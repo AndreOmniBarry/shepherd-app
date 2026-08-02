@@ -7,6 +7,7 @@ import MyAccountButton from '@/components/MyAccountButton';
 import ChatNavButton from '@/components/ChatNavButton';
 import LoadingScreen from '@/components/LoadingScreen';
 import ThemeToggle from '@/components/ThemeToggle';
+import Icon from '@/components/Icon';
 
 type Entry = {
   id: string;
@@ -89,27 +90,52 @@ export default function WorkforcePage() {
 
   return (
     <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>
-      <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 24, height: 24, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ position: 'absolute', width: 3, height: 17, background: '#A89FFF', borderRadius: 2 }} />
-            <div style={{ position: 'absolute', width: 12, height: 3, background: '#A89FFF', borderRadius: 2 }} />
-          </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: t.purple, letterSpacing: '0.5px' }}>SHEP.HERD</div>
-            <div style={{ fontSize: 10, color: t.muted }}>My Serving Schedule</div>
-          </div>
+      <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: isMobile ? 'calc(10px + env(safe-area-inset-top)) 14px 10px' : '0 20px', height: isMobile ? undefined : 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, position: 'sticky', top: 0, zIndex: 30 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10, minWidth: 0 }}>
+          {!isMobile && (
+            <div style={{ width: 24, height: 24, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ position: 'absolute', width: 3, height: 17, background: '#A89FFF', borderRadius: 2 }} />
+              <div style={{ position: 'absolute', width: 12, height: 3, background: '#A89FFF', borderRadius: 2 }} />
+            </div>
+          )}
+          {!isMobile ? (
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: t.purple, letterSpacing: '0.5px' }}>SHEP.HERD</div>
+              <div style={{ fontSize: 10, color: t.muted }}>My Serving Schedule</div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.text }}>My Schedule</div>
+          )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button onClick={() => router.push("/church-center")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Center</button>
-          <button onClick={() => router.push("/church-feed")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Feed</button><ChatNavButton t={t} />
-          <button onClick={() => router.push("/calendar")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Calendar</button><NotificationBell dark={dark} /><MyAccountButton dark={dark} />
-          <ThemeToggle dark={dark} setDark={setDark} border={t.border} />
-          <button onClick={logout} style={{ background: 'transparent', color: t.muted, border: 'none', fontSize: 12, cursor: 'pointer' }}>Sign out</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 5 : 8, flexShrink: 0 }}>
+          {isMobile ? (
+            <>
+              <button onClick={() => router.push("/church-center")} title="Church Center" style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', display: 'flex', padding: 4 }}><Icon name="ti-building" size={15}/></button>
+              <button onClick={() => router.push("/church-feed")} title="Church Feed" style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', display: 'flex', padding: 4 }}><Icon name="ti-speakerphone" size={15}/></button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => router.push("/church-center")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Center</button>
+              <button onClick={() => router.push("/church-feed")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Church Feed</button>
+            </>
+          )}
+          <ChatNavButton t={t} compact={isMobile} />
+          {isMobile ? (
+            <button onClick={() => router.push("/calendar")} title="Calendar" style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', display: 'flex', padding: 4 }}><Icon name="ti-calendar-event" size={15}/></button>
+          ) : (
+            <button onClick={() => router.push("/calendar")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Calendar</button>
+          )}
+          <NotificationBell dark={dark} compact={isMobile} /><MyAccountButton dark={dark} compact={isMobile} />
+          <ThemeToggle dark={dark} setDark={setDark} border={t.border} compact={isMobile} />
+          {isMobile ? (
+            <button onClick={logout} title="Sign out" style={{ background: 'transparent', color: t.muted, border: 'none', cursor: 'pointer', display: 'flex', padding: 4, flexShrink: 0 }}><Icon name="ti-logout" size={15}/></button>
+          ) : (
+            <button onClick={logout} style={{ background: 'transparent', color: t.muted, border: 'none', fontSize: 12, cursor: 'pointer' }}>Sign out</button>
+          )}
         </div>
       </div>
 
-      <div style={{ maxWidth: 700, margin: '0 auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ maxWidth: 700, margin: '0 auto', padding: isMobile ? '14px 10px' : '20px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>{new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 17 ? 'Good afternoon' : 'Good evening'}{name ? `, ${name.split(' ')[0]}` : ''}</div>
           <div style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>Here&apos;s what you&apos;re serving — confirm each assignment so your department head knows you&apos;re coming.</div>
@@ -125,7 +151,7 @@ export default function WorkforcePage() {
                 <div style={{ fontSize: 12, color: t.muted, textAlign: 'center', padding: '20px 0' }}>Nothing assigned yet — check back after your department head publishes the next roster.</div>
               ) : upcoming.map(e => (
                 <div key={e.id} style={{ padding: '10px 0', borderBottom: `0.5px solid ${t.border}` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 8 : 0 }}>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{e.service_date} · {e.department_name}</div>
                       <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{e.role_title}{e.position ? ` · ${e.position}` : ''}</div>
@@ -133,11 +159,11 @@ export default function WorkforcePage() {
                     {e.confirmed ? (
                       <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: t.tealBg, color: t.teal, fontWeight: 600 }}>Confirmed</span>
                     ) : (
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 6, width: isMobile ? '100%' : undefined }}>
                         <button onClick={() => respond(e.id, true)} disabled={updating[e.id]}
-                          style={{ background: t.teal, color: '#fff', border: 'none', borderRadius: 7, padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Confirm</button>
+                          style={{ flex: isMobile ? 1 : undefined, background: t.teal, color: '#fff', border: 'none', borderRadius: 7, padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Confirm</button>
                         <button onClick={() => respond(e.id, false)} disabled={updating[e.id]}
-                          style={{ background: 'transparent', color: t.coral, border: `0.5px solid ${t.coral}`, borderRadius: 7, padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Can&apos;t make it</button>
+                          style={{ flex: isMobile ? 1 : undefined, background: 'transparent', color: t.coral, border: `0.5px solid ${t.coral}`, borderRadius: 7, padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Can&apos;t make it</button>
                       </div>
                     )}
                   </div>
