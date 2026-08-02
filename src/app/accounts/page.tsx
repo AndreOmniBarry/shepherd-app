@@ -11,6 +11,7 @@ import ChatNavButton from '@/components/ChatNavButton';
 import LoadingScreen from '@/components/LoadingScreen';
 import ThemeToggle from '@/components/ThemeToggle';
 import Icon from '@/components/Icon';
+import { formatMoney, currencySymbol } from '@/lib/currency';
 
 type Member = { id: string; full_name: string; phone: string | null };
 type IncomeType = { id: string; name: string; category: string };
@@ -68,6 +69,7 @@ export default function AccountsPage() {
   }, []);
   const [pageReady, setPageReady] = useState(false);
   const [leaderName, setLeaderName] = useState('');
+  const [currency, setCurrency] = useState('NGN');
   const [members, setMembers] = useState<Member[]>([]);
   const [incomeTypes, setIncomeTypes] = useState<IncomeType[]>([]);
   const [incomeRecords, setIncomeRecords] = useState<IncomeRecord[]>([]);
@@ -121,7 +123,7 @@ export default function AccountsPage() {
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.json())
-      .then(({ data }) => { if (!data) { router.push('/login'); return; } setLeaderName(data.name || ''); setPageReady(true); })
+      .then(({ data }) => { if (!data) { router.push('/login'); return; } setLeaderName(data.name || ''); setCurrency(data.currency || 'NGN'); setPageReady(true); })
       .catch(() => router.push('/login'));
 
     Promise.all([
@@ -262,7 +264,7 @@ export default function AccountsPage() {
     fetch('/api/accounts/requisitions', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (data?.requisitions) setRequisitions(data.requisitions); });
   }
 
-  const fmtNGN = (n: number) => n >= 1e9 ? `₦${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `₦${(n / 1e6).toFixed(2)}M` : `₦${Math.round(n).toLocaleString('en-NG')}`;
+  const fmtNGN = (n: number) => formatMoney(n, currency);
   const totalIncome = incomeRecords.reduce((a, r) => a + r.amount, 0);
   const totalApproved = requisitions.filter(r => ['approved','paid'].includes(r.status)).reduce((a, r) => a + (r.amount_approved || r.amount_requested), 0);
   const pendingReqs = requisitions.filter(r => r.status === 'pending').length;
@@ -489,7 +491,7 @@ export default function AccountsPage() {
                 {/* Amount */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div>
-                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Amount (₦) *</div>
+                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Amount ({currencySymbol(currency)}) *</div>
                     <input type="text" inputMode="numeric" value={incomeForm.amount ? Number(String(incomeForm.amount).replace(/,/g,'')).toLocaleString('en-NG') : ''} onChange={e => { const raw = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, ''); setIncomeForm(p => ({ ...p, amount: raw })); }}
                       placeholder="0" style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 13, fontWeight: 600, background: t.input, color: t.teal, outline: 'none', fontFamily: 'inherit' }} />
                   </div>
@@ -616,7 +618,7 @@ export default function AccountsPage() {
                       style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Amount requested (₦) *</div>
+                    <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Amount requested ({currencySymbol(currency)}) *</div>
                     <input type="text" inputMode="numeric" value={expenseForm.amount_requested ? Number(String(expenseForm.amount_requested).replace(/,/g,'')).toLocaleString('en-NG') : ''} onChange={e => { const raw = e.target.value.replace(/,/g, '').replace(/[^0-9]/g, ''); setExpenseForm(p => ({ ...p, amount_requested: raw })); }}
                       placeholder="0" style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 13, fontWeight: 600, background: t.input, color: t.coral, outline: 'none', fontFamily: 'inherit' }} />
                   </div>
@@ -700,7 +702,7 @@ export default function AccountsPage() {
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>₦{r.amount_requested.toLocaleString()}</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>{currencySymbol(currency)}{r.amount_requested.toLocaleString()}</div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         {r.status === 'pending' && (
                           <>

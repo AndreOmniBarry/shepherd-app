@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Icon from '@/components/Icon';
+import { currencySymbol } from '@/lib/currency';
 
 const C = {
   purple: '#534AB7', purpleBg: '#EEEDFE', purpleDark: '#3C3489',
@@ -24,6 +25,7 @@ export default function EventPage() {
   const slug = params?.slug as string;
 
   const [event, setEvent] = useState<Event | null>(null);
+  const [currency, setCurrency] = useState('NGN');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ full_name: '', phone: '', email: '', whatsapp: '', preferred_comms: 'whatsapp', guest_type: 'member', companion_count: '0', expectations: '' });
@@ -37,7 +39,7 @@ export default function EventPage() {
     if (!slug) return;
     fetch(`/api/events/public?slug=${slug}`)
       .then(r => r.json())
-      .then(({ data }) => { if (data?.event) { setEvent(data.event); setAttendingDays(data.event.days || []); } })
+      .then(({ data }) => { if (data?.event) { setEvent(data.event); setAttendingDays(data.event.days || []); setCurrency(data.currency || 'NGN'); } })
       .catch(() => {})
       .finally(() => setLoading(false));
     fetch('/api/settings/church-config')
@@ -127,7 +129,7 @@ export default function EventPage() {
                   { icon: 'ti-calendar-event', label: dateLabel },
                   ...(event.start_time ? [{ icon: 'ti-clock', label: `${event.start_time}${event.end_time ? ` – ${event.end_time}` : ''}` }] : []),
                   ...(event.location ? [{ icon: 'ti-map-pin', label: event.location }] : []),
-                  { icon: 'ti-ticket', label: event.is_free ? 'Free entry' : `₦${Number(event.price).toLocaleString('en-NG')}` },
+                  { icon: 'ti-ticket', label: event.is_free ? 'Free entry' : `${currencySymbol(currency)}${Number(event.price).toLocaleString('en-NG')}` },
                   ...(event.capacity ? [{ icon: 'ti-users', label: `${event.registration_count} registered${event.capacity ? ` / ${event.capacity} capacity` : ''}` }] : []),
                 ].map((item, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, color: C.sub }}>
@@ -239,7 +241,7 @@ export default function EventPage() {
 
               <button onClick={register} disabled={submitting || !form.full_name.trim() || !form.phone.trim() || (isMultiDay && attendingDays.length === 0)}
                 style={{ width: '100%', background: C.purple, color: C.white, border: 'none', borderRadius: 11, padding: '14px', fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: submitting || !form.full_name.trim() || !form.phone.trim() || (isMultiDay && attendingDays.length === 0) ? 0.7 : 1 }}>
-                {submitting ? 'Submitting…' : event.is_free ? 'Complete registration' : `Pay ₦${Number(event.price).toLocaleString('en-NG')} & Register`}
+                {submitting ? 'Submitting…' : event.is_free ? 'Complete registration' : `Pay ${currencySymbol(currency)}${Number(event.price).toLocaleString('en-NG')} & Register`}
               </button>
 
               {!event.is_free && (

@@ -17,6 +17,7 @@ import CareFollowupPanel from '@/components/CareFollowupPanel';
 import ChatNavButton from '@/components/ChatNavButton';
 import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 import LoadingScreen from '@/components/LoadingScreen';
+import { CURRENCIES, formatMoney } from '@/lib/currency';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -34,7 +35,6 @@ type CellRow = { id:string; cell:string; fel:string; leader:string; members:numb
 
 // ── Helpers ────────────────────────────────────────────────────
 function fmt(n:number|undefined|null){return n!=null?n.toLocaleString():'—';}
-function fmtNGN(n:number){if(n>=1_000_000)return`₦${(n/1_000_000).toFixed(1)}M`;if(n>=1_000)return`₦${(n/1_000).toFixed(0)}k`;return`₦${n}`;}
 function greeting(){const h=new Date().getHours();return h<12?'Good morning':h<17?'Good afternoon':'Good evening';}
 const PASTOR_TIER_ROLES=['overseer','general_overseer','branch_pastor'];
 function greetingName(userName:string,userRole:string){const first=userName.split(' ')[0];return PASTOR_TIER_ROLES.includes(userRole)?`Pastor ${first}`:first;}
@@ -174,6 +174,18 @@ function ActionBoardPanel({t, branchId, isMobile=false}: {t: Record<string,strin
   const [openGroups, setOpenGroups] = React.useState<Record<string,boolean>>({});
   const router = useRouter();
 
+  // router.push to a link on the same pathname (e.g. already on /dashboard,
+  // flag links to /dashboard?page=workforce) updates the URL bar but
+  // doesn't remount the page, so the mount-only deep-link reader in
+  // DashboardPage never sees it and the tab silently fails to switch —
+  // dispatch the same custom event NotificationBell uses in that case.
+  function goTo(link: string) {
+    if (typeof window !== 'undefined' && window.location.pathname === link.split('?')[0]) {
+      window.dispatchEvent(new CustomEvent('shepherd:deep-link', { detail: link }));
+    }
+    router.push(link);
+  }
+
   React.useEffect(() => {
     setLoading(true);
     const bq = branchId ? `?branch_id=${branchId}` : '';
@@ -241,7 +253,7 @@ function ActionBoardPanel({t, branchId, isMobile=false}: {t: Record<string,strin
           {groups.map(g=>{
             if (g.items.length < 3) {
               return g.items.map((f,i)=>(
-                <div key={`${g.key}-${i}`} onClick={()=>router.push(f.link)}
+                <div key={`${g.key}-${i}`} onClick={()=>goTo(f.link)}
                   style={{background:t.card,border:`0.5px solid ${t.border}`,borderLeft:`3px solid ${f.severity==='high'?'#D85A30':'#BA7517'}`,borderRadius:10,padding:'12px 16px',cursor:'pointer',display:'flex',gap:12,alignItems:'flex-start'}}>
                   <div style={{color:f.severity==='high'?'#D85A30':'#BA7517',flexShrink:0,marginTop:1}}><Icon name={ACTION_CATEGORY_ICON[f.category]||'ti-alert-triangle'} size={16}/></div>
                   <div style={{flex:1}}>
@@ -266,7 +278,7 @@ function ActionBoardPanel({t, branchId, isMobile=false}: {t: Record<string,strin
                 {isOpen && (
                   <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:6,paddingLeft:isMobile?12:20}}>
                     {g.items.map((f,i)=>(
-                      <div key={i} onClick={()=>router.push(f.link)}
+                      <div key={i} onClick={()=>goTo(f.link)}
                         style={{background:t.cardInner||t.card,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',cursor:'pointer',fontSize:12,color:t.sub,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                         {f.entity}<Icon name="ti-arrow-left" size={11} style={{transform:'rotate(180deg)',color:t.muted,flexShrink:0}}/>
                       </div>
@@ -817,12 +829,6 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
   ];
 
   const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const CURRENCIES = [
-    {code:'NGN',label:'₦ Nigerian Naira'},{code:'GHS',label:'GH₵ Ghanaian Cedi'},
-    {code:'KES',label:'KSh Kenyan Shilling'},{code:'ZAR',label:'R South African Rand'},
-    {code:'USD',label:'$ US Dollar'},{code:'GBP',label:'£ British Pound'},
-  ];
-
   const cardS = (e?: React.CSSProperties): React.CSSProperties => ({
     background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '18px 20px', ...e,
   });
@@ -2202,7 +2208,7 @@ export default function DashboardPage(){
                 {[
                   {label:'Total members',value:fmt(kpi?.total_members),delta:`+${kpi?.new_members_month??0} this month`,page:'members' as NavPage,icon:'ti-users',color:'#534AB7',bg:'rgba(83,74,183,0.12)',up:true},
                   {label:"Today's check-ins",value:fmt(kpi?.today_present),delta:`${kpi?.today_cells_reported??'—'}/${kpi?.today_cells_total??'—'} cells in`,page:'attendance' as NavPage,icon:'ti-calendar-stats',color:'#1D9E75',bg:'rgba(29,158,117,0.12)',up:true},
-                  {label:'YTD giving',value:kpi?fmtNGN(kpi.ytd_giving_ngn):'—',delta:'Year to date',page:'giving' as NavPage,icon:'ti-coin',color:'#BA7517',bg:'rgba(186,117,23,0.12)',up:true},
+                  {label:'YTD giving',value:kpi?formatMoney(kpi.ytd_giving_ngn,churchConfig.currency):'—',delta:'Year to date',page:'giving' as NavPage,icon:'ti-coin',color:'#BA7517',bg:'rgba(186,117,23,0.12)',up:true},
                   {label:'Active cells',value:fmt(kpi?.active_cells),delta:`${new Set((dbCells||[]).map(c=>c.fel)).size} fellowships`,page:'cells' as NavPage,icon:'ti-circles',color:'#2563EB',bg:'rgba(37,99,235,0.12)',up:true},
                 ].map(m=>(
                   <div key={m.label} onClick={()=>setPage(m.page)} style={{...card(),cursor:'pointer'}}
@@ -2345,7 +2351,7 @@ export default function DashboardPage(){
             <PastorAttendance dark={dark} t={t} branchId={selectedBranch||undefined} isMobile={isMobile} />
           )}          {/* ══ GIVING ══ */}
           {page==='giving'&&(
-            <PastorGiving dark={dark} t={t} branchId={selectedBranch||undefined} isMobile={isMobile} />
+            <PastorGiving dark={dark} t={t} branchId={selectedBranch||undefined} isMobile={isMobile} currency={churchConfig.currency} />
           )}
           {/* ══ MEMBERS ══ */}
           {page==='members'&&(
@@ -2427,7 +2433,7 @@ export default function DashboardPage(){
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
                   <div style={{fontSize:13,fontWeight:500,color:t.text}}>Recent Additions</div>
-                  <button onClick={()=>exportCSV(membersList.slice(0,10),'recent_additions_export')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export CSV</button>
+                  <button onClick={()=>exportCSV(membersList.slice(0,10),'recent_additions_export')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'4px 10px',fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}><Icon name="ti-download" size={12}/>Export CSV</button>
                 </div>
                 <div style={{overflowX:'auto'}}>
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
@@ -2460,7 +2466,7 @@ export default function DashboardPage(){
                   {membersExpanded&&(
                     <div style={{display:'flex',gap:8}}>
                       <button onClick={()=>setShowCreateMember(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Create Member</button>
-                      <button onClick={()=>exportCSV(membersList.map(m=>({Name:m.full_name,Phone:m.phone,Cell:m.cell_name||'—',Fellowship:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),'full_member_database')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export</button>
+                      <button onClick={()=>exportCSV(membersList.map(m=>({Name:m.full_name,Phone:m.phone,Cell:m.cell_name||'—',Fellowship:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),'full_member_database')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}><Icon name="ti-download" size={12}/>Export</button>
                     </div>
                   )}
                 </div>
@@ -2812,13 +2818,13 @@ export default function DashboardPage(){
                 ))}
               </div>
               <div style={card()}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:isMobile?'stretch':'center',marginBottom:10,flexDirection:isMobile?'column':'row',gap:isMobile?10:0}}>
                   <div style={{fontSize:13,fontWeight:500,color:t.text}}>All {(dbCells||[]).length} Cells - click any cell to drill down</div>
-                  <div style={{display:'flex',gap:8}}>
-                    <button onClick={()=>setShowCreateCell(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Create Cell</button>
-                    <button onClick={()=>setShowMergeCells(true)} style={{background:'transparent',color:t.coral,border:`0.5px solid ${t.coral}`,borderRadius:8,padding:'5px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>Merge Cells</button>
+                  <div style={{display:'flex',gap:8,flexWrap:isMobile?'wrap':undefined}}>
+                    <button onClick={()=>setShowCreateCell(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined,whiteSpace:'nowrap'}}>+ Create Cell</button>
+                    <button onClick={()=>setShowMergeCells(true)} style={{background:'transparent',color:t.coral,border:`0.5px solid ${t.coral}`,borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined,whiteSpace:'nowrap'}}>Merge Cells</button>
                     <button onClick={()=>exportCSV((dbCells||[]).map(c=>({Cell:c.cell,Fellowship:c.fel,Leader:c.leader,Members:c.members,AvgAttendance:c.avg,Rate:`${c.rate}%`,Trend:c.trend,Status:c.status})),'cells_export')}
-                      style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'5px 10px',fontSize:11,cursor:'pointer'}}>⬇ Export CSV</button>
+                      style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:5,flex:isMobile?1:undefined,whiteSpace:'nowrap'}}><Icon name="ti-download" size={12}/>Export CSV</button>
                   </div>
                 </div>
                 <div style={{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'}}>
@@ -2906,7 +2912,7 @@ export default function DashboardPage(){
           {page==='reports'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{background:t.tealBg,border:dark?'0.5px solid #1D9E75':'0.5px solid #9FE1CB',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#085041'}}>
-                <strong>Monthly Summary - June 2026:</strong> Membership at 1,147 (+23 this month). YTD giving ₦13.4M (+12% vs 2025). 3 cells flagged. Youth Fellowship leading growth at +8%.
+                <strong>Monthly Summary — {new Date().toLocaleDateString('en-GB',{month:'long',year:'numeric'})}:</strong> Membership at {fmt(kpi?.total_members)} ({kpi?.new_members_month?`+${kpi.new_members_month}`:'no'} this month). YTD giving {kpi?formatMoney(kpi.ytd_giving_ngn,churchConfig.currency):'—'}. {(dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length} cell{(dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length===1?'':'s'} flagged for attention.
               </div>
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:500,marginBottom:4}}>AI-Powered Reports</div>
@@ -2924,7 +2930,7 @@ export default function DashboardPage(){
                 {[{label:'Export All Attendance',data:(dbCells||[]).map(c=>({Cell:c.cell,Fellowship:c.fel,Avg:c.avg,Rate:`${c.rate}%`,Trend:c.trend})),file:'full_attendance'},{label:'Export Member List',data:membersList.map(m=>({Name:m.full_name,Phone:m.phone,Cell:m.cell_name||'—',Fellowship:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),file:'member_list'}].map(e=>(
                   <button key={e.label} onClick={()=>exportCSV(e.data,e.file)}
                     style={{...card(),border:'0.5px solid #534AB7',cursor:'pointer',textAlign:'left'}}>
-                    <div style={{fontSize:13,fontWeight:500,color:'#3C3489',marginBottom:2}}>⬇ {e.label}</div>
+                    <div style={{fontSize:13,fontWeight:500,color:'#3C3489',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><Icon name="ti-download" size={13}/>{e.label}</div>
                     <div style={{fontSize:11,color:t.muted}}>Export as CSV</div>
                   </button>
                 ))}
@@ -3231,7 +3237,7 @@ export default function DashboardPage(){
           )}
 
           {page==='requisitions'&&(
-            <PastorRequisitions t={t} dark={dark} branchId={selectedBranch||undefined} />
+            <PastorRequisitions t={t} dark={dark} branchId={selectedBranch||undefined} currency={churchConfig.currency} />
           )}
           {page==='workforce'&&(
             <WorkforceIntelligencePanel t={t} branchId={selectedBranch||undefined} isMobile={isMobile} />
@@ -3257,7 +3263,7 @@ export default function DashboardPage(){
               <div style={{fontSize:12,color:t.muted,marginTop:-6}}>
                 {eventsSubTab==='planner'?'Order of Service — who\'s anchoring what, and for how long — the run of a single service.':'Programs & Registration — special events, crusades, conferences, and their registration links.'}
               </div>
-              {eventsSubTab==='planner'?<ServicePlannerPanel t={t} branchId={selectedBranch||undefined} />:<EventsPanel t={t} isMobile={isMobile} />}
+              {eventsSubTab==='planner'?<ServicePlannerPanel t={t} branchId={selectedBranch||undefined} isMobile={isMobile} />:<EventsPanel t={t} isMobile={isMobile} />}
             </div>
           )}
           {page==='care_followup'&&(

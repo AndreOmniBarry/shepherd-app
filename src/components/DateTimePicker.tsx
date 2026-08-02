@@ -36,6 +36,7 @@ type Props = {
 export default function DateTimePicker({ value, onChange, t, min, max, placeholder, time, onTimeChange }: Props) {
   const [open, setOpen] = useState(false);
   const [viewMonth, setViewMonth] = useState(() => (value ? fromYMD(value) : new Date()));
+  const [isNarrow, setIsNarrow] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,6 +45,13 @@ export default function DateTimePicker({ value, onChange, t, min, max, placehold
     }
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  useEffect(() => {
+    const check = () => setIsNarrow(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
   }, []);
 
   useEffect(() => { if (value) setViewMonth(fromYMD(value)); }, [value]);
@@ -79,7 +87,11 @@ export default function DateTimePicker({ value, onChange, t, min, max, placehold
       </button>
 
       {open && (
-        <div className="glass-surface shep-pop-enter" style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 100, borderRadius: 'var(--radius-md)', padding: 14, width: 280 }}>
+        <>
+        {isNarrow && <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 99 }} />}
+        <div className="glass-surface shep-pop-enter" style={isNarrow
+          ? { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 100, borderRadius: 'var(--radius-md)', padding: 14, width: 'calc(100vw - 48px)', maxWidth: 320, maxHeight: '80vh', overflowY: 'auto' }
+          : { position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 100, borderRadius: 'var(--radius-md)', padding: 14, width: 280 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <button type="button" onClick={() => setViewMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
               style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: t.sub, padding: 4, display: 'flex' }}>
@@ -122,6 +134,7 @@ export default function DateTimePicker({ value, onChange, t, min, max, placehold
             </div>
           )}
         </div>
+        </>
       )}
     </div>
   );

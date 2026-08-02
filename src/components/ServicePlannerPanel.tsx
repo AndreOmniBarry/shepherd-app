@@ -16,7 +16,7 @@ function nextSundayStr() {
   return d.toISOString().split('T')[0];
 }
 
-export default function ServicePlannerPanel({ t, branchId }: { t: Record<string, string>; branchId?: string }) {
+export default function ServicePlannerPanel({ t, branchId, isMobile = false }: { t: Record<string, string>; branchId?: string; isMobile?: boolean }) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,7 +147,7 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
   return (
     <div className="shep-tab-enter" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ ...glass, padding: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showSpecial ? 10 : 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 10 : 0, marginBottom: showSpecial ? 10 : 0 }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Special Service Days</div>
             <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>For congress, convention, vigils, crusades — anything outside your regular recurring service days that still needs attendance taken.</div>
@@ -155,15 +155,15 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
           <button onClick={() => setShowSpecial(v => !v)}
             onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
-            style={{ background: showSpecial ? t.purpleBg : t.purple, color: showSpecial ? t.purple : '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all var(--motion-fast) var(--ease-out-expo)' }}>
+            style={{ background: showSpecial ? t.purpleBg : t.purple, color: showSpecial ? t.purple : '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all var(--motion-fast) var(--ease-out-expo)', alignSelf: isMobile ? 'flex-start' : undefined }}>
             {showSpecial ? 'Cancel' : '+ Add special day'}
           </button>
         </div>
         {showSpecial && (
-          <div className="shep-pop-enter" style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap', marginTop: 10 }}>
-            <div style={{ width: 190 }}><DateTimePicker t={t} value={specialDate} onChange={setSpecialDate} placeholder="Select date" /></div>
+          <div className="shep-pop-enter" style={{ display: 'flex', gap: 8, alignItems: isMobile ? 'stretch' : 'flex-start', flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row', marginTop: 10 }}>
+            <div style={{ width: isMobile ? '100%' : 190, position: 'relative', zIndex: 20 }}><DateTimePicker t={t} value={specialDate} onChange={setSpecialDate} placeholder="Select date" /></div>
             <input value={specialLabel} onChange={e => setSpecialLabel(e.target.value)} placeholder="e.g. Congress Day 1, New Year Vigil"
-              style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, background: t.input, color: t.text, outline: 'none', flex: 1, minWidth: 180 }} />
+              style={{ border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, background: t.input, color: t.text, outline: 'none', flex: 1, minWidth: isMobile ? undefined : 180, boxSizing: 'border-box' }} />
             <button onClick={createSpecialDay} disabled={specialSaving} style={{ background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
               {specialSaving ? 'Creating…' : 'Create'}
             </button>
@@ -173,7 +173,8 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
         {specialSuccess && <div style={{ background: t.tealBg, color: t.teal, borderRadius: 8, padding: '8px 12px', fontSize: 12, marginTop: 8 }}>{specialSuccess}</div>}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '260px 1fr', gap: 14 }}>
+      {(!isMobile || !selectedPlan) && (
       <div style={{ ...glass, padding: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Service Plans</div>
@@ -209,6 +210,7 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
           </div>
         ))}
       </div>
+      )}
 
       {deleteTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={() => !deleting && setDeleteTarget(null)}>
@@ -229,9 +231,10 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
         </div>
       )}
 
+      {(!isMobile || selectedPlan) && (
       <div key={selectedId || 'empty'} className="shep-tab-enter" style={{ ...glass, padding: 16 }}>
         {!selectedPlan ? (
-          <div style={{ fontSize: 12, color: t.muted, textAlign: 'center', padding: '40px 0' }}>Select a service plan, or create a new one, to build the order of service.</div>
+          <div style={{ fontSize: 12, color: t.muted, textAlign: 'center', padding: '20px 0' }}>Select a service plan, or create a new one, to build the order of service.</div>
         ) : (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -245,6 +248,31 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
             {items.length === 0 ? (
               <div style={{ fontSize: 12, color: t.muted, textAlign: 'center', padding: '20px 0' }}>No items yet — add the first one.</div>
             ) : items.map((it, i) => (
+              isMobile ? (
+                <div key={i} style={{ background: t.cardInner || t.input, borderRadius: 10, border: `0.5px solid ${t.border}`, padding: '10px 12px', marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <div style={{ display: 'flex', gap: 7 }}>
+                    <select value={it.item_type} onChange={e => updateItem(i, { item_type: e.target.value })}
+                      style={{ border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '6px 7px', fontSize: 11, background: t.input, color: t.text, outline: 'none', flexShrink: 0 }}>
+                      {ITEM_TYPES.map(ty => (<option key={ty} value={ty}>{ty}</option>))}
+                    </select>
+                    <input value={it.title} onChange={e => updateItem(i, { title: e.target.value })} placeholder="Item title"
+                      style={{ border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '6px 7px', fontSize: 12, background: t.input, color: t.text, outline: 'none', flex: 1, minWidth: 0 }} />
+                    <button onClick={() => removeItem(i)} style={{ background: 'transparent', border: 'none', color: t.coral, cursor: 'pointer', flexShrink: 0 }}><Icon name="ti-x" size={16} /></button>
+                  </div>
+                  <div style={{ display: 'flex', gap: 7 }}>
+                    <select value={it.assigned_to || ''} onChange={e => { const l = leaders.find(x => x.id === e.target.value); updateItem(i, { assigned_to: e.target.value || null, assigned_to_name: l?.full_name || it.assigned_to_name }); }}
+                      style={{ border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '6px 7px', fontSize: 11, background: t.input, color: t.text, outline: 'none', flex: 1, minWidth: 0 }}>
+                      <option value="">Unassigned</option>
+                      {leaders.map(l => (<option key={l.id} value={l.id}>{l.full_name}</option>))}
+                    </select>
+                    <div style={{ position: 'relative', width: 84, flexShrink: 0 }}>
+                      <input type="number" min={0} value={it.duration_minutes} onChange={e => updateItem(i, { duration_minutes: Number(e.target.value) })}
+                        style={{ width: '100%', boxSizing: 'border-box', border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '6px 30px 6px 7px', fontSize: 11, background: t.input, color: t.text, outline: 'none' }} />
+                      <span style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: t.muted, pointerEvents: 'none' }}>min</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
               <div key={i} style={{ display: 'grid', gridTemplateColumns: '100px 1fr 140px 84px auto', gap: 8, alignItems: 'center', padding: '7px 0', borderBottom: `0.5px solid ${t.border}` }}>
                 <select value={it.item_type} onChange={e => updateItem(i, { item_type: e.target.value })}
                   style={{ border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '5px 7px', fontSize: 11, background: t.input, color: t.text, outline: 'none' }}>
@@ -264,6 +292,7 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
                 </div>
                 <button onClick={() => removeItem(i)} style={{ background: 'transparent', border: 'none', color: t.coral, cursor: 'pointer' }}><Icon name="ti-x" size={14} /></button>
               </div>
+              )
             ))}
 
             {error && <div style={{ background: t.coralBg, color: t.coral, borderRadius: 8, padding: '8px 12px', fontSize: 12, marginTop: 12 }}>{error}</div>}
@@ -284,7 +313,13 @@ export default function ServicePlannerPanel({ t, branchId }: { t: Record<string,
           </>
         )}
       </div>
+      )}
       </div>
+      {isMobile && selectedPlan && (
+        <button onClick={() => setSelectedId(null)} style={{ background: t.purpleBg, color: t.purple, border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start' }}>
+          ← Back to plan list
+        </button>
+      )}
     </div>
   );
 }

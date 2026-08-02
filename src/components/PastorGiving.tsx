@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import TotalHistoryPanel from '@/components/TotalHistoryPanel';
 import { SkeletonCard } from '@/components/Skeleton';
+import { formatMoney } from '@/lib/currency';
 
 type GivingData = {
   kpi: { ytd: number; mtd: number; wtd: number; today: number; yoy_growth: number | null; last_year: number };
@@ -15,13 +16,13 @@ type GivingData = {
 
 const TYPE_COLORS = ['#534AB7','#1D9E75','#BA7517','#D85A30','#9C27B0','#E91E63','#00BCD4','#FF5722'];
 
-interface PastorGivingProps { dark: boolean; t: Record<string, string>; branchId?: string; isMobile?: boolean; }
+interface PastorGivingProps { dark: boolean; t: Record<string, string>; branchId?: string; isMobile?: boolean; currency?: string; }
 
-export default function PastorGiving({ dark, t, branchId, isMobile = false }: PastorGivingProps) {
+export default function PastorGiving({ dark, t, branchId, isMobile = false, currency }: PastorGivingProps) {
   const [data, setData] = useState<GivingData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fmtNGN = (n: number) => n >= 1e9 ? `₦${(n/1e9).toFixed(2)}B` : n >= 1e6 ? `₦${(n/1e6).toFixed(2)}M` : `₦${Math.round(n).toLocaleString('en-NG')}`;
+  const fmtNGN = (n: number) => formatMoney(n, currency);
   const fmtDate = (d: string) => { const [y,mo,dy] = d.split('-').map(Number); return `${dy} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo-1]}`; };
 
   useEffect(() => {
