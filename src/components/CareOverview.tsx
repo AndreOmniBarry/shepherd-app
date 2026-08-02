@@ -251,9 +251,9 @@ export default function CareOverview({ dark = false, t, isMobile = false }: Care
           <div style={{ fontSize: 10, color: t.muted, marginBottom: 12 }}>New leads, restorations, and first timers per week</div>
           <ResponsiveContainer width="100%" height={140}>
             <BarChart data={weeklyActivity} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={dark ? '#2A2A2A' : '#F0F0F0'} />
-              <XAxis dataKey="week" tick={{ fontSize: 9, fill: dark ? '#888' : '#6B7280' }} />
-              <YAxis tick={{ fontSize: 9, fill: dark ? '#888' : '#6B7280' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={dark ? 'rgba(168,159,255,0.06)' : '#F0EEF9'} />
+              <XAxis dataKey="week" tick={{ fontSize: 9, fill: dark ? 'rgba(168,159,255,0.35)' : '#9990CC' }} />
+              <YAxis tick={{ fontSize: 9, fill: dark ? 'rgba(168,159,255,0.35)' : '#9990CC' }} />
               <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: t.card, color: t.text }} />
               <Bar dataKey="leads" name="New leads" fill="#534AB7" radius={[3,3,0,0]} />
               <Bar dataKey="restored" name="Restored" fill="#1D9E75" radius={[3,3,0,0]} />

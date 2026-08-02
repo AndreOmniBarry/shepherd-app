@@ -64,6 +64,7 @@ export default function NotificationBell({ dark = false, compact = false }: Noti
     hover:   dark ? '#1A1635' : '#F7F6FF',
     divider: dark ? 'rgba(168,159,255,0.08)' : 'rgba(83,74,183,0.08)',
     bg:      dark ? '#0D0B1E' : '#F0EFF8',
+    purple:  dark ? '#A89FFF' : '#534AB7',
   };
 
   const fetchNotifications = useCallback(() => {
@@ -234,13 +235,13 @@ export default function NotificationBell({ dark = false, compact = false }: Noti
           }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Notifications</div>
-              {unread > 0 && <div style={{ fontSize: 10, color: '#534AB7', marginTop: 1 }}>{unread} unread</div>}
+              {unread > 0 && <div style={{ fontSize: 10, color: t.purple, marginTop: 1 }}>{unread} unread</div>}
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               {loading && <div style={{ fontSize: 10, color: t.muted }}>↻</div>}
               {unread > 0 && (
                 <button onClick={markAllRead}
-                  style={{ fontSize: 11, color: '#534AB7', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+                  style={{ fontSize: 11, color: t.purple, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
                   Mark all read
                 </button>
               )}

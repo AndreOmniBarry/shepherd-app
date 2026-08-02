@@ -119,10 +119,10 @@ export default function AttendanceHistoryPanel({ t, fetchUrl, color, metricLabel
                   <stop offset="95%" stopColor={color || '#534AB7'} stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke={t.chartGrid || '#f0f0f0'} />
               <XAxis dataKey="label" tick={{ fontSize: 9, fill: t.chartAxis || t.muted }} interval={Math.floor(buckets!.length / 6)} />
               <YAxis tick={{ fontSize: 9, fill: t.chartAxis || t.muted }} domain={[0, 100]} width={32} />
-              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e5e7eb', background: t.chartTip, color: t.chartTipText }} />
+              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: `1px solid ${t.border || '#e5e7eb'}`, background: t.chartTip, color: t.chartTipText }} />
               <Area type="monotone" dataKey="rate" name={metricLabel || 'Attendance Rate %'} stroke={color || '#534AB7'} strokeWidth={2} fill="url(#attendanceFill)" dot={false} />
             </AreaChart>
           </ResponsiveContainer>
