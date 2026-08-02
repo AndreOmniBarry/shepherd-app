@@ -15,10 +15,9 @@ import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 import { DEMO_USER_IDS } from '@/lib/demo-accounts';
 import { rolePortal } from '@/lib/role-portal';
+import { getJwtSecret } from '@/lib/jwt-secret';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'shepherd-dev-secret-change-in-production-minimum-32-chars'
-);
+const JWT_SECRET = getJwtSecret();
 
 const PUBLIC_PATHS = [
   '/login',
