@@ -323,7 +323,7 @@ export default function AccountsPage() {
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
               {[
                 { label: 'Total income', value: fmtNGN(totalIncome), sub: `${incomeRecords.length} entries`, accent: '#1D9E75' },
                 { label: 'Total expenses', value: fmtNGN(totalApproved), sub: 'Approved only', accent: '#D85A30' },
@@ -339,7 +339,7 @@ export default function AccountsPage() {
             </div>
 
             {incomeByType.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
                 <div style={card()}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 12 }}>Income by type</div>
                   <ResponsiveContainer width="100%" height={160}>
@@ -640,7 +640,7 @@ export default function AccountsPage() {
             </div>
 
             {/* Status summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 6 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 8, marginBottom: 6 }}>
               {[
                 { label: 'Pending', count: requisitions.filter(r => r.status === 'pending').length, color: '#BA7517', bg: '#FAEEDA' },
                 { label: 'Approved', count: requisitions.filter(r => r.status === 'approved').length, color: '#1D9E75', bg: '#E1F5EE' },

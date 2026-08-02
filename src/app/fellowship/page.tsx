@@ -485,7 +485,7 @@ export default function FellowshipHeadPage() {
             </div>
 
             {/* KPI cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 18 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 18 }}>
               {[
                 { label: 'Total members', value: totalMembers, accent: '#534AB7', sub: `${cells.length} cells` },
                 { label: 'Avg attendance', value: `${avgRate}%`, accent: '#1D9E75', sub: 'Last Sunday' },
@@ -501,7 +501,7 @@ export default function FellowshipHeadPage() {
             </div>
 
             {/* Cells needing attention */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
               <div style={card()}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{churchConfig.tier2_label || 'Cell'} submission status</span>
@@ -547,7 +547,7 @@ export default function FellowshipHeadPage() {
                       style={{ fontSize: 15, fontWeight: 700, color: t.text, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '4px 8px', background: t.input, outline: 'none', fontFamily: 'inherit' }} />
                   </div>
                   <div style={{ fontSize: 12, color: t.sub, marginBottom: 16 }}>Leader: {selectedCell.leader_name} · {selectedCell.member_count} members</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
                     {[
                       { label: 'Last present', value: selectedCell.last_present ?? '—', color: t.teal, bg: t.tealBg },
                       { label: 'Last absent', value: selectedCell.last_absent ?? '—', color: t.coral, bg: t.coralBg },
@@ -595,7 +595,7 @@ export default function FellowshipHeadPage() {
               </div>
             ) : (
               <div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
                   {[
                     { label: 'Total cells', value: cells.length, accent: '#534AB7' },
                     { label: 'Submitted', value: submittedCells, accent: '#1D9E75' },
