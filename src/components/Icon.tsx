@@ -51,10 +51,10 @@ const PATHS: Record<string, ReactNode> = {
   'ti-download': <><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><polyline points="7,11 12,16 17,11"/><line x1="12" y1="4" x2="12" y2="16"/></>,
 };
 
-export default function Icon({ name, size = 15, style, className }: { name?: string; size?: number; style?: CSSProperties; className?: string }) {
+export default function Icon({ name, size = 15, strokeWidth = 1.8, style, className }: { name?: string; size?: number; strokeWidth?: number; style?: CSSProperties; className?: string }) {
   if (!name || !PATHS[name]) return null;
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth}
       strokeLinecap="round" strokeLinejoin="round" style={style} className={className} aria-hidden="true">
       {PATHS[name]}
     </svg>

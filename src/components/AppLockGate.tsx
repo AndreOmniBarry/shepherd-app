@@ -41,13 +41,26 @@ export default function AppLockGate() {
     checkStale();
     touch();
 
+    // The interval must stop the moment the tab/app is backgrounded —
+    // browsers only throttle (not pause) setInterval for the first few
+    // minutes of being hidden, so leaving it running kept re-touching the
+    // "last active" timestamp every 15s while backgrounded, meaning
+    // checkStale() on return almost never saw more than 15s of elapsed
+    // time and the 90s lock effectively never fired.
+    let iv: ReturnType<typeof setInterval> | null = setInterval(touch, 15000);
+
     const onVisibility = () => {
-      if (document.visibilityState === 'hidden') touch();
-      else { checkStale(); touch(); }
+      if (document.visibilityState === 'hidden') {
+        touch();
+        if (iv) { clearInterval(iv); iv = null; }
+      } else {
+        checkStale();
+        touch();
+        if (!iv) iv = setInterval(touch, 15000);
+      }
     };
     document.addEventListener('visibilitychange', onVisibility);
-    const iv = setInterval(touch, 15000);
-    return () => { document.removeEventListener('visibilitychange', onVisibility); clearInterval(iv); };
+    return () => { document.removeEventListener('visibilitychange', onVisibility); if (iv) clearInterval(iv); };
   }, [checkStale, touch]);
 
   useEffect(() => {
