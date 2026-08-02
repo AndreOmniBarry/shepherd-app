@@ -79,6 +79,7 @@ export default function PartnershipPage() {
     coral: dark ? '#F87171' : '#D85A30', coralBg: dark ? '#1F0A0A' : '#FAECE7',
     amber: dark ? '#FCD34D' : '#BA7517', amberBg: dark ? '#1F1A00' : '#FAEEDA',
     navBg: dark ? '#0A0618' : '#FFFFFF', navBorder: dark ? 'rgba(168,159,255,0.08)' : 'rgba(83,74,183,0.12)',
+    chartGrid: dark ? 'rgba(168,159,255,0.06)' : '#F0EEF9', chartAxis: dark ? 'rgba(168,159,255,0.35)' : '#9990CC', chartTip: dark ? '#13102A' : '#FFFFFF', chartTipText: dark ? '#E8E5FF' : '#1A1040',
   };
 
   const card = (e?: React.CSSProperties): React.CSSProperties => ({ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '16px 18px', ...e });

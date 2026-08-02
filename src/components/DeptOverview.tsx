@@ -146,9 +146,9 @@ export default function DeptOverview({ dark = false, t, isMobile = false }: Dept
                     <stop offset="95%" stopColor="#534AB7" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={dark ? '#2A2A2A' : '#F0F0F0'} />
-                <XAxis dataKey="week" tick={{ fontSize: 9, fill: dark ? '#888' : '#6B7280' }} />
-                <YAxis tick={{ fontSize: 9, fill: dark ? '#888' : '#6B7280' }} unit="%" domain={[0, 100]} />
+                <CartesianGrid strokeDasharray="3 3" stroke={dark ? 'rgba(168,159,255,0.06)' : '#F0EEF9'} />
+                <XAxis dataKey="week" tick={{ fontSize: 9, fill: dark ? 'rgba(168,159,255,0.35)' : '#9990CC' }} />
+                <YAxis tick={{ fontSize: 9, fill: dark ? 'rgba(168,159,255,0.35)' : '#9990CC' }} unit="%" domain={[0, 100]} />
                 <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: t.card, color: t.text }} formatter={(v: number) => [`${v}%`, 'Rate']} />
                 <Area type="monotone" dataKey="rate" stroke="#534AB7" strokeWidth={2} fill="url(#dGrad)" dot={false} />
               </AreaChart>

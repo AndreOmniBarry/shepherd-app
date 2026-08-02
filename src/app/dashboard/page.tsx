@@ -2129,7 +2129,7 @@ export default function DashboardPage(){
                   space hog pushing the personalized greeting off the edge. */}
               {!isMobile&&<span suppressHydrationWarning style={{fontSize:11,color:t.muted,whiteSpace:'nowrap',flexShrink:0}}>{new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span>}
               {!isMobile&&userName&&userName!=='General'&&<span style={{width:3,height:3,borderRadius:'50%',background:'#534AB7',opacity:0.5,flexShrink:0}}/>}
-              {!isMobile&&userName&&userName!=='General'&&<span style={{fontSize:12,color:'#534AB7',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',minWidth:0}}>{greeting()}, {greetingName(userName,userRole)}</span>}
+              {!isMobile&&userName&&userName!=='General'&&<span style={{fontSize:12,fontWeight:600,color:t.purple,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',minWidth:0}}>{greeting()}, {greetingName(userName,userRole)}</span>}
             </div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:12,flexShrink:0}}>

@@ -159,9 +159,9 @@ export default function CellOverview({ dark = false, t, isMobile = false }: Cell
                     <stop offset="95%" stopColor="#534AB7" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={dark ? '#2A2A2A' : '#F0F0F0'} />
-                <XAxis dataKey="week" tick={{ fontSize: 9, fill: dark ? '#888' : '#6B7280' }} />
-                <YAxis tick={{ fontSize: 9, fill: dark ? '#888' : '#6B7280' }} unit="%" domain={[0, 100]} />
+                <CartesianGrid strokeDasharray="3 3" stroke={dark ? 'rgba(168,159,255,0.06)' : '#F0EEF9'} />
+                <XAxis dataKey="week" tick={{ fontSize: 9, fill: dark ? 'rgba(168,159,255,0.35)' : '#9990CC' }} />
+                <YAxis tick={{ fontSize: 9, fill: dark ? 'rgba(168,159,255,0.35)' : '#9990CC' }} unit="%" domain={[0, 100]} />
                 <Tooltip
                   contentStyle={{ fontSize: 11, borderRadius: 8, border: `1px solid ${t.border}`, background: t.card, color: t.text }}
                   formatter={(v: number) => [`${v}%`, 'Rate']}
