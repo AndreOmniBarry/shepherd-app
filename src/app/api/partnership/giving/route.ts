@@ -15,7 +15,7 @@ async function getUser(req: Request) {
   return p ? payloadToAuthUser(p) : null;
 }
 
-const ALLOWED = ['overseer', 'pa', 'lead_tech', 'partnership'];
+const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech', 'partnership'];
 
 // SLA here measures how promptly partnership logged the giving entry after
 // the month it's attributed to — the same "logged promptly" metric accounts

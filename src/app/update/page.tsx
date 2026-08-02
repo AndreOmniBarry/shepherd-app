@@ -324,7 +324,7 @@ export default function UpdatePage() {
     <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>
 
       {/* Topbar */}
-      <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, boxShadow: dark ? '0 2px 8px rgba(0,0,0,0.25)' : '0 2px 8px rgba(31,25,71,0.06)', padding: isMobile ? 'calc(10px + env(safe-area-inset-top)) 14px 10px' : '0 20px', height: isMobile ? undefined : 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, position: 'sticky', top: 0, zIndex: 30 }}>
+      <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, boxShadow: dark ? '0 2px 10px rgba(0,0,0,0.35)' : '0 2px 10px rgba(31,25,71,0.10)', padding: isMobile ? 'calc(10px + env(safe-area-inset-top)) 14px 10px' : '0 20px', height: isMobile ? undefined : 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, position: 'sticky', top: 0, zIndex: 30 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10, minWidth: 0 }}>
           {!isMobile && (
             <div style={{ width: 24, height: 24, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -343,14 +343,14 @@ export default function UpdatePage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 5 : 8, flexShrink: 0 }}>
           {isMobile ? (
-            <button onClick={() => router.push("/calendar")} title="Calendar" style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', display: 'flex', padding: 4 }}><Icon name="ti-calendar-event" size={15}/></button>
+            <button onClick={() => router.push("/calendar")} title="Calendar" style={{ background: 'transparent', border: 'none', color: t.sub, cursor: 'pointer', display: 'flex', padding: 4 }}><Icon name="ti-calendar-event" size={16} strokeWidth={2.2}/></button>
           ) : (
             <button onClick={() => router.push("/calendar")} style={{ background: "transparent", border: "none", color: t.muted, fontSize: 12, cursor: "pointer", marginRight: 4 }}>Calendar</button>
           )}
           <NotificationBell dark={dark} compact={isMobile} /><MyAccountButton dark={dark} compact={isMobile} />
           <ThemeToggle dark={dark} setDark={setDark} border={t.border} compact={isMobile} />
           {isMobile ? (
-            <button onClick={logout} title="Sign out" style={{ background: 'transparent', color: t.muted, border: 'none', cursor: 'pointer', display: 'flex', padding: 4, flexShrink: 0 }}><Icon name="ti-logout" size={15}/></button>
+            <button onClick={logout} title="Sign out" style={{ background: 'transparent', color: t.sub, border: 'none', cursor: 'pointer', display: 'flex', padding: 4, flexShrink: 0 }}><Icon name="ti-logout" size={16} strokeWidth={2.2}/></button>
           ) : (
             <button onClick={logout} style={{ background: 'transparent', color: t.muted, border: 'none', fontSize: 12, cursor: 'pointer' }}>Sign out</button>
           )}

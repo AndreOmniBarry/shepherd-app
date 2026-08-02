@@ -8,6 +8,7 @@ import PastorAttendance from '@/components/PastorAttendance';
 import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
 import TotalHistoryPanel from '@/components/TotalHistoryPanel';
 import PastorGiving from '@/components/PastorGiving';
+import PartnershipSummaryPanel from '@/components/PartnershipSummaryPanel';
 import PastorRequisitions from '@/components/PastorRequisitions';
 import FellowshipValidation from '@/components/FellowshipValidation';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
@@ -2118,7 +2119,7 @@ export default function DashboardPage(){
       {/* Main */}
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,background:dark?`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}`:`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`}}>
         {/* Topbar */}
-        <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,boxShadow:dark?'0 2px 8px rgba(0,0,0,0.25)':'0 2px 8px rgba(31,25,71,0.06)',padding:isMobile?'calc(10px + env(safe-area-inset-top)) 14px 10px':'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,position:'sticky',top:0,zIndex:30}}>
+        <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,boxShadow:dark?'0 2px 10px rgba(0,0,0,0.35)':'0 2px 10px rgba(31,25,71,0.10)',padding:isMobile?'calc(10px + env(safe-area-inset-top)) 14px 10px':'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,position:'sticky',top:0,zIndex:30}}>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:10,minWidth:0}}>
             <div style={{minWidth:0,overflow:'hidden',display:'flex',alignItems:'center',gap:10}}>
               <span style={{fontSize:isMobile?12:14,fontWeight:600,color:t.text,whiteSpace:'nowrap'}}>{navItems.find(n=>n.id===page)?.label}</span>
@@ -2135,16 +2136,16 @@ export default function DashboardPage(){
                 <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',flexShrink:0,boxShadow:'0 0 0 3px rgba(29,158,117,0.2)'}}/>
                 {!isMobile&&<span style={{fontSize:11,fontWeight:700,color:'#085041'}}>Viewing: {branchesList.find(b=>b.id===userBranchId)?.name || 'Your Branch'}</span>}
               </div>
-            ) : branchesList.length>1&&!isMobile&&(
+            ) : branchesList.length>1&&(
               <div style={{position:'relative',display:'flex',alignItems:'center'}}>
-                <div style={{position:'absolute',left:10,display:'flex',alignItems:'center',gap:6,pointerEvents:'none',zIndex:1}}>
+                <div style={{position:'absolute',left:isMobile?7:10,display:'flex',alignItems:'center',gap:6,pointerEvents:'none',zIndex:1}}>
                   <span style={{width:7,height:7,borderRadius:'50%',background:selectedBranch?'#BA7517':'#534AB7',flexShrink:0,boxShadow:`0 0 0 3px ${selectedBranch?'rgba(186,117,23,0.18)':'rgba(83,74,183,0.18)'}`}}/>
                 </div>
                 <select value={selectedBranch} onChange={e=>setSelectedBranch(e.target.value)}
                   title="Viewing scope — every figure and action on this page applies to whatever is selected here"
-                  style={{border:`1px solid ${selectedBranch?'rgba(186,117,23,0.35)':'rgba(83,74,183,0.35)'}`,borderRadius:20,padding:'6px 12px 6px 22px',fontSize:11,fontWeight:700,background:selectedBranch?(dark?'rgba(186,117,23,0.12)':'#FAEEDA'):(dark?'rgba(83,74,183,0.12)':t.purpleBg),color:selectedBranch?'#633806':'#3C3489',outline:'none',fontFamily:'inherit',cursor:'pointer',appearance:'none' as const}}>
-                  <option value="">Viewing: All Branches (Consolidated)</option>
-                  {branchesList.map(b=>(<option key={b.id} value={b.id}>Viewing: {b.name}</option>))}
+                  style={{border:`1px solid ${selectedBranch?'rgba(186,117,23,0.35)':'rgba(83,74,183,0.35)'}`,borderRadius:20,padding:isMobile?'5px 8px 5px 18px':'6px 12px 6px 22px',fontSize:isMobile?10:11,fontWeight:700,maxWidth:isMobile?100:undefined,background:selectedBranch?(dark?'rgba(186,117,23,0.12)':'#FAEEDA'):(dark?'rgba(83,74,183,0.12)':t.purpleBg),color:selectedBranch?'#633806':'#3C3489',outline:'none',fontFamily:'inherit',cursor:'pointer',appearance:'none' as const}}>
+                  <option value="">{isMobile?'All Branches':'Viewing: All Branches (Consolidated)'}</option>
+                  {branchesList.map(b=>(<option key={b.id} value={b.id}>{isMobile?b.name:`Viewing: ${b.name}`}</option>))}
                 </select>
               </div>
             )}
@@ -2351,7 +2352,10 @@ export default function DashboardPage(){
             <PastorAttendance dark={dark} t={t} branchId={selectedBranch||undefined} isMobile={isMobile} />
           )}          {/* ══ GIVING ══ */}
           {page==='giving'&&(
-            <PastorGiving dark={dark} t={t} branchId={selectedBranch||undefined} isMobile={isMobile} currency={churchConfig.currency} />
+            <>
+              <PastorGiving dark={dark} t={t} branchId={selectedBranch||undefined} isMobile={isMobile} currency={churchConfig.currency} />
+              <PartnershipSummaryPanel t={t} isMobile={isMobile} currency={churchConfig.currency} />
+            </>
           )}
           {/* ══ MEMBERS ══ */}
           {page==='members'&&(
