@@ -2104,21 +2104,21 @@ export default function DashboardPage(){
       {isMobile&&(
         <div style={{position:'fixed',bottom:0,left:0,right:0,height:60,paddingBottom:'env(safe-area-inset-bottom)',background:t.nav,borderTop:`0.5px solid ${t.navBorder}`,backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',display:'flex',alignItems:'stretch',zIndex:45}}>
           {bottomNavItems.map(n=>(
-            <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDeptId(null);setPage(n.id);setSidebarOpen(false);}} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,background:'none',border:'none',cursor:'pointer',color:page===n.id&&!sidebarOpen?'#534AB7':t.muted,fontFamily:'inherit'}}>
-              <Icon name={n.icon} size={19} style={{opacity:page===n.id&&!sidebarOpen?1:0.65}} />
-              <span style={{fontSize:9.5,fontWeight:page===n.id&&!sidebarOpen?700:500}}>{n.label}</span>
+            <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDeptId(null);setPage(n.id);setSidebarOpen(false);}} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,background:'none',border:'none',cursor:'pointer',color:page===n.id&&!sidebarOpen?'#534AB7':t.text,fontFamily:'inherit'}}>
+              <Icon name={n.icon} size={20} strokeWidth={page===n.id&&!sidebarOpen?2.3:2} style={{opacity:page===n.id&&!sidebarOpen?1:0.85}} />
+              <span style={{fontSize:9.5,fontWeight:page===n.id&&!sidebarOpen?700:600}}>{n.label}</span>
             </button>
           ))}
-          <button onClick={()=>setSidebarOpen(v=>!v)} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,background:'none',border:'none',cursor:'pointer',color:sidebarOpen?'#534AB7':t.muted,fontFamily:'inherit'}}>
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{opacity:sidebarOpen?1:0.65}}><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
-            <span style={{fontSize:9.5,fontWeight:sidebarOpen?700:500}}>More</span>
+          <button onClick={()=>setSidebarOpen(v=>!v)} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,background:'none',border:'none',cursor:'pointer',color:sidebarOpen?'#534AB7':t.text,fontFamily:'inherit'}}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sidebarOpen?2.6:2.2} style={{opacity:sidebarOpen?1:0.85}}><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+            <span style={{fontSize:9.5,fontWeight:sidebarOpen?700:600}}>More</span>
           </button>
         </div>
       )}
       {/* Main */}
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,background:dark?`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}`:`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`}}>
         {/* Topbar */}
-        <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,padding:isMobile?'calc(10px + env(safe-area-inset-top)) 14px 10px':'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,position:'sticky',top:0,zIndex:30}}>
+        <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,boxShadow:dark?'0 2px 8px rgba(0,0,0,0.25)':'0 2px 8px rgba(31,25,71,0.06)',padding:isMobile?'calc(10px + env(safe-area-inset-top)) 14px 10px':'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,position:'sticky',top:0,zIndex:30}}>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:10,minWidth:0}}>
             <div style={{minWidth:0,overflow:'hidden',display:'flex',alignItems:'center',gap:10}}>
               <span style={{fontSize:isMobile?12:14,fontWeight:600,color:t.text,whiteSpace:'nowrap'}}>{navItems.find(n=>n.id===page)?.label}</span>

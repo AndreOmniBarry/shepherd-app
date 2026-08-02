@@ -52,6 +52,7 @@ export const CURRENCIES: CurrencyDef[] = [
   { code: 'TND', symbol: 'DT', label: 'DT Tunisian Dinar' },
   { code: 'LYD', symbol: 'LD', label: 'LD Libyan Dinar' },
   { code: 'SDG', symbol: 'SDG', label: 'SDG Sudanese Pound' },
+  { code: 'MRU', symbol: 'UM', label: 'UM Mauritanian Ouguiya' },
   // Global
   { code: 'USD', symbol: '$', label: '$ US Dollar' },
   { code: 'GBP', symbol: '£', label: '£ British Pound' },
