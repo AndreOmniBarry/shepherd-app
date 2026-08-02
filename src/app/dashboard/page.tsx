@@ -19,6 +19,7 @@ import ChatNavButton from '@/components/ChatNavButton';
 import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 import LoadingScreen from '@/components/LoadingScreen';
 import { CURRENCIES, formatMoney } from '@/lib/currency';
+import { COUNTRY_NAMES } from '@/lib/countries';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -935,7 +936,7 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
               <div>
                 <label style={labelS}>Country</label>
                 <select value={country} onChange={e=>setCountry(e.target.value)} style={inputS}>
-                  {['Nigeria','Ghana','Kenya','South Africa','Uganda','Tanzania','Rwanda','United Kingdom','United States','Canada','Australia','Other'].map(c=><option key={c} value={c}>{c}</option>)}
+                  {COUNTRY_NAMES.map(c=><option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
@@ -2013,7 +2014,7 @@ export default function DashboardPage(){
   if(!pageReady) return <LoadingScreen dark={dark} label="Loading your dashboard…" />;
 
   return(
-    <div data-theme={dark?'dark':'light'} data-sidebar={dark?'dark':sidebarStyle} style={{display:'flex',minHeight:'100vh',background:t.bg,fontFamily:'Inter,system-ui,sans-serif'}}>
+    <div data-theme={dark?'dark':'light'} data-sidebar={dark?'dark':sidebarStyle} style={{display:'flex',height:isMobile?undefined:'100vh',minHeight:'100vh',overflow:isMobile?undefined:'hidden',background:t.bg,fontFamily:'Inter,system-ui,sans-serif'}}>
       {/* Sidebar overlay for mobile */}
       {isMobile&&sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.3)',zIndex:40}}/>}
       {/* Sidebar */}
@@ -2121,12 +2122,14 @@ export default function DashboardPage(){
         {/* Topbar */}
         <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,boxShadow:dark?'0 2px 10px rgba(0,0,0,0.35)':'0 2px 10px rgba(31,25,71,0.10)',padding:isMobile?'calc(10px + env(safe-area-inset-top)) 14px 10px':'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,position:'sticky',top:0,zIndex:30}}>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:10,minWidth:0}}>
-            <div style={{minWidth:0,overflow:'hidden',display:'flex',alignItems:'center',gap:10}}>
-              <span style={{fontSize:isMobile?12:14,fontWeight:600,color:t.text,whiteSpace:'nowrap'}}>{navItems.find(n=>n.id===page)?.label}</span>
+            <div style={{minWidth:0,display:'flex',alignItems:'center',gap:10}}>
+              <span style={{fontSize:isMobile?12:14,fontWeight:600,color:t.text,whiteSpace:'nowrap',flexShrink:0}}>{navItems.find(n=>n.id===page)?.label}</span>
               {!isMobile&&<span style={{width:3,height:3,borderRadius:'50%',background:t.muted,opacity:0.5,flexShrink:0}}/>}
-              {!isMobile&&<span suppressHydrationWarning style={{fontSize:11,color:t.muted,whiteSpace:'nowrap'}}>{new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>}
+              {/* Shortened from full weekday+month+year — that was the actual
+                  space hog pushing the personalized greeting off the edge. */}
+              {!isMobile&&<span suppressHydrationWarning style={{fontSize:11,color:t.muted,whiteSpace:'nowrap',flexShrink:0}}>{new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span>}
               {!isMobile&&userName&&userName!=='General'&&<span style={{width:3,height:3,borderRadius:'50%',background:'#534AB7',opacity:0.5,flexShrink:0}}/>}
-              {!isMobile&&userName&&userName!=='General'&&<span style={{fontSize:12,color:'#534AB7',whiteSpace:'nowrap'}}>{greeting()}, {greetingName(userName,userRole)}</span>}
+              {!isMobile&&userName&&userName!=='General'&&<span style={{fontSize:12,color:'#534AB7',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',minWidth:0}}>{greeting()}, {greetingName(userName,userRole)}</span>}
             </div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:12,flexShrink:0}}>
