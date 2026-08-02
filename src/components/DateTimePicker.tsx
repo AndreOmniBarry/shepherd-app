@@ -150,12 +150,25 @@ export default function DateTimePicker({ value, onChange, t, min, max, placehold
           containing block for position:fixed descendants, which silently
           re-anchors "centered on the viewport" to "centered on that
           ancestor's box" instead. A portal sidesteps the problem entirely
-          regardless of where this component gets mounted. */}
+          regardless of where this component gets mounted.
+
+          Centering here is done with flexbox on the OUTER fixed wrapper,
+          not transform:translate(-50%,-50%) — .shep-pop-enter's entrance
+          animation also animates `transform` (scale), and a CSS animation
+          on transform overrides any inline transform for its whole active
+          + fill-mode duration. That silently discarded the translate that
+          was supposed to do the centering, leaving the popover anchored by
+          its top-left corner at the exact center of the screen instead of
+          actually centered — confirmed via screenshot. Splitting the fixed
+          positioning (outer, flexbox, no transform) from the scale-in
+          animation (inner) means neither one can clobber the other. */}
       {open && isNarrow && typeof document !== 'undefined' && createPortal(
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999 }} />
-          <div ref={popRef} className="glass-surface shep-pop-enter" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 1000, borderRadius: 'var(--radius-md)', padding: 14, width: 'calc(100vw - 48px)', maxWidth: 320, maxHeight: '80vh', overflowY: 'auto' }}>
-            {calendarBody}
+          <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, pointerEvents: 'none' }}>
+            <div ref={popRef} className="glass-surface shep-pop-enter" style={{ pointerEvents: 'auto', borderRadius: 'var(--radius-md)', padding: 14, width: 'calc(100vw - 48px)', maxWidth: 320, maxHeight: '80vh', overflowY: 'auto' }}>
+              {calendarBody}
+            </div>
           </div>
         </>,
         document.body
