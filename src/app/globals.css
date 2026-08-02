@@ -244,30 +244,26 @@
   .shep-skeleton { animation: none; }
 }
 
-/* ── Full-screen loading overlay (page opening / heavy transitions) ── */
-@keyframes shep-pulse-dot {
-  0%, 100% { opacity: 0.3; transform: scale(0.85); }
-  50%      { opacity: 1;   transform: scale(1); }
+/* ── Full-screen loading overlay (page opening / heavy transitions) ──
+   Two variants, chosen at random per mount in LoadingScreen.tsx. */
+@keyframes shep-relay-drop {
+  0%   { transform: translateY(-34px); }
+  22%  { transform: translateY(0); }
+  100% { transform: translateY(0); }
 }
-.shep-loading-dot {
-  animation: shep-pulse-dot 1.2s ease-in-out infinite;
+.shep-relay-dot {
+  transform: translateY(-34px);
+  animation: shep-relay-drop 2.6s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
 }
-@keyframes shep-breathe {
-  0%, 100% { transform: scale(0.85); opacity: 0.5; }
-  50%      { transform: scale(1.15); opacity: 1; }
+@keyframes shep-ripple-out {
+  0%   { width: 10px; height: 10px; opacity: 0.9; }
+  100% { width: 92px; height: 92px; opacity: 0; }
 }
-.shep-loading-halo {
-  animation: shep-breathe 2.1s var(--ease-out-expo) infinite;
-}
-@keyframes shep-bar-sweep {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(220%); }
-}
-.shep-loading-bar-fill {
-  animation: shep-bar-sweep 1.3s ease-in-out infinite;
+.shep-ripple-ring {
+  animation: shep-ripple-out 2.4s cubic-bezier(0.2,0.6,0.35,1) infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .shep-loading-dot, .shep-loading-halo, .shep-loading-bar-fill { animation: none; }
+  .shep-relay-dot, .shep-ripple-ring { animation: none; }
 }
 
 /* ── Base resets ──────────────────────────────────────────── */
