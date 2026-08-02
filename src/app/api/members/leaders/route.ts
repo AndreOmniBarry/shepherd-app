@@ -16,11 +16,20 @@ async function getUser(req: Request) {
   return payloadToAuthUser(payload);
 }
 
-// Leaders eligible to be commended — cell leaders, fellowship heads, department heads
+// Leaders eligible to be commended — cell leaders, fellowship heads, department heads.
+// Only called from the pastor/PA/tech dashboard and its Special Service
+// panel — never from a leader's own portal — so it's scoped to the same
+// roles as its sibling roster endpoints (/departments/all, /cells/all,
+// /fellowships/all), not "any authenticated user" (which previously let
+// e.g. a workforce or care_team account enumerate every leader org-wide).
+const ALLOWED_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
+
 export async function GET(req: Request) {
   try {
     const user = await getUser(req);
-    if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    if (!user || !ALLOWED_ROLES.includes(user.role)) {
+      return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    }
 
     const { searchParams } = new URL(req.url);
     const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');

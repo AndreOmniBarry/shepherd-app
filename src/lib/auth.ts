@@ -5,10 +5,9 @@
 
 import { SignJWT, jwtVerify } from 'jose';
 import type { JWTPayload, AuthUser, Role } from '@/types';
+import { getJwtSecret } from '@/lib/jwt-secret';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'shepherd-dev-secret-change-in-production-minimum-32-chars'
-);
+const JWT_SECRET = getJwtSecret();
 
 const JWT_EXPIRY = '24h';
 

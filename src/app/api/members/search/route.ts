@@ -21,15 +21,41 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('q') || '';
-    const branchId = payload.role === 'branch_pastor' ? payload.branch_id : searchParams.get('branch_id');
+
+    // Only the fully-privileged roles (already able to see every branch
+    // from their own dashboard) may pick an arbitrary branch/fellowship via
+    // query params. Every other role is pinned to their own scope — this
+    // used to trust the client-supplied branch_id/fellowship_id for
+    // cell_leader/fellowship_head/department_head/care_team too, which let
+    // e.g. a cell leader pass any branch_id (or none) and pull full
+    // name+phone for up to 200 members anywhere in the org, not just their
+    // own cell.
+    const FULL_ACCESS_ROLES = ['overseer', 'general_overseer', 'pa', 'lead_tech'];
+    let branchId: string | null = null;
+    let cellFilter = '';
+    let fellowshipId: string | null = null;
+
+    if (payload.role === 'branch_pastor') {
+      branchId = payload.branch_id ?? null;
+    } else if (payload.role === 'cell_leader') {
+      cellFilter = payload.cell_id ? `&cell_id=eq.${payload.cell_id}` : '&cell_id=eq.00000000-0000-0000-0000-000000000000';
+    } else if (payload.role === 'fellowship_head') {
+      fellowshipId = payload.fellowship_id ?? null;
+      if (!fellowshipId) cellFilter = '&cell_id=eq.00000000-0000-0000-0000-000000000000'; // no fellowship on file — show nothing rather than everything
+    } else if (payload.role === 'department_head' || payload.role === 'care_team') {
+      branchId = payload.branch_id ?? null; // branch-scoped if the account has one; unscoped only matters for single-branch churches
+    } else if (FULL_ACCESS_ROLES.includes(String(payload.role))) {
+      branchId = searchParams.get('branch_id');
+      fellowshipId = searchParams.get('fellowship_id');
+    }
+
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
-    const fellowshipId = searchParams.get('fellowship_id');
     const fellowshipFilter = fellowshipId ? `&fellowship_id=eq.${fellowshipId}` : '';
 
     const select = 'id,full_name,phone,membership_status,join_date,cells(name),fellowships(name)';
-    let url = `${SUPABASE_URL}/rest/v1/members?select=${select}&order=join_date.desc.nullslast&limit=200${branchFilter}${fellowshipFilter}`;
+    let url = `${SUPABASE_URL}/rest/v1/members?select=${select}&order=join_date.desc.nullslast&limit=200${branchFilter}${fellowshipFilter}${cellFilter}`;
     if (q.length >= 2) {
-      url = `${SUPABASE_URL}/rest/v1/members?full_name=ilike.*${q}*&select=${select}&order=full_name.asc&limit=50${branchFilter}${fellowshipFilter}`;
+      url = `${SUPABASE_URL}/rest/v1/members?full_name=ilike.*${q}*&select=${select}&order=full_name.asc&limit=50${branchFilter}${fellowshipFilter}${cellFilter}`;
     }
 
     const res = await fetch(url, { headers: hdrs() });
