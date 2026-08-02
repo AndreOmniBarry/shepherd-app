@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const LOCK_KEY = 'shepherd-last-active';
+const LOCKED_KEY = 'shepherd-locked';
 // How long the app can sit backgrounded/closed before it demands the
 // password again — banking-app style. Short enough that a phone left
 // unattended for a minute or two doesn't stay wide open, long enough
@@ -21,16 +22,36 @@ export default function AppLockGate() {
   const [submitting, setSubmitting] = useState(false);
   const emailFetched = useRef(false);
 
+  function isLockedFlag(): boolean {
+    try { return localStorage.getItem(LOCKED_KEY) === 'true'; } catch { return false; }
+  }
+
   const touch = useCallback(() => {
+    // Never refresh the clock while locked — this used to run
+    // unconditionally, which meant detecting staleness (below) and then
+    // immediately touch()-ing reset the timestamp to "now". A refresh
+    // right after landing on the lock screen would then see a fresh
+    // timestamp on remount and skip locking entirely — the password
+    // screen could be bypassed just by reloading the page. Confirmed as
+    // a real bypass, not theoretical.
+    if (isLockedFlag()) return;
     try { localStorage.setItem(LOCK_KEY, String(Date.now())); } catch { /* storage unavailable — lock just won't persist across a full close */ }
+  }, []);
+
+  // Marks the app as locked AND PERSISTS that fact in localStorage so it
+  // survives a full page reload — only unlock() below is allowed to clear it.
+  const lock = useCallback(() => {
+    try { localStorage.setItem(LOCKED_KEY, 'true'); } catch { /* ignore */ }
+    setLocked(true);
   }, []);
 
   const checkStale = useCallback(() => {
     try {
+      if (isLockedFlag()) { setLocked(true); return; }
       const raw = localStorage.getItem(LOCK_KEY);
-      if (raw && Date.now() - Number(raw) > LOCK_THRESHOLD_MS) setLocked(true);
+      if (raw && Date.now() - Number(raw) > LOCK_THRESHOLD_MS) lock();
     } catch { /* ignore */ }
-  }, []);
+  }, [lock]);
 
   useEffect(() => {
     const path = window.location.pathname;
@@ -81,7 +102,10 @@ export default function AppLockGate() {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
-      if (res.ok) { setLocked(false); setPassword(''); touch(); }
+      if (res.ok) {
+        try { localStorage.removeItem(LOCKED_KEY); } catch { /* ignore */ }
+        setLocked(false); setPassword(''); touch();
+      }
       else setError('Incorrect password.');
     } catch {
       setError('Could not verify — check your connection.');

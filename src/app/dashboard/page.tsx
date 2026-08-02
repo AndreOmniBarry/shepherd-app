@@ -2139,14 +2139,23 @@ export default function DashboardPage(){
                 <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',flexShrink:0,boxShadow:'0 0 0 3px rgba(29,158,117,0.2)'}}/>
                 {!isMobile&&<span style={{fontSize:11,fontWeight:700,color:'#085041'}}>Viewing: {branchesList.find(b=>b.id===userBranchId)?.name || 'Your Branch'}</span>}
               </div>
-            ) : branchesList.length>1&&(
+            ) : (
+              // Always rendered for overseer/general_overseer/pa/lead_tech
+              // regardless of how many branches currently exist — gating
+              // this on branchesList.length>1 meant the control could
+              // silently vanish (a slow/failed /api/branches fetch, a
+              // church with exactly one branch on record, a race on
+              // first load) with no way to tell it apart from "this
+              // feature doesn't exist here". With only one branch (or
+              // zero) the dropdown still has a meaningful toggle between
+              // "All Branches (Consolidated)" and that one branch.
               <div style={{position:'relative',display:'flex',alignItems:'center'}}>
                 <div style={{position:'absolute',left:isMobile?7:10,display:'flex',alignItems:'center',gap:6,pointerEvents:'none',zIndex:1}}>
                   <span style={{width:7,height:7,borderRadius:'50%',background:selectedBranch?'#BA7517':'#534AB7',flexShrink:0,boxShadow:`0 0 0 3px ${selectedBranch?'rgba(186,117,23,0.18)':'rgba(83,74,183,0.18)'}`}}/>
                 </div>
                 <select value={selectedBranch} onChange={e=>setSelectedBranch(e.target.value)}
                   title="Viewing scope — every figure and action on this page applies to whatever is selected here"
-                  style={{border:`1px solid ${selectedBranch?'rgba(186,117,23,0.35)':'rgba(83,74,183,0.35)'}`,borderRadius:20,padding:isMobile?'5px 8px 5px 18px':'6px 12px 6px 22px',fontSize:isMobile?10:11,fontWeight:700,maxWidth:isMobile?100:undefined,background:selectedBranch?(dark?'rgba(186,117,23,0.12)':'#FAEEDA'):(dark?'rgba(83,74,183,0.12)':t.purpleBg),color:selectedBranch?'#633806':'#3C3489',outline:'none',fontFamily:'inherit',cursor:'pointer',appearance:'none' as const}}>
+                  style={{border:`1px solid ${selectedBranch?'rgba(186,117,23,0.35)':'rgba(83,74,183,0.35)'}`,borderRadius:20,padding:isMobile?'5px 8px 5px 18px':'6px 12px 6px 22px',fontSize:isMobile?10:11,fontWeight:700,maxWidth:isMobile?110:undefined,background:selectedBranch?(dark?'rgba(186,117,23,0.12)':'#FAEEDA'):(dark?'rgba(83,74,183,0.12)':t.purpleBg),color:selectedBranch?'#633806':'#3C3489',outline:'none',fontFamily:'inherit',cursor:'pointer',appearance:'none' as const}}>
                   <option value="">{isMobile?'All Branches':'Viewing: All Branches (Consolidated)'}</option>
                   {branchesList.map(b=>(<option key={b.id} value={b.id}>{isMobile?b.name:`Viewing: ${b.name}`}</option>))}
                 </select>
