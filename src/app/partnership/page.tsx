@@ -8,6 +8,7 @@ import FloatingCalculator from '@/components/FloatingCalculator';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import ChatNavButton from '@/components/ChatNavButton';
 import Icon from '@/components/Icon';
+import { formatMoney, currencySymbol } from '@/lib/currency';
 import LoadingScreen from '@/components/LoadingScreen';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -47,6 +48,7 @@ export default function PartnershipPage() {
   }, []);
   const [pageReady, setPageReady] = useState(false);
   const [leaderName, setLeaderName] = useState('');
+  const [currency, setCurrency] = useState('NGN');
   const [bands, setBands] = useState<Band[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,12 +82,12 @@ export default function PartnershipPage() {
   };
 
   const card = (e?: React.CSSProperties): React.CSSProperties => ({ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '16px 18px', ...e });
-  const fmtNGN = (n: number) => n >= 1e6 ? `₦${(n / 1e6).toFixed(1)}M` : n >= 1000 ? `₦${(n / 1000).toFixed(0)}k` : `₦${Math.round(n).toLocaleString()}`;
+  const fmtNGN = (n: number) => formatMoney(n, currency);
 
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(r => r.json())
-      .then(({ data }) => { if (!data) { router.push('/login'); return; } setLeaderName(data.name || ''); setPageReady(true); })
+      .then(({ data }) => { if (!data) { router.push('/login'); return; } setLeaderName(data.name || ''); setCurrency(data.currency || 'NGN'); setPageReady(true); })
       .catch(() => router.push('/login'));
 
     Promise.all([
@@ -288,7 +290,7 @@ export default function PartnershipPage() {
                     <select value={newPartner.band_id} onChange={e => setNewPartner(p => ({ ...p, band_id: e.target.value }))}
                       style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
                       <option value="">Select band</option>
-                      {bands.map(b => <option key={b.id} value={b.id}>{b.name} — ₦{b.amount.toLocaleString()}/month</option>)}
+                      {bands.map(b => <option key={b.id} value={b.id}>{b.name} — {currencySymbol(currency)}{b.amount.toLocaleString()}/month</option>)}
                     </select>
                   </div>
                 </div>
@@ -332,7 +334,7 @@ export default function PartnershipPage() {
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: 12, fontSize: 11, color: t.sub }}>
-                          <span>Pledge: <span style={{ color: t.purple, fontWeight: 500 }}>₦{p.band_amount.toLocaleString()}</span></span>
+                          <span>Pledge: <span style={{ color: t.purple, fontWeight: 500 }}>{currencySymbol(currency)}{p.band_amount.toLocaleString()}</span></span>
                           <span>Total given: <span style={{ color: t.teal, fontWeight: 500 }}>{fmtNGN(p.total_given)}</span></span>
                         </div>
                       </div>
@@ -358,7 +360,7 @@ export default function PartnershipPage() {
                           <td style={{ padding: '10px 12px' }}>
                             <span style={{ fontSize: 11, padding: '2px 9px', borderRadius: 10, background: bc.bg, color: bc.text, fontWeight: 600 }}>{p.band_name}</span>
                           </td>
-                          <td style={{ padding: '10px 12px', color: t.purple, fontWeight: 500 }}>₦{p.band_amount.toLocaleString()}</td>
+                          <td style={{ padding: '10px 12px', color: t.purple, fontWeight: 500 }}>{currencySymbol(currency)}{p.band_amount.toLocaleString()}</td>
                           <td style={{ padding: '10px 12px' }}>
                             <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: p.this_month_paid ? t.tealBg : t.coralBg, color: p.this_month_paid ? t.teal : t.coral, fontWeight: 500 }}>
                               {p.this_month_paid ? 'Paid' : 'Pending'}
@@ -408,7 +410,7 @@ export default function PartnershipPage() {
                     <div style={{ fontSize: 12, fontWeight: 700, color: b.color, marginBottom: 6 }}>{b.name}</div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: b.text }}>{b.count}</div>
                     <div style={{ fontSize: 10, color: b.color, opacity: 0.7, marginBottom: 6 }}>partners</div>
-                    <div style={{ fontSize: 10, color: b.text, opacity: 0.6 }}>₦{b.amount.toLocaleString()}/mo</div>
+                    <div style={{ fontSize: 10, color: b.text, opacity: 0.6 }}>{currencySymbol(currency)}{b.amount.toLocaleString()}/mo</div>
                     <div style={{ fontSize: 12, fontWeight: 600, color: b.color, marginTop: 4 }}>{fmtNGN(b.monthly)}/mo</div>
                     <div style={{ fontSize: 10, color: b.text, opacity: 0.5, marginTop: 4 }}>{b.paid}/{b.count} paid this month</div>
                   </div>
@@ -446,12 +448,12 @@ export default function PartnershipPage() {
                 }}
                   style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
                   <option value="">Select partner</option>
-                  {activePartners.map(p => <option key={p.id} value={p.id}>{p.full_name} — {p.band_name} (₦{p.band_amount.toLocaleString()}/mo)</option>)}
+                  {activePartners.map(p => <option key={p.id} value={p.id}>{p.full_name} — {p.band_name} ({currencySymbol(currency)}{p.band_amount.toLocaleString()}/mo)</option>)}
                 </select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Amount (₦) *</div>
+                  <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>Amount ({currencySymbol(currency)}) *</div>
                   <input type="number" value={givingForm.amount} onChange={e => setGivingForm(p => ({ ...p, amount: e.target.value }))}
                     placeholder="0" style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 13, fontWeight: 600, background: t.input, color: t.teal, outline: 'none', fontFamily: 'inherit' }} />
                 </div>
@@ -509,7 +511,7 @@ export default function PartnershipPage() {
                         <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: 4 }}>{p.full_name}</div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
                           <span style={{ fontSize: 11, padding: '2px 9px', borderRadius: 10, background: bc.bg, color: bc.text, fontWeight: 600 }}>{p.band_name}</span>
-                          <span style={{ fontSize: 11, color: t.muted }}>₦{p.band_amount.toLocaleString()}/month pledge</span>
+                          <span style={{ fontSize: 11, color: t.muted }}>{currencySymbol(currency)}{p.band_amount.toLocaleString()}/month pledge</span>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                           {p.phone && <div style={{ fontSize: 12, color: t.sub, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="ti-phone" size={11} /> {p.phone}</div>}

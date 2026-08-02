@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { type StructureType } from '@/lib/church-config';
+import { currencySymbol } from '@/lib/currency';
 
 const C = {
   purple: '#534AB7', purpleDark: '#3C3489', purpleLight: '#7B74CC',
@@ -241,8 +242,14 @@ const TIER_DEFAULTS: Record<string, { t1: string; t2: string; t1h: string; t2h: 
 const CURRENCY_MAP: Record<string, string> = {
   Nigeria: 'NGN', Ghana: 'GHS', Kenya: 'KES', 'South Africa': 'ZAR',
   Uganda: 'UGX', Tanzania: 'TZS', Rwanda: 'RWF', Ethiopia: 'ETB',
+  Cameroon: 'XAF', 'Côte d\'Ivoire': 'XOF', Senegal: 'XOF', Zimbabwe: 'ZWL',
+  Zambia: 'ZMW', Malawi: 'MWK', Mozambique: 'MZN', Angola: 'AOA',
+  'DR Congo': 'CDF', 'Sierra Leone': 'SLL', Liberia: 'LRD', Togo: 'XOF',
+  Benin: 'XOF', Niger: 'XOF', 'Burkina Faso': 'XOF', Mali: 'XOF',
+  Botswana: 'BWP', Namibia: 'NAD',
   'United Kingdom': 'GBP', 'United States': 'USD', Canada: 'CAD', Australia: 'AUD',
-  Germany: 'EUR', France: 'EUR', Netherlands: 'EUR',
+  Germany: 'EUR', France: 'EUR', Netherlands: 'EUR', Italy: 'EUR', Ireland: 'EUR',
+  Norway: 'NOK', Sweden: 'SEK', Brazil: 'BRL', India: 'INR', China: 'CNY',
 };
 
 const TZ_MAP: Record<string, string> = {
@@ -326,7 +333,7 @@ function PreviewPanel({ answers }: { answers: Record<string, Answer> }) {
   const tier2 = (answers.tier2_label as string) || td.t2;
   const country = (answers.country as string) || 'Nigeria';
   const currency = CURRENCY_MAP[country] || 'NGN';
-  const currSym = currency === 'NGN' ? '₦' : currency === 'GHS' ? 'GH₵' : currency === 'KES' ? 'KSh' : currency === 'ZAR' ? 'R' : currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency;
+  const currSym = currencySymbol(currency);
   const size = (answers.congregation_size as string) || '';
   const sizeLabel = { under_100: '<100', '100_500': '100–500', '500_2000': '500–2k', '2000_10000': '2k–10k', above_10000: '10k+' }[size] || '—';
   const days = (answers.service_days as string[]) || [];

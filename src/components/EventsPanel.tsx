@@ -161,22 +161,22 @@ export default function EventsPanel({ t, isMobile = false }: { t: Record<string,
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 10 : 0 }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Events</div>
           <div style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>Create programmes, share the public registration link, and message everyone who signed up.</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <div style={{ display: 'flex', background: t.input, borderRadius: 8, border: `0.5px solid ${t.border}`, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', background: t.input, borderRadius: 8, border: `0.5px solid ${t.border}`, overflow: 'hidden', flex: isMobile ? 1 : undefined }}>
             {(['manage', 'analytics'] as const).map(v => (
               <button key={v} onClick={() => setView(v)}
-                style={{ padding: '8px 14px', border: 'none', background: view === v ? t.purple : 'transparent', color: view === v ? '#fff' : t.sub, fontSize: 11, fontWeight: view === v ? 600 : 400, cursor: 'pointer', textTransform: 'capitalize' }}>
+                style={{ flex: isMobile ? 1 : undefined, padding: '9px 16px', border: 'none', background: view === v ? t.purple : 'transparent', color: view === v ? '#fff' : t.sub, fontSize: 12, fontWeight: view === v ? 600 : 400, cursor: 'pointer', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
                 {v}
               </button>
             ))}
           </div>
           {view === 'manage' && (
-            <button onClick={() => setShowNew(v => !v)} style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            <button onClick={() => setShowNew(v => !v)} style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', flex: isMobile ? 1 : undefined, whiteSpace: 'nowrap' }}>
               {showNew ? 'Cancel' : '+ New event'}
             </button>
           )}

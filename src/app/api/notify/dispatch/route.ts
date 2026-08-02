@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { currencySymbol } from '@/lib/currency';
 
 // ── Central notification dispatcher
 // ── Called internally by every submission route
@@ -7,6 +8,14 @@ import { NextResponse } from 'next/server';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const hdrs = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
+
+async function getCurrency(): Promise<string> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/church_config?order=created_at.asc&limit=1&select=currency`, { headers: hdrs() });
+    const configs = await res.json();
+    return (Array.isArray(configs) && configs[0]?.currency) || 'NGN';
+  } catch { return 'NGN'; }
+}
 
 type NotifyEvent =
   | 'attendance_submitted'
@@ -86,7 +95,7 @@ async function getRecipients(payload: DispatchPayload): Promise<string[]> {
   return Array.from(ids);
 }
 
-function buildNotification(payload: DispatchPayload): { title: string; body: string; type: string } {
+async function buildNotification(payload: DispatchPayload): Promise<{ title: string; body: string; type: string }> {
   switch (payload.event) {
     case 'attendance_submitted':
       return {
@@ -115,7 +124,7 @@ function buildNotification(payload: DispatchPayload): { title: string; body: str
     case 'income_logged':
       return {
         type: 'giving',
-        title: `Income recorded${payload.amount ? ` — ₦${payload.amount.toLocaleString()}` : ''}`,
+        title: `Income recorded${payload.amount ? ` — ${currencySymbol(await getCurrency())}${payload.amount.toLocaleString()}` : ''}`,
         body: payload.detail,
       };
     case 'requisition_raised':
@@ -133,7 +142,7 @@ function buildNotification(payload: DispatchPayload): { title: string; body: str
     case 'partnership_giving_logged':
       return {
         type: 'giving',
-        title: `Partnership giving logged${payload.amount ? ` — ₦${payload.amount.toLocaleString()}` : ''}`,
+        title: `Partnership giving logged${payload.amount ? ` — ${currencySymbol(await getCurrency())}${payload.amount.toLocaleString()}` : ''}`,
         body: payload.detail,
       };
     case 'prayer_request_submitted':
@@ -168,7 +177,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: { sent: 0 }, error: null });
     }
 
-    const notif = buildNotification(payload);
+    const notif = await buildNotification(payload);
     const rows = recipients.map(userId => ({
       user_id: userId,
       type: notif.type,

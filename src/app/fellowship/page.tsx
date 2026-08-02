@@ -9,6 +9,7 @@ import UpcomingEventsCard from '@/components/UpcomingEventsCard';
 import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
 import DateTimePicker from '@/components/DateTimePicker';
 import Icon from '@/components/Icon';
+import { formatMoney, currencySymbol } from '@/lib/currency';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import ChatNavButton from '@/components/ChatNavButton';
@@ -155,6 +156,7 @@ export default function FellowshipHeadPage() {
   const [nudgeMsg, setNudgeMsg] = useState('');
   const [fellowshipName, setFellowshipName] = useState('');
   const [leaderName, setLeaderName] = useState('');
+  const [currency, setCurrency] = useState('NGN');
   const [cells, setCells] = useState<Cell[]>([]);
   const [fellowshipTrend, setFellowshipTrend] = useState<{ w: string; v: number }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -220,6 +222,7 @@ export default function FellowshipHeadPage() {
         if (!data) { router.push('/login'); return; }
         setFellowshipName(data.fellowship_name || 'Your Fellowship');
         setLeaderName(data.name || '');
+        setCurrency(data.currency || 'NGN');
         setPageReady(true);
       })
       .catch(() => router.push('/login'));
@@ -372,7 +375,7 @@ export default function FellowshipHeadPage() {
     } catch {}
   }
 
-  const fmtNGN = (n: number) => n >= 1_000_000 ? `₦${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `₦${(n / 1000).toFixed(0)}k` : `₦${n}`;
+  const fmtNGN = (n: number) => formatMoney(n, currency);
   const todayStr = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   const filteredMembers = members.filter(m =>
@@ -851,10 +854,10 @@ export default function FellowshipHeadPage() {
               )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                 {[
-                  { key: 'tithe', label: 'Tithe (₦)' },
-                  { key: 'offering', label: 'Offering (₦)' },
-                  { key: 'special', label: 'Special (₦)' },
-                  { key: 'project', label: 'Project (₦)' },
+                  { key: 'tithe', label: `Tithe (${currencySymbol(currency)})` },
+                  { key: 'offering', label: `Offering (${currencySymbol(currency)})` },
+                  { key: 'special', label: `Special (${currencySymbol(currency)})` },
+                  { key: 'project', label: `Project (${currencySymbol(currency)})` },
                 ].map(f => {
                   const raw = givingForm[f.key as keyof typeof givingForm];
                   const displayVal = raw ? Number(raw.replace(/,/g,'')).toLocaleString('en-NG') : '';
@@ -894,7 +897,7 @@ export default function FellowshipHeadPage() {
                     <BarChart data={givingHistory.slice(-8).map(g => ({ date: g.service_date.slice(5), total: g.tithe + g.offering + g.special + g.project }))} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={t.chartGrid} />
                       <XAxis dataKey="date" tick={{ fontSize: 9, fill: t.chartAxis }} />
-                      <YAxis tick={{ fontSize: 9, fill: t.chartAxis }} tickFormatter={v => `₦${(v / 1000).toFixed(0)}k`} />
+                      <YAxis tick={{ fontSize: 9, fill: t.chartAxis }} tickFormatter={v => `${currencySymbol(currency)}${(v / 1000).toFixed(0)}k`} />
                       <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, background: t.chartTip, color: t.chartTipText }} formatter={(v: number) => [fmtNGN(v), 'Total']} />
                       <Bar dataKey="total" fill="#534AB7" radius={[3, 3, 0, 0]} />
                     </BarChart>

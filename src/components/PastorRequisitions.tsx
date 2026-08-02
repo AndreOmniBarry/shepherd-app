@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
+import { currencySymbol } from '@/lib/currency';
 
 type Requisition = {
   id: string; title: string; category_name: string;
@@ -15,9 +16,9 @@ const STATUS_CFG: Record<string, { bg: string; text: string; label: string }> = 
   paid:     { bg: '#EEEDFE', text: '#3C3489', label: 'Paid' },
 };
 
-interface PastorRequisitionsProps { t: Record<string, string>; dark: boolean; branchId?: string; }
+interface PastorRequisitionsProps { t: Record<string, string>; dark: boolean; branchId?: string; currency?: string; }
 
-export default function PastorRequisitions({ t, dark, branchId }: PastorRequisitionsProps) {
+export default function PastorRequisitions({ t, dark, branchId, currency }: PastorRequisitionsProps) {
   const [requisitions, setRequisitions] = useState<Requisition[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
@@ -90,7 +91,7 @@ export default function PastorRequisitions({ t, dark, branchId }: PastorRequisit
                 <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, background: cfg.bg, color: cfg.text, fontWeight: 500, flexShrink: 0 }}>{cfg.label}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: t.text }}>₦{r.amount_requested.toLocaleString()}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: t.text }}>{currencySymbol(currency)}{r.amount_requested.toLocaleString()}</div>
                 {r.status === 'approved' && (
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => updateStatus(r.id, 'paid')}

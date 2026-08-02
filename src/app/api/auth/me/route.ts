@@ -54,8 +54,18 @@ export async function GET(req: Request) {
 
     const fullName = profile?.full_name || user.name || user.email?.split('@')[0] || 'Pastor';
 
+    let currency = 'NGN';
+    try {
+      const configRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/church_config?order=created_at.asc&limit=1&select=currency`,
+        { headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` } }
+      );
+      const configs = await configRes.json();
+      currency = (Array.isArray(configs) && configs[0]?.currency) || 'NGN';
+    } catch { /* default to NGN if config lookup fails — never blocks login */ }
+
     return NextResponse.json({
-      data: { ...user, name: fullName, cell_name: cellName, department_name: departmentName },
+      data: { ...user, name: fullName, cell_name: cellName, department_name: departmentName, currency },
       error: null,
     });
   } catch (err) {
