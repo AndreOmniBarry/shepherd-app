@@ -2155,7 +2155,7 @@ export default function DashboardPage(){
                 </div>
                 <select value={selectedBranch} onChange={e=>setSelectedBranch(e.target.value)}
                   title="Viewing scope — every figure and action on this page applies to whatever is selected here"
-                  style={{border:`1px solid ${selectedBranch?'rgba(186,117,23,0.35)':'rgba(83,74,183,0.35)'}`,borderRadius:20,padding:isMobile?'5px 8px 5px 18px':'6px 12px 6px 22px',fontSize:isMobile?10:11,fontWeight:700,maxWidth:isMobile?110:undefined,background:selectedBranch?(dark?'rgba(186,117,23,0.12)':'#FAEEDA'):(dark?'rgba(83,74,183,0.12)':t.purpleBg),color:selectedBranch?'#633806':'#3C3489',outline:'none',fontFamily:'inherit',cursor:'pointer',appearance:'none' as const}}>
+                  style={{border:`1px solid ${selectedBranch?'rgba(186,117,23,0.35)':'rgba(83,74,183,0.35)'}`,borderRadius:20,padding:isMobile?'5px 8px 5px 18px':'6px 12px 6px 22px',fontSize:isMobile?10:11,fontWeight:700,maxWidth:isMobile?110:170,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flexShrink:0,background:selectedBranch?(dark?'rgba(186,117,23,0.12)':'#FAEEDA'):(dark?'rgba(83,74,183,0.12)':t.purpleBg),color:selectedBranch?'#633806':'#3C3489',outline:'none',fontFamily:'inherit',cursor:'pointer',appearance:'none' as const}}>
                   <option value="">{isMobile?'All Branches':'Viewing: All Branches (Consolidated)'}</option>
                   {branchesList.map(b=>(<option key={b.id} value={b.id}>{isMobile?b.name:`Viewing: ${b.name}`}</option>))}
                 </select>
