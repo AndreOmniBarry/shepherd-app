@@ -41,7 +41,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     // fellowships too. Carries the member's fellowship_id along with the
     // cell's, so the two never end up inconsistent.
     if (cell_id) {
-      const cellRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${cell_id}&select=id,fellowship_id&limit=1`, { headers: hdrs() });
+      const cellRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${cell_id}&church_id=eq.${user.church_id}&select=id,fellowship_id&limit=1`, { headers: hdrs() });
       const cellData = await cellRes.json();
       const cell = cellData?.[0];
       if (!cell) return NextResponse.json({ data: null, error: { message: 'Cell not found' } }, { status: 404 });
@@ -53,7 +53,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ data: null, error: { message: 'No fields to update' } }, { status: 400 });
     }
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${params.id}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${params.id}&church_id=eq.${user.church_id}`, {
       method: 'PATCH',
       headers: { ...hdrs(), 'Prefer': 'return=minimal' },
       body: JSON.stringify(updateData),
@@ -95,7 +95,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
       body: JSON.stringify({ member_id: null }),
     }).catch(() => {});
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${params.id}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${params.id}&church_id=eq.${user.church_id}`, {
       method: 'DELETE', headers: { ...hdrs(), 'Prefer': 'return=minimal' },
     });
 

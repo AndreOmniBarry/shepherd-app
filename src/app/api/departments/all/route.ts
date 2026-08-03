@@ -33,7 +33,7 @@ export async function GET(req: Request) {
 
     // Single-department roster with per-member latest attendance status
     if (departmentId) {
-      const deptRes = await fetch(`${SUPABASE_URL}/rest/v1/departments?id=eq.${departmentId}&select=id,name&limit=1`, { headers: hdrs() });
+      const deptRes = await fetch(`${SUPABASE_URL}/rest/v1/departments?id=eq.${departmentId}&church_id=eq.${user.church_id}&select=id,name&limit=1`, { headers: hdrs() });
       const deptData = await deptRes.json();
       const dept = deptData?.[0];
       if (!dept) return NextResponse.json({ data: null, error: { message: 'Department not found' } }, { status: 404 });
@@ -73,8 +73,8 @@ export async function GET(req: Request) {
     }
 
     const [deptsRes, leadersRes, membersRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/departments?select=id,name&order=name.asc${branchFilter}`, { headers: hdrs() }),
-      fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.department_head&is_active=eq.true&select=department_id,full_name${EXCLUDE_DEMO_IDS}`, { headers: hdrs() }),
+      fetch(`${SUPABASE_URL}/rest/v1/departments?select=id,name&order=name.asc${branchFilter}&church_id=eq.${user.church_id}`, { headers: hdrs() }),
+      fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.department_head&is_active=eq.true&select=department_id,full_name&church_id=eq.${user.church_id}${EXCLUDE_DEMO_IDS}`, { headers: hdrs() }),
       fetch(`${SUPABASE_URL}/rest/v1/department_members?select=department_id,member_id`, { headers: hdrs() }),
     ]);
     const [depts, leaders, deptMembers] = await Promise.all([deptsRes.json(), leadersRes.json(), membersRes.json()]);

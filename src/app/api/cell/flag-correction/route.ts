@@ -29,17 +29,17 @@ export async function POST(req: Request) {
     const { member_id, note } = await req.json();
     if (!member_id || !note?.trim()) return NextResponse.json({ data: null, error: { message: 'member_id and a note are required' } }, { status: 400 });
 
-    const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${member_id}&select=id,full_name,fellowship_id&limit=1`, { headers: hdrs() });
+    const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${member_id}&church_id=eq.${user.church_id}&select=id,full_name,fellowship_id&limit=1`, { headers: hdrs() });
     const member = (await memberRes.json())?.[0];
     if (!member) return NextResponse.json({ data: null, error: { message: 'Member not found' } }, { status: 404 });
 
     const recipients: string[] = [];
     if (member.fellowship_id) {
-      const fhRes = await fetch(`${SUPABASE_URL}/rest/v1/users?fellowship_id=eq.${member.fellowship_id}&role=eq.fellowship_head&select=id`, { headers: hdrs() });
+      const fhRes = await fetch(`${SUPABASE_URL}/rest/v1/users?fellowship_id=eq.${member.fellowship_id}&role=eq.fellowship_head&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
       const fhData = await fhRes.json();
       if (Array.isArray(fhData)) recipients.push(...fhData.map((u: { id: string }) => u.id));
     }
-    const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&select=id`, { headers: hdrs() });
+    const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
     const adminData = await adminRes.json();
     if (Array.isArray(adminData)) recipients.push(...adminData.map((u: { id: string }) => u.id));
 
@@ -52,6 +52,7 @@ export async function POST(req: Request) {
           title: 'Member placement flagged for review',
           body: `${user.name || 'A cell leader'} flagged ${member.full_name}: "${note.trim()}"`,
           link: '/fellowship',
+          church_id: user.church_id || null,
         }))),
       }).catch(() => {});
     }

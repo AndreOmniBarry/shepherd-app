@@ -24,7 +24,7 @@ export async function POST(req: Request) {
 
     const res = await fetch(`${SURL}/rest/v1/departments`, {
       method: 'POST', headers: { ...H(), Prefer: 'return=representation' },
-      body: JSON.stringify({ name: name.trim() }),
+      body: JSON.stringify({ name: name.trim(), church_id: user.church_id || null }),
     });
     const data = await res.json();
     const department = Array.isArray(data) ? data[0] : data;

@@ -39,6 +39,9 @@ export async function POST(req: Request) {
     }
 
     const memberRes = await fetch(`${SURL}/rest/v1/department_members?department_id=eq.${department_id}&member_id=eq.${member_id}&select=members(id,full_name)&limit=1`, { headers: H() });
+    // department_members has no church_id of its own, but department_id was
+    // already resolved from this caller's own account, so it's implicitly
+    // scoped to their church.
     const memberData = await memberRes.json();
     const member = memberData?.[0]?.members as { id: string; full_name: string } | undefined;
     if (!member) return NextResponse.json({ data: null, error: { message: 'That member is not on your department roster' } }, { status: 404 });
@@ -59,6 +62,7 @@ export async function POST(req: Request) {
         department_id,
         member_id: member.id,
         created_by: user.id,
+        church_id: user.church_id,
         expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
       }),
     });

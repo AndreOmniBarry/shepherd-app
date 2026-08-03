@@ -26,7 +26,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
   const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/fellowships?select=id,name&order=name.asc${branchFilter}`, { headers: hdrs() });
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/fellowships?select=id,name&order=name.asc${branchFilter}&church_id=eq.${user.church_id}`, { headers: hdrs() });
   const data = await res.json();
   return NextResponse.json({ data: { fellowships: Array.isArray(data) ? data : [] }, error: null });
 }

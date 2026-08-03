@@ -102,15 +102,16 @@ export async function POST(req: Request) {
 
     // Fetch the lead's current contact_attempts so we increment rather than overwrite
     const careRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/care_leads?id=eq.${lead_id}&select=assigned_to,contact_attempts&limit=1`,
+      `${SUPABASE_URL}/rest/v1/care_leads?id=eq.${lead_id}&church_id=eq.${user.church_id}&select=assigned_to,contact_attempts&limit=1`,
       { headers: hdrs() }
     );
     const careData = await careRes.json();
     const currentLead = careData?.[0];
+    if (!currentLead) return NextResponse.json({ data: null, error: { message: 'Lead not found' } }, { status: 404 });
     const assignedTo = currentLead?.assigned_to;
 
     // Update the care lead contact attempts and last contact
-    await fetch(`${SUPABASE_URL}/rest/v1/care_leads?id=eq.${lead_id}`, {
+    await fetch(`${SUPABASE_URL}/rest/v1/care_leads?id=eq.${lead_id}&church_id=eq.${user.church_id}`, {
       method: 'PATCH',
       headers: { ...hdrs(), 'Prefer': 'return=minimal' },
       body: JSON.stringify({
@@ -130,6 +131,7 @@ export async function POST(req: Request) {
           title: 'Cell leader logged a follow-up',
           body: `Action logged: ${action.slice(0, 100)}${action.length > 100 ? '...' : ''}`,
           read: false,
+          church_id: user.church_id || null,
         }]),
       });
     }

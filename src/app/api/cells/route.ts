@@ -2,6 +2,15 @@
 // ?fellowship_id=uuid  → cells for that fellowship (for registration dropdown)
 // ?include=fellowships → returns fellowships list alongside cells
 // Auth: returns full list for overseer, own cell only for cell_leader
+//
+// KNOWN MULTI-TENANT GAP: this endpoint is reachable without a session
+// (anonymous self-registration flow) and has no way to know which church
+// an anonymous request belongs to — there's no church slug/subdomain in
+// the URL to resolve it from. It will list every church's cells/
+// fellowships once a second church has real data. Fixing this properly
+// needs a public-facing church identifier in the registration URL
+// (e.g. /register/[church-slug]), which doesn't exist yet — flagged
+// rather than papered over with a guess.
 
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
@@ -33,6 +42,11 @@ export async function GET(req: Request) {
     if (user?.role === 'cell_leader' && user.cell_id) {
       cellsQuery = cellsQuery.eq('id', user.cell_id);
     }
+    // Authenticated requests are scoped to the caller's own church —
+    // anonymous requests can't be (see KNOWN MULTI-TENANT GAP above).
+    if (user?.church_id) {
+      cellsQuery = cellsQuery.eq('church_id', user.church_id);
+    }
 
     const { data: cells, error: cellsError } = await cellsQuery;
     if (cellsError) throw cellsError;
@@ -40,10 +54,12 @@ export async function GET(req: Request) {
     // Optionally include fellowships (for registration dropdown)
     let fellowships = null;
     if (includeFellows) {
-      const { data: fs } = await sb
+      let fellowshipsQuery = sb
         .from('fellowships')
         .select('id, name, description')
         .order('name', { ascending: true });
+      if (user?.church_id) fellowshipsQuery = fellowshipsQuery.eq('church_id', user.church_id);
+      const { data: fs } = await fellowshipsQuery;
       fellowships = fs;
     }
 

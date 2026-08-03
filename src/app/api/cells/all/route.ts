@@ -27,21 +27,21 @@ export async function GET(req: Request) {
 
     // Get all active cells with fellowship
     const cellsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/cells?is_active=eq.true&select=id,name,fellowship_id,target_size,fellowships(name)&order=fellowship_id.asc,name.asc${branchFilter}`,
+      `${SUPABASE_URL}/rest/v1/cells?is_active=eq.true&select=id,name,fellowship_id,target_size,fellowships(name)&order=fellowship_id.asc,name.asc${branchFilter}&church_id=eq.${user.church_id}`,
       { headers }
     );
     const cells = await cellsRes.json();
 
     // Get cell leaders from users table
     const leadersRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&is_active=eq.true&select=cell_id,full_name,email${EXCLUDE_DEMO_IDS}`,
+      `${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&is_active=eq.true&select=cell_id,full_name,email&church_id=eq.${user.church_id}${EXCLUDE_DEMO_IDS}`,
       { headers }
     );
     const leaders = await leadersRes.json();
 
     // Get member counts per cell
     const membersRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/members?membership_status=eq.active&select=cell_id`,
+      `${SUPABASE_URL}/rest/v1/members?membership_status=eq.active&select=cell_id&church_id=eq.${user.church_id}`,
       { headers }
     );
     const members = await membersRes.json();

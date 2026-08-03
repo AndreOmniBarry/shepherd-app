@@ -17,6 +17,11 @@ async function getUser(req: Request) {
   return payloadToAuthUser(payload);
 }
 
+// NOTE: member_removals has no church_id column of its own (out of scope
+// of the multi-tenant migration) — the admin GET below still lists every
+// church's recommendations. Every fixable touchpoint (members lookups/
+// updates, notifications) is scoped; the listing itself needs a schema
+// change to fix properly.
 const ADMIN_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
 const RECOMMEND_ROLES = ['fellowship_head', 'department_head'];
 
@@ -35,7 +40,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'A member and a reason are required' } }, { status: 400 });
     }
 
-    const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${member_id}&select=id,full_name&limit=1`, { headers: hdrs() });
+    const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${member_id}&church_id=eq.${user.church_id}&select=id,full_name&limit=1`, { headers: hdrs() });
     const memberData = await memberRes.json();
     const member = memberData?.[0];
     if (!member) return NextResponse.json({ data: null, error: { message: 'Member not found' } }, { status: 404 });
@@ -63,7 +68,7 @@ export async function POST(req: Request) {
     });
     const data = await res.json();
 
-    const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&select=id`, { headers: hdrs() });
+    const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
     const adminData = await adminRes.json();
     if (Array.isArray(adminData) && adminData.length) {
       await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
@@ -73,6 +78,7 @@ export async function POST(req: Request) {
           title: 'Member removal recommended',
           body: `${member.full_name} recommended for removal by ${user.name || user.role} — pending approval`,
           link: '/dashboard',
+          church_id: user.church_id || null,
         }))),
       }).catch(() => {});
     }
@@ -133,7 +139,7 @@ export async function PATCH(req: Request) {
       if (record.status !== 'approved') return NextResponse.json({ data: null, error: { message: 'Only an approved removal can be revoked' } }, { status: 400 });
 
       if (record.member_id) {
-        await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${record.member_id}`, {
+        await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${record.member_id}&church_id=eq.${user.church_id}`, {
           method: 'PATCH', headers: { ...hdrs(), Prefer: 'return=minimal' },
           body: JSON.stringify({ membership_status: 'active' }),
         });
@@ -163,7 +169,7 @@ export async function PATCH(req: Request) {
 
     if (action === 'approve') {
       if (record.member_id) {
-        await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${record.member_id}`, {
+        await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${record.member_id}&church_id=eq.${user.church_id}`, {
           method: 'PATCH', headers: { ...hdrs(), Prefer: 'return=minimal' },
           body: JSON.stringify({ membership_status: 'inactive' }),
         });
@@ -179,6 +185,7 @@ export async function PATCH(req: Request) {
           user_id: record.recommended_by, type: 'pipeline', read: false,
           title: 'Removal approved',
           body: `${record.member_name}'s removal was authorised.`,
+          church_id: user.church_id || null,
         }]),
       }).catch(() => {});
 
