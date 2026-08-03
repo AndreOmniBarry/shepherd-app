@@ -27,7 +27,7 @@ export async function GET(req: Request) {
   const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
 
   const res = await fetch(
-    `${S}/rest/v1/expense_requisitions?order=created_at.desc&limit=100&select=id,title,amount_requested,amount_approved,requested_by_name,status,created_at,notes,expense_categories(name)${branchFilter}`,
+    `${S}/rest/v1/expense_requisitions?order=created_at.desc&limit=100&select=id,title,amount_requested,amount_approved,requested_by_name,status,created_at,notes,expense_categories(name)&church_id=eq.${user.church_id}${branchFilter}`,
     { headers: h() }
   );
   const data = await res.json();
@@ -55,6 +55,7 @@ export async function POST(req: Request) {
       requested_by_name: requested_by_name || 'Unknown',
       department_id: department_id || null,
       branch_id: user.branch_id || null,
+      church_id: user.church_id || null,
       status: 'pending',
     }),
   });
