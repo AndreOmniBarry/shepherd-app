@@ -29,7 +29,7 @@ export async function GET(req: Request) {
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
   const res = await fetch(
-    `${S}/rest/v1/partnership_giving?month=gte.${cutoff.toISOString().split('T')[0]}&order=month.desc&limit=200&select=id,partner_id,amount,month,status,notes,created_at,partners(full_name)`,
+    `${S}/rest/v1/partnership_giving?month=gte.${cutoff.toISOString().split('T')[0]}&order=month.desc&limit=200&select=id,partner_id,amount,month,status,notes,created_at,partners(full_name)&church_id=eq.${user.church_id}`,
     { headers: h() }
   );
   const data = await res.json();
@@ -55,6 +55,7 @@ export async function POST(req: Request) {
       partner_id, amount: parseFloat(amount),
       month, status: status || 'paid',
       notes: notes || null, submitted_by: user.id,
+      church_id: user.church_id || null,
     }),
   });
   const data = await res.json();

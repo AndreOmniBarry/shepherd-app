@@ -21,6 +21,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const user = await getUser(req);
   if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
+  // feed_posts/feed_acknowledgements have no church_id of their own —
+  // verify the post's group belongs to this caller's church before
+  // acknowledging it, otherwise a guessed/leaked post id from another
+  // church could be acknowledged here.
+  const postRes = await fetch(`${S}/rest/v1/feed_posts?id=eq.${id}&select=group_id&limit=1`, { headers: H() });
+  const postData = await postRes.json().catch(() => []);
+  const groupId = postData?.[0]?.group_id;
+  if (!groupId) return NextResponse.json({ data: null, error: { message: 'Post not found' } }, { status: 404 });
+  const groupCheckRes = await fetch(`${S}/rest/v1/feed_groups?id=eq.${groupId}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: H() });
+  const groupCheck = await groupCheckRes.json().catch(() => []);
+  if (!groupCheck?.[0]) return NextResponse.json({ data: null, error: { message: 'Post not found' } }, { status: 404 });
+
   const existingRes = await fetch(`${S}/rest/v1/feed_acknowledgements?post_id=eq.${id}&user_id=eq.${user.id}&select=post_id`, { headers: H() });
   const existing = await existingRes.json().catch(() => []);
   const already = Array.isArray(existing) && existing.length > 0;

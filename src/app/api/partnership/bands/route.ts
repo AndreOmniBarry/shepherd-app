@@ -19,7 +19,11 @@ export async function GET(req: Request) {
   const blocked = await requirePremium(user.church_id);
   if (blocked) return blocked;
 
-  const res = await fetch(`${S}/rest/v1/partnership_bands?order=sort_order.asc&select=id,name,amount,color`, { headers: h() });
+  // KNOWN GAP: there is no create endpoint for partnership_bands anywhere
+  // — existing bands were seeded directly in the DB and were all backfilled
+  // to the original production church. A newly onboarded church will see
+  // an empty list here until bands are seeded for their own church_id.
+  const res = await fetch(`${S}/rest/v1/partnership_bands?order=sort_order.asc&select=id,name,amount,color&church_id=eq.${user.church_id}`, { headers: h() });
   const data = await res.json();
   return NextResponse.json({ data: { bands: Array.isArray(data) ? data : [] }, error: null });
 }

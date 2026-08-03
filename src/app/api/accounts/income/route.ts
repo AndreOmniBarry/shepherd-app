@@ -53,7 +53,7 @@ export async function POST(req: Request) {
   // adjustment, so a "final" figure never quietly changes after the fact.
   if (service_date) {
     const monthStart = String(service_date).slice(0, 7) + '-01';
-    const periodRes = await fetch(`${S}/rest/v1/financial_periods?period_month=eq.${monthStart}&select=id`, { headers: h() });
+    const periodRes = await fetch(`${S}/rest/v1/financial_periods?period_month=eq.${monthStart}&church_id=eq.${user.church_id}&select=id`, { headers: h() });
     const periodRows = await periodRes.json();
     const isClosed = Array.isArray(periodRows) && periodRows.length > 0;
     if (isClosed && !is_adjustment) {

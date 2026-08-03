@@ -19,17 +19,32 @@ async function getUser(req: Request) {
   return payloadToAuthUser(payload);
 }
 
-// Only general_overseer and lead_tech have unrestricted reach — every other
-// role that can reach Moshe at all is either blocked from financial tables
-// entirely (pa) or hard-scoped to their own branch (overseer, branch_pastor).
-// This is enforced here in code, not just described in the prompt, since an
-// LLM's own judgement about what it should or shouldn't say is not a
-// security boundary.
+// Only general_overseer and lead_tech have unrestricted BRANCH reach —
+// every other role that can reach Moshe at all is either blocked from
+// financial tables entirely (pa) or hard-scoped to their own branch
+// (overseer, branch_pastor). This is enforced here in code, not just
+// described in the prompt, since an LLM's own judgement about what it
+// should or shouldn't say is not a security boundary.
 const FINANCIAL_TABLES = ['income_records', 'income_types', 'giving_records', 'expense_requisitions', 'financial_periods'];
 
 function touchesFinancialData(sql: string): boolean {
   const lower = sql.toLowerCase();
   return FINANCIAL_TABLES.some(t => new RegExp(`\\b${t}\\b`).test(lower));
+}
+
+// CHURCH tenant boundary — no role is unrestricted here, including
+// lead_tech and general_overseer. Every table Moshe knows about that
+// carries its own church_id column must be filtered to the caller's own
+// church whenever the generated SQL touches it, or a natural-language
+// question like "list all cells" would hand back every church's member
+// PII, attendance, and giving data platform-wide. Platform-wide diagnostics
+// belong in the dedicated admin endpoints (admin/churches, admin/alerts),
+// not this raw-SQL surface.
+const CHURCH_SCOPED_TABLES = ['branches', 'cells', 'fellowships', 'services', 'income_records', 'members', 'departments', 'expense_requisitions'];
+
+function touchesChurchScopedTable(sql: string): boolean {
+  const lower = sql.toLowerCase();
+  return CHURCH_SCOPED_TABLES.some(t => new RegExp(`\\b${t}\\b`).test(lower));
 }
 
 const BASE_RULES = `
@@ -71,18 +86,18 @@ The database contains records from January 2021 through May 2026. If a user asks
 5. If results are empty, say the data does not exist for that period.
 
 ## SCHEMA
-- branches (id, name, is_headquarters)
-- cells (id, name, fellowship_id, branch_id, target_size, is_active)
-- fellowships (id, name, branch_id)
+- branches (id, name, is_headquarters, church_id)
+- cells (id, name, fellowship_id, branch_id, target_size, is_active, church_id)
+- fellowships (id, name, branch_id, church_id)
 - attendance_records (id, service_id, cell_id, present_count, absent_count, visitor_count, submitted_at)
-- services (id, service_date, service_number, service_type, branch_id)
-- income_records (id, income_type_id, amount, service_date, created_at, notes, branch_id)
+- services (id, service_date, service_number, service_type, branch_id, church_id)
+- income_records (id, income_type_id, amount, service_date, created_at, notes, branch_id, church_id)
 - income_types (id, name, category) — category is 'individual', 'aggregate', or 'partnership'
 - giving_records (id, fellowship_id, service_date, tithe, offering, special, project, submitted_by) — fellowship-level giving summary
-- members (id, full_name, gender, date_of_birth, phone, email, cell_id, fellowship_id, branch_id, sub_group, join_date, membership_status, conversion_source, is_new_convert, created_at)
-- departments (id, name, branch_id)
+- members (id, full_name, gender, date_of_birth, phone, email, cell_id, fellowship_id, branch_id, sub_group, join_date, membership_status, conversion_source, is_new_convert, created_at, church_id)
+- departments (id, name, branch_id, church_id)
 - department_members (id, department_id, member_id)
-- expense_requisitions (id, title, amount_requested, amount_approved, status, branch_id, created_at)
+- expense_requisitions (id, title, amount_requested, amount_approved, status, branch_id, created_at, church_id)
 
 JOIN KEYS:
 - attendance_records.service_id -> services.id
@@ -97,14 +112,22 @@ JOIN KEYS:
 - cells.branch_id / fellowships.branch_id / members.branch_id / departments.branch_id / income_records.branch_id / expense_requisitions.branch_id -> branches.id
 
 ## ACCESS SCOPE
-Every message is prefixed with a [SCOPE] line telling you the caller's role and, if they are
-branch-scoped, their exact branch_id. If a branch_id is given, every query you write that touches
-a table with a branch_id column MUST filter WHERE branch_id = '<that exact uuid>' — never omit it,
-never query another branch's id, and never write a query with no branch filter at all on a
-branch-scoped table. If [SCOPE] says financial data is restricted, do not call query_database for
-any question about giving, income, requisitions, or financial trends — instead say plainly that
-financial data access is restricted for this role and suggest they ask their General Overseer or
-Branch Pastor.
+Every message is prefixed with a [SCOPE] line telling you the caller's role, their exact church_id,
+and, if they are branch-scoped, their exact branch_id.
+
+Every query you write that touches a table with a church_id column (branches, cells, fellowships,
+services, income_records, members, departments, expense_requisitions) MUST filter
+WHERE church_id = '<that exact uuid>' — no exception for any role. This app is multi-tenant: never
+write a query with no church filter at all on a church-scoped table, and never query another
+church's id, even if asked to "list every church" or similar — you only ever have access to the
+caller's own church's data.
+
+If a branch_id is also given, every query touching a table with a branch_id column MUST additionally
+filter WHERE branch_id = '<that exact uuid>' on top of the church_id filter.
+
+If [SCOPE] says financial data is restricted, do not call query_database for any question about
+giving, income, requisitions, or financial trends — instead say plainly that financial data access
+is restricted for this role and suggest they ask their General Overseer or Branch Pastor.
 
 IMPORTANT: For total church income use income_records joined with income_types. For fellowship-level giving totals use giving_records. Always show income_types.name not 'Anonymous' as the category label.
 
@@ -156,6 +179,17 @@ async function executeSQL(rawSql: string, user: AuthUser): Promise<string> {
   const dangerous = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'TRUNCATE', 'ALTER', 'CREATE'];
   if (dangerous.some(kw => upper.includes(kw))) {
     return JSON.stringify({ error: 'Prohibited keyword detected.' });
+  }
+
+  // Church tenant guardrail — applies to every role, no exceptions. This
+  // is a naive string-containment check (matching the existing branch_id
+  // pattern below), not a real SQL parser, but it closes off the previous
+  // total absence of any tenant check on this endpoint.
+  if (touchesChurchScopedTable(sql)) {
+    if (!user.church_id || !sql.includes(user.church_id)) {
+      console.log('[SQL BLOCKED — missing church_id filter]');
+      return JSON.stringify({ error: 'This query must be scoped to your own church. Please rephrase.' });
+    }
   }
 
   // Financial guardrail — enforced in code, not trusted to the model.
@@ -249,11 +283,12 @@ export async function POST(req: Request) {
     const systemTime = now.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Lagos' });
     const dateContext = `[SYSTEM: Today is ${systemDate}, ${systemTime} WAT]`;
 
+    const churchScope = `church_id=${user.church_id || 'none'}. Every query touching a table with a church_id column must filter WHERE church_id = '${user.church_id || ''}' — no exception for any role.`;
     const scopeContext = user.role === 'pa'
-      ? '[SCOPE: role=pa. Financial data access is restricted — do not query income_records, income_types, giving_records, expense_requisitions, or financial_periods for this user under any circumstance.]'
+      ? `[SCOPE: role=pa, ${churchScope} Financial data access is restricted — do not query income_records, income_types, giving_records, expense_requisitions, or financial_periods for this user under any circumstance.]`
       : ['overseer', 'branch_pastor'].includes(user.role)
-        ? `[SCOPE: role=${user.role}, branch_id=${user.branch_id || 'none'}. Every query touching a table with a branch_id column must filter WHERE branch_id = '${user.branch_id || ''}'.]`
-        : `[SCOPE: role=${user.role}. Unrestricted — no branch or financial limits apply.]`;
+        ? `[SCOPE: role=${user.role}, ${churchScope} Also branch_id=${user.branch_id || 'none'} — every query touching a table with a branch_id column must additionally filter WHERE branch_id = '${user.branch_id || ''}'.]`
+        : `[SCOPE: role=${user.role}, ${churchScope} No branch limits apply, but the church_id filter above is still mandatory.]`;
 
     const messages: Anthropic.MessageParam[] = [];
     for (const turn of history) {

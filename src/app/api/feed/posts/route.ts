@@ -38,6 +38,13 @@ export async function GET(req: Request) {
   const groupId = searchParams.get('group_id');
   if (!groupId) return NextResponse.json({ data: null, error: { message: 'group_id is required' } }, { status: 400 });
 
+  // feed_posts has no church_id of its own — verify the group itself
+  // belongs to this caller's church before returning anything, otherwise
+  // a guessed/leaked group_id from another church could be read here.
+  const groupCheckRes = await fetch(`${S}/rest/v1/feed_groups?id=eq.${groupId}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: H() });
+  const groupCheck = await groupCheckRes.json().catch(() => []);
+  if (!groupCheck?.[0]) return NextResponse.json({ data: null, error: { message: 'Group not found' } }, { status: 404 });
+
   const postsRes = await fetch(`${S}/rest/v1/feed_posts?group_id=eq.${groupId}&order=pinned.desc,created_at.desc&limit=50&select=id,author_id,author_name,author_role,body,urgent,pinned,created_at`, { headers: H() });
   const posts = await postsRes.json().catch(() => []);
   const rows: { id: string }[] = Array.isArray(posts) ? posts : [];
@@ -71,7 +78,7 @@ export async function POST(req: Request) {
   const { group_id, body, urgent, pinned } = await req.json();
   if (!group_id || !body?.trim()) return NextResponse.json({ data: null, error: { message: 'group_id and body are required' } }, { status: 400 });
 
-  const groupRes = await fetch(`${S}/rest/v1/feed_groups?id=eq.${group_id}&select=id,type,department_id&limit=1`, { headers: H() });
+  const groupRes = await fetch(`${S}/rest/v1/feed_groups?id=eq.${group_id}&church_id=eq.${user.church_id}&select=id,type,department_id&limit=1`, { headers: H() });
   const groupData = await groupRes.json().catch(() => []);
   const group = groupData?.[0];
   if (!group) return NextResponse.json({ data: null, error: { message: 'Group not found' } }, { status: 404 });

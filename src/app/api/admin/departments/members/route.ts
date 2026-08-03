@@ -27,6 +27,18 @@ export async function POST(req: Request) {
     const { department_id, member_id, role } = await req.json();
     if (!department_id || !member_id) return NextResponse.json({ data: null, error: { message: 'department_id and member_id are required' } }, { status: 400 });
 
+    // department_members has no church_id of its own — verify both the
+    // department and the member actually belong to this admin's own
+    // church before linking them, otherwise a guessed/leaked id from
+    // another church could be silently added to a roster.
+    const [deptCheck, memberCheck] = await Promise.all([
+      fetch(`${SURL}/rest/v1/departments?id=eq.${department_id}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: H() }).then(r => r.json()),
+      fetch(`${SURL}/rest/v1/members?id=eq.${member_id}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: H() }).then(r => r.json()),
+    ]);
+    if (!deptCheck?.[0] || !memberCheck?.[0]) {
+      return NextResponse.json({ data: null, error: { message: 'Department or member not found' } }, { status: 404 });
+    }
+
     const res = await fetch(`${SURL}/rest/v1/department_members`, {
       method: 'POST', headers: { ...H(), Prefer: 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify({ department_id, member_id, role: role?.trim() || 'member' }),
@@ -49,6 +61,11 @@ export async function DELETE(req: Request) {
     const department_id = searchParams.get('department_id');
     const member_id = searchParams.get('member_id');
     if (!department_id || !member_id) return NextResponse.json({ data: null, error: { message: 'department_id and member_id are required' } }, { status: 400 });
+
+    // Same church guard as POST — verify the department belongs to this
+    // admin's own church before removing anyone from its roster.
+    const deptCheck = await fetch(`${SURL}/rest/v1/departments?id=eq.${department_id}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: H() }).then(r => r.json());
+    if (!deptCheck?.[0]) return NextResponse.json({ data: null, error: { message: 'Department not found' } }, { status: 404 });
 
     await fetch(`${SURL}/rest/v1/department_members?department_id=eq.${department_id}&member_id=eq.${member_id}`, {
       method: 'DELETE', headers: H(),

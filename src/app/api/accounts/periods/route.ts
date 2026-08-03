@@ -20,7 +20,7 @@ const ALLOWED = ['overseer', 'pa', 'lead_tech', 'accounts'];
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  const res = await fetch(`${S}/rest/v1/financial_periods?order=period_month.desc&limit=24&select=id,period_month,closed_at,note`, { headers: h() });
+  const res = await fetch(`${S}/rest/v1/financial_periods?order=period_month.desc&limit=24&select=id,period_month,closed_at,note&church_id=eq.${user.church_id}`, { headers: h() });
   const data = await res.json();
   return NextResponse.json({ data: { periods: Array.isArray(data) ? data : [] }, error: null });
 }
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   const monthStart = period_month.slice(0, 7) + '-01';
   const res = await fetch(`${S}/rest/v1/financial_periods`, {
     method: 'POST', headers: { ...h(), Prefer: 'return=representation' },
-    body: JSON.stringify({ period_month: monthStart, closed_by: user.id, note: note || null }),
+    body: JSON.stringify({ period_month: monthStart, closed_by: user.id, note: note || null, church_id: user.church_id || null }),
   });
   const data = await res.json();
   if (!res.ok) {
@@ -53,6 +53,6 @@ export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ data: null, error: { message: 'id is required' } }, { status: 400 });
-  await fetch(`${S}/rest/v1/financial_periods?id=eq.${id}`, { method: 'DELETE', headers: h() });
+  await fetch(`${S}/rest/v1/financial_periods?id=eq.${id}&church_id=eq.${user.church_id}`, { method: 'DELETE', headers: h() });
   return NextResponse.json({ data: { reopened: true }, error: null });
 }
