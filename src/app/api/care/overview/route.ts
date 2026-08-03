@@ -30,10 +30,11 @@ export async function GET(req: Request) {
     const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
 
+    const churchFilter = `&church_id=eq.${user.church_id}`;
     const [teamRes, timersRes, leadsRes] = await Promise.all([
-      fetch(`${SURL}/rest/v1/users?role=eq.care_team&select=id,full_name,is_active${branchFilter}`, { headers: H() }),
-      fetch(`${SURL}/rest/v1/first_timers?order=created_at.desc&limit=300&select=id,full_name,status,outcome,assigned_to,sla_grade,created_at,service_date${branchFilter}`, { headers: H() }),
-      fetch(`${SURL}/rest/v1/care_leads?order=created_at.desc&limit=300&select=id,weeks_absent,status,assigned_to,sla_grade,created_at,members(full_name)${branchFilter}`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/users?role=eq.care_team&select=id,full_name,is_active${branchFilter}${churchFilter}`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/first_timers?order=created_at.desc&limit=300&select=id,full_name,status,outcome,assigned_to,sla_grade,created_at,service_date${branchFilter}${churchFilter}`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/care_leads?order=created_at.desc&limit=300&select=id,weeks_absent,status,assigned_to,sla_grade,created_at,members(full_name)${branchFilter}${churchFilter}`, { headers: H() }),
     ]);
     const team = await teamRes.json();
     const timers = await timersRes.json();

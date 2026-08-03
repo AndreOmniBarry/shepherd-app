@@ -26,7 +26,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ data: null, error: { message: 'status must be accepted, declined, or cancelled' } }, { status: 400 });
     }
 
-    const existingRes = await fetch(`${SURL}/rest/v1/meeting_requests?id=eq.${id}&select=id,requested_by,requested_of,subject,status`, { headers: H() });
+    const existingRes = await fetch(`${SURL}/rest/v1/meeting_requests?id=eq.${id}&church_id=eq.${user.church_id}&select=id,requested_by,requested_of,subject,status`, { headers: H() });
     const existing = await existingRes.json();
     const row = Array.isArray(existing) ? existing[0] : null;
     if (!row) return NextResponse.json({ data: null, error: { message: 'Meeting request not found' } }, { status: 404 });
@@ -40,7 +40,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ data: null, error: { message: 'Only the recipient can accept or decline' } }, { status: 403 });
     }
 
-    const updateRes = await fetch(`${SURL}/rest/v1/meeting_requests?id=eq.${id}`, {
+    const updateRes = await fetch(`${SURL}/rest/v1/meeting_requests?id=eq.${id}&church_id=eq.${user.church_id}`, {
       method: 'PATCH', headers: { ...H(), 'Prefer': 'return=minimal' },
       body: JSON.stringify({ status, responded_at: new Date().toISOString() }),
     });
@@ -51,7 +51,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     await fetch(`${SURL}/rest/v1/notifications`, {
       method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' },
       body: JSON.stringify({
-        user_id: notifyUserId, type: 'meeting_request', read: false,
+        user_id: notifyUserId, church_id: user.church_id || null, type: 'meeting_request', read: false,
         title: `Meeting request ${statusLabel}`, body: `"${row.subject}" was ${statusLabel} by ${user.name || 'the other party'}.`,
         link: '/church-center?tab=meetings',
       }),

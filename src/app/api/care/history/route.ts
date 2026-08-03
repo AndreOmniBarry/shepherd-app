@@ -42,9 +42,10 @@ export async function GET(req: Request) {
     const windowStart = bounds[0].start;
     const windowEnd = bounds[bounds.length - 1].end;
 
+    const churchFilter = `&church_id=eq.${user.church_id}`;
     const [timersRes, leadsRes] = await Promise.all([
-      fetch(`${SURL}/rest/v1/first_timers?created_at=gte.${windowStart.toISOString()}&created_at=lt.${windowEnd.toISOString()}&select=created_at,status,outcome${branchFilter}`, { headers: H() }),
-      fetch(`${SURL}/rest/v1/care_leads?created_at=gte.${windowStart.toISOString()}&created_at=lt.${windowEnd.toISOString()}&select=created_at,status${branchFilter}`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/first_timers?created_at=gte.${windowStart.toISOString()}&created_at=lt.${windowEnd.toISOString()}&select=created_at,status,outcome${branchFilter}${churchFilter}`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/care_leads?created_at=gte.${windowStart.toISOString()}&created_at=lt.${windowEnd.toISOString()}&select=created_at,status${branchFilter}${churchFilter}`, { headers: H() }),
     ]);
     const timersData = await timersRes.json().catch(() => null);
     const leadsData = await leadsRes.json().catch(() => null);

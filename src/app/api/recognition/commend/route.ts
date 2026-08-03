@@ -28,20 +28,21 @@ const CATEGORY_CFG: Record<string, { title: string }> = {
 // leader under it), every leader under a department, or every leader in
 // the branch. No group has ever needed this before; commendations only
 // ever went to one hand-picked leader at a time until now.
-async function resolveRecipients(scope: string, opts: { leader_id?: string; fellowship_id?: string; department_id?: string; branch_id?: string | null }): Promise<string[]> {
+async function resolveRecipients(scope: string, opts: { leader_id?: string; fellowship_id?: string; department_id?: string; branch_id?: string | null; church_id?: string | null }): Promise<string[]> {
   if (scope === 'individual') return opts.leader_id ? [opts.leader_id] : [];
+  const churchFilter = opts.church_id ? `&church_id=eq.${opts.church_id}` : '';
 
   if (scope === 'fellowship' && opts.fellowship_id) {
     const [headRes, cellsRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.fellowship_head&fellowship_id=eq.${opts.fellowship_id}&select=id`, { headers: hdrs() }),
-      fetch(`${SUPABASE_URL}/rest/v1/cells?fellowship_id=eq.${opts.fellowship_id}&select=id`, { headers: hdrs() }),
+      fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.fellowship_head&fellowship_id=eq.${opts.fellowship_id}${churchFilter}&select=id`, { headers: hdrs() }),
+      fetch(`${SUPABASE_URL}/rest/v1/cells?fellowship_id=eq.${opts.fellowship_id}${churchFilter}&select=id`, { headers: hdrs() }),
     ]);
     const heads = await headRes.json().catch(() => []);
     const cells = await cellsRes.json().catch(() => []);
     const cellIds = (Array.isArray(cells) ? cells : []).map((c: { id: string }) => c.id);
     let leaderIds: string[] = [];
     if (cellIds.length > 0) {
-      const leadersRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&cell_id=in.(${cellIds.join(',')})&select=id`, { headers: hdrs() });
+      const leadersRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&cell_id=in.(${cellIds.join(',')})${churchFilter}&select=id`, { headers: hdrs() });
       const leaders = await leadersRes.json().catch(() => []);
       leaderIds = (Array.isArray(leaders) ? leaders : []).map((l: { id: string }) => l.id);
     }
@@ -49,14 +50,14 @@ async function resolveRecipients(scope: string, opts: { leader_id?: string; fell
   }
 
   if (scope === 'department' && opts.department_id) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.department_head&department_id=eq.${opts.department_id}&select=id`, { headers: hdrs() });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.department_head&department_id=eq.${opts.department_id}${churchFilter}&select=id`, { headers: hdrs() });
     const data = await res.json().catch(() => []);
     return Array.isArray(data) ? data.map((u: { id: string }) => u.id) : [];
   }
 
   if (scope === 'all') {
     const branchFilter = opts.branch_id ? `&branch_id=eq.${opts.branch_id}` : '';
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(cell_leader,fellowship_head,department_head)&select=id${branchFilter}`, { headers: hdrs() });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(cell_leader,fellowship_head,department_head)&select=id${branchFilter}${churchFilter}`, { headers: hdrs() });
     const data = await res.json().catch(() => []);
     return Array.isArray(data) ? data.map((u: { id: string }) => u.id) : [];
   }
@@ -77,7 +78,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'A message is required' } }, { status: 400 });
     }
 
-    const recipients = await resolveRecipients(scope || 'individual', { leader_id, fellowship_id, department_id, branch_id: user.branch_id });
+    const recipients = await resolveRecipients(scope || 'individual', { leader_id, fellowship_id, department_id, branch_id: user.branch_id, church_id: user.church_id });
     if (recipients.length === 0) {
       return NextResponse.json({ data: null, error: { message: 'No recipients found for that selection' } }, { status: 400 });
     }
@@ -90,6 +91,7 @@ export async function POST(req: Request) {
         method: 'POST', headers: { ...hdrs(), 'Prefer': 'return=minimal' },
         body: JSON.stringify(recipients.map(uid => ({
           branch_id: user.branch_id || null,
+          church_id: user.church_id || null,
           requested_by: user.id,
           requested_of: uid,
           subject: commendation.trim().slice(0, 80),
@@ -104,6 +106,7 @@ export async function POST(req: Request) {
       headers: { ...hdrs(), 'Prefer': 'return=minimal' },
       body: JSON.stringify(recipients.map(uid => ({
         user_id: uid,
+        church_id: user.church_id || null,
         type: category === 'commendation' ? 'commendation' : category === 'meeting' ? 'meeting_request' : 'pastoral',
         read: false,
         title: cfg.title,
