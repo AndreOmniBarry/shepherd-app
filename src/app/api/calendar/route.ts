@@ -32,13 +32,14 @@ export async function GET(req: Request) {
     const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
 
+    const churchFilter = `&church_id=eq.${user.church_id}`;
     const [eventsRes, specialRes, plansRes] = await Promise.all([
-      fetch(`${SURL}/rest/v1/church_events?event_date=gte.${from}&event_date=lte.${to}&status=neq.cancelled&order=event_date.asc&select=id,title,event_type,event_date,end_date,location,public_slug${branchFilter}`, { headers: H() }),
-      fetch(`${SURL}/rest/v1/services?service_type=eq.special&service_date=gte.${from}&service_date=lte.${to}&order=service_date.asc&select=id,service_date,notes${branchFilter}`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/church_events?event_date=gte.${from}&event_date=lte.${to}&status=neq.cancelled&order=event_date.asc&select=id,title,event_type,event_date,end_date,location,public_slug${branchFilter}${churchFilter}`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/services?service_type=eq.special&service_date=gte.${from}&service_date=lte.${to}&order=service_date.asc&select=id,service_date,notes${branchFilter}${churchFilter}`, { headers: H() }),
       // Order-of-service programmes appear on the calendar as soon as
       // they're created, not only once published, so the pastor/PA can see
       // that a service day already has a plan in progress.
-      fetch(`${SURL}/rest/v1/service_plans?status=neq.cancelled&service_date=gte.${from}&service_date=lte.${to}&order=service_date.asc&select=id,service_date,title,theme,status${branchFilter}`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/service_plans?status=neq.cancelled&service_date=gte.${from}&service_date=lte.${to}&order=service_date.asc&select=id,service_date,title,theme,status${branchFilter}${churchFilter}`, { headers: H() }),
     ]);
     const events = await eventsRes.json();
     const special = await specialRes.json();

@@ -19,11 +19,14 @@ function slug(title: string, date: string) {
 
 export async function GET(req: Request) {
   try {
+    const user = await getUser(req);
+    if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     const { searchParams } = new URL(req.url);
     const upcoming = searchParams.get('upcoming') === 'true';
     const today = new Date().toISOString().split('T')[0];
-    let url = `${SURL}/rest/v1/church_events?order=event_date.desc&limit=50&select=id,title,event_type,event_date,end_date,start_time,end_time,location,is_free,price,capacity,banner_url,public_slug,registration_open,status,created_at`;
-    if (upcoming) url = `${SURL}/rest/v1/church_events?event_date=gte.${today}&status=neq.cancelled&order=event_date.asc&limit=10&select=id,title,event_type,event_date,end_date,start_time,location,is_free,price,capacity,public_slug,registration_open,status`;
+    const churchFilter = `&church_id=eq.${user.church_id}`;
+    let url = `${SURL}/rest/v1/church_events?order=event_date.desc&limit=50&select=id,title,event_type,event_date,end_date,start_time,end_time,location,is_free,price,capacity,banner_url,public_slug,registration_open,status,created_at${churchFilter}`;
+    if (upcoming) url = `${SURL}/rest/v1/church_events?event_date=gte.${today}&status=neq.cancelled&order=event_date.asc&limit=10&select=id,title,event_type,event_date,end_date,start_time,location,is_free,price,capacity,public_slug,registration_open,status${churchFilter}`;
     const res = await fetch(url, { headers: H() });
     const events = await res.json();
     // Get registration counts
@@ -48,7 +51,7 @@ export async function POST(req: Request) {
     const public_slug = slug(title, event_date);
     const res = await fetch(`${SURL}/rest/v1/church_events`, {
       method: 'POST', headers: { ...H(), 'Prefer': 'return=representation' },
-      body: JSON.stringify({ title, event_date, end_date: end_date || null, description: description || null, event_type: event_type || 'programme', start_time: start_time || null, end_time: end_time || null, location: location || null, is_free: is_free ?? true, price: is_free ? 0 : (price || 0), capacity: capacity || null, banner_url: banner_url || null, public_slug, registration_open: true, whatsapp_confirmation: whatsapp_confirmation ?? true, sms_confirmation: sms_confirmation ?? true, status: 'upcoming', created_by: user.id }),
+      body: JSON.stringify({ title, event_date, end_date: end_date || null, description: description || null, event_type: event_type || 'programme', start_time: start_time || null, end_time: end_time || null, location: location || null, is_free: is_free ?? true, price: is_free ? 0 : (price || 0), capacity: capacity || null, banner_url: banner_url || null, public_slug, registration_open: true, whatsapp_confirmation: whatsapp_confirmation ?? true, sms_confirmation: sms_confirmation ?? true, status: 'upcoming', created_by: user.id, church_id: user.church_id || null }),
     });
     const data = await res.json();
     return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
@@ -61,7 +64,7 @@ export async function PATCH(req: Request) {
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     const { id, ...rest } = await req.json();
-    await fetch(`${SURL}/rest/v1/church_events?id=eq.${id}`, { method: 'PATCH', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify({ ...rest, updated_at: new Date().toISOString() }) });
+    await fetch(`${SURL}/rest/v1/church_events?id=eq.${id}&church_id=eq.${user.church_id}`, { method: 'PATCH', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify({ ...rest, updated_at: new Date().toISOString() }) });
     return NextResponse.json({ data: { updated: true }, error: null });
   } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
 }

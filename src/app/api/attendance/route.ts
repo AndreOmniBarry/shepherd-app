@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     // backdating attendance to an arbitrary, never-sanctioned day, not to
     // block legitimate special-day services.
     const existingSvcRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.${service_number}&select=id&limit=1`,
+      `${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.${service_number}&church_id=eq.${user.church_id}&select=id&limit=1`,
       { headers: hdrs() }
     );
     const existingSvc = await existingSvcRes.json();
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
         const branchData = await branchRes.json();
         if (branchData?.[0]?.service_days?.length) serviceDays = branchData[0].service_days;
       } else {
-        const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?select=service_days&limit=1`, { headers: hdrs() });
+        const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?select=service_days&church_id=eq.${user.church_id}&limit=1`, { headers: hdrs() });
         const cfgData = await cfgRes.json();
         if (cfgData?.[0]?.service_days?.length) serviceDays = cfgData[0].service_days;
       }
@@ -94,13 +94,13 @@ export async function POST(req: Request) {
 
       const insertSvcRes = await fetch(`${SUPABASE_URL}/rest/v1/services`, {
         method: 'POST', headers: { ...hdrs(), 'Prefer': 'return=representation' },
-        body: JSON.stringify({ service_date, service_number, service_type, notes: 'Auto-created on first submission' }),
+        body: JSON.stringify({ service_date, service_number, service_type, notes: 'Auto-created on first submission', church_id: user.church_id || null }),
       });
       const insertedSvc = await insertSvcRes.json();
       realServiceId = Array.isArray(insertedSvc) && insertedSvc[0]?.id ? insertedSvc[0].id : null;
       if (!realServiceId) {
         // Race with another submission creating it first — fetch again.
-        const retryRes = await fetch(`${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.${service_number}&select=id&limit=1`, { headers: hdrs() });
+        const retryRes = await fetch(`${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.${service_number}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: hdrs() });
         const retryData = await retryRes.json();
         realServiceId = retryData?.[0]?.id || null;
       }
@@ -213,16 +213,19 @@ export async function GET(req: Request) {
     if (user.role === 'cell_leader' && user.cell_id) {
       url += `&cell_id=eq.${user.cell_id}`;
     } else {
-      // Branch scoping: attendance doesn't carry branch_id directly, so
-      // scope it via the cells that belong to the relevant branch.
+      // attendance_records carries no church_id of its own, so it's always
+      // scoped via the cells that belong to this caller's church (and,
+      // optionally, a specific branch within it) — otherwise an admin
+      // dashboard with no branch_id given would leak every church's
+      // attendance records.
       const { searchParams: sp2 } = new URL(req.url);
       const branchId = user.role === 'branch_pastor' ? user.branch_id : sp2.get('branch_id');
-      if (branchId) {
-        const cellsRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?branch_id=eq.${branchId}&select=id`, { headers: hdrs() });
-        const cellRows: { id: string }[] = await cellsRes.json();
-        const cellIds = (Array.isArray(cellRows) ? cellRows : []).map(c => c.id);
-        url += cellIds.length > 0 ? `&cell_id=in.(${cellIds.join(',')})` : '&cell_id=eq.00000000-0000-0000-0000-000000000000';
-      }
+      let cellsUrl = `${SUPABASE_URL}/rest/v1/cells?church_id=eq.${user.church_id}&select=id`;
+      if (branchId) cellsUrl += `&branch_id=eq.${branchId}`;
+      const cellsRes = await fetch(cellsUrl, { headers: hdrs() });
+      const cellRows: { id: string }[] = await cellsRes.json();
+      const cellIds = (Array.isArray(cellRows) ? cellRows : []).map(c => c.id);
+      url += cellIds.length > 0 ? `&cell_id=in.(${cellIds.join(',')})` : '&cell_id=eq.00000000-0000-0000-0000-000000000000';
     }
 
     const res = await fetch(url, { headers: hdrs() });

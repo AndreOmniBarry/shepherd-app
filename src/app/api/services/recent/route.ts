@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+async function getUser(req: Request) {
+  const cookie = req.headers.get('cookie') || '';
+  const m = cookie.match(/shepherd_token=([^;]+)/);
+  if (!m) return null;
+  const p = await verifyToken(m[1]);
+  return p ? payloadToAuthUser(p) : null;
+}
 
 // Most recent date (on or before `from`) that falls on `dayIndex` (0=Sun..6=Sat).
 function mostRecentOccurrence(from: Date, dayIndex: number): Date {
@@ -13,9 +21,8 @@ function mostRecentOccurrence(from: Date, dayIndex: number): Date {
 
 export async function GET(req: Request) {
   try {
-    const cookie = req.headers.get('cookie') || '';
-    const match = cookie.match(/shepherd_token=([^;]+)/);
-    if (!match?.[1]) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    const user = await getUser(req);
+    if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -30,7 +37,7 @@ export async function GET(req: Request) {
     const cutoffStr = cutoffDate.toISOString().split('T')[0];
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/services?service_date=gte.${cutoffStr}&service_date=lte.${todayStr}&order=service_date.desc,service_number.asc&limit=10&select=id,service_date,service_number,service_type`,
+      `${SUPABASE_URL}/rest/v1/services?service_date=gte.${cutoffStr}&service_date=lte.${todayStr}&church_id=eq.${user.church_id}&order=service_date.desc,service_number.asc&limit=10&select=id,service_date,service_number,service_type`,
       { headers }
     );
     let services = await res.json();
@@ -40,7 +47,7 @@ export async function GET(req: Request) {
       // Church) instead of hardcoding Sunday-only — a church running Sunday
       // + Wednesday gets a midweek entry auto-created too, only once that
       // day has actually arrived (never a future date).
-      const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?select=service_days&limit=1`, { headers });
+      const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?select=service_days&church_id=eq.${user.church_id}&limit=1`, { headers });
       const cfgData = await cfgRes.json();
       const serviceDays: string[] = cfgData?.[0]?.service_days?.length ? cfgData[0].service_days : ['Sunday'];
 
@@ -53,7 +60,7 @@ export async function GET(req: Request) {
         const serviceType = dayIndex === 0 ? 'sunday' : 'midweek';
 
         const checkRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/services?service_date=eq.${dateStr}&service_number=eq.1&select=id,service_date,service_number,service_type&limit=1`,
+          `${SUPABASE_URL}/rest/v1/services?service_date=eq.${dateStr}&service_number=eq.1&church_id=eq.${user.church_id}&select=id,service_date,service_number,service_type&limit=1`,
           { headers }
         );
         const existing = await checkRes.json();
@@ -62,7 +69,7 @@ export async function GET(req: Request) {
         const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/services`, {
           method: 'POST',
           headers: { ...headers, 'Prefer': 'return=representation' },
-          body: JSON.stringify({ service_date: dateStr, service_number: 1, service_type: serviceType, notes: 'Auto-created by SHEP.HERD' }),
+          body: JSON.stringify({ service_date: dateStr, service_number: 1, service_type: serviceType, notes: 'Auto-created by SHEP.HERD', church_id: user.church_id || null }),
         });
         const inserted = await insertRes.json();
         created.push(Array.isArray(inserted) && inserted[0] ? inserted[0] : { id: `virtual-${dateStr}-1`, service_date: dateStr, service_number: 1, service_type: serviceType });
@@ -101,11 +108,8 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const cookie = req.headers.get('cookie') || '';
-    const match = cookie.match(/shepherd_token=([^;]+)/);
-    if (!match?.[1]) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    const payload = await verifyToken(match[1]);
-    if (!payload || !['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(String(payload.role))) {
+    const user = await getUser(req);
+    if (!user || !['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Only admins can create a special service day' } }, { status: 403 });
     }
 
@@ -123,7 +127,7 @@ export async function POST(req: Request) {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/services`, {
       method: 'POST',
       headers: { ...headers, 'Prefer': 'return=representation' },
-      body: JSON.stringify({ service_date, service_number, service_type: service_type || 'sunday', notes: notes || null }),
+      body: JSON.stringify({ service_date, service_number, service_type: service_type || 'sunday', notes: notes || null, church_id: user.church_id || null }),
     });
     const data = await res.json();
     const service = Array.isArray(data) ? data[0] : data;

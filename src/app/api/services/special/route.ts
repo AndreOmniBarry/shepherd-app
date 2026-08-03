@@ -25,7 +25,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     }
 
-    const svcRes = await fetch(`${SURL}/rest/v1/services?service_type=eq.special&order=service_date.desc&limit=25&select=id,service_date,notes,created_at`, { headers: H() });
+    const svcRes = await fetch(`${SURL}/rest/v1/services?service_type=eq.special&church_id=eq.${user.church_id}&order=service_date.desc&limit=25&select=id,service_date,notes,created_at`, { headers: H() });
     const services = await svcRes.json();
     const rows = Array.isArray(services) ? services : [];
     if (rows.length === 0) return NextResponse.json({ data: { special_services: [] }, error: null });

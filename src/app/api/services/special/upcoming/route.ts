@@ -29,7 +29,7 @@ export async function GET(req: Request) {
 
     const cutoff = new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0];
     const today = new Date().toISOString().split('T')[0];
-    const svcRes = await fetch(`${SURL}/rest/v1/services?service_type=eq.special&service_date=gte.${cutoff}&service_date=lte.${today}&order=service_date.desc&select=id,service_date,notes`, { headers: H() });
+    const svcRes = await fetch(`${SURL}/rest/v1/services?service_type=eq.special&service_date=gte.${cutoff}&service_date=lte.${today}&church_id=eq.${user.church_id}&order=service_date.desc&select=id,service_date,notes`, { headers: H() });
     const services = await svcRes.json();
     const rows: { id: string; service_date: string; notes: string | null }[] = Array.isArray(services) ? services : [];
     if (rows.length === 0) return NextResponse.json({ data: { special_services: [] }, error: null });
