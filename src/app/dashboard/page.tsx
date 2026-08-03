@@ -1734,6 +1734,17 @@ export default function DashboardPage(){
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [sidebarCollapsed,setSidebarCollapsed]=useState(false);
   const [isMobile,setIsMobile]=useState(false);
+  // Between mobile and full-desktop width, the topbar's right-side chrome
+  // (branch selector, search, add-member, church feed, calendar, sidebar
+  // style toggle, notifications, account, dark switch, live badge, avatar)
+  // adds up to well over 1000px of non-shrinking buttons — on anything
+  // short of a very wide monitor that crushed the left-side date/greeting
+  // down to nothing, regardless of sidebar collapse state (the sidebar
+  // only ever frees ~220px, nowhere near enough). isCompact trims the
+  // lower-priority buttons down to icon-only (or hides the purely
+  // cosmetic ones) so the branch selector and date/greeting both stay
+  // fully visible at in-between widths.
+  const [isCompact,setIsCompact]=useState(false);
 
   useEffect(()=>{
     try{ if(window.localStorage.getItem('shepherd-sidebar-collapsed')==='1') setSidebarCollapsed(true); }catch{}
@@ -1768,7 +1779,10 @@ export default function DashboardPage(){
   const [liveCellsReported,setLiveCellsReported]=useState<number|null>(null);
 
   useEffect(()=>{
-    const checkMobile=()=>setIsMobile(window.innerWidth<768);
+    const checkMobile=()=>{
+      setIsMobile(window.innerWidth<768);
+      setIsCompact(window.innerWidth<1400);
+    };
     checkMobile();
     window.addEventListener('resize',checkMobile);
     return()=>window.removeEventListener('resize',checkMobile);
@@ -2155,25 +2169,31 @@ export default function DashboardPage(){
                 </div>
                 <select value={selectedBranch} onChange={e=>setSelectedBranch(e.target.value)}
                   title="Viewing scope — every figure and action on this page applies to whatever is selected here"
-                  style={{border:`1px solid ${selectedBranch?'rgba(186,117,23,0.35)':'rgba(83,74,183,0.35)'}`,borderRadius:20,padding:isMobile?'5px 8px 5px 18px':'6px 12px 6px 22px',fontSize:isMobile?10:11,fontWeight:700,maxWidth:isMobile?110:170,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flexShrink:0,background:selectedBranch?(dark?'rgba(186,117,23,0.12)':'#FAEEDA'):(dark?'rgba(83,74,183,0.12)':t.purpleBg),color:selectedBranch?'#633806':'#3C3489',outline:'none',fontFamily:'inherit',cursor:'pointer',appearance:'none' as const}}>
-                  <option value="">{isMobile?'All Branches':'Viewing: All Branches (Consolidated)'}</option>
-                  {branchesList.map(b=>(<option key={b.id} value={b.id}>{isMobile?b.name:`Viewing: ${b.name}`}</option>))}
+                  style={{border:`1px solid ${selectedBranch?'rgba(186,117,23,0.35)':'rgba(83,74,183,0.35)'}`,borderRadius:20,padding:isMobile?'5px 8px 5px 18px':'6px 12px 6px 22px',fontSize:isMobile?10:11,fontWeight:700,maxWidth:isMobile?110:isCompact?120:170,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flexShrink:0,background:selectedBranch?(dark?'rgba(186,117,23,0.12)':'#FAEEDA'):(dark?'rgba(83,74,183,0.12)':t.purpleBg),color:selectedBranch?'#633806':'#3C3489',outline:'none',fontFamily:'inherit',cursor:'pointer',appearance:'none' as const}}>
+                  <option value="">{isMobile||isCompact?'All Branches':'Viewing: All Branches (Consolidated)'}</option>
+                  {branchesList.map(b=>(<option key={b.id} value={b.id}>{isMobile||isCompact?b.name:`Viewing: ${b.name}`}</option>))}
                 </select>
               </div>
             )}
-            {!isMobile&&!dark&&(<div style={{display:'flex',background:t.cardInner,border:`0.5px solid ${t.border}`,borderRadius:20,padding:2,gap:2}}><button onClick={()=>setSidebarStyle('light')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='light'?'#534AB7':'transparent',color:sidebarStyle==='light'?'#fff':t.muted,fontFamily:'inherit'}}>Light sidebar</button><button onClick={()=>setSidebarStyle('dark')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='dark'?'#534AB7':'transparent',color:sidebarStyle==='dark'?'#fff':t.muted,fontFamily:'inherit'}}>Dark sidebar</button></div>)}
-            {!isMobile&&<input value={memberSearch} onChange={e=>{setMemberSearch(e.target.value); if(page!=='members') setPage('members');}} onFocus={()=>{ if(page!=='members') setPage('members'); }}
+            {/* isCompact hides/shrinks this whole row of secondary chrome —
+                see the isCompact state comment above for why: at anything
+                short of a very wide monitor, these buttons alone ran wider
+                than the space left for the branch selector and date/greeting. */}
+            {!isMobile&&!isCompact&&!dark&&(<div style={{display:'flex',background:t.cardInner,border:`0.5px solid ${t.border}`,borderRadius:20,padding:2,gap:2}}><button onClick={()=>setSidebarStyle('light')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='light'?'#534AB7':'transparent',color:sidebarStyle==='light'?'#fff':t.muted,fontFamily:'inherit'}}>Light sidebar</button><button onClick={()=>setSidebarStyle('dark')} style={{padding:'4px 10px',borderRadius:16,fontSize:10,cursor:'pointer',border:'none',background:sidebarStyle==='dark'?'#534AB7':'transparent',color:sidebarStyle==='dark'?'#fff':t.muted,fontFamily:'inherit'}}>Dark sidebar</button></div>)}
+            {/* Members already has its own search box (with autofocus) — safe
+                to drop this shortcut entirely when space is tight. */}
+            {!isMobile&&!isCompact&&<input value={memberSearch} onChange={e=>{setMemberSearch(e.target.value); if(page!=='members') setPage('members');}} onFocus={()=>{ if(page!=='members') setPage('members'); }}
               placeholder="Search members..."
               style={{width:160,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.text,outline:'none',fontFamily:'inherit',transition:'width var(--motion-medium) var(--ease-out-expo), background var(--motion-fast) var(--ease-out-expo)'}}
               onFocusCapture={e=>{e.currentTarget.style.width='220px'; e.currentTarget.style.background=t.input;}}
               onBlurCapture={e=>{e.currentTarget.style.width='160px'; e.currentTarget.style.background='transparent';}} />}
-            {!isMobile&&<button onClick={()=>setPage('members')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:'none',background:'#534AB7',color:'#fff',fontSize:11,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>Add member</button>}
+            {!isMobile&&<button onClick={()=>setPage('members')} title="Add member" style={{display:'flex',alignItems:'center',gap:6,padding:isCompact?0:'6px 12px',width:isCompact?30:undefined,height:isCompact?30:undefined,justifyContent:isCompact?'center':undefined,borderRadius:8,border:'none',background:'#534AB7',color:'#fff',fontSize:11,fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>{!isCompact&&'Add member'}</button>}
             {/* Church Feed moves into the "More" sheet on mobile — an
                 icon-only speaker glyph this small read as a mute/volume
                 toggle sitting next to the theme switch, not "announcements". */}
-            {!isMobile&&<button onClick={()=>router.push('/church-feed')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-speakerphone" size={13}/>Church Feed</button>}
-            <ChatNavButton t={t} compact={isMobile} />
-            {!isMobile&&<button onClick={()=>router.push('/calendar')} style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-calendar-event" size={13}/>Calendar</button>}
+            {!isMobile&&<button onClick={()=>router.push('/church-feed')} title="Church Feed" style={{display:'flex',alignItems:'center',gap:6,padding:isCompact?0:'6px 12px',width:isCompact?30:undefined,height:isCompact?30:undefined,justifyContent:isCompact?'center':undefined,borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-speakerphone" size={13}/>{!isCompact&&'Church Feed'}</button>}
+            <ChatNavButton t={t} compact={isMobile||isCompact} />
+            {!isMobile&&<button onClick={()=>router.push('/calendar')} title="Calendar" style={{display:'flex',alignItems:'center',gap:6,padding:isCompact?0:'6px 12px',width:isCompact?30:undefined,height:isCompact?30:undefined,justifyContent:isCompact?'center':undefined,borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}><Icon name="ti-calendar-event" size={13}/>{!isCompact&&'Calendar'}</button>}
             <NotificationBell dark={dark} compact={isMobile} /><MyAccountButton dark={dark} compact={isMobile} />
             {!isMobile&&<div onClick={()=>setDark(v=>!v)} role="switch" aria-checked={dark} style={{width:50,height:28,borderRadius:14,border:`0.5px solid ${t.navBorder}`,background:dark?'linear-gradient(135deg,#3C3489,#534AB7)':'#EEEDFE',display:'flex',alignItems:'center',padding:2,cursor:'pointer',position:'relative',transition:'background 0.25s ease'}}>
               <div style={{width:22,height:22,borderRadius:'50%',background:dark?'#1A1730':'#fff',boxShadow:'0 1px 3px rgba(0,0,0,0.25)',display:'flex',alignItems:'center',justifyContent:'center',transform:dark?'translateX(22px)':'translateX(0)',transition:'transform 0.25s cubic-bezier(0.34,1.56,0.64,1)',color:dark?'#CFC9FF':'#8A7FD8'}}>
