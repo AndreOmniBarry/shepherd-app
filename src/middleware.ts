@@ -32,6 +32,10 @@ const PUBLIC_PATHS = [
   '/api/settings/church-config',
   '/api/subscription',
   '/api/events/public',
+  // Called by an external scheduler with no shepherd_token cookie at all —
+  // gated by CRON_SECRET inside the route itself instead, same model as
+  // isPublicEventRegistration below.
+  '/api/admin/health-check',
   '/_next',
   '/favicon.ico',
   '/manifest.json',
