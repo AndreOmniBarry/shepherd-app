@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 
 const LOCK_KEY = 'shepherd-last-active';
 const LOCKED_KEY = 'shepherd-locked';
@@ -14,7 +15,12 @@ const LOCK_THRESHOLD_MS = 90 * 1000;
 // (backgrounded, minimized, or the OS killed and relaunched it) longer
 // than the threshold, cover the UI and require the password again before
 // showing anything underneath.
+function isPublicRoute(path: string): boolean {
+  return path === '/' || path === '/login' || path === '/register' || path === '/setup' || path.startsWith('/docs') || path.startsWith('/events/');
+}
+
 export default function AppLockGate() {
+  const pathname = usePathname();
   const [locked, setLocked] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,10 +60,15 @@ export default function AppLockGate() {
   }, [lock]);
 
   useEffect(() => {
-    const path = window.location.pathname;
-    // Nothing to lock before the user is even signed in, and event pages
-    // are meant to be publicly shareable links.
-    if (path === '/login' || path === '/register' || path === '/setup' || path.startsWith('/events/')) return;
+    // Nothing to lock before the user is even signed in — the public
+    // marketing site (landing page, docs) and the pre-auth flows (login,
+    // register, setup, public event pages) all need to stay lock-free.
+    // This component lives in the root layout and never unmounts between
+    // route changes, so idle time spent reading the landing page used to
+    // arm the 90s timer there and then fire once the visitor clicked
+    // through to /setup — demanding a password for an account that was
+    // never created. Confirmed as a real signup blocker, not theoretical.
+    if (isPublicRoute(pathname || '')) return;
 
     checkStale();
     touch();
@@ -82,7 +93,7 @@ export default function AppLockGate() {
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => { document.removeEventListener('visibilitychange', onVisibility); if (iv) clearInterval(iv); };
-  }, [checkStale, touch]);
+  }, [checkStale, touch, pathname]);
 
   useEffect(() => {
     if (!locked || emailFetched.current) return;
@@ -113,7 +124,11 @@ export default function AppLockGate() {
     setSubmitting(false);
   }
 
-  if (!locked) return null;
+  // Defense in depth: this component never unmounts between route changes,
+  // so `locked` could still be true from an earlier authenticated route
+  // even after navigating to a public one — never show the password
+  // prompt here regardless of how `locked` got set.
+  if (!locked || isPublicRoute(pathname || '')) return null;
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(8,6,20,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: 24 }}>

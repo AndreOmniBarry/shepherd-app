@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { requirePremium } from '@/lib/plan-gate';
 import type { AgentName, AuthUser } from '@/types';
 
 const anthropic = new Anthropic({
@@ -227,6 +228,8 @@ export async function POST(req: Request) {
         { status: 403 }
       );
     }
+    const blocked = await requirePremium();
+    if (blocked) return blocked;
 
     const body = await req.json() as { query: string; agent?: AgentName; history?: ConversationMessage[] };
     const { query, history = [] } = body;

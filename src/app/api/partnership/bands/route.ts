@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { requirePremium } from '@/lib/plan-gate';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -15,6 +16,8 @@ export async function GET(req: Request) {
   const p = await verifyToken(token);
   const user = p ? payloadToAuthUser(p) : null;
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const blocked = await requirePremium();
+  if (blocked) return blocked;
 
   const res = await fetch(`${S}/rest/v1/partnership_bands?order=sort_order.asc&select=id,name,amount,color`, { headers: h() });
   const data = await res.json();

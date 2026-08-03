@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { requirePremium } from '@/lib/plan-gate';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -19,6 +20,8 @@ const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_te
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const blocked = await requirePremium();
+  if (blocked) return blocked;
   const res = await fetch(
     `${S}/rest/v1/partners?order=full_name.asc&select=id,full_name,phone,email,status,start_date,partnership_bands(name,amount,color)`,
     { headers: h() }
@@ -78,6 +81,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const blocked = await requirePremium();
+  if (blocked) return blocked;
   const body = await req.json();
   const { full_name, phone, email, band_id, start_date } = body;
   const res = await fetch(`${S}/rest/v1/partners`, {

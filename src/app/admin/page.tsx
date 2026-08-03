@@ -12,6 +12,18 @@ const C = {
   card: '#FFFFFF',
 };
 
+type SystemAlert = {
+  id: string;
+  church_id: string | null;
+  church_name: string | null;
+  severity: 'critical' | 'medium' | 'low';
+  category: string;
+  title: string;
+  detail: string;
+  status: 'open' | 'acknowledged' | 'resolved';
+  created_at: string;
+};
+
 type Church = {
   id: string;
   church_name: string;
@@ -51,6 +63,9 @@ export default function AdminPortal() {
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [stats, setStats] = useState({ total: 0, trial: 0, active: 0, expired: 0, growth: 0, starter: 0 });
+  const [sysAlerts, setSysAlerts] = useState<SystemAlert[]>([]);
+  const [alertCounts, setAlertCounts] = useState({ critical: 0, medium: 0, low: 0 });
+  const [alertsLoading, setAlertsLoading] = useState(true);
 
   useEffect(() => {
     fetch('/api/admin/churches', { credentials: 'include' })
@@ -74,7 +89,28 @@ export default function AdminPortal() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    fetch('/api/admin/alerts', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => {
+        if (d?.data) {
+          setSysAlerts(d.data.alerts || []);
+          setAlertCounts(d.data.counts || { critical: 0, medium: 0, low: 0 });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setAlertsLoading(false));
   }, []);
+
+  async function updateAlertStatus(id: string, status: 'acknowledged' | 'resolved') {
+    setSysAlerts(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+    await fetch('/api/admin/alerts', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id, status }),
+    }).catch(() => {});
+  }
 
   function selectChurch(c: Church) {
     setSelected(c);
@@ -112,10 +148,13 @@ export default function AdminPortal() {
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>Lead Tech Admin</div>
         </div>
         <div style={{ padding: '16px 10px', flex: 1 }}>
-          {([{ id: 'churches' as const, label: 'Churches' }, { id: 'billing' as const, label: 'Plans & Billing' }, { id: 'alerts' as const, label: 'Alerts' }, { id: 'settings' as const, label: 'Settings' }]).map((item) => (
+          {([{ id: 'churches' as const, label: 'Churches' }, { id: 'billing' as const, label: 'Plans & Billing' }, { id: 'alerts' as const, label: 'Health & Alerts' }, { id: 'settings' as const, label: 'Settings' }]).map((item) => (
             <div key={item.id} onClick={() => setSidebarTab(item.id)}
-              style={{ padding: '9px 10px', borderRadius: 7, marginBottom: 2, background: sidebarTab === item.id ? 'rgba(255,255,255,0.1)' : 'transparent', cursor: 'pointer' }}>
+              style={{ padding: '9px 10px', borderRadius: 7, marginBottom: 2, background: sidebarTab === item.id ? 'rgba(255,255,255,0.1)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ fontSize: 12, fontWeight: sidebarTab === item.id ? 600 : 400, color: sidebarTab === item.id ? C.white : 'rgba(255,255,255,0.45)' }}>{item.label}</div>
+              {item.id === 'alerts' && alertCounts.critical > 0 && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: C.white, background: C.coral, borderRadius: 10, padding: '1px 7px' }}>{alertCounts.critical}</span>
+              )}
             </div>
           ))}
         </div>
@@ -133,12 +172,12 @@ export default function AdminPortal() {
         {/* Header */}
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 4 }}>
-            {sidebarTab === 'churches' ? 'Church Management' : sidebarTab === 'billing' ? 'Plans & Billing' : sidebarTab === 'alerts' ? 'Alerts' : 'Settings'}
+            {sidebarTab === 'churches' ? 'Church Management' : sidebarTab === 'billing' ? 'Plans & Billing' : sidebarTab === 'alerts' ? 'Health & Alerts' : 'Settings'}
           </div>
           <div style={{ fontSize: 13, color: C.muted }}>
             {sidebarTab === 'churches' ? 'All onboarded churches, their structures, plans, and trial status'
               : sidebarTab === 'billing' ? 'Plan tier and subscription status per church'
-              : sidebarTab === 'alerts' ? 'Trials and subscriptions needing attention'
+              : sidebarTab === 'alerts' ? 'Technical triage, checked automatically — critical issues first'
               : 'Platform-level configuration'}
           </div>
         </div>
@@ -164,25 +203,51 @@ export default function AdminPortal() {
           </div>
         )}
 
-        {sidebarTab === 'alerts' && (
-          <div style={{ ...card({ padding: 0, overflow: 'hidden' }) }}>
-            {(() => {
-              const expiring = churches.filter(c => c.subscription_status === 'trial' && c.trial_days_remaining <= 7);
-              const expired = churches.filter(c => c.subscription_status === 'expired');
-              const alerts = [
-                ...expired.map(c => ({ c, msg: 'Subscription expired', color: C.coral, bg: C.coralBg })),
-                ...expiring.map(c => ({ c, msg: `Trial ends in ${c.trial_days_remaining} day${c.trial_days_remaining === 1 ? '' : 's'}`, color: C.amber, bg: C.amberBg })),
-              ];
-              if (alerts.length === 0) return <div style={{ padding: 40, textAlign: 'center', color: C.muted, fontSize: 13 }}>No alerts right now.</div>;
-              return alerts.map((a, i) => (
-                <div key={i} style={{ padding: '14px 18px', borderBottom: i < alerts.length - 1 ? `0.5px solid ${C.border}` : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 13, color: C.text, fontWeight: 500 }}>{a.c.church_name}</div>
-                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: a.bg, color: a.color }}>{a.msg}</span>
-                </div>
-              ));
-            })()}
+        {sidebarTab === 'alerts' && (<>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
+            {[
+              { label: 'Critical', value: alertCounts.critical, color: C.coral, bg: C.coralBg },
+              { label: 'Medium', value: alertCounts.medium, color: C.amber, bg: C.amberBg },
+              { label: 'Low', value: alertCounts.low, color: C.muted, bg: '#F3F2FA' },
+            ].map(s => (
+              <div key={s.label} style={{ ...card({ padding: '14px 16px' }) }}>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{s.label}</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: s.value > 0 ? s.color : C.text }}>{s.value}</div>
+              </div>
+            ))}
           </div>
-        )}
+
+          <div style={{ ...card({ padding: 0, overflow: 'hidden' }) }}>
+            <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${C.border}`, fontSize: 13, fontWeight: 600, color: C.text }}>
+              Open alerts, checked automatically once a day
+            </div>
+            {alertsLoading ? (
+              <div style={{ padding: 40, textAlign: 'center', color: C.muted, fontSize: 13 }}>Loading…</div>
+            ) : sysAlerts.filter(a => a.status !== 'resolved').length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: C.muted, fontSize: 13 }}>Nothing needs attention right now.</div>
+            ) : sysAlerts.filter(a => a.status !== 'resolved').map((a, i, arr) => {
+              const sevC = a.severity === 'critical' ? { c: C.coral, bg: C.coralBg } : a.severity === 'medium' ? { c: C.amber, bg: C.amberBg } : { c: C.muted, bg: '#F3F2FA' };
+              return (
+                <div key={a.id} style={{ padding: '14px 18px', borderBottom: i < arr.length - 1 ? `0.5px solid ${C.border}` : 'none' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 9.5, padding: '2px 8px', borderRadius: 10, fontWeight: 700, background: sevC.bg, color: sevC.c, flexShrink: 0, textTransform: 'uppercase' }}>{a.severity}</span>
+                      <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{a.title}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      {a.status === 'open' && (
+                        <button onClick={() => updateAlertStatus(a.id, 'acknowledged')} style={{ fontSize: 11, fontWeight: 600, color: C.purple, background: C.purpleBg, border: 'none', borderRadius: 7, padding: '5px 10px', cursor: 'pointer' }}>Acknowledge</button>
+                      )}
+                      <button onClick={() => updateAlertStatus(a.id, 'resolved')} style={{ fontSize: 11, fontWeight: 600, color: C.teal, background: C.tealBg, border: 'none', borderRadius: 7, padding: '5px 10px', cursor: 'pointer' }}>Resolve</button>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: C.sub, lineHeight: 1.5 }}>{a.detail}</div>
+                  {a.status === 'acknowledged' && <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Acknowledged</div>}
+                </div>
+              );
+            })}
+          </div>
+        </>)}
 
         {sidebarTab === 'settings' && (
           <div style={{ ...card({ padding: '18px 20px' }) }}>

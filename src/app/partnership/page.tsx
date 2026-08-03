@@ -52,6 +52,7 @@ export default function PartnershipPage() {
   const [bands, setBands] = useState<Band[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [locked, setLocked] = useState(false);
   const [search, setSearch] = useState('');
   const [bandFilter, setBandFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'active' | 'all'>('active');
@@ -95,6 +96,11 @@ export default function PartnershipPage() {
       fetch('/api/partnership/bands', { credentials: 'include' }).then(r => r.json()),
       fetch('/api/partnership/partners', { credentials: 'include' }).then(r => r.json()),
     ]).then(([bandsRes, partnersRes]) => {
+      if (bandsRes.error?.code === 'UPGRADE_REQUIRED' || partnersRes.error?.code === 'UPGRADE_REQUIRED') {
+        setLocked(true);
+        setLoading(false);
+        return;
+      }
       if (bandsRes.data?.bands) setBands(bandsRes.data.bands);
       if (partnersRes.data?.partners) setPartners(partnersRes.data.partners);
       setLoading(false);
@@ -180,6 +186,25 @@ export default function PartnershipPage() {
   ];
 
   if (!pageReady) return <LoadingScreen dark={dark} label="Loading partnership…" />;
+
+  if (locked) {
+    return (
+      <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div style={{ maxWidth: 420, textAlign: 'center', background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 16, padding: '40px 32px' }}>
+          <div style={{ width: 52, height: 52, borderRadius: 14, background: t.purpleBg, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <Icon name="ti-shield" size={24} style={{ color: t.purple }} />
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: t.text, marginBottom: 8 }}>Partnership portal is a Growth feature</div>
+          <div style={{ fontSize: 13.5, color: t.sub, lineHeight: 1.6, marginBottom: 24 }}>
+            Track partners, giving bands, and monthly collection rates once your church is on an active Growth or Enterprise plan.
+          </div>
+          <button onClick={() => router.push('/dashboard')} style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 10, padding: '11px 22px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: t.bg, fontFamily: 'Inter,system-ui,sans-serif' }}>

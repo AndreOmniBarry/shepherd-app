@@ -23,6 +23,7 @@ const PUBLIC_PATHS = [
   '/login',
   '/register',
   '/setup',
+  '/docs',
   '/events/',
   '/api/auth/login',
   '/api/auth/register',
@@ -31,6 +32,10 @@ const PUBLIC_PATHS = [
   '/api/settings/church-config',
   '/api/subscription',
   '/api/events/public',
+  // Called by an external scheduler with no shepherd_token cookie at all —
+  // gated by CRON_SECRET inside the route itself instead, same model as
+  // isPublicEventRegistration below.
+  '/api/admin/health-check',
   '/_next',
   '/favicon.ico',
   '/manifest.json',
@@ -95,6 +100,10 @@ export async function middleware(req: NextRequest) {
 
   // No token
   if (!token) {
+    // The marketing homepage is the one page that serves a real audience
+    // logged out — everyone else (churches mid-trial, staff) already has a
+    // token and gets redirected to their portal below instead.
+    if (pathname === '/') return NextResponse.next();
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { data: null, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } },

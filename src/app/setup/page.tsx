@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { type StructureType } from '@/lib/church-config';
 import { currencySymbol } from '@/lib/currency';
+import { PLANS as SHARED_PLANS } from '@/lib/plans';
 
 const C = {
   purple: '#534AB7', purpleDark: '#3C3489', purpleLight: '#7B74CC',
@@ -316,69 +317,14 @@ const TZ_MAP: Record<string, string> = {
 };
 
 // ── Plan definitions ─────────────────────────────────────────
-const PLANS = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    price: '₦15,000',
-    period: '/month',
-    badge: '',
-    color: C.teal,
-    colorBg: C.tealBg,
-    description: 'For small churches getting organised',
-    features: [
-      'Up to 500 members',
-      '1 location',
-      'Up to 20 cells/groups',
-      'Attendance tracking',
-      'Member management',
-      'Basic giving records',
-      'Email support',
-    ],
-    limits: ['No AI (Moshe)', 'No partnership portal', 'No SMS alerts'],
-  },
-  {
-    id: 'growth',
-    name: 'Growth',
-    price: '₦35,000',
-    period: '/month',
-    badge: 'Most popular',
-    color: C.purple,
-    colorBg: C.purpleBg,
-    description: 'For growing churches that need full intelligence',
-    features: [
-      'Up to 5,000 members',
-      'Up to 10 locations',
-      'Unlimited cells/groups',
-      'Moshe AI agent',
-      'Partnership portal',
-      'SMS & WhatsApp alerts',
-      'Full analytics & reports',
-      'Priority support',
-    ],
-    limits: [],
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    badge: '',
-    color: C.amber,
-    colorBg: C.amberBg,
-    description: 'For denominations and large multi-site churches',
-    features: [
-      'Unlimited members & locations',
-      'Multi-currency support',
-      'White-label branding',
-      'Custom integrations',
-      'API access',
-      'Dedicated account manager',
-      'SLA guarantee',
-    ],
-    limits: [],
-  },
-];
+// Sourced from src/lib/plans.ts (also consulted by the server-side
+// plan-gate) — accent keys are mapped to this page's own color tokens here.
+const ACCENT: Record<string, { color: string; colorBg: string }> = {
+  teal: { color: C.teal, colorBg: C.tealBg },
+  purple: { color: C.purple, colorBg: C.purpleBg },
+  amber: { color: C.amber, colorBg: C.amberBg },
+};
+const PLANS = SHARED_PLANS.map(p => ({ ...p, ...ACCENT[p.accent] }));
 
 // ── Live preview ─────────────────────────────────────────────
 function PreviewPanel({ answers }: { answers: Record<string, Answer> }) {
@@ -461,7 +407,7 @@ function PlanScreen({ answers, onSelect }: { answers: Record<string, Answer>; on
           <div style={{ fontSize: 11, fontWeight: 600, color: C.purple, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 8 }}>One last step</div>
           <div style={{ fontSize: 26, fontWeight: 700, color: C.text, letterSpacing: '-0.5px', marginBottom: 10 }}>Choose your plan</div>
           <div style={{ fontSize: 14, color: C.sub, marginBottom: 32, lineHeight: 1.6 }}>
-            You get <strong>30 days full access</strong> on the plan you choose — no card needed. After 30 days, stay on your plan or upgrade. You can change anytime.
+            Your <strong>30-day trial</strong> gives full access to attendance, members, cells, and giving — no card needed. Moshe AI, the partnership portal, and SMS/WhatsApp alerts unlock the moment you go active on Growth or Enterprise.
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
@@ -499,7 +445,7 @@ function PlanScreen({ answers, onSelect }: { answers: Record<string, Answer>; on
             Start 30-day free trial on {PLANS.find(p => p.id === selected)?.name} →
           </button>
           <div style={{ fontSize: 12, color: C.muted, textAlign: 'center' }}>
-            No credit card required. Cancel anytime. Full access for 30 days.
+            No credit card required. Cancel anytime. Core features free for 30 days.
           </div>
         </div>
       </div>
@@ -527,6 +473,98 @@ function PlanScreen({ answers, onSelect }: { answers: Record<string, Answer>; on
             ))}
           </>
         )}
+        {selected !== 'starter' && (
+          <div style={{ marginTop: 'auto', paddingTop: 16, fontSize: 11.5, color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
+            Moshe AI, the partnership portal, and SMS/WhatsApp alerts activate once you go active on this plan — your 30-day trial covers everything else above.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Team invite screen ────────────────────────────────────────
+type TeamInvite = { email: string; full_name: string; role: string };
+
+const TEAM_ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'pa', label: 'Church Admin / PA' },
+  { value: 'fellowship_head', label: 'Fellowship Head' },
+  { value: 'department_head', label: 'Department Head' },
+  { value: 'cell_leader', label: 'Cell Leader' },
+  { value: 'accounts', label: 'Accounts' },
+  { value: 'partnership', label: 'Partnership Admin' },
+  { value: 'care_team', label: 'Follow-Up & Care Team' },
+  { value: 'workforce', label: 'Workforce' },
+];
+
+function TeamScreen({ invites, onAdd, onRemove, onContinue, onSkip, busy, error }: {
+  invites: TeamInvite[];
+  onAdd: (invite: TeamInvite) => void;
+  onRemove: (i: number) => void;
+  onContinue: () => void;
+  onSkip: () => void;
+  busy: boolean;
+  error?: string;
+}) {
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState(TEAM_ROLE_OPTIONS[0].value);
+
+  function add() {
+    if (!email.trim() || !fullName.trim()) return;
+    onAdd({ email: email.trim(), full_name: fullName.trim(), role });
+    setEmail(''); setFullName('');
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.bg, fontFamily: 'var(--font-inter, -apple-system, Inter, sans-serif)', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 620, background: C.white, borderRadius: 18, border: `0.5px solid ${C.border}`, padding: '40px 44px', boxShadow: '0 8px 32px rgba(83,74,183,0.1)' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: C.purple, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 8 }}>Almost there</div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: C.text, letterSpacing: '-0.4px', marginBottom: 10 }}>Build your team</div>
+        <div style={{ fontSize: 13.5, color: C.sub, marginBottom: 28, lineHeight: 1.6 }}>
+          Invite the people who'll run each portal. Each gets a signup link to set their own password — assign them to a specific cell, fellowship, or department any time from Settings once it's created. You can skip this and invite people later.
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Full name" style={{ flex: 1, padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.border}`, fontSize: 13.5, outline: 'none' }} />
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" type="email" style={{ flex: 1, padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.border}`, fontSize: 13.5, outline: 'none' }} />
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+          <select value={role} onChange={e => setRole(e.target.value)} style={{ flex: 1, padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.border}`, fontSize: 13.5, outline: 'none', background: C.white, color: C.text }}>
+            {TEAM_ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+          </select>
+          <button onClick={add} style={{ background: C.purpleBg, color: C.purple, border: 'none', borderRadius: 9, padding: '10px 20px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            + Add
+          </button>
+        </div>
+
+        {invites.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+            {invites.map((inv, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, background: C.purpleFaint }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{inv.full_name}</div>
+                  <div style={{ fontSize: 11.5, color: C.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{inv.email}</div>
+                </div>
+                <span style={{ fontSize: 11, background: C.purpleBg, color: C.purple, borderRadius: 6, padding: '2px 8px', fontWeight: 600, flexShrink: 0 }}>
+                  {TEAM_ROLE_OPTIONS.find(r => r.value === inv.role)?.label}
+                </span>
+                <button onClick={() => onRemove(i)} style={{ background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 4, flexShrink: 0 }}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {error && <div style={{ background: C.coralBg, color: C.coral, borderRadius: 9, padding: '10px 14px', fontSize: 13, marginBottom: 14, fontWeight: 500 }}>{error}</div>}
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onSkip} disabled={busy} style={{ flex: 1, background: C.white, color: C.sub, border: `1px solid ${C.border}`, borderRadius: 11, padding: '13px', fontSize: 14, fontWeight: 600, cursor: busy ? 'default' : 'pointer' }}>
+            Skip for now
+          </button>
+          <button onClick={onContinue} disabled={busy} style={{ flex: 2, background: C.purple, color: C.white, border: 'none', borderRadius: 11, padding: '13px', fontSize: 14, fontWeight: 700, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.7 : 1 }}>
+            {busy ? 'Setting up…' : invites.length > 0 ? `Send ${invites.length} invite${invites.length > 1 ? 's' : ''} & finish →` : 'Finish setup →'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -536,7 +574,7 @@ function PlanScreen({ answers, onSelect }: { answers: Record<string, Answer>; on
 export default function SetupWizard() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [screen, setScreen] = useState<'questions' | 'plan' | 'saving'>('questions');
+  const [screen, setScreen] = useState<'questions' | 'plan' | 'team' | 'saving'>('questions');
   const [qIndex, setQIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [textVal, setTextVal] = useState('');
@@ -545,6 +583,8 @@ export default function SetupWizard() {
   const [branchNameInput, setBranchNameInput] = useState('');
   const [transitioning, setTransitioning] = useState(false);
   const [error, setError] = useState('');
+  const [planTier, setPlanTier] = useState('');
+  const [teamInvites, setTeamInvites] = useState<TeamInvite[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setMounted(true); }, []);
@@ -642,7 +682,7 @@ export default function SetupWizard() {
     setAnswers(prev => ({ ...prev, branch_names: current.filter((_, idx) => idx !== i) }));
   }
 
-  async function finish(planTier: string) {
+  async function finish(invitesToSend: TeamInvite[]) {
     setScreen('saving');
     const a = { ...answers };
 
@@ -706,21 +746,42 @@ export default function SetupWizard() {
             });
           } catch { /* non-fatal — branches can still be added later from admin settings */ }
         }
+        for (const invite of invitesToSend) {
+          try {
+            await fetch('/api/invites', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify(invite),
+            });
+          } catch { /* non-fatal — invites can still be sent later from the dashboard */ }
+        }
         // Force fresh config load on dashboard
         router.push('/dashboard?onboarded=1');
       } else {
         const d = await res.json();
         setError(d?.error?.message || 'Failed to save. Please try again.');
-        setScreen('plan');
+        setScreen('team');
       }
     } catch {
       setError('Network error. Please check your connection.');
-      setScreen('plan');
+      setScreen('team');
     }
   }
 
   if (!mounted) return null;
-  if (screen === 'plan') return <PlanScreen answers={answers} onSelect={finish} />;
+  if (screen === 'plan') return <PlanScreen answers={answers} onSelect={(plan) => { setPlanTier(plan); setError(''); setScreen('team'); }} />;
+  if (screen === 'team') return (
+    <TeamScreen
+      invites={teamInvites}
+      onAdd={(inv) => setTeamInvites(prev => [...prev, inv])}
+      onRemove={(i) => setTeamInvites(prev => prev.filter((_, idx) => idx !== i))}
+      onContinue={() => finish(teamInvites)}
+      onSkip={() => finish([])}
+      busy={false}
+      error={error}
+    />
+  );
   if (screen === 'saving') return (
     <div style={{ minHeight: '100vh', background: C.purpleDark, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
       <div style={{ width: 48, height: 48, border: `3px solid rgba(255,255,255,0.2)`, borderTopColor: C.white, borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
@@ -904,8 +965,10 @@ export default function SetupWizard() {
             )}
             {question?.type === 'single' && (
               <button onClick={() => go(1)}
-                style={{ padding: '11px 18px', borderRadius: 9, border: `1px solid ${C.border}`, background: C.white, color: C.sub, fontSize: 13, cursor: 'pointer' }}>
-                Skip
+                style={ans
+                  ? { flex: 1, padding: '12px 22px', borderRadius: 9, border: 'none', background: C.purple, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer' }
+                  : { padding: '11px 18px', borderRadius: 9, border: `1px solid ${C.border}`, background: C.white, color: C.sub, fontSize: 13, cursor: 'pointer' }}>
+                {ans ? (qIndex === QUESTIONS.length - 1 ? 'Choose your plan →' : 'Next →') : 'Skip'}
               </button>
             )}
           </div>
