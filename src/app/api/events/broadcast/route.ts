@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     }
 
     const results = await Promise.all(list.map(async (r: { id: string; full_name: string; phone: string | null }) => {
-      const outcome = await sendSMS(r.phone || '', message.trim());
+      const outcome = await sendSMS(r.phone || '', message.trim(), user.church_id);
       return { registrant: r.full_name, ...outcome };
     }));
 

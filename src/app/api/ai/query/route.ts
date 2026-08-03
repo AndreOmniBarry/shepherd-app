@@ -228,7 +228,7 @@ export async function POST(req: Request) {
         { status: 403 }
       );
     }
-    const blocked = await requirePremium();
+    const blocked = await requirePremium(user.church_id);
     if (blocked) return blocked;
 
     const body = await req.json() as { query: string; agent?: AgentName; history?: ConversationMessage[] };

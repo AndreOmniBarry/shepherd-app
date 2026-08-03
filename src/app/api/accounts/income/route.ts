@@ -87,6 +87,7 @@ export async function POST(req: Request) {
       event: 'income_logged',
       actor_name: user.id,
       actor_role: user.role,
+      church_id: user.church_id,
       detail: `Income recorded — ${Number(body.amount || 0).toLocaleString()}`,
       amount: parseFloat(body.amount) || 0,
     }),

@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const { userId } = await req.json();
     if (!userId) return NextResponse.json({ data: null, error: { message: 'userId is required' } }, { status: 400 });
 
-    const profRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=id,full_name,email,role`, { headers: hdrs() });
+    const profRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&church_id=eq.${admin.church_id}&select=id,full_name,email,role`, { headers: hdrs() });
     const profRows = await profRes.json();
     const profile = Array.isArray(profRows) ? profRows[0] : null;
     if (!profile) return NextResponse.json({ data: null, error: { message: 'User not found' } }, { status: 404 });

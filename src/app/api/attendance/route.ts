@@ -174,6 +174,7 @@ export async function POST(req: Request) {
         event: 'attendance_submitted',
         actor_name: user.id,
         actor_role: user.role,
+        church_id: user.church_id,
         cell_name: cell_id,
         fellowship_id: null,
         detail: `${present_count} present · ${absent_count} absent · SLA ${sla_grade}`,

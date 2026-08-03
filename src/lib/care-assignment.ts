@@ -7,17 +7,19 @@ export { computeSlaGrade } from '@/lib/sla';
 // someone with 2, which isn't actually "smart" load balancing.
 export async function assignToLeastLoadedCareTeamMember(
   SUPABASE_URL: string,
-  hdrs: Record<string, string>
+  hdrs: Record<string, string>,
+  churchId: string | null | undefined
 ): Promise<string | null> {
-  const teamRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.care_team&is_active=eq.true&select=id`, { headers: hdrs });
+  if (!churchId) return null;
+  const teamRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.care_team&is_active=eq.true&church_id=eq.${churchId}&select=id`, { headers: hdrs });
   const team = await teamRes.json();
   const careIds: string[] = Array.isArray(team) ? team.map((u: { id: string }) => u.id) : [];
   if (careIds.length === 0) return null;
   if (careIds.length === 1) return careIds[0];
 
   const [leadsRes, timersRes] = await Promise.all([
-    fetch(`${SUPABASE_URL}/rest/v1/care_leads?status=in.(new,in_progress,reached,visited)&select=assigned_to`, { headers: hdrs }),
-    fetch(`${SUPABASE_URL}/rest/v1/first_timers?status=in.(new,contacted,follow_up)&select=assigned_to`, { headers: hdrs }),
+    fetch(`${SUPABASE_URL}/rest/v1/care_leads?status=in.(new,in_progress,reached,visited)&church_id=eq.${churchId}&select=assigned_to`, { headers: hdrs }),
+    fetch(`${SUPABASE_URL}/rest/v1/first_timers?status=in.(new,contacted,follow_up)&church_id=eq.${churchId}&select=assigned_to`, { headers: hdrs }),
   ]);
   const leads = await leadsRes.json();
   const timers = await timersRes.json();

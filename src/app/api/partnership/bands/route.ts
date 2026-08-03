@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const p = await verifyToken(token);
   const user = p ? payloadToAuthUser(p) : null;
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  const blocked = await requirePremium();
+  const blocked = await requirePremium(user.church_id);
   if (blocked) return blocked;
 
   const res = await fetch(`${S}/rest/v1/partnership_bands?order=sort_order.asc&select=id,name,amount,color`, { headers: h() });

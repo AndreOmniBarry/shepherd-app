@@ -47,6 +47,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       event: status === 'paid' ? 'requisition_approved' : 'requisition_raised',
       actor_name: user.id,
       actor_role: user.role,
+      church_id: user.church_id,
       detail: `Requisition ${status} by ${user.role}`,
     }),
   }).catch(() => {});

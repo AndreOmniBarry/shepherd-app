@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     }
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/invites?order=created_at.desc&limit=100&select=id,email,full_name,role,used,expires_at,created_at,cell_id,fellowship_id,department_id,cells(name),fellowships(name),departments(name)`,
+      `${SUPABASE_URL}/rest/v1/invites?church_id=eq.${user.church_id}&order=created_at.desc&limit=100&select=id,email,full_name,role,used,expires_at,created_at,cell_id,fellowship_id,department_id,cells(name),fellowships(name),departments(name)`,
       { headers: hdrs() }
     );
     const data = await res.json();
@@ -101,6 +101,7 @@ export async function POST(req: Request) {
         fellowship_id: fellowship_id || null,
         department_id: department_id || null,
         created_by: user.id,
+        church_id: user.church_id,
         expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
       }),
     });
@@ -141,7 +142,7 @@ export async function DELETE(req: Request) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ data: null, error: { message: 'Invite ID required' } }, { status: 400 });
 
-    await fetch(`${SUPABASE_URL}/rest/v1/invites?id=eq.${id}`, {
+    await fetch(`${SUPABASE_URL}/rest/v1/invites?id=eq.${id}&church_id=eq.${user.church_id}`, {
       method: 'DELETE',
       headers: hdrs(),
     });

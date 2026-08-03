@@ -14,10 +14,10 @@ import { hasPremiumAccess } from '@/lib/plans';
 // call site across the app (welcome messages, event broadcasts, absence
 // alerts) automatically respects the church's plan without each needing to
 // check it themselves.
-export async function sendSMS(to: string, message: string): Promise<{ sent: boolean; reason?: string }> {
+export async function sendSMS(to: string, message: string, churchId: string | null | undefined): Promise<{ sent: boolean; reason?: string }> {
   if (!to?.trim()) return { sent: false, reason: 'No phone number on file' };
 
-  const plan = await getChurchPlan();
+  const plan = await getChurchPlan(churchId);
   if (!hasPremiumAccess(plan)) {
     console.log(`[SMS not sent — plan doesn't include SMS/WhatsApp alerts] to=${to}`);
     return { sent: false, reason: 'SMS & WhatsApp alerts require an active Growth or Enterprise plan' };

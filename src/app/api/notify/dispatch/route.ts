@@ -9,9 +9,10 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const hdrs = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
 
-async function getCurrency(): Promise<string> {
+async function getCurrency(churchId: string | null | undefined): Promise<string> {
+  if (!churchId) return 'NGN';
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/church_config?order=created_at.asc&limit=1&select=currency`, { headers: hdrs() });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/church_config?church_id=eq.${churchId}&limit=1&select=currency`, { headers: hdrs() });
     const configs = await res.json();
     return (Array.isArray(configs) && configs[0]?.currency) || 'NGN';
   } catch { return 'NGN'; }
@@ -33,6 +34,7 @@ interface DispatchPayload {
   event: NotifyEvent;
   actor_name: string;
   actor_role: string;
+  church_id: string | null;
   fellowship_id?: string;
   cell_name?: string;
   fellowship_name?: string;
@@ -43,10 +45,15 @@ interface DispatchPayload {
 
 async function getRecipients(payload: DispatchPayload): Promise<string[]> {
   const ids = new Set<string>();
+  // A missing church_id means the caller wasn't updated to pass one yet —
+  // fail closed to "notify nobody" rather than falling back to a global
+  // query that would fan out across every church.
+  if (!payload.church_id) return [];
+  const churchFilter = `&church_id=eq.${payload.church_id}`;
 
   // Always notify overseer and PA for every event
   const adminRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&is_active=eq.true&select=id`,
+    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&is_active=eq.true${churchFilter}&select=id`,
     { headers: hdrs() }
   );
   const admins = await adminRes.json();
@@ -55,7 +62,7 @@ async function getRecipients(payload: DispatchPayload): Promise<string[]> {
   // Fellowship head for fellowship-scoped events
   if (payload.fellowship_id && ['attendance_submitted', 'giving_submitted', 'first_timer_logged', 'care_lead_created'].includes(payload.event)) {
     const felRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?role=eq.fellowship_head&fellowship_id=eq.${payload.fellowship_id}&is_active=eq.true&select=id`,
+      `${SUPABASE_URL}/rest/v1/users?role=eq.fellowship_head&fellowship_id=eq.${payload.fellowship_id}&is_active=eq.true${churchFilter}&select=id`,
       { headers: hdrs() }
     );
     const felHeads = await felRes.json();
@@ -65,7 +72,7 @@ async function getRecipients(payload: DispatchPayload): Promise<string[]> {
   // Care team for absence-related events
   if (['care_lead_created', 'first_timer_logged'].includes(payload.event)) {
     const careRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?role=eq.care_team&is_active=eq.true&select=id`,
+      `${SUPABASE_URL}/rest/v1/users?role=eq.care_team&is_active=eq.true${churchFilter}&select=id`,
       { headers: hdrs() }
     );
     const care = await careRes.json();
@@ -75,7 +82,7 @@ async function getRecipients(payload: DispatchPayload): Promise<string[]> {
   // Accounts for financial events
   if (['income_logged', 'giving_submitted', 'partnership_giving_logged'].includes(payload.event)) {
     const accRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?role=eq.accounts&is_active=eq.true&select=id`,
+      `${SUPABASE_URL}/rest/v1/users?role=eq.accounts&is_active=eq.true${churchFilter}&select=id`,
       { headers: hdrs() }
     );
     const acc = await accRes.json();
@@ -85,7 +92,7 @@ async function getRecipients(payload: DispatchPayload): Promise<string[]> {
   // Partnership for partnership events
   if (payload.event === 'partnership_giving_logged') {
     const partRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?role=eq.partnership&is_active=eq.true&select=id`,
+      `${SUPABASE_URL}/rest/v1/users?role=eq.partnership&is_active=eq.true${churchFilter}&select=id`,
       { headers: hdrs() }
     );
     const part = await partRes.json();
@@ -124,7 +131,7 @@ async function buildNotification(payload: DispatchPayload): Promise<{ title: str
     case 'income_logged':
       return {
         type: 'giving',
-        title: `Income recorded${payload.amount ? ` — ${currencySymbol(await getCurrency())}${payload.amount.toLocaleString()}` : ''}`,
+        title: `Income recorded${payload.amount ? ` — ${currencySymbol(await getCurrency(payload.church_id))}${payload.amount.toLocaleString()}` : ''}`,
         body: payload.detail,
       };
     case 'requisition_raised':
@@ -142,7 +149,7 @@ async function buildNotification(payload: DispatchPayload): Promise<{ title: str
     case 'partnership_giving_logged':
       return {
         type: 'giving',
-        title: `Partnership giving logged${payload.amount ? ` — ${currencySymbol(await getCurrency())}${payload.amount.toLocaleString()}` : ''}`,
+        title: `Partnership giving logged${payload.amount ? ` — ${currencySymbol(await getCurrency(payload.church_id))}${payload.amount.toLocaleString()}` : ''}`,
         body: payload.detail,
       };
     case 'prayer_request_submitted':
@@ -184,6 +191,7 @@ export async function POST(req: Request) {
       title: notif.title,
       body: notif.body,
       read: false,
+      church_id: payload.church_id,
     }));
 
     await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
