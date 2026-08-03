@@ -117,6 +117,11 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const event_id = searchParams.get('event_id');
     if (!event_id) return NextResponse.json({ data: null, error: { message: 'event_id required' } }, { status: 400 });
+    // event_registrations has no church_id of its own — verify the event
+    // itself belongs to this caller's church before listing its registrants.
+    const evRes = await fetch(`${SURL}/rest/v1/church_events?id=eq.${event_id}&church_id=eq.${user!.church_id}&select=id&limit=1`, { headers: H() });
+    const evData = await evRes.json();
+    if (!evData?.[0]) return NextResponse.json({ data: null, error: { message: 'Event not found' } }, { status: 404 });
     const res = await fetch(`${SURL}/rest/v1/event_registrations?event_id=eq.${event_id}&order=registered_at.desc&select=id,full_name,phone,whatsapp,email,is_member,preferred_comms,payment_status,attended,registered_at,attending_days,guest_type,companion_count,expectations`, { headers: H() });
     const registrations = await res.json();
     return NextResponse.json({ data: { registrations: Array.isArray(registrations) ? registrations : [] }, error: null });
@@ -131,6 +136,15 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 403 });
     }
     const { id, attended } = await req.json();
+    // event_registrations has no church_id of its own — verify the parent
+    // event belongs to this caller's church before marking attendance.
+    const regRes = await fetch(`${SURL}/rest/v1/event_registrations?id=eq.${id}&select=event_id&limit=1`, { headers: H() });
+    const regData = await regRes.json();
+    const eventId = regData?.[0]?.event_id;
+    if (!eventId) return NextResponse.json({ data: null, error: { message: 'Registration not found' } }, { status: 404 });
+    const evRes = await fetch(`${SURL}/rest/v1/church_events?id=eq.${eventId}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: H() });
+    const evData = await evRes.json();
+    if (!evData?.[0]) return NextResponse.json({ data: null, error: { message: 'Registration not found' } }, { status: 404 });
     await fetch(`${SURL}/rest/v1/event_registrations?id=eq.${id}`, { method: 'PATCH', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify({ attended }) });
     return NextResponse.json({ data: { updated: true }, error: null });
   } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }

@@ -36,7 +36,7 @@ export async function GET(req: Request) {
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?select=id,full_name,role,cell_id,fellowship_id,department_id&role=in.(cell_leader,fellowship_head,department_head)&order=full_name.asc${branchFilter}`,
+      `${SUPABASE_URL}/rest/v1/users?select=id,full_name,role,cell_id,fellowship_id,department_id&role=in.(cell_leader,fellowship_head,department_head)&order=full_name.asc${branchFilter}&church_id=eq.${user.church_id}`,
       { headers: hdrs() }
     );
     const data = await res.json();

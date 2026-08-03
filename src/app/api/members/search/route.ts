@@ -52,10 +52,11 @@ export async function GET(req: Request) {
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
     const fellowshipFilter = fellowshipId ? `&fellowship_id=eq.${fellowshipId}` : '';
 
+    const churchFilter = payload.church_id ? `&church_id=eq.${payload.church_id}` : '';
     const select = 'id,full_name,phone,membership_status,join_date,cells(name),fellowships(name)';
-    let url = `${SUPABASE_URL}/rest/v1/members?select=${select}&order=join_date.desc.nullslast&limit=200${branchFilter}${fellowshipFilter}${cellFilter}`;
+    let url = `${SUPABASE_URL}/rest/v1/members?select=${select}&order=join_date.desc.nullslast&limit=200${branchFilter}${fellowshipFilter}${cellFilter}${churchFilter}`;
     if (q.length >= 2) {
-      url = `${SUPABASE_URL}/rest/v1/members?full_name=ilike.*${q}*&select=${select}&order=full_name.asc&limit=50${branchFilter}${fellowshipFilter}${cellFilter}`;
+      url = `${SUPABASE_URL}/rest/v1/members?full_name=ilike.*${q}*&select=${select}&order=full_name.asc&limit=50${branchFilter}${fellowshipFilter}${cellFilter}${churchFilter}`;
     }
 
     const res = await fetch(url, { headers: hdrs() });

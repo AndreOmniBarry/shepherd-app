@@ -19,6 +19,19 @@ async function getUser(req: Request) {
 
 const ADMIN_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
 
+// member_additions has no church_id column of its own. Every row's
+// submitted_by is a users.id, and every user belongs to exactly one
+// church — so scoping by "submitted_by is one of this church's users"
+// gives correct tenant isolation without needing to handle the various
+// nullable fellowship_id/department_id/cell_id edge cases (e.g. a
+// branch_pastor submitting directly, with no fellowship/department/cell).
+async function churchUserIds(churchId: string | null | undefined): Promise<string[]> {
+  if (!churchId) return [];
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/users?church_id=eq.${churchId}&select=id`, { headers: hdrs() });
+  const data = await res.json();
+  return Array.isArray(data) ? data.map((u: { id: string }) => u.id) : [];
+}
+
 export async function POST(req: Request) {
   try {
     const user = await getUser(req);
@@ -71,7 +84,7 @@ export async function POST(req: Request) {
         ? await fetch(`${SUPABASE_URL}/rest/v1/users?department_id=eq.${department_id}&role=eq.department_head&select=id`, { headers: hdrs() })
         : null;
     const l1Data = l1Res ? await l1Res.json() : [];
-    const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&select=id`, { headers: hdrs() });
+    const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
     const adminData = await adminRes.json();
     const notifyIds = [...(Array.isArray(l1Data) ? l1Data.map((u: Record<string,string>) => u.id) : []), ...(Array.isArray(adminData) ? adminData.map((u: Record<string,string>) => u.id) : [])].filter((v, i, a) => a.indexOf(v) === i);
     if (notifyIds.length > 0) {
@@ -80,6 +93,7 @@ export async function POST(req: Request) {
         headers: { ...hdrs(), 'Prefer': 'return=minimal' },
         body: JSON.stringify(notifyIds.map(uid => ({
           user_id: uid,
+          church_id: user.church_id || null,
           type: 'pipeline',
           title: 'New member addition request',
           body: `${full_name} submitted by ${user.name || user.role} — pending approval`,
@@ -109,7 +123,12 @@ export async function GET(req: Request) {
     if (scope === 'review') {
       let url = `${SUPABASE_URL}/rest/v1/member_additions?order=created_at.desc&limit=200&select=${select}`;
       if (ADMIN_ROLES.includes(user.role)) {
-        // Pastor/admin see everything — pending across the board plus anything they can revoke
+        // Pastor/admin see everything IN THEIR OWN CHURCH — pending across
+        // the board plus anything they can revoke. member_additions has no
+        // church_id of its own, so scope via submitted_by belonging to a
+        // user in this church.
+        const userIds = await churchUserIds(user.church_id);
+        url += userIds.length > 0 ? `&submitted_by=in.(${userIds.join(',')})` : '&submitted_by=eq.00000000-0000-0000-0000-000000000000';
       } else if (user.role === 'fellowship_head') {
         const fellowship_id = user.fellowship_id || await (async () => { const r = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs() }); const d = await r.json(); return d?.[0]?.fellowship_id || null; })();
         if (!fellowship_id) return NextResponse.json({ data: { additions: [] }, error: null });
@@ -162,6 +181,16 @@ export async function PATCH(req: Request) {
     const recData = await recRes.json();
     const record = recData?.[0];
     if (!record) return NextResponse.json({ data: null, error: { message: 'Submission not found' } }, { status: 404 });
+
+    // member_additions has no church_id of its own — verify the original
+    // submitter belongs to this caller's church before allowing any action
+    // on the record (otherwise an admin could act on another church's
+    // pending submission by guessing its id).
+    const submitterRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${record.submitted_by}&select=church_id&limit=1`, { headers: hdrs() });
+    const submitterData = await submitterRes.json();
+    if (submitterData?.[0]?.church_id !== user.church_id) {
+      return NextResponse.json({ data: null, error: { message: 'Submission not found' } }, { status: 404 });
+    }
 
     const isAdmin = ADMIN_ROLES.includes(user.role);
     const isL1ForThis =
@@ -229,6 +258,7 @@ export async function PATCH(req: Request) {
           fellowship_id: record.fellowship_id || null,
           membership_status: 'active',
           join_date: record.join_date || new Date().toISOString().split('T')[0],
+          church_id: user.church_id || null,
         }),
       });
       const memberData = await memberRes.json();
@@ -257,13 +287,13 @@ export async function PATCH(req: Request) {
       await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
         method: 'POST', headers: { ...hdrs(), 'Prefer': 'return=minimal' },
         body: JSON.stringify([{
-          user_id: record.submitted_by, type: 'pipeline', read: false,
+          user_id: record.submitted_by, church_id: user.church_id || null, type: 'pipeline', read: false,
           title: 'Member addition approved',
           body: `${record.full_name} is now a live member.`,
         }]),
       }).catch(() => {});
 
-      if (member.phone) sendSMS(member.phone, welcomeMessage(member.full_name)).catch(() => {});
+      if (member.phone) sendSMS(member.phone, welcomeMessage(member.full_name), user.church_id).catch(() => {});
 
       return NextResponse.json({ data: { approved: true, member_id: member.id }, error: null });
     }

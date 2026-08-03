@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/church_config?limit=1&select=plan_tier,subscription_status,trial_started_at,trial_ends_at,subscription_started_at`, { headers: hdrs() });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/church_config?church_id=eq.${user.church_id}&limit=1&select=plan_tier,subscription_status,trial_started_at,trial_ends_at,subscription_started_at`, { headers: hdrs() });
     const data = await res.json();
     const config = data?.[0];
 

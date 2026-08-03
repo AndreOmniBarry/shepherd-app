@@ -16,13 +16,13 @@ async function getUser(req: Request) {
 
 const SEVERITY_ORDER: Record<string, number> = { critical: 0, medium: 1, low: 2 };
 
-// This is the same "lead-tech / overseer" super-admin gate used by
-// /api/admin/churches — the technical-triage board lives on the same
-// SaaS-level panel.
+// lead_tech only, not overseer — overseer is a per-church role, and this
+// triage board is genuinely platform-wide across every church. Same gate
+// as /api/admin/churches, which lives on the same SaaS-level panel.
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  if (!['lead_tech', 'overseer'].includes(user.role)) {
+  if (!['lead_tech'].includes(user.role)) {
     return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
   }
 
@@ -61,7 +61,7 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   const user = await getUser(req);
   if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  if (!['lead_tech', 'overseer'].includes(user.role)) {
+  if (!['lead_tech'].includes(user.role)) {
     return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
   }
 

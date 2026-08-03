@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/care_leads?order=created_at.desc&limit=100&select=id,member_id,weeks_absent,status,contact_attempts,last_contact,notes,outcome,sla_grade,assigned_to,created_at,members(full_name,phone,cells(name),fellowships(name))${scope}${branchFilter}`,
+      `${SUPABASE_URL}/rest/v1/care_leads?order=created_at.desc&limit=100&select=id,member_id,weeks_absent,status,contact_attempts,last_contact,notes,outcome,sla_grade,assigned_to,created_at,members(full_name,phone,cells(name),fellowships(name))&church_id=eq.${user.church_id}${scope}${branchFilter}`,
       { headers: hdrs() }
     );
     const data = await res.json();

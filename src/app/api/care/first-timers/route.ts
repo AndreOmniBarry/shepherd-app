@@ -16,9 +16,10 @@ async function getUser(req: Request) {
   return payloadToAuthUser(payload);
 }
 
-async function getOverseerIds(): Promise<string[]> {
+async function getOverseerIds(churchId: string | null | undefined): Promise<string[]> {
+  if (!churchId) return [];
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&select=id`,
+    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&church_id=eq.${churchId}&select=id`,
     { headers: hdrs() }
   );
   const data = await res.json();
@@ -41,7 +42,7 @@ export async function GET(req: Request) {
     // Overseer/PA can see all; care team sees recent
     const isAdmin = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role);
     const select = 'id,full_name,phone,address,occupation,date_of_birth,how_they_came,would_join,volunteer_interest,prayer_point,service_date,status,notes,assigned_to,cell_id,completed_member_class,outcome,sla_grade,created_at';
-    let url = `${SUPABASE_URL}/rest/v1/first_timers?order=created_at.desc&limit=200&select=${select}${branchFilter}`;
+    let url = `${SUPABASE_URL}/rest/v1/first_timers?order=created_at.desc&limit=200&select=${select}${branchFilter}&church_id=eq.${user.church_id}`;
     if (!isAdmin || !all) {
       url += `&service_date=gte.${cutoff.toISOString().split('T')[0]}`;
     }
@@ -75,7 +76,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'Name and phone are required' } }, { status: 400 });
     }
 
-    const assignedTo = (await assignToLeastLoadedCareTeamMember(SUPABASE_URL, hdrs())) || user.id;
+    const assignedTo = (await assignToLeastLoadedCareTeamMember(SUPABASE_URL, hdrs(), user.church_id)) || user.id;
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/first_timers`, {
       method: 'POST',
@@ -95,6 +96,7 @@ export async function POST(req: Request) {
         assigned_to: assignedTo,
         status: 'new',
         branch_id: user.branch_id || null,
+        church_id: user.church_id || null,
       }),
     });
     const data = await res.json();
@@ -102,7 +104,7 @@ export async function POST(req: Request) {
 
     // Notify overseers/PAs about new first timer - best effort
     try {
-      const overseerIds = await getOverseerIds();
+      const overseerIds = await getOverseerIds(user.church_id);
       if (overseerIds.length > 0) {
         await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
           method: 'POST',
@@ -113,6 +115,7 @@ export async function POST(req: Request) {
             title: 'New first timer logged',
             body: `${full_name} (${phone}) — logged by care team`,
             read: false,
+            church_id: user.church_id || null,
           }))),
         });
       }
@@ -122,15 +125,15 @@ export async function POST(req: Request) {
     // near-real-time (same notification pipeline everything else uses).
     if (prayer_point?.trim()) {
       try {
-        const prayerDeptRes = await fetch(`${SUPABASE_URL}/rest/v1/departments?name=ilike.*prayer*&select=id&limit=1`, { headers: hdrs() });
+        const prayerDeptRes = await fetch(`${SUPABASE_URL}/rest/v1/departments?name=ilike.*prayer*&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: hdrs() });
         const prayerDept = (await prayerDeptRes.json())?.[0];
         const recipients: string[] = [];
         if (prayerDept?.id) {
-          const headsRes = await fetch(`${SUPABASE_URL}/rest/v1/users?department_id=eq.${prayerDept.id}&role=eq.department_head&select=id`, { headers: hdrs() });
+          const headsRes = await fetch(`${SUPABASE_URL}/rest/v1/users?department_id=eq.${prayerDept.id}&role=eq.department_head&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
           const heads = await headsRes.json();
           if (Array.isArray(heads)) recipients.push(...heads.map((u: { id: string }) => u.id));
         }
-        const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&select=id`, { headers: hdrs() });
+        const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
         const adminData = await adminRes.json();
         if (Array.isArray(adminData)) recipients.push(...adminData.map((u: { id: string }) => u.id));
 
@@ -143,6 +146,7 @@ export async function POST(req: Request) {
               title: `Prayer point — ${full_name}`,
               body: prayer_point.trim(),
               link: '/care',
+              church_id: user.church_id || null,
             }))),
           });
         }

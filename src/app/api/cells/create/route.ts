@@ -44,6 +44,7 @@ export async function POST(req: Request) {
         fellowship_id: fellowship_id || null,
         target_size: target_size ? parseInt(target_size) : null,
         is_active: true,
+        church_id: user.church_id || null,
       }),
     });
     const data = await res.json();

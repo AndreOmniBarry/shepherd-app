@@ -40,11 +40,12 @@ export async function GET(req: Request) {
     const rangeStartStr = rangeStart.toISOString().split('T')[0];
 
     // Fetch all income records for this year + last year + the requested trend range, in parallel
+    const churchFilter = `&church_id=eq.${user.church_id}`;
     const [thisYearRes, lastYearRes, typesRes, rangeRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${yearStart}T00:00:00&order=service_date.desc&limit=2000&select=id,amount,service_date,income_type_id,member_name,notes,created_at,income_types(name,category)${branchFilter}`, { headers: h() }),
-      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${prevYearStart}T00:00:00&created_at=lte.${prevYearEnd}T23:59:59&select=amount,service_date,income_type_id,income_types(name,category)${branchFilter}`, { headers: h() }),
+      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${yearStart}T00:00:00&order=service_date.desc&limit=2000&select=id,amount,service_date,income_type_id,member_name,notes,created_at,income_types(name,category)${branchFilter}${churchFilter}`, { headers: h() }),
+      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${prevYearStart}T00:00:00&created_at=lte.${prevYearEnd}T23:59:59&select=amount,service_date,income_type_id,income_types(name,category)${branchFilter}${churchFilter}`, { headers: h() }),
       fetch(`${SUPABASE_URL}/rest/v1/income_types?is_active=eq.true&order=name.asc&select=id,name,category`, { headers: h() }),
-      fetch(`${SUPABASE_URL}/rest/v1/income_records?service_date=gte.${rangeStartStr}&order=service_date.asc&limit=5000&select=amount,service_date${branchFilter}`, { headers: h() }),
+      fetch(`${SUPABASE_URL}/rest/v1/income_records?service_date=gte.${rangeStartStr}&order=service_date.asc&limit=5000&select=amount,service_date${branchFilter}${churchFilter}`, { headers: h() }),
     ]);
 
     const [thisYear, lastYear, types, rangeRecords] = await Promise.all([thisYearRes.json(), lastYearRes.json(), typesRes.json(), rangeRes.json()]);

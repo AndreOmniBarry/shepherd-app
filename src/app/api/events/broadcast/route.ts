@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'event_id and message are required' } }, { status: 400 });
     }
 
-    const evRes = await fetch(`${SURL}/rest/v1/church_events?id=eq.${event_id}&select=title&limit=1`, { headers: H() });
+    const evRes = await fetch(`${SURL}/rest/v1/church_events?id=eq.${event_id}&church_id=eq.${user.church_id}&select=title&limit=1`, { headers: H() });
     const evData = await evRes.json();
     const event = evData?.[0];
     if (!event) return NextResponse.json({ data: null, error: { message: 'Event not found' } }, { status: 404 });
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     }
 
     const results = await Promise.all(list.map(async (r: { id: string; full_name: string; phone: string | null }) => {
-      const outcome = await sendSMS(r.phone || '', message.trim());
+      const outcome = await sendSMS(r.phone || '', message.trim(), user.church_id);
       return { registrant: r.full_name, ...outcome };
     }));
 

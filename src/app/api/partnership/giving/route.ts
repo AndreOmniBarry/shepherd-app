@@ -24,12 +24,12 @@ const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_te
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  const blocked = await requirePremium();
+  const blocked = await requirePremium(user.church_id);
   if (blocked) return blocked;
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
   const res = await fetch(
-    `${S}/rest/v1/partnership_giving?month=gte.${cutoff.toISOString().split('T')[0]}&order=month.desc&limit=200&select=id,partner_id,amount,month,status,notes,created_at,partners(full_name)`,
+    `${S}/rest/v1/partnership_giving?month=gte.${cutoff.toISOString().split('T')[0]}&order=month.desc&limit=200&select=id,partner_id,amount,month,status,notes,created_at,partners(full_name)&church_id=eq.${user.church_id}`,
     { headers: h() }
   );
   const data = await res.json();
@@ -44,7 +44,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  const blocked = await requirePremium();
+  const blocked = await requirePremium(user.church_id);
   if (blocked) return blocked;
   const body = await req.json();
   const { partner_id, amount, month, status, notes } = body;
@@ -55,6 +55,7 @@ export async function POST(req: Request) {
       partner_id, amount: parseFloat(amount),
       month, status: status || 'paid',
       notes: notes || null, submitted_by: user.id,
+      church_id: user.church_id || null,
     }),
   });
   const data = await res.json();
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
       event: 'partnership_giving_logged',
       actor_name: user.id,
       actor_role: user.role,
+      church_id: user.church_id,
       detail: `Partnership giving logged — ${Number(body.amount || 0).toLocaleString()}`,
       amount: parseFloat(body.amount) || 0,
     }),

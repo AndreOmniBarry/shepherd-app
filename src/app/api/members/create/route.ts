@@ -62,7 +62,7 @@ export async function POST(req: Request) {
       }).catch(() => {});
     }
 
-    if (member.phone) sendSMS(member.phone, welcomeMessage(member.full_name)).catch(() => {});
+    if (member.phone) sendSMS(member.phone, welcomeMessage(member.full_name), user.church_id).catch(() => {});
 
     return NextResponse.json({ data: { member }, error: null }, { status: 201 });
   } catch (err) {

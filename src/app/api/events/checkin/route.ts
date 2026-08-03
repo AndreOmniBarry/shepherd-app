@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     const { event_id, is_new_visitor, member_id, full_name, phone, prayer_point, how_they_came, would_join } = body;
     if (!event_id) return NextResponse.json({ data: null, error: { message: 'event_id is required' } }, { status: 400 });
 
-    const evRes = await fetch(`${SURL}/rest/v1/church_events?id=eq.${event_id}&select=id,title,event_date&limit=1`, { headers: H() });
+    const evRes = await fetch(`${SURL}/rest/v1/church_events?id=eq.${event_id}&church_id=eq.${user.church_id}&select=id,title,event_date&limit=1`, { headers: H() });
     const evData = await evRes.json();
     const event = evData?.[0];
     if (!event) return NextResponse.json({ data: null, error: { message: 'Event not found' } }, { status: 404 });
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     let regName = full_name, regPhone = phone;
     if (!is_new_visitor) {
       if (!member_id) return NextResponse.json({ data: null, error: { message: 'Select an existing member' } }, { status: 400 });
-      const memRes = await fetch(`${SURL}/rest/v1/members?id=eq.${member_id}&select=full_name,phone&limit=1`, { headers: H() });
+      const memRes = await fetch(`${SURL}/rest/v1/members?id=eq.${member_id}&church_id=eq.${user.church_id}&select=full_name,phone&limit=1`, { headers: H() });
       const memData = await memRes.json();
       const member = memData?.[0];
       if (!member) return NextResponse.json({ data: null, error: { message: 'Member not found' } }, { status: 404 });
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
 
     let firstTimerId: string | null = null;
     if (is_new_visitor) {
-      const assignedTo = (await assignToLeastLoadedCareTeamMember(SURL, H())) || user.id;
+      const assignedTo = (await assignToLeastLoadedCareTeamMember(SURL, H(), user.church_id)) || user.id;
       const ftRes = await fetch(`${SURL}/rest/v1/first_timers`, {
         method: 'POST', headers: { ...H(), Prefer: 'return=representation' },
         body: JSON.stringify({
@@ -80,6 +80,7 @@ export async function POST(req: Request) {
           prayer_point: prayer_point || null,
           notes: `Checked in at ${event.title} (${event.event_date})`,
           service_date: event.event_date, assigned_to: assignedTo, status: 'new',
+          church_id: user.church_id || null,
         }),
       });
       const ftData = await ftRes.json();

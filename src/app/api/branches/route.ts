@@ -31,7 +31,7 @@ export async function GET(req: Request) {
   // read this (a cell leader needs their own branch's service days and
   // per-day service counts to submit attendance correctly).
   if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  const res = await fetch(`${S}/rest/v1/branches?order=is_headquarters.desc,name.asc&select=id,name,is_headquarters,service_days,day_service_counts`, { headers: H() });
+  const res = await fetch(`${S}/rest/v1/branches?order=is_headquarters.desc,name.asc&select=id,name,is_headquarters,service_days,day_service_counts&church_id=eq.${user.church_id}`, { headers: H() });
   const data = await res.json();
   return NextResponse.json({ data: { branches: Array.isArray(data) ? data : [] }, error: null });
 }
@@ -55,7 +55,7 @@ export async function PATCH(req: Request) {
   const counts = cleanDayServiceCounts(day_service_counts);
   for (const d of service_days) if (!(d in counts)) counts[d] = 1;
 
-  const res = await fetch(`${S}/rest/v1/branches?id=eq.${branchId}`, {
+  const res = await fetch(`${S}/rest/v1/branches?id=eq.${branchId}&church_id=eq.${user.church_id}`, {
     method: 'PATCH',
     headers: { ...H(), 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
     body: JSON.stringify({ service_days, day_service_counts: counts }),
@@ -94,7 +94,7 @@ export async function POST(req: Request) {
   }
   if (entries.length === 0) return NextResponse.json({ data: null, error: { message: 'At least one branch name is required' } }, { status: 400 });
 
-  const existingRes = await fetch(`${S}/rest/v1/branches?select=id,name,is_headquarters`, { headers: H() });
+  const existingRes = await fetch(`${S}/rest/v1/branches?select=id,name,is_headquarters&church_id=eq.${user.church_id}`, { headers: H() });
   const existing = await existingRes.json();
   const existingRows = Array.isArray(existing) ? existing : [];
   const hasHeadquarters = existingRows.some((b: { is_headquarters: boolean }) => b.is_headquarters);
@@ -104,8 +104,15 @@ export async function POST(req: Request) {
     is_headquarters: !hasHeadquarters && i === 0,
     service_days: e.service_days,
     day_service_counts: e.day_service_counts,
+    church_id: user.church_id || null,
   }));
 
+  // KNOWN SCHEMA GAP: on_conflict=name assumes branch names are globally
+  // unique, which was true single-tenant but isn't guaranteed across
+  // churches (two churches both naming a branch "Main Campus" would
+  // collide). Fixing this properly needs a composite unique constraint on
+  // (church_id, name) in the database — flagged rather than guessed at
+  // here since it's a schema change, not an API one.
   const res = await fetch(`${S}/rest/v1/branches?on_conflict=name`, {
     method: 'POST',
     headers: { ...H(), 'Content-Type': 'application/json', 'Prefer': 'return=representation,resolution=ignore-duplicates' },

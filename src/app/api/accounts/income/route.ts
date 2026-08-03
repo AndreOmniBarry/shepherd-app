@@ -28,7 +28,7 @@ export async function GET(req: Request) {
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
   const res = await fetch(
-    `${S}/rest/v1/income_records?service_date=gte.${cutoff.toISOString().split('T')[0]}&order=service_date.desc&limit=200&select=id,amount,member_name,service_date,notes,created_at,income_types(name)${branchFilter}`,
+    `${S}/rest/v1/income_records?service_date=gte.${cutoff.toISOString().split('T')[0]}&order=service_date.desc&limit=200&select=id,amount,member_name,service_date,notes,created_at,income_types(name)&church_id=eq.${user.church_id}${branchFilter}`,
     { headers: h() }
   );
   const data = await res.json();
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
   // adjustment, so a "final" figure never quietly changes after the fact.
   if (service_date) {
     const monthStart = String(service_date).slice(0, 7) + '-01';
-    const periodRes = await fetch(`${S}/rest/v1/financial_periods?period_month=eq.${monthStart}&select=id`, { headers: h() });
+    const periodRes = await fetch(`${S}/rest/v1/financial_periods?period_month=eq.${monthStart}&church_id=eq.${user.church_id}&select=id`, { headers: h() });
     const periodRows = await periodRes.json();
     const isClosed = Array.isArray(periodRows) && periodRows.length > 0;
     if (isClosed && !is_adjustment) {
@@ -75,6 +75,7 @@ export async function POST(req: Request) {
       is_adjustment: !!is_adjustment,
       adjustment_note: is_adjustment ? (adjustment_note || null) : null,
       branch_id: user.branch_id || null,
+      church_id: user.church_id || null,
     }),
   });
   const data = await res.json();
@@ -87,6 +88,7 @@ export async function POST(req: Request) {
       event: 'income_logged',
       actor_name: user.id,
       actor_role: user.role,
+      church_id: user.church_id,
       detail: `Income recorded — ${Number(body.amount || 0).toLocaleString()}`,
       amount: parseFloat(body.amount) || 0,
     }),

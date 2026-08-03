@@ -33,8 +33,9 @@ export async function GET(req: Request) {
     const windowStart = new Date(Date.now() - WEEKS * 7 * 86400000);
 
     // ── Cell attendance trend ────────────────────────────────
+    const churchFilter = `&church_id=eq.${user.church_id}`;
     const cellFilter = branchId ? `&branch_id=eq.${branchId}` : '';
-    const cellsRes = await fetch(`${S}/rest/v1/cells?select=id,name${cellFilter}`, { headers: H() });
+    const cellsRes = await fetch(`${S}/rest/v1/cells?select=id,name${cellFilter}${churchFilter}`, { headers: H() });
     const cells: { id: string; name: string }[] = await cellsRes.json().catch(() => []);
     if (Array.isArray(cells) && cells.length > 0) {
       const cellIds = cells.map(c => c.id);
@@ -70,8 +71,8 @@ export async function GET(req: Request) {
     const careCutoff = new Date(Date.now() - 14 * 86400000).toISOString();
     const branchQ = branchId ? `&branch_id=eq.${branchId}` : '';
     const [timersRes, leadsRes] = await Promise.all([
-      fetch(`${S}/rest/v1/first_timers?status=neq.converted&status=neq.declined&created_at=lt.${careCutoff}&select=id${branchQ}`, { headers: H() }),
-      fetch(`${S}/rest/v1/care_leads?status=neq.restored&status=neq.unreachable&status=neq.closed&created_at=lt.${careCutoff}&select=id${branchQ}`, { headers: H() }),
+      fetch(`${S}/rest/v1/first_timers?status=neq.converted&status=neq.declined&created_at=lt.${careCutoff}&select=id${branchQ}${churchFilter}`, { headers: H() }),
+      fetch(`${S}/rest/v1/care_leads?status=neq.restored&status=neq.unreachable&status=neq.closed&created_at=lt.${careCutoff}&select=id${branchQ}${churchFilter}`, { headers: H() }),
     ]);
     const openTimers = await timersRes.json().catch(() => []);
     const openLeads = await leadsRes.json().catch(() => []);
@@ -81,7 +82,7 @@ export async function GET(req: Request) {
     }
 
     // ── Workforce gaps ────────────────────────────────
-    const deptRes = await fetch(`${S}/rest/v1/departments?select=id,name${branchQ}`, { headers: H() });
+    const deptRes = await fetch(`${S}/rest/v1/departments?select=id,name${branchQ}${churchFilter}`, { headers: H() });
     const depts: { id: string; name: string }[] = await deptRes.json().catch(() => []);
     if (Array.isArray(depts) && depts.length > 0) {
       const today = new Date().toISOString().split('T')[0];
@@ -98,7 +99,7 @@ export async function GET(req: Request) {
 
     // ── Requisition backlog ────────────────────────────────
     const reqCutoff = new Date(Date.now() - 7 * 86400000).toISOString();
-    const reqRes = await fetch(`${S}/rest/v1/expense_requisitions?status=eq.pending&created_at=lt.${reqCutoff}&select=id,title${branchQ}`, { headers: H() });
+    const reqRes = await fetch(`${S}/rest/v1/expense_requisitions?status=eq.pending&created_at=lt.${reqCutoff}&select=id,title${branchQ}${churchFilter}`, { headers: H() });
     const pendingReqs: { id: string; title: string }[] = await reqRes.json().catch(() => []);
     if (Array.isArray(pendingReqs) && pendingReqs.length > 0) {
       flags.push({ severity: pendingReqs.length >= 3 ? 'high' : 'medium', category: 'requisitions', entity: 'Requisitions', message: `${pendingReqs.length} requisition${pendingReqs.length !== 1 ? 's' : ''} pending approval for over a week`, link: '/dashboard?page=requisitions' });

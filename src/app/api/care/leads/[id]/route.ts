@@ -6,14 +6,20 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const hdrs = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
 
+async function getUser(req: Request) {
+  const cookie = req.headers.get('cookie') || '';
+  const m = cookie.match(/shepherd_token=([^;]+)/);
+  const token = m?.[1];
+  if (!token) return null;
+  const payload = await verifyToken(token);
+  if (!payload) return null;
+  return payloadToAuthUser(payload);
+}
+
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    const cookie = req.headers.get('cookie') || '';
-    const m = cookie.match(/shepherd_token=([^;]+)/);
-    const token = m?.[1];
-    if (!token) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    const payload = await verifyToken(token);
-    if (!payload) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    const user = await getUser(req);
+    if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
     const body = await req.json();
     const { status, notes, outcome } = body;
@@ -21,8 +27,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     // Reopening as 'new' resets the counter; any other update is another contact
     // attempt, so increment from whatever's currently stored rather than overwriting.
     let contact_attempts = 0;
-    const currentRes = await fetch(`${SUPABASE_URL}/rest/v1/care_leads?id=eq.${params.id}&select=contact_attempts,created_at&limit=1`, { headers: hdrs() });
+    const currentRes = await fetch(`${SUPABASE_URL}/rest/v1/care_leads?id=eq.${params.id}&church_id=eq.${user.church_id}&select=contact_attempts,created_at&limit=1`, { headers: hdrs() });
     const currentData = (await currentRes.json())?.[0];
+    if (!currentData) return NextResponse.json({ data: null, error: { message: 'Lead not found' } }, { status: 404 });
     if (status !== 'new') {
       contact_attempts = (currentData?.contact_attempts || 0) + 1;
     }
@@ -45,7 +52,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       if (currentData?.created_at) update.sla_grade = computeSlaGrade(currentData.created_at, new Date().toISOString());
     }
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/care_leads?id=eq.${params.id}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/care_leads?id=eq.${params.id}&church_id=eq.${user.church_id}`, {
       method: 'PATCH',
       headers: { ...hdrs(), 'Prefer': 'return=representation' },
       body: JSON.stringify(update),

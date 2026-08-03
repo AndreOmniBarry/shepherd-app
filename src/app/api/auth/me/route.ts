@@ -57,7 +57,7 @@ export async function GET(req: Request) {
     let currency = 'NGN';
     try {
       const configRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/church_config?order=created_at.asc&limit=1&select=currency`,
+        `${SUPABASE_URL}/rest/v1/church_config?church_id=eq.${user.church_id}&order=created_at.asc&limit=1&select=currency`,
         { headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` } }
       );
       const configs = await configRes.json();

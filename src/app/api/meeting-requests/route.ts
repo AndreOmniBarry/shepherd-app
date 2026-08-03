@@ -28,6 +28,7 @@ export async function POST(req: Request) {
       headers: { ...H(), 'Prefer': 'return=representation' },
       body: JSON.stringify({
         branch_id: user.branch_id || null,
+        church_id: user.church_id || null,
         requested_by: user.id,
         requested_of,
         subject: subject.trim(),
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
     await fetch(`${SURL}/rest/v1/notifications`, {
       method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' },
       body: JSON.stringify({
-        user_id: requested_of, type: 'meeting_request', read: false,
+        user_id: requested_of, church_id: user.church_id || null, type: 'meeting_request', read: false,
         title: 'New meeting request', body: `${user.name || 'Someone'} requested a meeting: ${subject.trim()}`,
         link: '/church-center?tab=meetings',
       }),

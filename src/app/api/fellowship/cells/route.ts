@@ -162,7 +162,7 @@ export async function PATCH(req: Request) {
       }
     }
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${cell_id}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${cell_id}&church_id=eq.${user.church_id}`, {
       method: 'PATCH', headers: { ...hdrs, Prefer: 'return=minimal' },
       body: JSON.stringify({ name: name.trim() }),
     });

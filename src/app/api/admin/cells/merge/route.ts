@@ -44,18 +44,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'No source cells to merge — they must differ from the target' } }, { status: 400 });
     }
 
-    const targetRes = await fetch(`${SURL}/rest/v1/cells?id=eq.${target_cell_id}&select=id,fellowship_id&limit=1`, { headers: H() });
+    const targetRes = await fetch(`${SURL}/rest/v1/cells?id=eq.${target_cell_id}&church_id=eq.${user.church_id}&select=id,fellowship_id&limit=1`, { headers: H() });
     const targetData = await targetRes.json();
     const target = targetData?.[0];
     if (!target) return NextResponse.json({ data: null, error: { message: 'Target cell not found' } }, { status: 404 });
+
+    // Every source cell must belong to the caller's own church, admin or
+    // not — otherwise an admin with a guessed/leaked cell id from another
+    // church could move that church's members into their own.
+    const sourcesCheckRes = await fetch(`${SURL}/rest/v1/cells?id=in.(${sources.join(',')})&church_id=eq.${user.church_id}&select=id,fellowship_id`, { headers: H() });
+    const sourcesCheckData = await sourcesCheckRes.json();
+    if (!Array.isArray(sourcesCheckData) || sourcesCheckData.length !== sources.length) {
+      return NextResponse.json({ data: null, error: { message: 'One or more source cells were not found in your church' } }, { status: 404 });
+    }
 
     if (isFellowshipHead) {
       if (target.fellowship_id !== user.fellowship_id) {
         return NextResponse.json({ data: null, error: { message: 'Target cell is not in your fellowship' } }, { status: 403 });
       }
-      const sourcesRes = await fetch(`${SURL}/rest/v1/cells?id=in.(${sources.join(',')})&select=id,fellowship_id`, { headers: H() });
-      const sourcesData = await sourcesRes.json();
-      const allOwnFellowship = Array.isArray(sourcesData) && sourcesData.length === sources.length && sourcesData.every((c: { fellowship_id: string }) => c.fellowship_id === user.fellowship_id);
+      const allOwnFellowship = sourcesCheckData.every((c: { fellowship_id: string }) => c.fellowship_id === user.fellowship_id);
       if (!allOwnFellowship) {
         return NextResponse.json({ data: null, error: { message: 'One or more cells to merge are not in your fellowship' } }, { status: 403 });
       }
@@ -63,15 +70,15 @@ export async function POST(req: Request) {
 
     let movedMembers = 0;
     for (const sourceId of sources) {
-      const countRes = await fetch(`${SURL}/rest/v1/members?cell_id=eq.${sourceId}&select=id`, { headers: H() });
+      const countRes = await fetch(`${SURL}/rest/v1/members?cell_id=eq.${sourceId}&church_id=eq.${user.church_id}&select=id`, { headers: H() });
       const countData = await countRes.json();
       movedMembers += Array.isArray(countData) ? countData.length : 0;
 
-      await fetch(`${SURL}/rest/v1/members?cell_id=eq.${sourceId}`, {
+      await fetch(`${SURL}/rest/v1/members?cell_id=eq.${sourceId}&church_id=eq.${user.church_id}`, {
         method: 'PATCH', headers: { ...H(), Prefer: 'return=minimal' },
         body: JSON.stringify({ cell_id: target_cell_id, fellowship_id: target.fellowship_id }),
       });
-      await fetch(`${SURL}/rest/v1/cells?id=eq.${sourceId}`, {
+      await fetch(`${SURL}/rest/v1/cells?id=eq.${sourceId}&church_id=eq.${user.church_id}`, {
         method: 'PATCH', headers: { ...H(), Prefer: 'return=minimal' },
         body: JSON.stringify({ is_active: false }),
       });

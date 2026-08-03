@@ -17,9 +17,10 @@ async function getUser(req: Request) {
 
 const ADMIN_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
 
-async function getOverseerIds(): Promise<string[]> {
+async function getOverseerIds(churchId: string | null | undefined): Promise<string[]> {
+  if (!churchId) return [];
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,general_overseer,pa,lead_tech)&select=id`,
+    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,general_overseer,pa,lead_tech)&church_id=eq.${churchId}&select=id`,
     { headers: hdrs() }
   );
   const data = await res.json();
@@ -34,7 +35,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'open';
 
-    let url = `${SUPABASE_URL}/rest/v1/prayer_requests?order=created_at.desc&limit=50&select=id,request,requester_name,category,status,is_anonymous,submitted_by,submitted_by_role,created_at`;
+    let url = `${SUPABASE_URL}/rest/v1/prayer_requests?order=created_at.desc&limit=50&select=id,request,requester_name,category,status,is_anonymous,submitted_by,submitted_by_role,created_at&church_id=eq.${user.church_id}`;
     if (status !== 'all') url += `&status=eq.${status}`;
 
     // Non-admin roles only see their own submissions
@@ -70,6 +71,7 @@ export async function POST(req: Request) {
         is_anonymous: is_anonymous || false,
         status: 'open',
         submitted_by: user.id,
+        church_id: user.church_id || null,
       }),
     });
     const data = await res.json();
@@ -88,13 +90,14 @@ export async function POST(req: Request) {
 
     // Notify all overseers/PAs - best effort, don't break main flow
     try {
-      const overseerIds = await getOverseerIds();
+      const overseerIds = await getOverseerIds(user.church_id);
       if (overseerIds.length > 0) {
         await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
           method: 'POST',
           headers: { ...hdrs(), 'Prefer': 'return=minimal' },
           body: JSON.stringify(overseerIds.map(uid => ({
             user_id: uid,
+            church_id: user.church_id || null,
             type: 'pastoral',
             title: 'New prayer request',
             body: `${is_anonymous ? 'Anonymous' : requester_name || user.name || 'A member'} — ${request.slice(0, 80)}${request.length > 80 ? '...' : ''}`,
@@ -124,7 +127,7 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const { id, status } = body;
 
-    await fetch(`${SUPABASE_URL}/rest/v1/prayer_requests?id=eq.${id}`, {
+    await fetch(`${SUPABASE_URL}/rest/v1/prayer_requests?id=eq.${id}&church_id=eq.${user.church_id}`, {
       method: 'PATCH',
       headers: { ...hdrs(), 'Prefer': 'return=minimal' },
       body: JSON.stringify({ status, updated_at: new Date().toISOString() }),
@@ -150,13 +153,13 @@ export async function DELETE(req: Request) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ data: null, error: { message: 'id is required' } }, { status: 400 });
 
-    const recRes = await fetch(`${SUPABASE_URL}/rest/v1/prayer_requests?id=eq.${id}&select=status&limit=1`, { headers: hdrs() });
+    const recRes = await fetch(`${SUPABASE_URL}/rest/v1/prayer_requests?id=eq.${id}&church_id=eq.${user.church_id}&select=status&limit=1`, { headers: hdrs() });
     const recData = await recRes.json();
     if (recData?.[0]?.status !== 'prayed') {
       return NextResponse.json({ data: null, error: { message: 'Only requests already marked prayed can be deleted' } }, { status: 400 });
     }
 
-    await fetch(`${SUPABASE_URL}/rest/v1/prayer_requests?id=eq.${id}`, { method: 'DELETE', headers: hdrs() });
+    await fetch(`${SUPABASE_URL}/rest/v1/prayer_requests?id=eq.${id}&church_id=eq.${user.church_id}`, { method: 'DELETE', headers: hdrs() });
     return NextResponse.json({ data: { deleted: true }, error: null });
   } catch (err) {
     return NextResponse.json({ data: null, error: { message: 'Failed to delete' } }, { status: 500 });

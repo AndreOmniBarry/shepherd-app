@@ -39,7 +39,7 @@ export async function GET(req: Request) {
     const windowEnd = bounds[bounds.length - 1].end;
 
     const res = await fetch(
-      `${SURL}/rest/v1/income_records?service_date=gte.${windowStart.toISOString().split('T')[0]}&service_date=lte.${windowEnd.toISOString().split('T')[0]}&select=amount,service_date${branchFilter}`,
+      `${SURL}/rest/v1/income_records?service_date=gte.${windowStart.toISOString().split('T')[0]}&service_date=lte.${windowEnd.toISOString().split('T')[0]}&select=amount,service_date&church_id=eq.${user.church_id}${branchFilter}`,
       { headers: H() }
     );
     const records = await res.json();

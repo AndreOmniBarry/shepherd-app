@@ -16,10 +16,18 @@ export async function GET(req: Request) {
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const headers = { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` };
 
+    // attendance_records carries no church_id of its own — scope both
+    // queries via the cells that belong to this overseer's own church,
+    // otherwise the live feed would leak every church's submissions.
+    const cellsRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?church_id=eq.${user.church_id}&select=id`, { headers });
+    const cellRows: { id: string }[] = await cellsRes.json();
+    const cellIds = (Array.isArray(cellRows) ? cellRows : []).map(c => c.id);
+    const cellFilter = cellIds.length > 0 ? `&cell_id=in.(${cellIds.join(',')})` : '&cell_id=eq.00000000-0000-0000-0000-000000000000';
+
     // Last 24 hours of real submissions
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/attendance_records?submitted_at=gte.${since}&order=submitted_at.desc&limit=20&select=id,present_count,absent_count,visitor_count,submitted_at,cell_id,cells(name,fellowship_id,fellowships(name))`,
+      `${SUPABASE_URL}/rest/v1/attendance_records?submitted_at=gte.${since}&order=submitted_at.desc&limit=20&select=id,present_count,absent_count,visitor_count,submitted_at,cell_id,cells(name,fellowship_id,fellowships(name))${cellFilter}`,
       { headers }
     );
     const records = await res.json();
@@ -28,7 +36,7 @@ export async function GET(req: Request) {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/attendance_records?submitted_at=gte.${todayStart.toISOString()}&select=present_count,visitor_count,cell_id`,
+      `${SUPABASE_URL}/rest/v1/attendance_records?submitted_at=gte.${todayStart.toISOString()}&select=present_count,visitor_count,cell_id${cellFilter}`,
       { headers }
     );
     const todayRecords = await todayRes.json();

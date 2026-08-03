@@ -21,6 +21,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+    const churchFilter = `&church_id=eq.${user.church_id}`;
     // Use Lagos time UTC+1 for today's date to avoid cutoff issues
     const lagosToday = new Date(Date.now() + 60 * 60 * 1000).toISOString().split('T')[0];
     const weeks = parseInt(searchParams.get('weeks') || '8');
@@ -29,14 +30,14 @@ export async function GET(req: Request) {
 
     // ── 1. Recent Sunday services ──────────────────────────────
     const sundayServicesRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/services?service_type=neq.midweek&service_date=gte.${cutoff.toISOString().split('T')[0]}&service_date=lte.${lagosToday}&order=service_date.desc&limit=${weeks}&select=id,service_date,service_type,service_number${branchFilter}`,
+      `${SUPABASE_URL}/rest/v1/services?service_type=neq.midweek&service_date=gte.${cutoff.toISOString().split('T')[0]}&service_date=lte.${lagosToday}&order=service_date.desc&limit=${weeks}&select=id,service_date,service_type,service_number${branchFilter}${churchFilter}`,
       { headers: hdrs() }
     );
     const sundayServices = await sundayServicesRes.json();
 
     // ── 2. Recent Midweek services ─────────────────────────────
     const midweekServicesRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/services?service_type=eq.midweek&service_date=gte.${cutoff.toISOString().split('T')[0]}&service_date=lte.${lagosToday}&order=service_date.desc&limit=${weeks}&select=id,service_date,service_type${branchFilter}`,
+      `${SUPABASE_URL}/rest/v1/services?service_type=eq.midweek&service_date=gte.${cutoff.toISOString().split('T')[0]}&service_date=lte.${lagosToday}&order=service_date.desc&limit=${weeks}&select=id,service_date,service_type${branchFilter}${churchFilter}`,
       { headers: hdrs() }
     );
     const midweekServices = await midweekServicesRes.json();
@@ -45,7 +46,7 @@ export async function GET(req: Request) {
     // since attendance/department_attendance don't carry branch_id directly
     // and need to be filtered through these ids instead ──
     const cellsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/cells?select=id,name,fellowship_id,fellowships(id,name)&order=name.asc${branchFilter}`,
+      `${SUPABASE_URL}/rest/v1/cells?select=id,name,fellowship_id,fellowships(id,name)&order=name.asc${branchFilter}${churchFilter}`,
       { headers: hdrs() }
     );
     const allCells = await cellsRes.json();
@@ -53,13 +54,13 @@ export async function GET(req: Request) {
     const cellIdFilter = branchCellIds.length > 0 ? `(${branchCellIds.join(',')})` : '(00000000-0000-0000-0000-000000000000)';
 
     const fellowshipsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/fellowships?select=id,name&order=name.asc${branchFilter}`,
+      `${SUPABASE_URL}/rest/v1/fellowships?select=id,name&order=name.asc${branchFilter}${churchFilter}`,
       { headers: hdrs() }
     );
     const fellowships = await fellowshipsRes.json();
 
     const deptsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/departments?select=id,name&order=name.asc${branchFilter}`,
+      `${SUPABASE_URL}/rest/v1/departments?select=id,name&order=name.asc${branchFilter}${churchFilter}`,
       { headers: hdrs() }
     );
     const departments = await deptsRes.json();

@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   if (!user || !ADMIN_ROLES.includes(user.role)) {
     return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 403 });
   }
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/users?select=id,full_name,email,role&is_active=eq.true&order=role.asc,full_name.asc${EXCLUDE_DEMO_IDS}`, { headers: hdrs() });
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/users?select=id,full_name,email,role&is_active=eq.true&church_id=eq.${user.church_id}&order=role.asc,full_name.asc${EXCLUDE_DEMO_IDS}`, { headers: hdrs() });
   const data = await res.json();
   return NextResponse.json({ data: { users: Array.isArray(data) ? data : [] }, error: null });
 }

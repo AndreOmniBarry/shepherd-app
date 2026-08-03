@@ -36,13 +36,17 @@ export async function GET(req: Request) {
     const windowStart = bounds[0].start;
     const windowEnd = bounds[bounds.length - 1].end;
 
-    let cellFilter = '';
-    if (branchId) {
-      const cellsRes = await fetch(`${SURL}/rest/v1/cells?branch_id=eq.${branchId}&select=id`, { headers: H() });
-      const cellRows: { id: string }[] = await cellsRes.json();
-      const cellIds = (Array.isArray(cellRows) ? cellRows : []).map(c => c.id);
-      cellFilter = cellIds.length > 0 ? `&cell_id=in.(${cellIds.join(',')})` : '&cell_id=eq.00000000-0000-0000-0000-000000000000';
-    }
+    // attendance_records carries no church_id of its own, so it's always
+    // scoped via the cells that belong to this caller's church (and,
+    // optionally, a specific branch within it) — otherwise the
+    // consolidated view (no branch_id given) would leak every church's
+    // attendance history.
+    let cellsUrl = `${SURL}/rest/v1/cells?church_id=eq.${user.church_id}&select=id`;
+    if (branchId) cellsUrl += `&branch_id=eq.${branchId}`;
+    const cellsRes = await fetch(cellsUrl, { headers: H() });
+    const cellRows: { id: string }[] = await cellsRes.json();
+    const cellIds = (Array.isArray(cellRows) ? cellRows : []).map(c => c.id);
+    const cellFilter = cellIds.length > 0 ? `&cell_id=in.(${cellIds.join(',')})` : '&cell_id=eq.00000000-0000-0000-0000-000000000000';
 
     const res = await fetch(
       `${SURL}/rest/v1/attendance_records?services.service_date=gte.${windowStart.toISOString().split('T')[0]}&select=present_count,absent_count,visitor_count,services(service_date)${cellFilter}`,

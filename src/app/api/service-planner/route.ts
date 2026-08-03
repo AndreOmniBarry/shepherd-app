@@ -22,8 +22,9 @@ export async function GET(req: Request) {
     const today = new Date().toISOString().split('T')[0];
     const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
-    let url = `${SUPABASE_URL}/rest/v1/service_plans?order=service_date.desc&limit=20&select=id,service_date,service_type,title,theme,status,created_by,published_at,created_at${branchFilter}`;
-    if (upcoming) url = `${SUPABASE_URL}/rest/v1/service_plans?service_date=gte.${today}&order=service_date.asc&limit=5&select=id,service_date,service_type,title,theme,status,published_at${branchFilter}`;
+    const churchFilter = `&church_id=eq.${user.church_id}`;
+    let url = `${SUPABASE_URL}/rest/v1/service_plans?order=service_date.desc&limit=20&select=id,service_date,service_type,title,theme,status,created_by,published_at,created_at${branchFilter}${churchFilter}`;
+    if (upcoming) url = `${SUPABASE_URL}/rest/v1/service_plans?service_date=gte.${today}&order=service_date.asc&limit=5&select=id,service_date,service_type,title,theme,status,published_at${branchFilter}${churchFilter}`;
     const res = await fetch(url, { headers: H() });
     const plans = await res.json();
     return NextResponse.json({ data: { plans: Array.isArray(plans) ? plans : [] }, error: null });
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
     if (!service_date || !title) return NextResponse.json({ data: null, error: { message: 'Date and title required' } }, { status: 400 });
     const planRes = await fetch(`${SUPABASE_URL}/rest/v1/service_plans`, {
       method: 'POST', headers: { ...H(), 'Prefer': 'return=representation' },
-      body: JSON.stringify({ service_date, service_type: service_type || 'sunday', title, theme: theme || null, status: 'draft', created_by: user.id, branch_id: user.branch_id || null }),
+      body: JSON.stringify({ service_date, service_type: service_type || 'sunday', title, theme: theme || null, status: 'draft', created_by: user.id, branch_id: user.branch_id || null, church_id: user.church_id || null }),
     });
     const planData = await planRes.json();
     const plan = Array.isArray(planData) ? planData[0] : planData;
@@ -63,7 +64,7 @@ export async function PATCH(req: Request) {
       payload.status = status;
       if (status === 'published') payload.published_at = new Date().toISOString();
     }
-    await fetch(`${SUPABASE_URL}/rest/v1/service_plans?id=eq.${id}`, { method: 'PATCH', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(payload) });
+    await fetch(`${SUPABASE_URL}/rest/v1/service_plans?id=eq.${id}&church_id=eq.${user.church_id}`, { method: 'PATCH', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(payload) });
     if (items) {
       await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items?plan_id=eq.${id}`, { method: 'DELETE', headers: H() });
       if (items.length > 0) {
@@ -102,7 +103,7 @@ export async function DELETE(req: Request) {
     const branchId = user.role === 'branch_pastor' ? user.branch_id : null;
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
     await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items?plan_id=eq.${id}`, { method: 'DELETE', headers: H() });
-    await fetch(`${SUPABASE_URL}/rest/v1/service_plans?id=eq.${id}${branchFilter}`, { method: 'DELETE', headers: H() });
+    await fetch(`${SUPABASE_URL}/rest/v1/service_plans?id=eq.${id}&church_id=eq.${user.church_id}${branchFilter}`, { method: 'DELETE', headers: H() });
     return NextResponse.json({ data: { deleted: true }, error: null });
   } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
 }

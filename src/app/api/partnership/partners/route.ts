@@ -20,10 +20,10 @@ const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_te
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  const blocked = await requirePremium();
+  const blocked = await requirePremium(user.church_id);
   if (blocked) return blocked;
   const res = await fetch(
-    `${S}/rest/v1/partners?order=full_name.asc&select=id,full_name,phone,email,status,start_date,partnership_bands(name,amount,color)`,
+    `${S}/rest/v1/partners?order=full_name.asc&select=id,full_name,phone,email,status,start_date,partnership_bands(name,amount,color)&church_id=eq.${user.church_id}`,
     { headers: h() }
   );
   const partnersData = await res.json();
@@ -33,12 +33,12 @@ export async function GET(req: Request) {
   thisMonthStart.setHours(0, 0, 0, 0);
 
   const givingRes = await fetch(
-    `${S}/rest/v1/partnership_giving?month=gte.${thisMonthStart.toISOString().split('T')[0]}&select=partner_id,amount,status`,
+    `${S}/rest/v1/partnership_giving?month=gte.${thisMonthStart.toISOString().split('T')[0]}&select=partner_id,amount,status&church_id=eq.${user.church_id}`,
     { headers: h() }
   );
   const givingData = await givingRes.json();
 
-  const allGivingRes = await fetch(`${S}/rest/v1/partnership_giving?select=partner_id,amount,month,status&order=month.desc`, { headers: h() });
+  const allGivingRes = await fetch(`${S}/rest/v1/partnership_giving?select=partner_id,amount,month,status&order=month.desc&church_id=eq.${user.church_id}`, { headers: h() });
   const allGiving = await allGivingRes.json();
   const givingByPartner = Array.isArray(allGiving) ? allGiving : [];
 
@@ -81,14 +81,14 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  const blocked = await requirePremium();
+  const blocked = await requirePremium(user.church_id);
   if (blocked) return blocked;
   const body = await req.json();
   const { full_name, phone, email, band_id, start_date } = body;
   const res = await fetch(`${S}/rest/v1/partners`, {
     method: 'POST',
     headers: { ...h(), 'Prefer': 'return=representation' },
-    body: JSON.stringify({ full_name, phone: phone || null, email: email || null, band_id, start_date, status: 'active' }),
+    body: JSON.stringify({ full_name, phone: phone || null, email: email || null, band_id, start_date, status: 'active', church_id: user.church_id || null }),
   });
   const data = await res.json();
   return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });

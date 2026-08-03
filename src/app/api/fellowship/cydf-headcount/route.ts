@@ -42,9 +42,9 @@ async function getUser(req: Request) {
 // Comforters House uses it for a combined Children & Teenagers fellowship,
 // but the flag itself is generic: any church can mark any fellowship this
 // way if it doesn't track individual members/cells, just a headcount.
-async function getAggregateFellowship(fellowshipId: string | null) {
+async function getAggregateFellowship(fellowshipId: string | null, churchId: string | null | undefined) {
   if (!fellowshipId) return null;
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/fellowships?id=eq.${fellowshipId}&is_aggregate_only=eq.true&select=id,name`, { headers: hdrs() });
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/fellowships?id=eq.${fellowshipId}&is_aggregate_only=eq.true&church_id=eq.${churchId}&select=id,name`, { headers: hdrs() });
   const rows = await res.json();
   return Array.isArray(rows) && rows[0] ? rows[0] : null;
 }
@@ -53,7 +53,7 @@ export async function GET(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    const fellowship = await getAggregateFellowship(user.fellowship_id);
+    const fellowship = await getAggregateFellowship(user.fellowship_id, user.church_id);
     if (!fellowship) return NextResponse.json({ data: null, error: { message: 'Not an aggregate-only fellowship' } }, { status: 403 });
 
     // Get last 8 weeks of headcounts
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    const fellowship = await getAggregateFellowship(user.fellowship_id);
+    const fellowship = await getAggregateFellowship(user.fellowship_id, user.church_id);
     if (!fellowship) return NextResponse.json({ data: null, error: { message: 'Not an aggregate-only fellowship' } }, { status: 403 });
 
     const body = await req.json();
@@ -100,7 +100,7 @@ export async function POST(req: Request) {
     // days when creating a brand new row, same rule cell/department
     // attendance follow, so a sanctioned special day never gets blocked.
     const existingSvcRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.${service_number}&select=id`,
+      `${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.${service_number}&church_id=eq.${user.church_id}&select=id`,
       { headers: hdrs() }
     );
     const existingSvc = await existingSvcRes.json();
@@ -117,7 +117,7 @@ export async function POST(req: Request) {
         const branchData = await branchRes.json();
         if (branchData?.[0]?.service_days?.length) serviceDays = branchData[0].service_days;
       } else {
-        const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?select=service_days&limit=1`, { headers: hdrs() });
+        const cfgRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?church_id=eq.${user.church_id}&select=service_days&limit=1`, { headers: hdrs() });
         const cfgData = await cfgRes.json();
         if (cfgData?.[0]?.service_days?.length) serviceDays = cfgData[0].service_days;
       }
@@ -128,12 +128,12 @@ export async function POST(req: Request) {
 
       const insertSvcRes = await fetch(`${SUPABASE_URL}/rest/v1/services`, {
         method: 'POST', headers: { ...hdrs(), 'Prefer': 'return=representation' },
-        body: JSON.stringify({ service_date, service_number, service_type, notes: 'Auto-created on first submission' }),
+        body: JSON.stringify({ service_date, service_number, service_type, notes: 'Auto-created on first submission', church_id: user.church_id || null }),
       });
       const insertedSvc = await insertSvcRes.json();
       service_id = Array.isArray(insertedSvc) && insertedSvc[0]?.id ? insertedSvc[0].id : null;
       if (!service_id) {
-        const retryRes = await fetch(`${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.${service_number}&select=id&limit=1`, { headers: hdrs() });
+        const retryRes = await fetch(`${SUPABASE_URL}/rest/v1/services?service_date=eq.${service_date}&service_number=eq.${service_number}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: hdrs() });
         const retryData = await retryRes.json();
         service_id = retryData?.[0]?.id || null;
       }
@@ -169,6 +169,7 @@ export async function POST(req: Request) {
         title: 'CYDF attendance submitted',
         body: `Children: ${children_count || 0} · Teenagers: ${teenagers_count || 0} · SLA: ${sla_grade}`,
         read: false,
+        church_id: user.church_id || null,
       }]),
     });
 

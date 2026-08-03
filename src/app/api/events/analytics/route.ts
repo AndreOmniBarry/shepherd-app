@@ -30,7 +30,7 @@ export async function GET(req: Request) {
 
     if (!event_id) {
       // List every event with headline stats, for browsing / comparing.
-      const evRes = await fetch(`${SURL}/rest/v1/church_events?order=event_date.desc&limit=100&select=id,title,event_type,event_date,end_date,status`, { headers: H() });
+      const evRes = await fetch(`${SURL}/rest/v1/church_events?order=event_date.desc&limit=100&select=id,title,event_type,event_date,end_date,status&church_id=eq.${user.church_id}`, { headers: H() });
       const events = await evRes.json();
       const rows = Array.isArray(events) ? events : [];
       const withStats = await Promise.all(rows.map(async (e: { id: string }) => {
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
     }
 
     // Single event deep-dive
-    const evRes = await fetch(`${SURL}/rest/v1/church_events?id=eq.${event_id}&select=id,title,event_type,event_date,end_date,location,capacity,status&limit=1`, { headers: H() });
+    const evRes = await fetch(`${SURL}/rest/v1/church_events?id=eq.${event_id}&church_id=eq.${user.church_id}&select=id,title,event_type,event_date,end_date,location,capacity,status&limit=1`, { headers: H() });
     const evData = await evRes.json();
     const event = evData?.[0];
     if (!event) return NextResponse.json({ data: null, error: { message: 'Event not found' } }, { status: 404 });

@@ -19,7 +19,7 @@ const ALLOWED = ['overseer', 'pa', 'lead_tech', 'accounts'];
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  const res = await fetch(`${S}/rest/v1/income_types?order=name.asc&select=id,name,category`, { headers: h() });
+  const res = await fetch(`${S}/rest/v1/income_types?order=name.asc&select=id,name,category&church_id=eq.${user.church_id}`, { headers: h() });
   const data = await res.json();
   return NextResponse.json({ data: { types: Array.isArray(data) ? data : [] }, error: null });
 }
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   const res = await fetch(`${S}/rest/v1/income_types`, {
     method: 'POST',
     headers: { ...h(), 'Prefer': 'return=representation' },
-    body: JSON.stringify({ name: body.name, category: body.category || 'general' }),
+    body: JSON.stringify({ name: body.name, category: body.category || 'general', church_id: user.church_id || null }),
   });
   const data = await res.json();
   return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });

@@ -9,7 +9,14 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const slug = searchParams.get('slug');
     if (!slug) return NextResponse.json({ data: null, error: { message: 'slug required' } }, { status: 400 });
-    const res = await fetch(`${SURL}/rest/v1/church_events?public_slug=eq.${encodeURIComponent(slug)}&limit=1&select=id,title,description,event_type,event_date,end_date,start_time,end_time,location,is_free,price,capacity,banner_url,registration_open,status`, { headers: H() });
+    // KNOWN SCHEMA GAP: public_slug is derived from title+date only, not
+    // scoped by church, so two churches running an identically-named event
+    // on the same date could theoretically collide. This is a genuinely
+    // public, unauthenticated endpoint (no cookie/church context to filter
+    // by), so fixing this properly needs a DB-level unique constraint that
+    // guarantees slug uniqueness across churches at creation time, not an
+    // API-side filter here.
+    const res = await fetch(`${SURL}/rest/v1/church_events?public_slug=eq.${encodeURIComponent(slug)}&limit=1&select=id,title,description,event_type,event_date,end_date,start_time,end_time,location,is_free,price,capacity,banner_url,registration_open,status,church_id`, { headers: H() });
     const data = await res.json();
     const event = data?.[0];
     if (!event) return NextResponse.json({ data: null, error: { message: 'Not found' } }, { status: 404 });
@@ -19,7 +26,7 @@ export async function GET(req: Request) {
     let currency = 'NGN';
     let logoUrl: string | null = null;
     try {
-      const configRes = await fetch(`${SURL}/rest/v1/church_config?order=created_at.asc&limit=1&select=currency,logo_url`, { headers: H() });
+      const configRes = await fetch(`${SURL}/rest/v1/church_config?church_id=eq.${event.church_id}&order=created_at.asc&limit=1&select=currency,logo_url`, { headers: H() });
       const configs = await configRes.json();
       currency = (Array.isArray(configs) && configs[0]?.currency) || 'NGN';
       logoUrl = (Array.isArray(configs) && configs[0]?.logo_url) || null;
@@ -41,6 +48,7 @@ export async function GET(req: Request) {
       while (cur <= end) { days.push(cur.toISOString().split('T')[0]); cur.setDate(cur.getDate() + 1); }
     }
 
-    return NextResponse.json({ data: { event: { ...event, registration_count: count, registration_open: event.registration_open && !ended, ended, days }, currency, logo_url: logoUrl }, error: null });
+    const { church_id: _churchId, ...publicEvent } = event;
+    return NextResponse.json({ data: { event: { ...publicEvent, registration_count: count, registration_open: event.registration_open && !ended, ended, days }, currency, logo_url: logoUrl }, error: null });
   } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
 }
