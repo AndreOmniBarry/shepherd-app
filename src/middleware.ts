@@ -23,6 +23,7 @@ const PUBLIC_PATHS = [
   '/login',
   '/register',
   '/setup',
+  '/docs',
   '/events/',
   '/api/auth/login',
   '/api/auth/register',
@@ -95,6 +96,10 @@ export async function middleware(req: NextRequest) {
 
   // No token
   if (!token) {
+    // The marketing homepage is the one page that serves a real audience
+    // logged out — everyone else (churches mid-trial, staff) already has a
+    // token and gets redirected to their portal below instead.
+    if (pathname === '/') return NextResponse.next();
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { data: null, error: { message: 'Authentication required', code: 'UNAUTHORIZED' } },
