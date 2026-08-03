@@ -23,9 +23,17 @@ export default function SplashIntro() {
       setPhase('skip');
       return;
     }
-    try { sessionStorage.setItem(SEEN_KEY, 'true'); } catch { /* non-fatal */ }
+    // The "seen" flag is written only once the animation actually finishes,
+    // not immediately on mount — React 18 Strict Mode (dev only) mounts,
+    // cleans up, and remounts every effect once as a bug check. Writing the
+    // flag eagerly meant that harmless remount's cleanup never got to
+    // reverse it, so the real (second) mount saw "already seen" and skipped
+    // the splash before it ever played.
     const exitTimer = setTimeout(() => setExiting(true), 2000);
-    const doneTimer = setTimeout(() => setPhase('skip'), 2500);
+    const doneTimer = setTimeout(() => {
+      try { sessionStorage.setItem(SEEN_KEY, 'true'); } catch { /* non-fatal */ }
+      setPhase('skip');
+    }, 2500);
     return () => { clearTimeout(exitTimer); clearTimeout(doneTimer); };
   }, []);
 
