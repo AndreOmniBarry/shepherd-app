@@ -29,11 +29,11 @@ export default function SplashIntro() {
     // flag eagerly meant that harmless remount's cleanup never got to
     // reverse it, so the real (second) mount saw "already seen" and skipped
     // the splash before it ever played.
-    const exitTimer = setTimeout(() => setExiting(true), 2000);
+    const exitTimer = setTimeout(() => setExiting(true), 3200);
     const doneTimer = setTimeout(() => {
       try { sessionStorage.setItem(SEEN_KEY, 'true'); } catch { /* non-fatal */ }
       setPhase('skip');
-    }, 2500);
+    }, 3900);
     return () => { clearTimeout(exitTimer); clearTimeout(doneTimer); };
   }, []);
 
@@ -47,7 +47,7 @@ export default function SplashIntro() {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         opacity: exiting ? 0 : 1,
         transform: exiting ? 'scale(1.04)' : 'scale(1)',
-        transition: 'opacity 0.5s ease, transform 0.5s ease',
+        transition: 'opacity 0.6s ease, transform 0.6s ease',
         pointerEvents: exiting ? 'none' : 'auto',
       }}
     >
@@ -82,7 +82,7 @@ export default function SplashIntro() {
               className="sp-letter"
               style={{
                 display: 'inline-block', fontSize: 26, fontWeight: 800, letterSpacing: '1px',
-                color: '#F4F3FB', animationDelay: `${0.75 + i * 0.045}s`,
+                color: '#F4F3FB', animationDelay: `${0.85 + i * 0.075}s`,
                 width: ch === '.' ? 8 : undefined, textAlign: 'center',
               }}
             >
@@ -128,7 +128,7 @@ export default function SplashIntro() {
         .sp-letter {
           opacity: 0;
           transform: translateY(10px);
-          animation: sp-letter-in 0.4s ease-out both;
+          animation: sp-letter-in 0.5s ease-out both;
         }
         @keyframes sp-letter-in {
           0%   { opacity: 0; transform: translateY(10px); text-shadow: 0 0 0 rgba(168,159,255,0); }

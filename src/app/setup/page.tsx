@@ -965,8 +965,10 @@ export default function SetupWizard() {
             )}
             {question?.type === 'single' && (
               <button onClick={() => go(1)}
-                style={{ padding: '11px 18px', borderRadius: 9, border: `1px solid ${C.border}`, background: C.white, color: C.sub, fontSize: 13, cursor: 'pointer' }}>
-                Skip
+                style={ans
+                  ? { flex: 1, padding: '12px 22px', borderRadius: 9, border: 'none', background: C.purple, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer' }
+                  : { padding: '11px 18px', borderRadius: 9, border: `1px solid ${C.border}`, background: C.white, color: C.sub, fontSize: 13, cursor: 'pointer' }}>
+                {ans ? (qIndex === QUESTIONS.length - 1 ? 'Choose your plan →' : 'Next →') : 'Skip'}
               </button>
             )}
           </div>
