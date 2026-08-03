@@ -73,26 +73,40 @@ export default function AppLockGate() {
     checkStale();
     touch();
 
-    // The interval must stop the moment the tab/app is backgrounded —
-    // browsers only throttle (not pause) setInterval for the first few
-    // minutes of being hidden, so leaving it running kept re-touching the
-    // "last active" timestamp every 15s while backgrounded, meaning
-    // checkStale() on return almost never saw more than 15s of elapsed
-    // time and the 90s lock effectively never fired.
-    let iv: ReturnType<typeof setInterval> | null = setInterval(touch, 15000);
+    // touch() must only fire on REAL user activity (mouse/keyboard/touch/
+    // scroll), not on a timer — a blind setInterval(touch, ...) kept
+    // re-stamping "last active" as fresh every tick purely because the tab
+    // was open, whether or not anyone was actually using it. That meant
+    // sitting idle on an open tab for 7+ minutes — even refreshing —
+    // never locked, since the timestamp was never allowed to go stale in
+    // the first place. Confirmed as a real regression, not theoretical.
+    let lastTouch = Date.now();
+    const onActivity = () => {
+      const now = Date.now();
+      if (now - lastTouch < 5000) return; // throttle — mousemove/scroll fire constantly
+      lastTouch = now;
+      touch();
+    };
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll'] as const;
+    activityEvents.forEach(evt => window.addEventListener(evt, onActivity, { passive: true }));
+
+    // checkStale() itself runs on a plain interval — this is what actually
+    // catches "idle while the tab stayed open and visible", which the old
+    // touch()-on-interval design could never detect. Safe even if browsers
+    // throttle it while backgrounded: checkStale() only ever reads the
+    // clock, it never refreshes it, so a delayed tick still locks correctly
+    // once it does run.
+    const iv = setInterval(checkStale, 15000);
 
     const onVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        touch();
-        if (iv) { clearInterval(iv); iv = null; }
-      } else {
-        checkStale();
-        touch();
-        if (!iv) iv = setInterval(touch, 15000);
-      }
+      if (document.visibilityState === 'visible') { checkStale(); touch(); }
     };
     document.addEventListener('visibilitychange', onVisibility);
-    return () => { document.removeEventListener('visibilitychange', onVisibility); if (iv) clearInterval(iv); };
+    return () => {
+      activityEvents.forEach(evt => window.removeEventListener(evt, onActivity));
+      clearInterval(iv);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [checkStale, touch, pathname]);
 
   useEffect(() => {
