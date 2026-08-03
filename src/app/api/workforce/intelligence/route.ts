@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
 
-    const deptRes = await fetch(`${SURL}/rest/v1/departments?select=id,name${branchFilter}`, { headers: H() });
+    const deptRes = await fetch(`${SURL}/rest/v1/departments?select=id,name&church_id=eq.${user.church_id}${branchFilter}`, { headers: H() });
     const depts = await deptRes.json();
     const departments = Array.isArray(depts) ? depts : [];
     const deptIds = departments.map((d: Record<string, unknown>) => d.id as string);

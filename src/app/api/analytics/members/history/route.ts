@@ -36,7 +36,7 @@ export async function GET(req: Request) {
     const windowStart = bounds[0].start;
     const windowEnd = bounds[bounds.length - 1].end;
 
-    const res = await fetch(`${SURL}/rest/v1/members?join_date=lte.${windowEnd.toISOString().split('T')[0]}&select=join_date${branchFilter}`, { headers: H() });
+    const res = await fetch(`${SURL}/rest/v1/members?join_date=lte.${windowEnd.toISOString().split('T')[0]}&select=join_date&church_id=eq.${user.church_id}${branchFilter}`, { headers: H() });
     const data = await res.json();
     const rows: { join_date: string | null }[] = Array.isArray(data) ? data : [];
 

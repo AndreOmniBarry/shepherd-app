@@ -20,7 +20,19 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const dept_id = searchParams.get('department_id');
     const date = searchParams.get('date');
-    let url = `${SURL}/rest/v1/workforce_rosters?order=service_date.desc&limit=20&select=id,department_id,service_date,service_type,published,created_at`;
+
+    // workforce_rosters carries no church_id of its own — scope it via the
+    // departments that belong to this caller's church, otherwise the
+    // unfiltered listing would leak every church's rosters.
+    const deptsRes = await fetch(`${SURL}/rest/v1/departments?church_id=eq.${user.church_id}&select=id`, { headers: H() });
+    const deptRows: { id: string }[] = await deptsRes.json();
+    const deptIds = (Array.isArray(deptRows) ? deptRows : []).map(d => d.id);
+    if (dept_id && !deptIds.includes(dept_id)) {
+      return NextResponse.json({ data: { rosters: [] }, error: null });
+    }
+    const deptFilter = dept_id ? '' : (deptIds.length > 0 ? `&department_id=in.(${deptIds.join(',')})` : '&department_id=eq.00000000-0000-0000-0000-000000000000');
+
+    let url = `${SURL}/rest/v1/workforce_rosters?order=service_date.desc&limit=20&select=id,department_id,service_date,service_type,published,created_at${deptFilter}`;
     if (dept_id) url += `&department_id=eq.${dept_id}`;
     if (date) url += `&service_date=eq.${date}`;
     const res = await fetch(url, { headers: H() });
@@ -42,6 +54,12 @@ export async function POST(req: Request) {
     if (!['overseer','pa','lead_tech','department_head'].includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     const { department_id, service_date, service_type, entries, publish } = await req.json();
     if (!department_id || !service_date) return NextResponse.json({ data: null, error: { message: 'department_id and service_date required' } }, { status: 400 });
+
+    // workforce_rosters has no church_id of its own — verify the
+    // department itself belongs to this caller's church before touching it.
+    const deptCheckRes = await fetch(`${SURL}/rest/v1/departments?id=eq.${department_id}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: H() });
+    const deptCheck = await deptCheckRes.json();
+    if (!deptCheck?.[0]) return NextResponse.json({ data: null, error: { message: 'Department not found' } }, { status: 404 });
 
     // Upsert roster
     const rRes = await fetch(`${SURL}/rest/v1/workforce_rosters`, {

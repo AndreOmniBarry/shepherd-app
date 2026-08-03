@@ -28,12 +28,13 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
     const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+    const churchFilter = `&church_id=eq.${user.church_id}`;
 
     const [members, activeCells, ytdGiving, newMembers] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/members?select=membership_status,join_date,gender,date_of_birth${branchFilter}`, { headers }).then(r => r.json()),
-      fetch(`${SUPABASE_URL}/rest/v1/cells?is_active=eq.true&select=id${branchFilter}`, { headers }).then(r => r.json()),
-      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${new Date().getFullYear()}-01-01T00:00:00&select=amount,income_type_id,income_types(name,category)${branchFilter}`, { headers }).then(r => r.json()),
-      fetch(`${SUPABASE_URL}/rest/v1/members?join_date=gte.${getFirstOfMonth()}&membership_status=eq.active&select=id${branchFilter}`, { headers }).then(r => r.json()),
+      fetch(`${SUPABASE_URL}/rest/v1/members?select=membership_status,join_date,gender,date_of_birth${branchFilter}${churchFilter}`, { headers }).then(r => r.json()),
+      fetch(`${SUPABASE_URL}/rest/v1/cells?is_active=eq.true&select=id${branchFilter}${churchFilter}`, { headers }).then(r => r.json()),
+      fetch(`${SUPABASE_URL}/rest/v1/income_records?created_at=gte.${new Date().getFullYear()}-01-01T00:00:00&select=amount,income_type_id,income_types(name,category)${branchFilter}${churchFilter}`, { headers }).then(r => r.json()),
+      fetch(`${SUPABASE_URL}/rest/v1/members?join_date=gte.${getFirstOfMonth()}&membership_status=eq.active&select=id${branchFilter}${churchFilter}`, { headers }).then(r => r.json()),
     ]);
 
     // Attendance doesn't carry branch_id directly — it's scoped via the
