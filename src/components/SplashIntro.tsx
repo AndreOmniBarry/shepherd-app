@@ -1,14 +1,15 @@
 'use client';
 import { useEffect, useState } from 'react';
 
-const SEEN_KEY = 'shepherd-splash-seen';
 const LETTERS = ['S', 'H', 'E', 'P', '.', 'H', 'E', 'R', 'D'];
 
-// One-time cinematic intro for the public marketing site — a lightning
-// strike that ignites the SHEP.HERD mark, a shockwave ring, then the
-// wordmark assembling letter by letter. Plays once per browser session
-// (sessionStorage-gated) so repeat visitors during the same session never
-// wait on it twice, and is skipped entirely under prefers-reduced-motion.
+// Cinematic intro for the public marketing site only — a flash traces the
+// outline around the SHEP.HERD mark (Supabase-style logo reveal, contained
+// to the icon instead of a streak across the whole screen), a shockwave
+// ring, then the wordmark assembling letter by letter. This component only
+// ever lives on the landing page, so it replays on every visit rather than
+// being session-gated — it's the showcase, not a loading screen people need
+// to get past. Skipped entirely under prefers-reduced-motion.
 export default function SplashIntro() {
   const [phase, setPhase] = useState<'boot' | 'skip'>('boot');
   const [exiting, setExiting] = useState(false);
@@ -16,24 +17,13 @@ export default function SplashIntro() {
 
   useEffect(() => {
     setMounted(true);
-    let alreadySeen = false;
-    try { alreadySeen = sessionStorage.getItem(SEEN_KEY) === 'true'; } catch { /* storage unavailable — just play it */ }
     const reduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (alreadySeen || reduced) {
+    if (reduced) {
       setPhase('skip');
       return;
     }
-    // The "seen" flag is written only once the animation actually finishes,
-    // not immediately on mount — React 18 Strict Mode (dev only) mounts,
-    // cleans up, and remounts every effect once as a bug check. Writing the
-    // flag eagerly meant that harmless remount's cleanup never got to
-    // reverse it, so the real (second) mount saw "already seen" and skipped
-    // the splash before it ever played.
     const exitTimer = setTimeout(() => setExiting(true), 3200);
-    const doneTimer = setTimeout(() => {
-      try { sessionStorage.setItem(SEEN_KEY, 'true'); } catch { /* non-fatal */ }
-      setPhase('skip');
-    }, 3900);
+    const doneTimer = setTimeout(() => setPhase('skip'), 3900);
     return () => { clearTimeout(exitTimer); clearTimeout(doneTimer); };
   }, []);
 
@@ -51,21 +41,21 @@ export default function SplashIntro() {
         pointerEvents: exiting ? 'none' : 'auto',
       }}
     >
-      {/* Bolt streak */}
-      <svg width="100%" height="100%" viewBox="0 0 400 400" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, opacity: 0.9 }}>
-        <path
-          d="M 40 40 L 190 170 L 150 170 L 300 320"
-          fill="none" stroke="#A89FFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-          className="sp-bolt"
-        />
-      </svg>
-
-      {/* Strike flash */}
+      {/* Ambient strike flash — soft, whole-screen camera-flash pulse */}
       <div className="sp-flash" style={{ position: 'absolute', inset: 0, background: '#FFFFFF' }} />
 
       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 22 }}>
-        {/* Shockwave rings + mark */}
-        <div style={{ position: 'relative', width: 72, height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {/* Outline trace + shockwave rings + mark */}
+        <div style={{ position: 'relative', width: 96, height: 96, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {/* A flash traces the outline around the mark, like a current
+              circling it, rather than a bolt streaking across the screen. */}
+          <svg width="96" height="96" viewBox="0 0 96 96" style={{ position: 'absolute', inset: 0 }}>
+            <rect
+              x="6" y="6" width="84" height="84" rx="22"
+              fill="none" stroke="#A89FFF" strokeWidth="2.5" strokeLinecap="round"
+              className="sp-outline"
+            />
+          </svg>
           <div className="sp-shock" style={{ position: 'absolute', width: 30, height: 30, borderRadius: '50%', border: '1.6px solid #A89FFF' }} />
           <div className="sp-shock" style={{ position: 'absolute', width: 30, height: 30, borderRadius: '50%', border: '1.6px solid #2DD4AA', animationDelay: '0.12s' }} />
           <div className="sp-mark" style={{ position: 'relative', width: 44, height: 44, background: '#534AB7', borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 0 rgba(168,159,255,0)' }}>
@@ -93,11 +83,11 @@ export default function SplashIntro() {
       </div>
 
       <style>{`
-        .sp-bolt {
-          stroke-dasharray: 520;
-          stroke-dashoffset: 520;
+        .sp-outline {
+          stroke-dasharray: 300;
+          stroke-dashoffset: 300;
           animation: sp-draw 0.5s cubic-bezier(0.3,0.8,0.4,1) 0.15s forwards;
-          filter: drop-shadow(0 0 6px rgba(168,159,255,0.8));
+          filter: drop-shadow(0 0 8px rgba(168,159,255,0.9));
         }
         @keyframes sp-draw { to { stroke-dashoffset: 0; } }
 
@@ -137,7 +127,7 @@ export default function SplashIntro() {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .sp-bolt, .sp-flash, .sp-shock, .sp-mark, .sp-letter { animation: none; opacity: 1; }
+          .sp-outline, .sp-flash, .sp-shock, .sp-mark, .sp-letter { animation: none; opacity: 1; }
         }
       `}</style>
     </div>
