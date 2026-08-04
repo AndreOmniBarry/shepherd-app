@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { requireChatAccess } from '@/lib/plan-gate';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -23,6 +24,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    const chatBlocked = await requireChatAccess(user.church_id, user.role);
+    if (chatBlocked) return chatBlocked;
     const { id: threadId } = await params;
     if (!(await isParticipant(threadId, user.id))) {
       return NextResponse.json({ data: null, error: { message: 'Not a participant in this chat' } }, { status: 403 });
@@ -61,6 +64,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    const chatBlocked = await requireChatAccess(user.church_id, user.role);
+    if (chatBlocked) return chatBlocked;
     const { id: threadId } = await params;
     if (!(await isParticipant(threadId, user.id))) {
       return NextResponse.json({ data: null, error: { message: 'Not a participant in this chat' } }, { status: 403 });

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PLANS } from '@/lib/plans';
 import SplashIntro from '@/components/SplashIntro';
+import { rolePortal } from '@/lib/role-portal';
 
 const C = {
   purple: '#534AB7', purpleDark: '#3C3489', purpleDarker: '#241F52', purpleLight: '#7B74CC',
@@ -15,13 +16,13 @@ const C = {
 };
 
 const STRUCTURES = [
-  { icon: '⛪', label: 'Cell Church', sub: 'Fellowships → Cells' },
-  { icon: '🗺', label: 'Zonal', sub: 'Zones → Districts → Cells' },
-  { icon: '🏙', label: 'Multi-Campus', sub: 'Campus → Fellowship → Cell' },
-  { icon: '🏛', label: 'Department', sub: 'Departments → Units' },
-  { icon: '🏠', label: 'House Network', sub: 'Network → Home Groups' },
-  { icon: '🤲', label: 'Single Congregation', sub: 'One pastor, no sub-structure' },
-];
+  { icon: 'ti-building-church', label: 'Cell Church', sub: 'Fellowships → Cells', accent: 'purple' },
+  { icon: 'ti-map-2', label: 'Zonal', sub: 'Zones → Districts → Cells', accent: 'teal' },
+  { icon: 'ti-buildings', label: 'Multi-Campus', sub: 'Campus → Fellowship → Cell', accent: 'amber' },
+  { icon: 'ti-building-bank', label: 'Department', sub: 'Departments → Units', accent: 'coral' },
+  { icon: 'ti-home', label: 'House Network', sub: 'Network → Home Groups', accent: 'purple' },
+  { icon: 'ti-user', label: 'Single Congregation', sub: 'One pastor, no sub-structure', accent: 'teal' },
+] as const;
 
 const FEATURES = [
   { icon: 'ti-users', title: 'Cell & Fellowship Structure', body: 'Members roll up through cells, fellowships, and branches — attendance, growth, and follow-up tracked at every level, scoped so no branch sees another\'s data.', accent: 'purple' },
@@ -100,11 +101,21 @@ export default function LandingPage() {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Logged-in users can still land here by typing the root URL — the nav
+  // should send them back into the app instead of pitching them a trial
+  // they're already past.
+  const [portal, setPortal] = useState<string | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' }).then(r => r.json()).then(({ data }) => {
+      if (data?.role) setPortal(rolePortal(data.role));
+    }).catch(() => {});
   }, []);
 
   function scrollTo(id: string) {
@@ -134,8 +145,14 @@ export default function LandingPage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} className="shep-landing-nav-cta">
-            <button onClick={() => router.push('/login')} style={{ background: 'transparent', border: 'none', color: C.sub, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', padding: '9px 6px' }}>Log in</button>
-            <button onClick={() => router.push('/setup')} style={{ background: C.purple, color: C.white, border: 'none', borderRadius: 9, padding: '9px 18px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Start free trial</button>
+            {portal ? (
+              <button onClick={() => router.push(portal)} style={{ background: C.purple, color: C.white, border: 'none', borderRadius: 9, padding: '9px 18px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Go to Dashboard →</button>
+            ) : (
+              <>
+                <button onClick={() => router.push('/login')} style={{ background: 'transparent', border: 'none', color: C.sub, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', padding: '9px 6px' }}>Log in</button>
+                <button onClick={() => router.push('/setup')} style={{ background: C.purple, color: C.white, border: 'none', borderRadius: 9, padding: '9px 18px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Start free trial</button>
+              </>
+            )}
           </div>
 
           <button onClick={() => setMobileMenuOpen(v => !v)} className="shep-landing-burger" style={{ display: 'none', background: 'transparent', border: 'none', fontSize: 22, color: C.text, cursor: 'pointer' }}>☰</button>
@@ -145,8 +162,14 @@ export default function LandingPage() {
             <button onClick={() => scrollTo('features')} style={{ ...navLinkStyle, textAlign: 'left', padding: '10px 0' }}>Features</button>
             <button onClick={() => scrollTo('pricing')} style={{ ...navLinkStyle, textAlign: 'left', padding: '10px 0' }}>Pricing</button>
             <button onClick={() => router.push('/docs')} style={{ ...navLinkStyle, textAlign: 'left', padding: '10px 0' }}>Docs</button>
-            <button onClick={() => router.push('/login')} style={{ ...navLinkStyle, textAlign: 'left', padding: '10px 0' }}>Log in</button>
-            <button onClick={() => router.push('/setup')} style={{ background: C.purple, color: C.white, border: 'none', borderRadius: 9, padding: '11px 18px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', marginTop: 8 }}>Start free trial</button>
+            {portal ? (
+              <button onClick={() => router.push(portal)} style={{ background: C.purple, color: C.white, border: 'none', borderRadius: 9, padding: '11px 18px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', marginTop: 8 }}>Go to Dashboard →</button>
+            ) : (
+              <>
+                <button onClick={() => router.push('/login')} style={{ ...navLinkStyle, textAlign: 'left', padding: '10px 0' }}>Log in</button>
+                <button onClick={() => router.push('/setup')} style={{ background: C.purple, color: C.white, border: 'none', borderRadius: 9, padding: '11px 18px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', marginTop: 8 }}>Start free trial</button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -184,13 +207,18 @@ export default function LandingPage() {
           One platform, however your church is organised
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-          {STRUCTURES.map((s, i) => (
-            <div key={i} style={{ background: C.white, border: `0.5px solid ${C.border}`, borderRadius: 12, padding: '16px 14px', textAlign: 'center' }}>
-              <div style={{ fontSize: 22, marginBottom: 6 }}>{s.icon}</div>
-              <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 2 }}>{s.label}</div>
-              <div style={{ fontSize: 10.5, color: C.muted }}>{s.sub}</div>
-            </div>
-          ))}
+          {STRUCTURES.map((s, i) => {
+            const a = AccentColor(s.accent);
+            return (
+              <div key={i} style={{ background: C.white, border: `0.5px solid ${C.border}`, borderRadius: 12, padding: '16px 14px', textAlign: 'center' }}>
+                <div style={{ width: 34, height: 34, borderRadius: 9, background: a.bg, color: a.c, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
+                  <IconGlyph name={s.icon} />
+                </div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 10.5, color: C.muted }}>{s.sub}</div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -318,6 +346,12 @@ const ICON_PATHS: Record<string, React.ReactNode> = {
   'ti-checkbox': <><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M9 12l2 2 4-4" /></>,
   'ti-zap': <><polygon points="13,2 3,14 11,14 11,22 21,10 13,10" /></>,
   'ti-speakerphone': <><path d="M3 11v3a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1z" /><path d="M14 8a4 4 0 0 1 0 8M17 5a8 8 0 0 1 0 14" /></>,
+  'ti-building-church': <><path d="M12 2v4" /><path d="M10 4h4" /><path d="M4 21V10l8-5 8 5v11" /><path d="M9 21v-6h6v6" /></>,
+  'ti-map-2': <><path d="M9 4l6 2 5-2v14l-5 2-6-2-5 2V6z" /><line x1="9" y1="4" x2="9" y2="18" /><line x1="15" y1="6" x2="15" y2="20" /></>,
+  'ti-buildings': <><rect x="3" y="10" width="6" height="11" /><rect x="10" y="6" width="6" height="15" /><rect x="17" y="13" width="4" height="8" /></>,
+  'ti-building-bank': <><path d="M12 3l9 7H3l9-7z" /><path d="M4 10h16" /><path d="M4 21h16" /><path d="M6 10v11" /><path d="M10 10v11" /><path d="M14 10v11" /><path d="M18 10v11" /></>,
+  'ti-home': <><path d="M4 11l8-7 8 7" /><path d="M6 10v10h12V10" /><path d="M10 20v-6h4v6" /></>,
+  'ti-user': <><circle cx="12" cy="8" r="3.5" /><path d="M5 21c0-3.9 3.1-7 7-7s7 3.1 7 7" /></>,
 };
 
 function IconGlyph({ name }: { name: string }) {

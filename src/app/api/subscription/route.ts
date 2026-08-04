@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { verifyPaystackTransaction, isPaystackConfigured } from '@/lib/paystack';
+import { planById } from '@/lib/plans';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -62,21 +64,65 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const { plan_tier, paystack_reference } = body;
 
-    if (!['starter', 'growth', 'enterprise'].includes(plan_tier)) {
-      return NextResponse.json({ data: null, error: { message: 'Invalid plan' } }, { status: 400 });
+    if (!['starter', 'growth'].includes(plan_tier)) {
+      // Enterprise is sales-negotiated (custom pricing, no fixed amount to
+      // verify against) — it's activated manually by lead_tech from the
+      // admin panel, never through this self-service card-payment flow.
+      return NextResponse.json({ data: null, error: { message: 'This plan is set up manually — contact support to switch to it.' } }, { status: 400 });
     }
-
-    // TODO: Verify paystack_reference with the Paystack API before upgrading.
-    // Until that verification is wired up, block self-service upgrades entirely —
-    // trusting a client-supplied reference would let anyone upgrade for free.
     if (!paystack_reference) {
       return NextResponse.json({ data: null, error: { message: 'Paystack reference required.' } }, { status: 400 });
     }
-    return NextResponse.json(
-      { data: null, error: { message: 'Paystack verification required — contact support.' } },
-      { status: 403 }
-    );
+    if (!isPaystackConfigured()) {
+      return NextResponse.json({ data: null, error: { message: 'Payments are not enabled on this deployment yet — contact support.' } }, { status: 503 });
+    }
+    if (!user.church_id) {
+      return NextResponse.json({ data: null, error: { message: 'No church on this account to upgrade.' } }, { status: 400 });
+    }
+
+    // The one call that actually confirms money moved — never trust the
+    // client-supplied reference on its own.
+    const verified = await verifyPaystackTransaction(paystack_reference);
+    if (!verified.ok) {
+      return NextResponse.json({ data: null, error: { message: `Payment could not be verified: ${verified.reason}` } }, { status: 402 });
+    }
+
+    const plan = planById(plan_tier);
+    if (plan?.price_ngn != null && verified.amount_ngn !== plan.price_ngn) {
+      console.error(`[subscription upgrade] amount mismatch — reference=${paystack_reference} expected=${plan.price_ngn} got=${verified.amount_ngn}`);
+      return NextResponse.json({ data: null, error: { message: 'Amount paid does not match the selected plan.' } }, { status: 402 });
+    }
+
+    // The UNIQUE constraint on paystack_reference is the actual replay
+    // guard — a duplicate insert here means this reference already
+    // upgraded a church once, so this request is a retry/replay, not a
+    // second payment. Fail closed rather than upgrading twice for one charge.
+    const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/billing_transactions`, {
+      method: 'POST',
+      headers: { ...hdrs(), Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        church_id: user.church_id, paystack_reference, plan_tier,
+        amount_ngn: verified.amount_ngn, status: 'success', source: 'self_service',
+      }),
+    });
+    if (!insertRes.ok) {
+      const text = await insertRes.text().catch(() => '');
+      if (text.includes('duplicate key')) {
+        return NextResponse.json({ data: null, error: { message: 'This payment has already been applied.' } }, { status: 409 });
+      }
+      console.error('[subscription upgrade] failed to record transaction', insertRes.status, text);
+      return NextResponse.json({ data: null, error: { message: 'Failed to record payment' } }, { status: 500 });
+    }
+
+    await fetch(`${SUPABASE_URL}/rest/v1/church_config?church_id=eq.${user.church_id}`, {
+      method: 'PATCH',
+      headers: { ...hdrs(), Prefer: 'return=minimal' },
+      body: JSON.stringify({ plan_tier, subscription_status: 'active', subscription_started_at: new Date().toISOString() }),
+    });
+
+    return NextResponse.json({ data: { plan_tier, status: 'active' }, error: null });
   } catch (err) {
+    console.error('[PATCH /api/subscription]', err);
     return NextResponse.json({ data: null, error: { message: 'Failed to upgrade' } }, { status: 500 });
   }
 }

@@ -8,7 +8,7 @@
 // NextResponse from.
 // ============================================================
 import { NextResponse } from 'next/server';
-import { hasPremiumAccess } from '@/lib/plans';
+import { hasPremiumAccess, planById } from '@/lib/plans';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -46,6 +46,24 @@ export async function requirePremium(churchId: string | null | undefined): Promi
   if (hasPremiumAccess(config)) return null;
   return NextResponse.json(
     { data: null, error: { message: UPGRADE_MESSAGE, code: 'UPGRADE_REQUIRED' } },
+    { status: 403 }
+  );
+}
+
+// Chat has no marginal cost, so unlike requirePremium it's never an on/off
+// plan gate — every plan gets it. On Starter, though, it's restricted to
+// admin-tier roles, so a church has a real reason to move its whole team
+// onto Growth without losing a feature that costs nothing to give away.
+const CHAT_ADMIN_ROLES = ['overseer', 'general_overseer', 'pa', 'lead_tech', 'branch_pastor'];
+const CHAT_RESTRICTED_MESSAGE = 'Chat is available to admins and pastors on the Starter plan — upgrade to Growth to open it up to your whole team.';
+
+export async function requireChatAccess(churchId: string | null | undefined, role: string | null | undefined): Promise<NextResponse | null> {
+  const config = await getChurchPlan(churchId);
+  const plan = planById(config.plan_tier);
+  const adminOnly = plan?.chat_admin_only ?? true; // fail closed (trial/unknown tier) same as Starter
+  if (!adminOnly || CHAT_ADMIN_ROLES.includes(role || '')) return null;
+  return NextResponse.json(
+    { data: null, error: { message: CHAT_RESTRICTED_MESSAGE, code: 'UPGRADE_REQUIRED' } },
     { status: 403 }
   );
 }

@@ -1,5 +1,6 @@
 import { getChurchPlan } from '@/lib/plan-gate';
 import { hasPremiumAccess } from '@/lib/plans';
+import { recordUsage } from '@/lib/usage';
 
 // Pluggable SMS sender. No provider is configured yet — until SMS_API_URL and
 // SMS_API_KEY are set, this logs the message and returns { sent: false }
@@ -42,6 +43,9 @@ export async function sendSMS(to: string, message: string, churchId: string | nu
       console.error('[SMS send failed]', res.status, await res.text().catch(() => ''));
       return { sent: false, reason: `Provider returned ${res.status}` };
     }
+    // Only a successful submission is a billable/trackable unit — a failed
+    // send was (presumably) never charged by the provider either.
+    recordUsage(churchId, 'sms', plan.plan_tier).catch(() => {});
     return { sent: true };
   } catch (err) {
     console.error('[SMS send error]', err);

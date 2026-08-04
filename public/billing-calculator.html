@@ -223,8 +223,24 @@ function calc(){
 
   const prices={starter:15,growth:35,enterprise:75};
   const queries={starter:80,growth:350,enterprise:800};
-  let monthlyPrice=prices[plan];
-  if(billing==='annual') monthlyPrice=prices[plan]*10/12;
+
+  // Enterprise used to be a flat $75/mo regardless of size — a 1,200-member
+  // single site and a 40,000-member 60-branch denomination got quoted the
+  // same number. This is a floor (the old flat price) covering up to 5
+  // branches / 2,000 members, then a per-branch and per-1,000-member
+  // overage past that, so the number this tool recommends actually moves
+  // with the sliders instead of being a constant that happens to equal
+  // prices.enterprise.
+  const ENT_BASE_BRANCHES=5, ENT_BASE_MEMBERS=2000, ENT_PER_BRANCH=8, ENT_PER_1K_MEMBERS=20;
+  function enterprisePriceUsd(){
+    const extraBranches=Math.max(0,branches-ENT_BASE_BRANCHES);
+    const extraThousands=Math.max(0,Math.ceil((members-ENT_BASE_MEMBERS)/1000));
+    return prices.enterprise + extraBranches*ENT_PER_BRANCH + extraThousands*ENT_PER_1K_MEMBERS;
+  }
+
+  let basePrice=plan==='enterprise'?enterprisePriceUsd():prices[plan];
+  let monthlyPrice=basePrice;
+  if(billing==='annual') monthlyPrice=basePrice*10/12;
 
   // Infra costs per church
   const supabase=25/20;
@@ -234,7 +250,7 @@ function calc(){
   const totalInfra=supabase+vercel+aiCost+smsCost;
   const profit=monthlyPrice-totalInfra;
   const margin=(profit/monthlyPrice)*100;
-  const annualPrice=billing==='annual'?prices[plan]*10:monthlyPrice*12;
+  const annualPrice=billing==='annual'?basePrice*10:monthlyPrice*12;
   const annualProfit=annualPrice-(totalInfra*12);
 
   // Plan cards
@@ -246,11 +262,16 @@ function calc(){
 
   document.getElementById('planGrid').innerHTML=planDefs.map(p=>{
     const isActive=p.id===plan;
-    const bp=billing==='annual'?(p.price*10/12).toFixed(2):p.price;
+    // Enterprise's card shows the scaled price for THIS church once it's
+    // the recommended tier (same formula as the pricing box below) — the
+    // generic $75 floor only when it isn't, since nothing's been sized yet.
+    const rawPrice=p.id==='enterprise'&&isActive?enterprisePriceUsd():p.price;
+    const bp=billing==='annual'?(rawPrice*10/12).toFixed(2):rawPrice;
+    const prefix=p.id==='enterprise'?'From ':'';
     return`<div class="plan ${isActive?'active':''}">
       ${isActive?'<div class="plan-rec">★ Recommended</div>':''}
       <div class="plan-name">${p.name}</div>
-      <div class="plan-price">$${bp}<span>/mo</span></div>
+      <div class="plan-price">${prefix}$${bp}<span>/mo</span></div>
       <div class="plan-ngn">${NN(parseFloat(bp),rate)}/mo${billing==='annual'?' · billed annually':''}</div>
       <ul class="plan-feat">${p.feats.map(f=>typeof f==='string'?`<li>${f}</li>`:`<li class="no">${f.t}</li>`).join('')}</ul>
     </div>`;
