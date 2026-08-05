@@ -136,6 +136,15 @@ export function planById(id: string | null | undefined): Plan | undefined {
   return PLANS.find(p => p.id === id);
 }
 
+// Trial is a subscription_status, not a plan tier of its own (whichever
+// plan a church picks at signup, it's still "trial" until they pay) — so
+// it has no entry in PLANS, but it gets one carved-out allowance: enough
+// real SMS sends for a church to see the feature actually work during
+// their 30 days, without giving away unmetered infra to an account that
+// has no payment method on file yet. Hard-capped, not pay-as-you-go
+// overage — there's nothing to bill overage against during a trial.
+export const TRIAL_SMS_MONTHLY_CAP = 50;
+
 // The three premium features every plan card calls out are bundled behind
 // one gate, not three: an ACTIVE Growth or Enterprise subscription. A trial
 // (any plan chosen) and a paid Starter subscription both land in the same
