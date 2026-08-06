@@ -11,6 +11,11 @@ type ChurchEvent = {
 type Registrant = {
   id: string; full_name: string; phone: string; email: string | null; is_member: boolean; payment_status: string; attended: boolean; registered_at: string;
   attending_days: string[] | null; guest_type: string; companion_count: number; expectations: string | null;
+  address: string | null; needs_transportation: boolean; needs_accommodation: boolean;
+};
+type FormSummary = {
+  total_registrants: number; total_expected_headcount: number; needing_transportation: number;
+  needing_accommodation: number; attended_so_far: number; top_locations: { location: string; count: number }[];
 };
 type EventStats = ChurchEvent & { registrations: number; attended: number; expected_headcount: number; attendance_rate: number };
 
@@ -30,6 +35,7 @@ export default function EventsPanel({ t, isMobile = false }: { t: Record<string,
 
   const [selected, setSelected] = useState<ChurchEvent | null>(null);
   const [registrants, setRegistrants] = useState<Registrant[]>([]);
+  const [formSummary, setFormSummary] = useState<FormSummary | null>(null);
   const [loadingRegistrants, setLoadingRegistrants] = useState(false);
   const [broadcastMsg, setBroadcastMsg] = useState('');
   const [broadcasting, setBroadcasting] = useState(false);
@@ -96,8 +102,12 @@ export default function EventsPanel({ t, isMobile = false }: { t: Record<string,
     setLoadingRegistrants(true);
     fetch(`/api/events/register?event_id=${ev.id}`, { credentials: 'include' })
       .then(r => r.json())
-      .then(({ data }) => setRegistrants(data?.registrations || []))
+      .then(({ data }) => { setRegistrants(data?.registrations || []); setFormSummary(data?.form_summary || null); })
       .finally(() => setLoadingRegistrants(false));
+  }
+
+  function exportRegistrants(ev: ChurchEvent) {
+    window.open(`/api/events/register?event_id=${ev.id}&format=csv`, '_blank');
   }
 
   async function sendBroadcast() {
@@ -261,8 +271,38 @@ export default function EventsPanel({ t, isMobile = false }: { t: Record<string,
 
         {selected && (
           <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>{selected.title} — Registrants</div>
-            <div style={{ fontSize: 11, color: t.muted, marginBottom: 12 }}>{registrants.length} registered</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>{selected.title} — Registrants</div>
+                <div style={{ fontSize: 11, color: t.muted, marginBottom: 12 }}>{registrants.length} registered</div>
+              </div>
+              {registrants.length > 0 && (
+                <button onClick={() => exportRegistrants(selected)} style={{ background: 'transparent', border: `0.5px solid ${t.border}`, borderRadius: 7, padding: '6px 10px', fontSize: 11, color: t.sub, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  Export CSV
+                </button>
+              )}
+            </div>
+
+            {formSummary && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8, marginBottom: 14 }}>
+                {[
+                  { label: 'Expected headcount', value: formSummary.total_expected_headcount },
+                  { label: 'Need transportation', value: formSummary.needing_transportation },
+                  { label: 'Need accommodation', value: formSummary.needing_accommodation },
+                  { label: 'Attended so far', value: formSummary.attended_so_far },
+                ].map(s => (
+                  <div key={s.label} style={{ background: t.cardInner || t.input, borderRadius: 8, padding: '8px 10px' }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>{s.value}</div>
+                    <div style={{ fontSize: 9.5, color: t.muted, marginTop: 1 }}>{s.label}</div>
+                  </div>
+                ))}
+                {formSummary.top_locations.length > 0 && (
+                  <div style={{ gridColumn: '1 / -1', fontSize: 10.5, color: t.muted, marginTop: 2 }}>
+                    Coming from: {formSummary.top_locations.map(l => `${l.location} (${l.count})`).join(', ')}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div style={{ maxHeight: 220, overflowY: 'auto', marginBottom: 14 }}>
               {loadingRegistrants ? (
@@ -288,6 +328,13 @@ export default function EventsPanel({ t, isMobile = false }: { t: Record<string,
                       {r.attending_days?.length ? `Attending: ${r.attending_days.join(', ')}` : ''}
                       {r.attending_days?.length && r.expectations ? ' · ' : ''}
                       {r.expectations ? `"${r.expectations}"` : ''}
+                    </div>
+                  )}
+                  {(r.needs_transportation || r.needs_accommodation || r.address) && (
+                    <div style={{ display: 'flex', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
+                      {r.needs_transportation && <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 8, background: t.amberBg, color: t.amber, fontWeight: 600 }}>Needs transport</span>}
+                      {r.needs_accommodation && <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 8, background: t.purpleBg, color: t.purple, fontWeight: 600 }}>Needs accommodation</span>}
+                      {r.address && <span style={{ fontSize: 10, color: t.muted }}>{r.address}</span>}
                     </div>
                   )}
                 </div>

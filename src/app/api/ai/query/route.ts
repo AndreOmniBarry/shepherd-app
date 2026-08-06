@@ -263,7 +263,7 @@ export async function POST(req: Request) {
         { status: 403 }
       );
     }
-    const blocked = await requirePremium(user.church_id);
+    const blocked = await requirePremium(user.church_id, user.id);
     if (blocked) return blocked;
 
     // Fire-and-forget — one query is one usage unit regardless of whether

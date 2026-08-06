@@ -20,7 +20,7 @@ const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_te
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  const blocked = await requirePremium(user.church_id);
+  const blocked = await requirePremium(user.church_id, user.id);
   if (blocked) return blocked;
   const res = await fetch(
     `${S}/rest/v1/partners?order=full_name.asc&select=id,full_name,phone,email,status,start_date,partnership_bands(name,amount,color)&church_id=eq.${user.church_id}`,
@@ -81,7 +81,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  const blocked = await requirePremium(user.church_id);
+  const blocked = await requirePremium(user.church_id, user.id);
   if (blocked) return blocked;
   const body = await req.json();
   const { full_name, phone, email, band_id, start_date } = body;

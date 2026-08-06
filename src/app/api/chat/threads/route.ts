@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    const chatBlocked = await requireChatAccess(user.church_id, user.role);
+    const chatBlocked = await requireChatAccess(user.church_id, user.role, user.id);
     if (chatBlocked) return chatBlocked;
 
     const myRowsRes = await fetch(`${S}/rest/v1/chat_participants?user_id=eq.${user.id}&select=thread_id,last_read_at`, { headers: H() });
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    const chatBlocked = await requireChatAccess(user.church_id, user.role);
+    const chatBlocked = await requireChatAccess(user.church_id, user.role, user.id);
     if (chatBlocked) return chatBlocked;
 
     const { type, participant_id, name, participant_ids } = await req.json();

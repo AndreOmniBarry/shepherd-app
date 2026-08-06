@@ -28,7 +28,7 @@ export default function EventPage() {
   const [currency, setCurrency] = useState('NGN');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ full_name: '', phone: '', email: '', whatsapp: '', preferred_comms: 'whatsapp', guest_type: 'member', companion_count: '0', expectations: '' });
+  const [form, setForm] = useState({ full_name: '', phone: '', email: '', whatsapp: '', preferred_comms: 'whatsapp', guest_type: 'member', companion_count: '0', expectations: '', address: '', needs_transportation: false, needs_accommodation: false });
   const [attendingDays, setAttendingDays] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState('');
@@ -163,10 +163,10 @@ export default function EventPage() {
             {error && <div style={{ background: C.coralBg, color: C.coral, borderRadius: 9, padding: '10px 14px', fontSize: 13, marginBottom: 14, fontWeight: 500 }}>{error}</div>}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {[{ key: 'full_name', label: 'Full name *', placeholder: 'First and last name', type: 'text' }, { key: 'phone', label: 'Phone number *', placeholder: '08012345678', type: 'tel' }, { key: 'email', label: 'Email (optional)', placeholder: 'your@email.com', type: 'email' }].map(f => (
+              {([{ key: 'full_name', label: 'Full name *', placeholder: 'First and last name', type: 'text' }, { key: 'phone', label: 'Phone number *', placeholder: '08012345678', type: 'tel' }, { key: 'email', label: 'Email (optional)', placeholder: 'your@email.com', type: 'email' }] as const).map(f => (
                 <div key={f.key}>
                   <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 6 }}>{f.label}</div>
-                  <input type={f.type} value={form[f.key as keyof typeof form]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                  <input type={f.type} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                     placeholder={f.placeholder}
                     style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 9, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit' }} />
                 </div>
@@ -205,6 +205,37 @@ export default function EventPage() {
                 <input type="number" min={0} value={form.companion_count} onChange={e => setForm(p => ({ ...p, companion_count: e.target.value }))}
                   placeholder="Number of people joining you (0 if coming alone)"
                   style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 9, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit' }} />
+              </div>
+
+              <div>
+                <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 6 }}>Your address (optional)</div>
+                <input type="text" value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
+                  placeholder="e.g. 12 Ajayi Street, Ikeja, Lagos — helps us plan transportation and logistics"
+                  style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 9, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit' }} />
+              </div>
+
+              <div>
+                <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 6 }}>Will you need transportation to the venue?</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[{ val: true, label: 'Yes' }, { val: false, label: 'No' }].map(opt => (
+                    <button key={String(opt.val)} onClick={() => setForm(p => ({ ...p, needs_transportation: opt.val }))}
+                      style={{ flex: 1, padding: '9px 6px', borderRadius: 9, border: `1px solid ${form.needs_transportation === opt.val ? C.purple : C.border}`, background: form.needs_transportation === opt.val ? C.purpleBg : C.bg, fontSize: 11, fontWeight: form.needs_transportation === opt.val ? 600 : 400, color: form.needs_transportation === opt.val ? C.purple : C.sub, cursor: 'pointer' }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 6 }}>Will you need accommodation?</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[{ val: true, label: 'Yes' }, { val: false, label: 'No' }].map(opt => (
+                    <button key={String(opt.val)} onClick={() => setForm(p => ({ ...p, needs_accommodation: opt.val }))}
+                      style={{ flex: 1, padding: '9px 6px', borderRadius: 9, border: `1px solid ${form.needs_accommodation === opt.val ? C.purple : C.border}`, background: form.needs_accommodation === opt.val ? C.purpleBg : C.bg, fontSize: 11, fontWeight: form.needs_accommodation === opt.val ? 600 : 400, color: form.needs_accommodation === opt.val ? C.purple : C.sub, cursor: 'pointer' }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>

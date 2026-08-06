@@ -24,7 +24,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    const chatBlocked = await requireChatAccess(user.church_id, user.role);
+    const chatBlocked = await requireChatAccess(user.church_id, user.role, user.id);
     if (chatBlocked) return chatBlocked;
     const { id: threadId } = await params;
     if (!(await isParticipant(threadId, user.id))) {
@@ -64,7 +64,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-    const chatBlocked = await requireChatAccess(user.church_id, user.role);
+    const chatBlocked = await requireChatAccess(user.church_id, user.role, user.id);
     if (chatBlocked) return chatBlocked;
     const { id: threadId } = await params;
     if (!(await isParticipant(threadId, user.id))) {

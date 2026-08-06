@@ -39,11 +39,27 @@ export async function getChurchPlan(churchId: string | null | undefined): Promis
 
 const UPGRADE_MESSAGE = 'This feature unlocks on an active Growth or Enterprise plan. Upgrade from Settings → Billing to turn it on.';
 
+// Fire-and-forget, same non-blocking pattern as src/lib/usage.ts's
+// recordUsage — every blocked attempt at a premium/chat-gated action gets
+// one row here. src/lib/health-checks.ts watches this table for a church
+// racking up an unusual volume of blocked attempts (a real signal of
+// someone probing for a payment/subscription bypass) and raises it as a
+// system_alert on the existing Health & Alerts admin tab.
+function logAccessViolation(churchId: string | null | undefined, userId: string | null | undefined, gate: 'premium' | 'chat') {
+  if (!churchId && !userId) return;
+  fetch(`${SUPABASE_URL}/rest/v1/access_violations`, {
+    method: 'POST',
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify({ church_id: churchId || null, user_id: userId || null, gate }),
+  }).catch(() => {});
+}
+
 // Returns a 403 NextResponse to return immediately if the church isn't
 // entitled, or null if the caller should proceed.
-export async function requirePremium(churchId: string | null | undefined): Promise<NextResponse | null> {
+export async function requirePremium(churchId: string | null | undefined, userId?: string | null): Promise<NextResponse | null> {
   const config = await getChurchPlan(churchId);
   if (hasPremiumAccess(config)) return null;
+  logAccessViolation(churchId, userId, 'premium');
   return NextResponse.json(
     { data: null, error: { message: UPGRADE_MESSAGE, code: 'UPGRADE_REQUIRED' } },
     { status: 403 }
@@ -57,11 +73,12 @@ export async function requirePremium(churchId: string | null | undefined): Promi
 const CHAT_ADMIN_ROLES = ['overseer', 'general_overseer', 'pa', 'lead_tech', 'branch_pastor'];
 const CHAT_RESTRICTED_MESSAGE = 'Chat is available to admins and pastors on the Starter plan — upgrade to Growth to open it up to your whole team.';
 
-export async function requireChatAccess(churchId: string | null | undefined, role: string | null | undefined): Promise<NextResponse | null> {
+export async function requireChatAccess(churchId: string | null | undefined, role: string | null | undefined, userId?: string | null): Promise<NextResponse | null> {
   const config = await getChurchPlan(churchId);
   const plan = planById(config.plan_tier);
   const adminOnly = plan?.chat_admin_only ?? true; // fail closed (trial/unknown tier) same as Starter
   if (!adminOnly || CHAT_ADMIN_ROLES.includes(role || '')) return null;
+  logAccessViolation(churchId, userId, 'chat');
   return NextResponse.json(
     { data: null, error: { message: CHAT_RESTRICTED_MESSAGE, code: 'UPGRADE_REQUIRED' } },
     { status: 403 }
