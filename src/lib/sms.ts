@@ -1,5 +1,6 @@
 import { getChurchPlan } from '@/lib/plan-gate';
-import { hasPremiumAccess } from '@/lib/plans';
+import { hasPremiumAccess, TRIAL_SMS_MONTHLY_CAP } from '@/lib/plans';
+import { recordUsage, getMonthlyUsageCount } from '@/lib/usage';
 
 // Pluggable SMS sender. No provider is configured yet — until SMS_API_URL and
 // SMS_API_KEY are set, this logs the message and returns { sent: false }
@@ -19,8 +20,20 @@ export async function sendSMS(to: string, message: string, churchId: string | nu
 
   const plan = await getChurchPlan(churchId);
   if (!hasPremiumAccess(plan)) {
-    console.log(`[SMS not sent — plan doesn't include SMS/WhatsApp alerts] to=${to}`);
-    return { sent: false, reason: 'SMS & WhatsApp alerts require an active Growth or Enterprise plan' };
+    // Trial gets a small taste of the real feature instead of only reading
+    // about it — capped low and hard (not overage-billable) since a trial
+    // account has no payment method on file to bill against.
+    if (plan.subscription_status === 'trial') {
+      const usedThisMonth = churchId ? await getMonthlyUsageCount(churchId, 'sms') : 0;
+      if (usedThisMonth >= TRIAL_SMS_MONTHLY_CAP) {
+        console.log(`[SMS not sent — trial cap reached] to=${to}`);
+        return { sent: false, reason: `Trial SMS limit reached (${TRIAL_SMS_MONTHLY_CAP}/month) — upgrade to Growth for ongoing SMS & WhatsApp alerts.` };
+      }
+      // Falls through to the actual send below, same as a paying plan.
+    } else {
+      console.log(`[SMS not sent — plan doesn't include SMS/WhatsApp alerts] to=${to}`);
+      return { sent: false, reason: 'SMS & WhatsApp alerts require an active Growth or Enterprise plan' };
+    }
   }
 
   const apiUrl = process.env.SMS_API_URL;
@@ -42,6 +55,14 @@ export async function sendSMS(to: string, message: string, churchId: string | nu
       console.error('[SMS send failed]', res.status, await res.text().catch(() => ''));
       return { sent: false, reason: `Provider returned ${res.status}` };
     }
+    // Only a successful submission is a billable/trackable unit — a failed
+    // send was (presumably) never charged by the provider either. Logged
+    // against the literal 'trial' tier (not whichever paid plan they're
+    // trialing) when it fell through the trial allowance above — planById
+    // has no 'trial' entry, so this never gets tagged billable_overage on
+    // the command center; there's genuinely nothing to invoice here.
+    const usageTier = plan.subscription_status === 'trial' ? 'trial' : plan.plan_tier;
+    recordUsage(churchId, 'sms', usageTier).catch(() => {});
     return { sent: true };
   } catch (err) {
     console.error('[SMS send error]', err);

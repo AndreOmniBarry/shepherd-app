@@ -90,14 +90,14 @@ select option{background:#13102A;color:#E8E5FF}
       <div class="field">
         <label class="label">Total adult members</label>
         <div class="range-row">
-          <input type="range" id="members" min="50" max="5000" step="50" value="300" oninput="v('members','mv');calc()">
+          <input type="range" id="members" min="50" max="50000" step="250" value="300" oninput="v('members','mv');calc()">
           <span class="rval" id="mv">300</span>
         </div>
       </div>
       <div class="field">
         <label class="label">Branches / campuses</label>
         <div class="range-row">
-          <input type="range" id="branches" min="1" max="20" step="1" value="1" oninput="v('branches','bv');calc()">
+          <input type="range" id="branches" min="1" max="100" step="1" value="1" oninput="v('branches','bv');calc()">
           <span class="rval" id="bv">1</span>
         </div>
       </div>
@@ -158,7 +158,7 @@ select option{background:#13102A;color:#E8E5FF}
         <label class="label">Billing cycle</label>
         <select id="billing" onchange="calc()">
           <option value="monthly">Monthly</option>
-          <option value="annual">Annual (2 months free)</option>
+          <option value="annual">Annual (save 15%)</option>
         </select>
       </div>
 
@@ -221,10 +221,34 @@ function calc(){
     if(depts>8){plan='growth';reasons.push('More than 8 departments')}
   }
 
-  const prices={starter:15,growth:35,enterprise:75};
+  const prices={starter:15,growth:35,enterprise:95};
   const queries={starter:80,growth:350,enterprise:800};
-  let monthlyPrice=prices[plan];
-  if(billing==='annual') monthlyPrice=prices[plan]*10/12;
+
+  // Enterprise used to be a flat $75/mo regardless of size — a 1,200-member
+  // single site and a 40,000-member 60-branch denomination got quoted the
+  // same number. Floor recalibrated to ~₦150,000/mo (~$95 at ₦1,580/$ —
+  // re-check that conversion against the rate field above before quoting),
+  // roughly 4x Growth, covering up to 25 branches and 5,000 members (in
+  // line with Growth's own stated member cap) — then a per-branch and
+  // per-1,000-member overage past that, matching the ~₦3,000/branch
+  // discussed. Revisit these constants once real Enterprise deals exist;
+  // they're a starting floor, not a measured number.
+  const ENT_BASE_BRANCHES=25, ENT_BASE_MEMBERS=5000, ENT_PER_BRANCH=2, ENT_PER_1K_MEMBERS=15;
+  function enterprisePriceUsd(){
+    const extraBranches=Math.max(0,branches-ENT_BASE_BRANCHES);
+    const extraThousands=Math.max(0,Math.ceil((members-ENT_BASE_MEMBERS)/1000));
+    return prices.enterprise + extraBranches*ENT_PER_BRANCH + extraThousands*ENT_PER_1K_MEMBERS;
+  }
+
+  // Plain percentage discount, not "N months free" — that framing reads
+  // as an extension of the 30-day trial, which it isn't. Once the trial
+  // ends it ends; this is a discount for paying customers who commit
+  // annually, nothing more.
+  const ANNUAL_DISCOUNT=0.15;
+
+  let basePrice=plan==='enterprise'?enterprisePriceUsd():prices[plan];
+  let monthlyPrice=basePrice;
+  if(billing==='annual') monthlyPrice=basePrice*(1-ANNUAL_DISCOUNT);
 
   // Infra costs per church
   const supabase=25/20;
@@ -234,7 +258,7 @@ function calc(){
   const totalInfra=supabase+vercel+aiCost+smsCost;
   const profit=monthlyPrice-totalInfra;
   const margin=(profit/monthlyPrice)*100;
-  const annualPrice=billing==='annual'?prices[plan]*10:monthlyPrice*12;
+  const annualPrice=billing==='annual'?basePrice*12*(1-ANNUAL_DISCOUNT):monthlyPrice*12;
   const annualProfit=annualPrice-(totalInfra*12);
 
   // Plan cards
@@ -246,11 +270,16 @@ function calc(){
 
   document.getElementById('planGrid').innerHTML=planDefs.map(p=>{
     const isActive=p.id===plan;
-    const bp=billing==='annual'?(p.price*10/12).toFixed(2):p.price;
+    // Enterprise's card shows the scaled price for THIS church once it's
+    // the recommended tier (same formula as the pricing box below) — the
+    // generic $75 floor only when it isn't, since nothing's been sized yet.
+    const rawPrice=p.id==='enterprise'&&isActive?enterprisePriceUsd():p.price;
+    const bp=billing==='annual'?(rawPrice*(1-ANNUAL_DISCOUNT)).toFixed(2):rawPrice;
+    const prefix=p.id==='enterprise'?'From ':'';
     return`<div class="plan ${isActive?'active':''}">
       ${isActive?'<div class="plan-rec">★ Recommended</div>':''}
       <div class="plan-name">${p.name}</div>
-      <div class="plan-price">$${bp}<span>/mo</span></div>
+      <div class="plan-price">${prefix}$${bp}<span>/mo</span></div>
       <div class="plan-ngn">${NN(parseFloat(bp),rate)}/mo${billing==='annual'?' · billed annually':''}</div>
       <ul class="plan-feat">${p.feats.map(f=>typeof f==='string'?`<li>${f}</li>`:`<li class="no">${f.t}</li>`).join('')}</ul>
     </div>`;
@@ -278,7 +307,7 @@ function calc(){
         <div style="font-size:10px;color:rgba(232,229,255,0.35);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Annual total</div>
         <div class="price-annual-val">$${annualPrice.toFixed(0)}</div>
         <div class="price-ngn">${NN(annualPrice,rate)}</div>
-        ${billing==='annual'?'<div style="font-size:9px;color:#1D9E75;margin-top:3px">2 months free applied</div>':''}
+        ${billing==='annual'?'<div style="font-size:9px;color:#1D9E75;margin-top:3px">15% annual discount applied</div>':''}
       </div>
     </div>
   `;

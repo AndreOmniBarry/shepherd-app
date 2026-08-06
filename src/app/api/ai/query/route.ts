@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
-import { requirePremium } from '@/lib/plan-gate';
+import { requirePremium, getChurchPlan } from '@/lib/plan-gate';
+import { recordUsage } from '@/lib/usage';
 import type { AgentName, AuthUser } from '@/types';
 
 const anthropic = new Anthropic({
@@ -262,8 +263,15 @@ export async function POST(req: Request) {
         { status: 403 }
       );
     }
-    const blocked = await requirePremium(user.church_id);
+    const blocked = await requirePremium(user.church_id, user.id);
     if (blocked) return blocked;
+
+    // Fire-and-forget — one query is one usage unit regardless of whether
+    // the model ends up calling query_database. Never gates the request;
+    // just tags this event as pay-as-you-go overage once the church is
+    // past its plan's included monthly quota, for the command center and
+    // future invoicing to pick up.
+    getChurchPlan(user.church_id).then(plan => recordUsage(user.church_id, 'moshe', plan.plan_tier)).catch(() => {});
 
     const body = await req.json() as { query: string; agent?: AgentName; history?: ConversationMessage[] };
     const { query, history = [] } = body;

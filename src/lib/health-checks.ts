@@ -125,6 +125,52 @@ async function computeInviteBacklogAlert(now: Date): Promise<ComputedAlert | nul
   };
 }
 
+// Mentor review feedback: "checkmate use violation... e.g. someone trying
+// to bypass payment and subscription." Every blocked attempt at a
+// premium/chat-gated action is logged to access_violations by
+// src/lib/plan-gate.ts (scripts/51_account_violations.sql). A handful of
+// blocks is normal — a trial church poking at Moshe, a Starter user
+// clicking a locked chat thread. A high volume in a short window reads
+// differently: someone probing for a way around the gate rather than one
+// person hitting it once. church_id here is churches.id (what plan-gate.ts
+// actually receives), not church_config.id, so this looks the name up
+// separately from fetchAllChurches's church_config rows.
+async function computeAccessViolationAlerts(now: Date): Promise<ComputedAlert[]> {
+  const since = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/access_violations?created_at=gte.${since}&select=church_id,gate`,
+    { headers: hdrs() }
+  );
+  const data = await res.json();
+  const rows: { church_id: string | null; gate: string }[] = Array.isArray(data) ? data : [];
+
+  const byChurch: Record<string, number> = {};
+  rows.forEach(r => { if (r.church_id) byChurch[r.church_id] = (byChurch[r.church_id] || 0) + 1; });
+
+  const THRESHOLD_MEDIUM = 10;
+  const THRESHOLD_CRITICAL = 30;
+  const flagged = Object.entries(byChurch).filter(([, count]) => count >= THRESHOLD_MEDIUM);
+  if (flagged.length === 0) return [];
+
+  const ids = flagged.map(([id]) => id);
+  const namesRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/church_config?church_id=in.(${ids.join(',')})&select=church_id,church_name`,
+    { headers: hdrs() }
+  );
+  const namesData = await namesRes.json();
+  const nameByChurch: Record<string, string> = {};
+  (Array.isArray(namesData) ? namesData : []).forEach((c: { church_id: string; church_name: string }) => { nameByChurch[c.church_id] = c.church_name; });
+
+  return flagged.map(([church_id, count]) => ({
+    church_id,
+    severity: count >= THRESHOLD_CRITICAL ? 'critical' : 'medium',
+    category: 'possible_subscription_bypass',
+    title: `${nameByChurch[church_id] || 'A church'} hit a blocked premium/chat gate ${count} times in the last 24h`,
+    detail: `That's an unusual volume for a normal "this feature is locked" moment — worth checking whether this is a confused user or someone probing for a bypass. If it's a real violation, use the Team & Access panel to suspend the account.`,
+    metadata: { blocked_attempts_24h: count },
+  }));
+}
+
 export async function runHealthChecks(): Promise<{ newly_opened: number; resolved: number; checked_at: string }> {
   const now = new Date();
   const churches = await fetchAllChurches();
@@ -132,6 +178,7 @@ export async function runHealthChecks(): Promise<{ newly_opened: number; resolve
   const computed: ComputedAlert[] = churches.flatMap(c => computeChurchAlerts(c, now));
   const inviteAlert = await computeInviteBacklogAlert(now);
   if (inviteAlert) computed.push(inviteAlert);
+  computed.push(...(await computeAccessViolationAlerts(now)));
 
   // Existing non-resolved alerts, keyed the same way as computed ones.
   const existingRes = await fetch(

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
+import { requireChatAccess } from '@/lib/plan-gate';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -21,6 +22,8 @@ export async function GET(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    const chatBlocked = await requireChatAccess(user.church_id, user.role, user.id);
+    if (chatBlocked) return chatBlocked;
 
     const myRowsRes = await fetch(`${S}/rest/v1/chat_participants?user_id=eq.${user.id}&select=thread_id,last_read_at`, { headers: H() });
     const myRows = await myRowsRes.json().catch(() => []);
@@ -87,6 +90,8 @@ export async function POST(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    const chatBlocked = await requireChatAccess(user.church_id, user.role, user.id);
+    if (chatBlocked) return chatBlocked;
 
     const { type, participant_id, name, participant_ids } = await req.json();
 

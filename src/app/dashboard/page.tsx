@@ -504,13 +504,53 @@ const CREATABLE_ROLES: {value:string;label:string;refKind:'cell'|'fellowship'|'d
 ];
 
 function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boolean}) {
-  const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string}[]>([]);
+  const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string;is_active:boolean}[]>([]);
   const [invites, setInvites] = React.useState<{id:string;email:string;full_name:string;role:string;unit_name:string;used:boolean;expired:boolean;created_at:string}[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [q, setQ] = React.useState('');
   const [resetting, setResetting] = React.useState<string|null>(null);
   const [loggingInAs, setLoggingInAs] = React.useState<string|null>(null);
+  const [suspending, setSuspending] = React.useState<string|null>(null);
   const [issued, setIssued] = React.useState<{full_name:string;email:string;password:string}|null>(null);
+
+  function loadUsers() {
+    fetch('/api/admin/users', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => setUsers(data?.users || []))
+      .finally(() => setLoading(false));
+  }
+
+  async function doSuspend(u: {id:string;full_name:string}) {
+    const reason = window.prompt(`Reason for suspending ${u.full_name}? (required — kept as a permanent record)`);
+    if (reason === null) return; // cancelled
+    if (!reason.trim()) { alert('A reason is required to suspend an account.'); return; }
+    setSuspending(u.id);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ userId: u.id, action: 'suspend', reason: reason.trim() }),
+      });
+      const json = await res.json();
+      if (res.ok) loadUsers();
+      else alert(json.error?.message || 'Failed to suspend account');
+    } catch { alert('Network error — account was not suspended.'); }
+    setSuspending(null);
+  }
+
+  async function doReinstate(u: {id:string;full_name:string}) {
+    if (!window.confirm(`Reinstate ${u.full_name}? They'll be able to log in again immediately.`)) return;
+    setSuspending(u.id);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ userId: u.id, action: 'reinstate' }),
+      });
+      const json = await res.json();
+      if (res.ok) loadUsers();
+      else alert(json.error?.message || 'Failed to reinstate account');
+    } catch { alert('Network error — account was not reinstated.'); }
+    setSuspending(null);
+  }
 
   const [showAdd, setShowAdd] = React.useState(false);
   const [cellList, setCellList] = React.useState<{id:string;name:string}[]>([]);
@@ -530,10 +570,7 @@ function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boo
   }
 
   React.useEffect(() => {
-    fetch('/api/admin/users', { credentials: 'include' })
-      .then(r => r.json())
-      .then(({ data }) => setUsers(data?.users || []))
-      .finally(() => setLoading(false));
+    loadUsers();
     loadInvites();
     fetch('/api/cells/all', { credentials: 'include' }).then(r=>r.json()).then(({data})=>setCellList((data?.cells||[]).map((c:{id:string;cell:string})=>({id:c.id,name:c.cell})))).catch(()=>{});
     fetch('/api/fellowships/all', { credentials: 'include' }).then(r=>r.json()).then(({data})=>setFellowshipList(data?.fellowships||[])).catch(()=>{});
@@ -690,19 +727,33 @@ function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boo
       ) : isMobile ? (
         <div style={{maxHeight:360,overflowY:'auto',display:'flex',flexDirection:'column',gap:8}}>
           {filtered.map(u => (
-            <div key={u.id} style={{background:t.cardInner||t.input,borderRadius:10,border:`0.5px solid ${t.border}`,padding:'11px 13px'}}>
-              <div style={{fontSize:13,fontWeight:600,color:t.text}}>{u.full_name}</div>
+            <div key={u.id} style={{background:t.cardInner||t.input,borderRadius:10,border:`0.5px solid ${u.is_active===false?t.coral:t.border}`,padding:'11px 13px',opacity:u.is_active===false?0.75:1}}>
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text}}>{u.full_name}</div>
+                {u.is_active===false && <span style={{fontSize:9,fontWeight:700,color:t.coral,background:t.coralBg,borderRadius:8,padding:'2px 7px'}}>SUSPENDED</span>}
+              </div>
               <div style={{fontSize:11,color:t.sub,marginTop:2}}>{u.email}</div>
               <div style={{fontSize:11,color:t.muted,marginTop:1}}>{u.role}</div>
-              <div style={{display:'flex',gap:6,marginTop:8}}>
-                <button onClick={()=>doLoginAs(u)} disabled={loggingInAs===u.id||!u.id}
-                  style={{flex:1,background:t.purple,border:'none',borderRadius:7,padding:'6px 11px',fontSize:11,color:'#fff',cursor:loggingInAs===u.id?'wait':'pointer',fontFamily:'inherit'}}>
+              <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
+                <button onClick={()=>doLoginAs(u)} disabled={loggingInAs===u.id||!u.id||u.is_active===false}
+                  style={{flex:1,background:t.purple,border:'none',borderRadius:7,padding:'6px 11px',fontSize:11,color:'#fff',cursor:loggingInAs===u.id?'wait':'pointer',fontFamily:'inherit',opacity:u.is_active===false?0.5:1}}>
                   {loggingInAs===u.id?'Logging in…':'Log in as'}
                 </button>
                 <button onClick={()=>doReset(u)} disabled={resetting===u.id}
                   style={{flex:1,background:'transparent',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'6px 11px',fontSize:11,color:t.text,cursor:resetting===u.id?'wait':'pointer',fontFamily:'inherit'}}>
                   {resetting===u.id?'Resetting…':'Reset password'}
                 </button>
+                {u.is_active===false ? (
+                  <button onClick={()=>doReinstate(u)} disabled={suspending===u.id}
+                    style={{flex:1,background:t.tealBg,border:'none',borderRadius:7,padding:'6px 11px',fontSize:11,color:t.teal,cursor:suspending===u.id?'wait':'pointer',fontFamily:'inherit',fontWeight:600}}>
+                    {suspending===u.id?'…':'Reinstate'}
+                  </button>
+                ) : (
+                  <button onClick={()=>doSuspend(u)} disabled={suspending===u.id}
+                    style={{flex:1,background:t.coralBg,border:'none',borderRadius:7,padding:'6px 11px',fontSize:11,color:t.coral,cursor:suspending===u.id?'wait':'pointer',fontFamily:'inherit',fontWeight:600}}>
+                    {suspending===u.id?'…':'Suspend'}
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -720,19 +771,33 @@ function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boo
             </thead>
             <tbody>
               {filtered.map(u => (
-                <tr key={u.id} style={{borderTop:`0.5px solid ${t.border}`}}>
-                  <td style={{padding:'8px',fontSize:12,color:t.text}}>{u.full_name}</td>
+                <tr key={u.id} style={{borderTop:`0.5px solid ${t.border}`,opacity:u.is_active===false?0.65:1}}>
+                  <td style={{padding:'8px',fontSize:12,color:t.text}}>
+                    {u.full_name}
+                    {u.is_active===false && <span style={{fontSize:9,fontWeight:700,color:t.coral,background:t.coralBg,borderRadius:8,padding:'2px 7px',marginLeft:6}}>SUSPENDED</span>}
+                  </td>
                   <td style={{padding:'8px',fontSize:12,color:t.sub}}>{u.email}</td>
                   <td style={{padding:'8px',fontSize:12,color:t.sub}}>{u.role}</td>
                   <td style={{padding:'8px',textAlign:'right',whiteSpace:'nowrap'}}>
-                    <button onClick={()=>doLoginAs(u)} disabled={loggingInAs===u.id||!u.id}
-                      style={{background:t.purple,border:'none',borderRadius:7,padding:'5px 11px',fontSize:11,color:'#fff',cursor:loggingInAs===u.id?'wait':'pointer',fontFamily:'inherit',marginRight:6}}>
+                    <button onClick={()=>doLoginAs(u)} disabled={loggingInAs===u.id||!u.id||u.is_active===false}
+                      style={{background:t.purple,border:'none',borderRadius:7,padding:'5px 11px',fontSize:11,color:'#fff',cursor:loggingInAs===u.id?'wait':'pointer',fontFamily:'inherit',marginRight:6,opacity:u.is_active===false?0.5:1}}>
                       {loggingInAs===u.id?'Logging in…':'Log in as'}
                     </button>
                     <button onClick={()=>doReset(u)} disabled={resetting===u.id}
-                      style={{background:'transparent',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'5px 11px',fontSize:11,color:t.text,cursor:resetting===u.id?'wait':'pointer',fontFamily:'inherit'}}>
+                      style={{background:'transparent',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'5px 11px',fontSize:11,color:t.text,cursor:resetting===u.id?'wait':'pointer',fontFamily:'inherit',marginRight:6}}>
                       {resetting===u.id?'Resetting…':'Reset password'}
                     </button>
+                    {u.is_active===false ? (
+                      <button onClick={()=>doReinstate(u)} disabled={suspending===u.id}
+                        style={{background:t.tealBg,border:'none',borderRadius:7,padding:'5px 11px',fontSize:11,color:t.teal,cursor:suspending===u.id?'wait':'pointer',fontFamily:'inherit',fontWeight:600}}>
+                        {suspending===u.id?'…':'Reinstate'}
+                      </button>
+                    ) : (
+                      <button onClick={()=>doSuspend(u)} disabled={suspending===u.id}
+                        style={{background:t.coralBg,border:'none',borderRadius:7,padding:'5px 11px',fontSize:11,color:t.coral,cursor:suspending===u.id?'wait':'pointer',fontFamily:'inherit',fontWeight:600}}>
+                        {suspending===u.id?'…':'Suspend'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -17,7 +17,7 @@ async function getUser(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { event_id, full_name, phone, email, whatsapp, preferred_comms, member_id, attending_days, guest_type, companion_count, expectations } = body;
+    const { event_id, full_name, phone, email, whatsapp, preferred_comms, member_id, attending_days, guest_type, companion_count, expectations, address, needs_transportation, needs_accommodation } = body;
     if (!event_id || !full_name || !phone) return NextResponse.json({ data: null, error: { message: 'Event, name and phone are required' } }, { status: 400 });
 
     // Check event exists and registration is open
@@ -58,6 +58,7 @@ export async function POST(req: Request) {
         is_member: !!member_id, member_id: member_id || null, payment_status: event.is_free ? 'free' : 'pending', registered_at: new Date().toISOString(),
         attending_days: validatedDays, guest_type: ['member', 'minister', 'guest'].includes(guest_type) ? guest_type : 'member',
         companion_count: Math.max(0, parseInt(companion_count) || 0), expectations: expectations?.trim() || null,
+        address: address?.trim() || null, needs_transportation: !!needs_transportation, needs_accommodation: !!needs_accommodation,
       }),
     });
     const regData = await regRes.json();
@@ -108,6 +109,50 @@ async function canViewRegistrants(user: { id: string; role: string } | null): Pr
   return false;
 }
 
+const REGISTRANT_FIELDS = 'id,full_name,phone,whatsapp,email,is_member,preferred_comms,payment_status,attended,registered_at,attending_days,guest_type,companion_count,expectations,address,needs_transportation,needs_accommodation';
+
+type RegistrantRow = {
+  id: string; full_name: string; phone: string; email: string | null; address: string | null;
+  needs_transportation: boolean; needs_accommodation: boolean; companion_count: number; attended: boolean;
+};
+
+// Crude but effective "which town/state" bucketing — registrants type a
+// free-text address, so this takes the last comma-separated segment (where
+// a city/state typically lands, e.g. "12 Ajayi Street, Ikeja, Lagos" -> "Lagos")
+// rather than trying to parse a full address. Good enough for "where is
+// everyone coming from", not a substitute for a real geocoder.
+function locationBucket(address: string | null): string | null {
+  if (!address?.trim()) return null;
+  const parts = address.split(',').map(s => s.trim()).filter(Boolean);
+  return parts[parts.length - 1] || null;
+}
+
+function buildFormSummary(list: RegistrantRow[]) {
+  const byLocation: Record<string, number> = {};
+  list.forEach(r => {
+    const loc = locationBucket(r.address);
+    if (loc) byLocation[loc] = (byLocation[loc] || 0) + 1;
+  });
+  return {
+    total_registrants: list.length,
+    total_expected_headcount: list.reduce((s, r) => s + 1 + (r.companion_count || 0), 0),
+    needing_transportation: list.filter(r => r.needs_transportation).length,
+    needing_accommodation: list.filter(r => r.needs_accommodation).length,
+    attended_so_far: list.filter(r => r.attended).length,
+    top_locations: Object.entries(byLocation).sort(([, a], [, b]) => b - a).slice(0, 10).map(([location, count]) => ({ location, count })),
+  };
+}
+
+function toCsv(list: Record<string, unknown>[]): string {
+  if (list.length === 0) return '';
+  const headers = Object.keys(list[0]);
+  const escape = (v: unknown) => {
+    const s = v == null ? '' : Array.isArray(v) ? v.join('; ') : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return [headers.join(','), ...list.map(row => headers.map(h => escape(row[h])).join(','))].join('\n');
+}
+
 export async function GET(req: Request) {
   try {
     const user = await getUser(req);
@@ -119,12 +164,21 @@ export async function GET(req: Request) {
     if (!event_id) return NextResponse.json({ data: null, error: { message: 'event_id required' } }, { status: 400 });
     // event_registrations has no church_id of its own — verify the event
     // itself belongs to this caller's church before listing its registrants.
-    const evRes = await fetch(`${SURL}/rest/v1/church_events?id=eq.${event_id}&church_id=eq.${user!.church_id}&select=id&limit=1`, { headers: H() });
+    const evRes = await fetch(`${SURL}/rest/v1/church_events?id=eq.${event_id}&church_id=eq.${user!.church_id}&select=id,title&limit=1`, { headers: H() });
     const evData = await evRes.json();
     if (!evData?.[0]) return NextResponse.json({ data: null, error: { message: 'Event not found' } }, { status: 404 });
-    const res = await fetch(`${SURL}/rest/v1/event_registrations?event_id=eq.${event_id}&order=registered_at.desc&select=id,full_name,phone,whatsapp,email,is_member,preferred_comms,payment_status,attended,registered_at,attending_days,guest_type,companion_count,expectations`, { headers: H() });
+    const res = await fetch(`${SURL}/rest/v1/event_registrations?event_id=eq.${event_id}&order=registered_at.desc&select=${REGISTRANT_FIELDS}`, { headers: H() });
     const registrations = await res.json();
-    return NextResponse.json({ data: { registrations: Array.isArray(registrations) ? registrations : [] }, error: null });
+    const list: RegistrantRow[] = Array.isArray(registrations) ? registrations : [];
+
+    if (searchParams.get('format') === 'csv') {
+      const filename = `${(evData[0].title || 'event').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-registrants.csv`;
+      return new Response(toCsv(list), {
+        headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${filename}"` },
+      });
+    }
+
+    return NextResponse.json({ data: { registrations: list, form_summary: buildFormSummary(list) }, error: null });
   } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
 }
 

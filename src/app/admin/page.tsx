@@ -24,6 +24,19 @@ type SystemAlert = {
   created_at: string;
 };
 
+type ChurchUsage = {
+  church_id: string;
+  church_name: string;
+  plan_tier: string;
+  subscription_status: string;
+  this_week_ngn: number;
+  last_week_ngn: number;
+  this_month_ngn: number;
+  this_month_by_type: Record<string, number>;
+  overage_events_this_month: number;
+  projected_month_end_ngn: number;
+};
+
 type Church = {
   id: string;
   church_name: string;
@@ -59,7 +72,10 @@ export default function AdminPortal() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Church | null>(null);
   const [tab, setTab] = useState<'overview' | 'profile' | 'goals' | 'notes'>('overview');
-  const [sidebarTab, setSidebarTab] = useState<'churches' | 'billing' | 'alerts' | 'settings'>('churches');
+  const [sidebarTab, setSidebarTab] = useState<'churches' | 'billing' | 'usage' | 'alerts' | 'settings'>('churches');
+  const [usage, setUsage] = useState<ChurchUsage[]>([]);
+  const [usageLoading, setUsageLoading] = useState(true);
+  const [usageSort, setUsageSort] = useState<'this_month_ngn' | 'this_week_ngn' | 'projected_month_end_ngn'>('this_month_ngn');
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [stats, setStats] = useState({ total: 0, trial: 0, active: 0, expired: 0, growth: 0, starter: 0 });
@@ -100,6 +116,12 @@ export default function AdminPortal() {
       })
       .catch(() => {})
       .finally(() => setAlertsLoading(false));
+
+    fetch('/api/admin/usage', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d?.data?.churches) setUsage(d.data.churches); })
+      .catch(() => {})
+      .finally(() => setUsageLoading(false));
   }, []);
 
   async function updateAlertStatus(id: string, status: 'acknowledged' | 'resolved') {
@@ -148,7 +170,7 @@ export default function AdminPortal() {
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>Lead Tech Admin</div>
         </div>
         <div style={{ padding: '16px 10px', flex: 1 }}>
-          {([{ id: 'churches' as const, label: 'Churches' }, { id: 'billing' as const, label: 'Plans & Billing' }, { id: 'alerts' as const, label: 'Health & Alerts' }, { id: 'settings' as const, label: 'Settings' }]).map((item) => (
+          {([{ id: 'churches' as const, label: 'Churches' }, { id: 'billing' as const, label: 'Plans & Billing' }, { id: 'usage' as const, label: 'Usage & Spend' }, { id: 'alerts' as const, label: 'Health & Alerts' }, { id: 'settings' as const, label: 'Settings' }]).map((item) => (
             <div key={item.id} onClick={() => setSidebarTab(item.id)}
               style={{ padding: '9px 10px', borderRadius: 7, marginBottom: 2, background: sidebarTab === item.id ? 'rgba(255,255,255,0.1)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ fontSize: 12, fontWeight: sidebarTab === item.id ? 600 : 400, color: sidebarTab === item.id ? C.white : 'rgba(255,255,255,0.45)' }}>{item.label}</div>
@@ -172,11 +194,12 @@ export default function AdminPortal() {
         {/* Header */}
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 4 }}>
-            {sidebarTab === 'churches' ? 'Church Management' : sidebarTab === 'billing' ? 'Plans & Billing' : sidebarTab === 'alerts' ? 'Health & Alerts' : 'Settings'}
+            {sidebarTab === 'churches' ? 'Church Management' : sidebarTab === 'billing' ? 'Plans & Billing' : sidebarTab === 'usage' ? 'Usage & Spend' : sidebarTab === 'alerts' ? 'Health & Alerts' : 'Settings'}
           </div>
           <div style={{ fontSize: 13, color: C.muted }}>
             {sidebarTab === 'churches' ? 'All onboarded churches, their structures, plans, and trial status'
               : sidebarTab === 'billing' ? 'Plan tier and subscription status per church'
+              : sidebarTab === 'usage' ? 'Live Moshe AI and SMS/WhatsApp spend rate, per church — who\'s burning fastest and who\'s already past their included quota'
               : sidebarTab === 'alerts' ? 'Technical triage, checked automatically — critical issues first'
               : 'Platform-level configuration'}
           </div>
@@ -202,6 +225,62 @@ export default function AdminPortal() {
             })}
           </div>
         )}
+
+        {sidebarTab === 'usage' && (<>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
+            {[
+              { label: 'Total spend this month', value: usage.reduce((s, c) => s + c.this_month_ngn, 0), color: C.purple },
+              { label: 'Total spend this week', value: usage.reduce((s, c) => s + c.this_week_ngn, 0), color: C.teal },
+              { label: 'Churches over their quota this month', value: usage.filter(c => c.overage_events_this_month > 0).length, color: C.coral, isCount: true },
+            ].map((s, i) => (
+              <div key={i} style={{ ...card({ padding: '14px 16px' }) }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: s.color, marginBottom: 4 }}>{s.isCount ? s.value : `₦${Math.round(s.value).toLocaleString()}`}</div>
+                <div style={{ fontSize: 11, color: C.muted }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ ...card({ padding: 0, overflow: 'hidden' }) }}>
+            <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Every church — live spend rate, not just outliers</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {([{ id: 'this_week_ngn' as const, label: 'This week' }, { id: 'this_month_ngn' as const, label: 'This month' }, { id: 'projected_month_end_ngn' as const, label: 'Projected' }]).map(s => (
+                  <button key={s.id} onClick={() => setUsageSort(s.id)}
+                    style={{ fontSize: 10.5, fontWeight: 600, padding: '4px 10px', borderRadius: 20, border: 'none', cursor: 'pointer', background: usageSort === s.id ? C.purple : C.purpleBg, color: usageSort === s.id ? C.white : C.purple }}>
+                    Sort: {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {usageLoading ? (
+              <div style={{ padding: 40, textAlign: 'center', color: C.muted, fontSize: 13 }}>Loading…</div>
+            ) : usage.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: C.muted, fontSize: 13 }}>No usage logged yet — nothing has hit Moshe or sent an SMS.</div>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr 1fr', gap: 8, padding: '9px 18px', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.3px', borderBottom: `0.5px solid ${C.border}` }}>
+                  <div>Church</div><div>Plan</div><div>Last week</div><div>This week</div><div>This month</div><div>Projected EOM</div><div>Overage</div>
+                </div>
+                {[...usage].sort((a, b) => b[usageSort] - a[usageSort]).map((c, i, arr) => {
+                  const planC = PLAN_COLORS[c.plan_tier] || PLAN_COLORS.trial;
+                  return (
+                    <div key={c.church_id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr 1fr', gap: 8, padding: '12px 18px', alignItems: 'center', borderBottom: i < arr.length - 1 ? `0.5px solid ${C.border}` : 'none' }}>
+                      <div style={{ fontSize: 12.5, color: C.text, fontWeight: 500 }}>{c.church_name}</div>
+                      <div><span style={{ fontSize: 9.5, padding: '2px 7px', borderRadius: 10, fontWeight: 600, background: planC.bg, color: planC.color }}>{(c.plan_tier || 'trial').toUpperCase()}</span></div>
+                      <div style={{ fontSize: 12, color: C.muted }}>₦{Math.round(c.last_week_ngn).toLocaleString()}</div>
+                      <div style={{ fontSize: 12, color: C.text, fontWeight: 600 }}>₦{Math.round(c.this_week_ngn).toLocaleString()}</div>
+                      <div style={{ fontSize: 12, color: C.text, fontWeight: 600 }}>₦{Math.round(c.this_month_ngn).toLocaleString()}</div>
+                      <div style={{ fontSize: 12, color: c.projected_month_end_ngn > c.this_month_ngn * 1.5 ? C.coral : C.muted }}>₦{Math.round(c.projected_month_end_ngn).toLocaleString()}</div>
+                      <div>{c.overage_events_this_month > 0 ? (
+                        <span style={{ fontSize: 10, fontWeight: 700, color: C.coral, background: C.coralBg, borderRadius: 10, padding: '2px 8px' }}>{c.overage_events_this_month} over</span>
+                      ) : <span style={{ fontSize: 11, color: C.muted }}>—</span>}</div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </>)}
 
         {sidebarTab === 'alerts' && (<>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>

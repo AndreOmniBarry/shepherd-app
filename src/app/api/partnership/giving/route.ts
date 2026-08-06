@@ -24,7 +24,7 @@ const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_te
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  const blocked = await requirePremium(user.church_id);
+  const blocked = await requirePremium(user.church_id, user.id);
   if (blocked) return blocked;
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
@@ -44,7 +44,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  const blocked = await requirePremium(user.church_id);
+  const blocked = await requirePremium(user.church_id, user.id);
   if (blocked) return blocked;
   const body = await req.json();
   const { partner_id, amount, month, status, notes } = body;

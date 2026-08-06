@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const p = await verifyToken(token);
   const user = p ? payloadToAuthUser(p) : null;
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  const blocked = await requirePremium(user.church_id);
+  const blocked = await requirePremium(user.church_id, user.id);
   if (blocked) return blocked;
 
   // KNOWN GAP: there is no create endpoint for partnership_bands anywhere

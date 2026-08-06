@@ -36,6 +36,11 @@ const PUBLIC_PATHS = [
   // gated by CRON_SECRET inside the route itself instead, same model as
   // isPublicEventRegistration below.
   '/api/admin/health-check',
+  // Paystack calls this directly — no shepherd_token cookie to check. Auth
+  // is the HMAC signature verified inside the route itself
+  // (src/lib/paystack.ts verifyPaystackSignature); never remove this
+  // without that check staying in place.
+  '/api/webhooks/paystack',
   '/_next',
   '/favicon.ico',
   '/manifest.json',
@@ -145,6 +150,12 @@ export async function middleware(req: NextRequest) {
     );
   }
 
+  // The marketing landing page stays reachable even with a valid session —
+  // typing the root URL should show it, not bounce straight to the portal.
+  // Login (src/app/login/page.tsx) already sends users to their portal
+  // explicitly on success, so this never affects the normal sign-in flow.
+  if (pathname === '/') return NextResponse.next();
+
   const { role, cell_id } = payload;
   const portal = rolePortal(role || '');
   // /calendar and /church-center are shared across every role — everyone
@@ -154,13 +165,6 @@ export async function middleware(req: NextRequest) {
   // "did nothing" when clicked — middleware bounced every role straight
   // back to their own portal since neither path was ever in the allow list.
   const allowed = [...allowedPrefixes(role || ''), '/calendar', '/church-center', '/church-feed', '/chat'];
-
-  // Root redirect → role portal
-  if (pathname === '/') {
-    const dest = req.nextUrl.clone();
-    dest.pathname = portal;
-    return NextResponse.redirect(dest);
-  }
 
   // Enforce role boundaries for page routes (not API)
   if (!pathname.startsWith('/api/')) {
