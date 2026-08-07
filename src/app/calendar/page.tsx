@@ -32,6 +32,29 @@ const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 function ymd(d: Date) { return d.toISOString().split('T')[0]; }
 
+// Urgency accent, separate from TYPE_COLORS' fill (which says WHAT an item
+// is — programme, conference, etc.). This says HOW SOON it is, so the same
+// glance that reads "Annual Convention" also reads "that's in 2 days" —
+// closed/past items fade to gray instead of competing visually with what's
+// actually coming up.
+const URGENCY = {
+  closed:   { color: '#9CA3AF', label: 'Closed' },
+  imminent: { color: '#D85A30', label: 'Very soon' }, // today through 2 days out
+  soon:     { color: '#BA7517', label: 'This week' }, // 3–7 days out
+  upcoming: { color: '#1D9E75', label: 'Upcoming' },  // 8+ days out
+} as const;
+
+function eventUrgency(dateStr: string, endDateStr: string | null): typeof URGENCY[keyof typeof URGENCY] {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const start = new Date(dateStr + 'T00:00:00');
+  const lastDay = new Date((endDateStr || dateStr) + 'T00:00:00');
+  if (lastDay.getTime() < today.getTime()) return URGENCY.closed;
+  const daysUntilStart = Math.round((start.getTime() - today.getTime()) / 86400000);
+  if (daysUntilStart <= 2) return URGENCY.imminent;
+  if (daysUntilStart <= 7) return URGENCY.soon;
+  return URGENCY.upcoming;
+}
+
 export default function CalendarPage() {
   const router = useRouter();
   const {dark, setDark} = useTheme();
@@ -190,7 +213,8 @@ export default function CalendarPage() {
                     </div>
                     {dayItems.slice(0, 2).map(it => {
                       const c = TYPE_COLORS[it.type] || TYPE_COLORS.other;
-                      return <div key={it.id} style={{ fontSize: 9, background: c.bg, color: c.text, borderRadius: 4, padding: '1px 4px', marginBottom: 2, width: '100%', boxSizing: 'border-box', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.3 }}>{it.title}</div>;
+                      const u = eventUrgency(it.date, it.end_date);
+                      return <div key={it.id} title={u.label} style={{ fontSize: 9, background: c.bg, color: c.text, borderRadius: 4, borderLeft: `2.5px solid ${u.color}`, padding: '1px 4px', marginBottom: 2, width: '100%', boxSizing: 'border-box', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.3 }}>{it.title}</div>;
                     })}
                     {dayItems.length > 2 && <div style={{ fontSize: 9, color: t.muted }}>+{dayItems.length - 2} more</div>}
                   </div>
@@ -205,16 +229,20 @@ export default function CalendarPage() {
             <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>{selectedDay}</div>
             {itemsByDay[selectedDay].map(it => {
               const c = TYPE_COLORS[it.type] || TYPE_COLORS.other;
+              const u = eventUrgency(it.date, it.end_date);
               const isPlan = it.source === 'plan' && it.plan_id;
               return (
                 <div key={it.id}>
-                  <div onClick={() => isPlan && togglePlan(it.plan_id!)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `0.5px solid ${t.border}`, cursor: isPlan ? 'pointer' : 'default' }}>
+                  <div onClick={() => isPlan && togglePlan(it.plan_id!)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0 8px 10px', borderLeft: `3px solid ${u.color}`, borderBottom: `0.5px solid ${t.border}`, cursor: isPlan ? 'pointer' : 'default' }}>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{it.title}</div>
                       {it.location && <div style={{ fontSize: 11, color: t.muted, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="ti-map-pin" size={11} /> {it.location}</div>}
                       {isPlan && <div style={{ fontSize: 10, color: t.purple, marginTop: 2 }}>{openPlanId === it.plan_id ? 'Hide order of service ▲' : 'View order of service ▼'}</div>}
                     </div>
-                    <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, background: c.bg, color: c.text, fontWeight: 600, textTransform: 'capitalize' }}>{it.type.replace(/_/g, ' ')}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                      <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, background: c.bg, color: c.text, fontWeight: 600, textTransform: 'capitalize' }}>{it.type.replace(/_/g, ' ')}</span>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: u.color }}>{u.label}</span>
+                    </div>
                   </div>
                   {isPlan && openPlanId === it.plan_id && (
                     <div style={{ padding: '4px 0 10px 10px', borderLeft: `2px solid ${t.purpleBg}`, marginLeft: 4 }}>
@@ -247,16 +275,20 @@ export default function CalendarPage() {
             <div style={{ fontSize: 12, color: t.muted }}>Nothing scheduled yet.</div>
           ) : upcoming.map(it => {
             const c = TYPE_COLORS[it.type] || TYPE_COLORS.other;
+            const u = eventUrgency(it.date, it.end_date);
             return (
               <div key={it.id}
                 onMouseEnter={e => { e.currentTarget.style.background = dark ? 'rgba(168,159,255,0.05)' : 'rgba(83,74,183,0.03)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', margin: '0 -10px', borderRadius: 'var(--radius-sm)', borderBottom: `0.5px solid ${t.border}`, transition: 'background var(--motion-fast) var(--ease-out-expo)' }}>
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px 8px 12px', margin: '0 -10px', borderRadius: 'var(--radius-sm)', borderLeft: `3px solid ${u.color}`, borderBottom: `0.5px solid ${t.border}`, transition: 'background var(--motion-fast) var(--ease-out-expo)' }}>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{it.title}</div>
                   <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{it.date}{it.end_date && it.end_date !== it.date ? ` – ${it.end_date}` : ''}{it.location ? ` · ${it.location}` : ''}</div>
                 </div>
-                <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, background: c.bg, color: c.text, fontWeight: 600, textTransform: 'capitalize' }}>{it.type}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                  <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, background: c.bg, color: c.text, fontWeight: 600, textTransform: 'capitalize' }}>{it.type}</span>
+                  <span style={{ fontSize: 9, fontWeight: 600, color: u.color }}>{u.label}</span>
+                </div>
               </div>
             );
           })}
