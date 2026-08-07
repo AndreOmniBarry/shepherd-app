@@ -32,6 +32,8 @@ export default function EventsPanel({ t, isMobile = false }: { t: Record<string,
   const [eventStats, setEventStats] = useState<EventStats[]>([]);
   const [statsLoading, setStatsLoading] = useState(false);
   const [closingId, setClosingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showCancelled, setShowCancelled] = useState(false);
 
   const [selected, setSelected] = useState<ChurchEvent | null>(null);
   const [registrants, setRegistrants] = useState<Registrant[]>([]);
@@ -80,6 +82,30 @@ export default function EventsPanel({ t, isMobile = false }: { t: Record<string,
       } else setError(json.error?.message || 'Failed to create event');
     } catch { setError('Network error — event was not created.'); }
     setSaving(false);
+  }
+
+  // There's no hard DELETE on church_events — registrant/attendance data
+  // tied to an event stays valuable for analytics forever (this year's
+  // convention vs last year's). "Delete" here means status='cancelled':
+  // it drops off every calendar immediately (the calendar API already
+  // filters status=neq.cancelled and reads church_events live, so nothing
+  // separate needs clearing) and off this list by default, while the
+  // event and its registrants are still there if you ever need them for
+  // history — just toggle "Show cancelled" to see them again.
+  async function deleteEvent(ev: ChurchEvent) {
+    if (!window.confirm(`Delete "${ev.title}"? It will disappear from every calendar and the events list immediately. Past registrant and attendance data is kept for your records — this isn't a full erase.`)) return;
+    setDeletingId(ev.id);
+    try {
+      const res = await fetch('/api/events', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ id: ev.id, status: 'cancelled', registration_open: false }),
+      });
+      if (res.ok) {
+        loadEvents();
+        if (selected?.id === ev.id) setSelected(null);
+      } else alert('Failed to delete event');
+    } catch { alert('Network error — event was not deleted.'); }
+    setDeletingId(null);
   }
 
   async function toggleRegistration(ev: ChurchEvent) {
@@ -240,29 +266,45 @@ export default function EventsPanel({ t, isMobile = false }: { t: Record<string,
       {view === 'manage' && (
       <div style={{ display: 'grid', gridTemplateColumns: selected && !isMobile ? '1fr 1fr' : '1fr', gap: 14 }}>
         <div style={{ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>All Events</div>
-          {events.length === 0 ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>All Events</div>
+            {events.some(e => e.status === 'cancelled') && (
+              <button onClick={() => setShowCancelled(v => !v)} style={{ background: 'transparent', border: 'none', color: t.muted, fontSize: 10.5, cursor: 'pointer' }}>
+                {showCancelled ? 'Hide deleted' : `Show deleted (${events.filter(e => e.status === 'cancelled').length})`}
+              </button>
+            )}
+          </div>
+          {events.filter(ev => showCancelled || ev.status !== 'cancelled').length === 0 ? (
             <div style={{ fontSize: 12, color: t.muted }}>No events created yet.</div>
-          ) : events.map(ev => (
+          ) : events.filter(ev => showCancelled || ev.status !== 'cancelled').map(ev => (
             <div key={ev.id} onClick={() => viewRegistrants(ev)}
-              style={{ padding: '10px 0', borderBottom: `0.5px solid ${t.border}`, cursor: 'pointer', background: selected?.id === ev.id ? t.purpleBg : 'transparent' }}>
+              style={{ padding: '10px 0', borderBottom: `0.5px solid ${t.border}`, cursor: 'pointer', background: selected?.id === ev.id ? t.purpleBg : 'transparent', opacity: ev.status === 'cancelled' ? 0.55 : 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{ev.title}{!ev.registration_open && <span style={{ fontSize: 9, color: t.coral, marginLeft: 6, fontWeight: 600 }}>CLOSED</span>}</div>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>
+                    {ev.title}
+                    {ev.status === 'cancelled' && <span style={{ fontSize: 9, color: t.coral, marginLeft: 6, fontWeight: 600 }}>DELETED</span>}
+                    {ev.status !== 'cancelled' && !ev.registration_open && <span style={{ fontSize: 9, color: t.coral, marginLeft: 6, fontWeight: 600 }}>CLOSED</span>}
+                  </div>
                   <div style={{ fontSize: 11, color: t.muted, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Icon name="ti-calendar-event" size={11} /> {ev.event_date}{ev.end_date && ev.end_date !== ev.event_date ? ` – ${ev.end_date}` : ''}{ev.location ? <><Icon name="ti-map-pin" size={11} /> {ev.location}</> : null}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: t.purple }}>{ev.registration_count}{ev.capacity ? `/${ev.capacity}` : ''}</div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-                    <button onClick={e => { e.stopPropagation(); copyLink(ev.public_slug); }} style={{ background: 'transparent', border: 'none', color: t.sub, fontSize: 10, cursor: 'pointer' }}>
-                      {copied ? 'Copied!' : 'Copy link'}
-                    </button>
-                    <button onClick={e => { e.stopPropagation(); toggleRegistration(ev); }} disabled={closingId === ev.id} style={{ background: 'transparent', border: 'none', color: ev.registration_open ? t.coral : t.teal, fontSize: 10, cursor: 'pointer' }}>
-                      {closingId === ev.id ? '…' : ev.registration_open ? 'Collapse link' : 'Reopen link'}
-                    </button>
-                  </div>
+                  {ev.status !== 'cancelled' && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                      <button onClick={e => { e.stopPropagation(); copyLink(ev.public_slug); }} style={{ background: 'transparent', border: 'none', color: t.sub, fontSize: 10, cursor: 'pointer' }}>
+                        {copied ? 'Copied!' : 'Copy link'}
+                      </button>
+                      <button onClick={e => { e.stopPropagation(); toggleRegistration(ev); }} disabled={closingId === ev.id} style={{ background: 'transparent', border: 'none', color: ev.registration_open ? t.coral : t.teal, fontSize: 10, cursor: 'pointer' }}>
+                        {closingId === ev.id ? '…' : ev.registration_open ? 'Collapse link' : 'Reopen link'}
+                      </button>
+                      <button onClick={e => { e.stopPropagation(); deleteEvent(ev); }} disabled={deletingId === ev.id} style={{ background: 'transparent', border: 'none', color: t.coral, fontSize: 10, cursor: 'pointer', fontWeight: 600 }}>
+                        {deletingId === ev.id ? '…' : 'Delete'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

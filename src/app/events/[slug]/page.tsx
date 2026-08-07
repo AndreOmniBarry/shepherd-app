@@ -208,7 +208,7 @@ export default function EventPage() {
               </div>
 
               <div>
-                <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 6 }}>Your address (optional)</div>
+                <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: '0.4px', marginBottom: 6 }}>Your address</div>
                 <input type="text" value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
                   placeholder="e.g. 12 Ajayi Street, Ikeja, Lagos — helps us plan transportation and logistics"
                   style={{ width: '100%', border: `1px solid ${C.border}`, borderRadius: 9, padding: '11px 14px', fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit' }} />

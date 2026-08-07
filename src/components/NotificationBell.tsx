@@ -50,8 +50,17 @@ export default function NotificationBell({ dark = false, compact = false }: Noti
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [newCount, setNewCount] = useState(0); // tracks new since last open
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const ref = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(0);
+  // Separate from prevCountRef>0 — that check meant "not the very first
+  // fetch" was conflated with "there were already unread items", so
+  // starting a session at 0 unread and then getting your first-ever new
+  // notification never played a sound (0>0 in the old guard was false).
+  // This flag tracks only "has this component fetched at least once",
+  // which is the thing that actually needs guarding against (don't chime
+  // for notifications that were already sitting there on page load).
+  const hasFetchedOnceRef = useRef(false);
 
   const unread = notifications.filter(n => !n.read).length;
 
@@ -77,17 +86,47 @@ export default function NotificationBell({ dark = false, compact = false }: Noti
           setNotifications(notifs);
           // Track new notifications since last poll
           const currentUnread = notifs.filter(n => !n.read).length;
-          if (currentUnread > prevCountRef.current && prevCountRef.current > 0) {
+          if (currentUnread > prevCountRef.current && hasFetchedOnceRef.current) {
             setNewCount(v => v + (currentUnread - prevCountRef.current));
             playNotificationSound();
             triggerHaptic();
+            // A chime only helps if this tab is actually open and visible.
+            // When it's backgrounded (or a different tab entirely), a real
+            // OS-level notification is what actually reaches the person —
+            // that's the "no prompt to grant notification access" gap.
+            if (notifPermission === 'granted' && typeof document !== 'undefined' && document.hidden) {
+              const latest = notifs.find(n => !n.read);
+              if (latest) {
+                try {
+                  const native = new Notification(latest.title, {
+                    body: latest.body, icon: '/icons/icon-192.png', tag: 'shepherd-notification',
+                  });
+                  native.onclick = () => { window.focus(); native.close(); };
+                } catch { /* Notification constructor can throw on some platforms — never block on it */ }
+              }
+            }
           }
           prevCountRef.current = currentUnread;
+          hasFetchedOnceRef.current = true;
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+  }, [notifPermission]);
+
+  // Reflects whatever the browser's permission actually is on mount —
+  // doesn't request it. Requesting has to come from a real click (see
+  // requestNotifPermission), not fire automatically on page load, or
+  // browsers block it and it reads as broken rather than declined.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) { setNotifPermission('unsupported'); return; }
+    setNotifPermission(Notification.permission);
   }, []);
+
+  function requestNotifPermission() {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    Notification.requestPermission().then(setNotifPermission).catch(() => {});
+  }
 
   // Close on outside click
   useEffect(() => {
@@ -247,6 +286,21 @@ export default function NotificationBell({ dark = false, compact = false }: Noti
               )}
             </div>
           </div>
+
+          {notifPermission === 'default' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: `0.5px solid ${t.divider}`, background: t.hover }}>
+              <span style={{ fontSize: 11, color: t.sub, flex: 1, lineHeight: 1.4 }}>Get notified even when this tab isn&apos;t open</span>
+              <button onClick={requestNotifPermission}
+                style={{ fontSize: 11, fontWeight: 600, color: '#fff', background: t.purple, border: 'none', borderRadius: 7, padding: '6px 11px', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
+                Enable
+              </button>
+            </div>
+          )}
+          {notifPermission === 'denied' && (
+            <div style={{ padding: '9px 16px', borderBottom: `0.5px solid ${t.divider}`, fontSize: 10.5, color: t.muted, lineHeight: 1.4 }}>
+              Browser notifications are blocked — enable them for this site in your browser settings if you want an alert when this tab isn&apos;t open.
+            </div>
+          )}
 
           {/* List */}
           <div style={{ overflowY: 'auto', maxHeight: 400 }}>
