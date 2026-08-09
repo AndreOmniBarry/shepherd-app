@@ -17,15 +17,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ data: null, error: { message: 'Not authorized' } }, { status: 403 });
   }
 
-  // A branch_pastor/pa can only ever act on their own branch's requisition,
-  // regardless of which id was requested.
-  if (['pa', 'branch_pastor'].includes(user.role)) {
-    const ownRes = await fetch(`${S}/rest/v1/expense_requisitions?id=eq.${params.id}&select=branch_id`, { headers: h() });
-    const ownRows = await ownRes.json();
-    const reqBranchId = Array.isArray(ownRows) ? ownRows[0]?.branch_id : null;
-    if (!reqBranchId || reqBranchId !== user.branch_id) {
-      return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
-    }
+  // Verify the requisition belongs to this caller's own church before
+  // touching it — without this, any authorized role could approve/pay a
+  // requisition belonging to a completely different church by guessing/
+  // enumerating its id (IDOR). A branch_pastor/pa is further restricted
+  // to their own branch's requisitions.
+  const ownRes = await fetch(`${S}/rest/v1/expense_requisitions?id=eq.${params.id}&select=branch_id,church_id`, { headers: h() });
+  const ownRows = await ownRes.json();
+  const reqRow = Array.isArray(ownRows) ? ownRows[0] : null;
+  if (!reqRow || reqRow.church_id !== user.church_id) {
+    return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
+  }
+  if (['pa', 'branch_pastor'].includes(user.role) && reqRow.branch_id !== user.branch_id) {
+    return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
   }
 
   const body = await req.json();
@@ -34,7 +38,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (status === 'approved') { update.approved_by = user.id; update.approved_at = new Date().toISOString(); }
   if (status === 'paid') { update.paid_at = new Date().toISOString(); }
 
-  await fetch(`${S}/rest/v1/expense_requisitions?id=eq.${params.id}`, {
+  await fetch(`${S}/rest/v1/expense_requisitions?id=eq.${params.id}&church_id=eq.${user.church_id}`, {
     method: 'PATCH',
     headers: { ...h(), 'Prefer': 'return=minimal' },
     body: JSON.stringify(update),

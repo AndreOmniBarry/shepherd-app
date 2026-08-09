@@ -23,6 +23,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const { emoji } = await req.json();
     if (!emoji) return NextResponse.json({ data: null, error: { message: 'emoji is required' } }, { status: 400 });
 
+    // Verify the message exists and the caller is a participant of the
+    // thread it belongs to — otherwise any authenticated user could react
+    // to any message_id by guessing/enumerating ids, including messages in
+    // threads (and churches) they were never added to.
+    const msgRes = await fetch(`${S}/rest/v1/chat_messages?id=eq.${messageId}&select=thread_id&limit=1`, { headers: H() });
+    const msgRow = (await msgRes.json().catch(() => []))?.[0];
+    if (!msgRow?.thread_id) return NextResponse.json({ data: null, error: { message: 'Message not found' } }, { status: 404 });
+    const participantRes = await fetch(`${S}/rest/v1/chat_participants?thread_id=eq.${msgRow.thread_id}&user_id=eq.${user.id}&select=user_id&limit=1`, { headers: H() });
+    const participantRows = await participantRes.json().catch(() => []);
+    if (!Array.isArray(participantRows) || participantRows.length === 0) {
+      return NextResponse.json({ data: null, error: { message: 'Not a participant in this chat' } }, { status: 403 });
+    }
+
     const existingRes = await fetch(`${S}/rest/v1/chat_reactions?message_id=eq.${messageId}&user_id=eq.${user.id}&select=emoji`, { headers: H() });
     const existing = await existingRes.json().catch(() => []);
     const current = Array.isArray(existing) && existing[0] ? existing[0].emoji : null;

@@ -17,13 +17,20 @@ async function getUser(req: Request) {
   return payloadToAuthUser(payload);
 }
 
-// NOTE: member_removals has no church_id column of its own (out of scope
-// of the multi-tenant migration) — the admin GET below still lists every
-// church's recommendations. Every fixable touchpoint (members lookups/
-// updates, notifications) is scoped; the listing itself needs a schema
-// change to fix properly.
+// member_removals has no church_id column of its own, but every row's
+// recommended_by is a users.id, and every user belongs to exactly one
+// church — same transitive-scoping technique used for member_additions —
+// so the admin GET below scopes via "recommended_by is one of this
+// church's users" instead of leaking every church's recommendations.
 const ADMIN_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
 const RECOMMEND_ROLES = ['fellowship_head', 'department_head'];
+
+async function churchUserIds(churchId: string | null | undefined): Promise<string[]> {
+  if (!churchId) return [];
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/users?church_id=eq.${churchId}&select=id`, { headers: hdrs() });
+  const data = await res.json();
+  return Array.isArray(data) ? data.map((u: { id: string }) => u.id) : [];
+}
 
 // Recommend a member's removal — fellowship/department heads only. Cell
 // leaders have no route in here at all; they raise it with their fellowship
@@ -98,7 +105,9 @@ export async function GET(req: Request) {
     const select = 'id,member_id,member_name,reason,recommended_by_name,recommended_by_role,status,approved_at,approval_comment,pastor_revoked,pastor_revoke_reason,created_at';
 
     if (ADMIN_ROLES.includes(user.role)) {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/member_removals?order=created_at.desc&limit=200&select=${select}`, { headers: hdrs() });
+      const userIds = await churchUserIds(user.church_id);
+      const scopeFilter = userIds.length > 0 ? `&recommended_by=in.(${userIds.join(',')})` : '&recommended_by=eq.00000000-0000-0000-0000-000000000000';
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/member_removals?order=created_at.desc&limit=200&select=${select}${scopeFilter}`, { headers: hdrs() });
       const data = await res.json();
       return NextResponse.json({ data: { removals: Array.isArray(data) ? data : [] }, error: null });
     }
@@ -130,6 +139,16 @@ export async function PATCH(req: Request) {
     const recData = await recRes.json();
     const record = recData?.[0];
     if (!record) return NextResponse.json({ data: null, error: { message: 'Recommendation not found' } }, { status: 404 });
+
+    // member_removals has no church_id of its own — verify the original
+    // recommender belongs to this caller's church before allowing any
+    // action on the record (otherwise an admin could act on another
+    // church's pending recommendation by guessing its id).
+    const recommenderRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${record.recommended_by}&select=church_id&limit=1`, { headers: hdrs() });
+    const recommenderData = await recommenderRes.json();
+    if (recommenderData?.[0]?.church_id !== user.church_id) {
+      return NextResponse.json({ data: null, error: { message: 'Recommendation not found' } }, { status: 404 });
+    }
 
     if (action === 'revoke') {
       if (user.role !== 'overseer') {

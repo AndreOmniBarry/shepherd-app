@@ -69,14 +69,24 @@ export async function POST(req: Request) {
     const rec = recData?.[0];
     if (!rec) return NextResponse.json({ data: null, error: { message: 'Record not found' } }, { status: 404 });
 
-    const submittedAt = new Date(rec.submitted_at);
-    const hoursSince = (Date.now() - submittedAt.getTime()) / (1000 * 60 * 60);
-    if (hoursSince > 48) return NextResponse.json({ data: null, error: { message: 'Dispute window has closed. You have 48 hours from submission to raise a dispute.' } }, { status: 403 });
-
-    // Get fellowship_id
+    // attendance_records carries no church_id/fellowship_id of its own —
+    // verify the record's cell actually belongs to this caller's own
+    // fellowship (and church) before allowing a dispute, otherwise a
+    // fellowship head could dispute another fellowship's — or another
+    // church's — attendance record just by guessing its id.
     const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs() });
     const memberData = await memberRes.json();
     const fellowship_id = user.fellowship_id || memberData?.[0]?.fellowship_id;
+    const cellRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${rec.cell_id}&church_id=eq.${user.church_id}&select=fellowship_id&limit=1`, { headers: hdrs() });
+    const cellData = await cellRes.json();
+    const cell = cellData?.[0];
+    if (!cell || (fellowship_id && cell.fellowship_id !== fellowship_id)) {
+      return NextResponse.json({ data: null, error: { message: 'Record not found' } }, { status: 404 });
+    }
+
+    const submittedAt = new Date(rec.submitted_at);
+    const hoursSince = (Date.now() - submittedAt.getTime()) / (1000 * 60 * 60);
+    if (hoursSince > 48) return NextResponse.json({ data: null, error: { message: 'Dispute window has closed. You have 48 hours from submission to raise a dispute.' } }, { status: 403 });
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/attendance_disputes`, {
       method: 'POST',
