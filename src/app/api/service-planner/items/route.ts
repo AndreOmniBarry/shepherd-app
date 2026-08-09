@@ -20,14 +20,25 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const plan_id = searchParams.get('plan_id');
     const assigned_to = searchParams.get('assigned_to');
-    // KNOWN GAP: service_plan_items has no church_id of its own, so a
-    // caller who already knows/guesses another church's plan_id could list
-    // its items here. Low-severity (item titles/assignee names only, no
-    // financial or personal data) — flagged rather than adding a join on
-    // every list call.
+
+    // service_plan_items has no church_id of its own — when a specific
+    // plan_id is requested, verify that plan belongs to this caller's own
+    // church before listing its items, otherwise a guessed/leaked plan_id
+    // from another church could be read here.
+    if (plan_id) {
+      const planRes = await fetch(`${SUPABASE_URL}/rest/v1/service_plans?id=eq.${plan_id}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: H() });
+      const planData = await planRes.json().catch(() => []);
+      if (!Array.isArray(planData) || planData.length === 0) {
+        return NextResponse.json({ data: null, error: { message: 'Plan not found' } }, { status: 404 });
+      }
+    }
+
     let url = `${SUPABASE_URL}/rest/v1/service_plan_items?order=position.asc&select=id,plan_id,position,item_type,title,description,duration_minutes,assigned_to,assigned_to_name,color,is_completed`;
     if (plan_id) url += `&plan_id=eq.${plan_id}`;
-    if (assigned_to) url += `&assigned_to=eq.${assigned_to}`;
+    // assigned_to (when used without plan_id, e.g. "my assignments") is
+    // always the caller's own id from the session in every current caller —
+    // still pin it here so a client can never request another user's items.
+    if (assigned_to) url += `&assigned_to=eq.${assigned_to === user.id ? user.id : '00000000-0000-0000-0000-000000000000'}`;
     const res = await fetch(url, { headers: H() });
     const items = await res.json();
     return NextResponse.json({ data: { items: Array.isArray(items) ? items : [] }, error: null });

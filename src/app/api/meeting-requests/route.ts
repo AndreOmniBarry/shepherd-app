@@ -23,6 +23,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'requested_of and subject are required' } }, { status: 400 });
     }
 
+    // requested_of is a client-supplied user id — verify it actually
+    // belongs to this caller's own church before creating the request or
+    // notifying them, otherwise anyone could target a user id from another
+    // church entirely (cross-tenant messaging/spam).
+    const targetRes = await fetch(`${SURL}/rest/v1/users?id=eq.${requested_of}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: H() });
+    const targetRows = await targetRes.json().catch(() => []);
+    if (!Array.isArray(targetRows) || targetRows.length === 0) {
+      return NextResponse.json({ data: null, error: { message: 'That person was not found in your church' } }, { status: 404 });
+    }
+
     const insertRes = await fetch(`${SURL}/rest/v1/meeting_requests`, {
       method: 'POST',
       headers: { ...H(), 'Prefer': 'return=representation' },

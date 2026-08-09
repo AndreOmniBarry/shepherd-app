@@ -31,6 +31,18 @@ export async function POST(req: Request) {
     const { full_name, phone, email, gender, date_of_birth, address, occupation, cell_id, fellowship_id, department_id } = body;
     if (!full_name?.trim()) return NextResponse.json({ data: null, error: { message: 'Full name is required' } }, { status: 400 });
 
+    // cell_id/fellowship_id/department_id are client-supplied — verify each
+    // belongs to this admin's own church before use, otherwise a leaked/
+    // guessed id from another church could attach this new member to it.
+    const [cellCheck, fellowshipCheck, deptCheck] = await Promise.all([
+      cell_id ? fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${cell_id}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: hdrs() }).then(r => r.json()) : null,
+      fellowship_id ? fetch(`${SUPABASE_URL}/rest/v1/fellowships?id=eq.${fellowship_id}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: hdrs() }).then(r => r.json()) : null,
+      department_id ? fetch(`${SUPABASE_URL}/rest/v1/departments?id=eq.${department_id}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: hdrs() }).then(r => r.json()) : null,
+    ]);
+    if (cell_id && !cellCheck?.[0]) return NextResponse.json({ data: null, error: { message: 'Cell not found' } }, { status: 404 });
+    if (fellowship_id && !fellowshipCheck?.[0]) return NextResponse.json({ data: null, error: { message: 'Fellowship not found' } }, { status: 404 });
+    if (department_id && !deptCheck?.[0]) return NextResponse.json({ data: null, error: { message: 'Department not found' } }, { status: 404 });
+
     const res = await fetch(`${SUPABASE_URL}/rest/v1/members`, {
       method: 'POST',
       headers: { ...hdrs(), 'Prefer': 'return=representation' },
@@ -46,6 +58,7 @@ export async function POST(req: Request) {
         fellowship_id: fellowship_id || null,
         membership_status: 'active',
         join_date: new Date().toISOString().split('T')[0],
+        church_id: user.church_id || null,
       }),
     });
     const data = await res.json();

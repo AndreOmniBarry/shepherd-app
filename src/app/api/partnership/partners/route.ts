@@ -85,6 +85,17 @@ export async function POST(req: Request) {
   if (blocked) return blocked;
   const body = await req.json();
   const { full_name, phone, email, band_id, start_date } = body;
+
+  // band_id is client-supplied — verify it belongs to this caller's own
+  // church before attaching a new partner to it.
+  if (band_id) {
+    const bandCheckRes = await fetch(`${S}/rest/v1/partnership_bands?id=eq.${band_id}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: h() });
+    const bandCheck = await bandCheckRes.json().catch(() => []);
+    if (!Array.isArray(bandCheck) || bandCheck.length === 0) {
+      return NextResponse.json({ data: null, error: { message: 'Partnership band not found' } }, { status: 404 });
+    }
+  }
+
   const res = await fetch(`${S}/rest/v1/partners`, {
     method: 'POST',
     headers: { ...h(), 'Prefer': 'return=representation' },
