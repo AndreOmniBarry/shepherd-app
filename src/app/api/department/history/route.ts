@@ -36,7 +36,21 @@ export async function GET(req: Request) {
       const rows = await res.json();
       department_id = Array.isArray(rows) ? rows[0]?.department_id : null;
       if (!department_id) return NextResponse.json({ data: null, error: { message: 'No department assigned' } }, { status: 403 });
-    } else if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
+    } else if (['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
+      // Admin roles can view any department's history, but only within
+      // their own church — department_id is client-supplied, so it must be
+      // re-validated against the caller's own church before use (otherwise
+      // an admin in one church could view another church's department
+      // history by id).
+      if (!department_id) return NextResponse.json({ data: null, error: { message: 'department_id is required' } }, { status: 400 });
+      const ownRes = await fetch(`${SURL}/rest/v1/departments?id=eq.${department_id}&church_id=eq.${user.church_id}&select=id,branch_id`, { headers: H() });
+      const ownRows = await ownRes.json();
+      const ownDept = Array.isArray(ownRows) ? ownRows[0] : null;
+      if (!ownDept) return NextResponse.json({ data: null, error: { message: 'Department not found' } }, { status: 404 });
+      if (user.role === 'branch_pastor' && ownDept.branch_id !== user.branch_id) {
+        return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
+      }
+    } else {
       return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     }
     if (!department_id) return NextResponse.json({ data: null, error: { message: 'department_id is required' } }, { status: 400 });

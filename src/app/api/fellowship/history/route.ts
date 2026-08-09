@@ -27,6 +27,18 @@ export async function GET(req: Request) {
     const fellowship_id = user.role === 'fellowship_head' ? user.fellowship_id : searchParams.get('fellowship_id');
     if (!fellowship_id) return NextResponse.json({ data: null, error: { message: 'fellowship_id is required' } }, { status: 400 });
 
+    // Admin roles can view any fellowship's history, but fellowship_id is
+    // client-supplied for them — re-validate it against the caller's own
+    // church before using it (otherwise an admin in one church could view
+    // another church's fellowship history by id).
+    if (user.role !== 'fellowship_head') {
+      const ownRes = await fetch(`${SURL}/rest/v1/fellowships?id=eq.${fellowship_id}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: H() });
+      const ownRows = await ownRes.json();
+      if (!Array.isArray(ownRows) || ownRows.length === 0) {
+        return NextResponse.json({ data: null, error: { message: 'Fellowship not found' } }, { status: 404 });
+      }
+    }
+
     const granularityParam = searchParams.get('granularity');
     const granularity = granularityParam === 'year' ? 'year' : granularityParam === 'month' ? 'month' : 'week';
     const offset = Math.max(0, parseInt(searchParams.get('offset') || '0', 10));

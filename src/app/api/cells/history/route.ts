@@ -44,7 +44,20 @@ export async function GET(req: Request) {
       if (!cellFellowshipId || cellFellowshipId !== user.fellowship_id) {
         return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
       }
-    } else if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
+    } else if (['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
+      // Admin roles can view any cell's history, but only within their own
+      // church — cell_id is client-supplied, so it must be re-validated
+      // against the caller's own church before use (otherwise an admin in
+      // one church could view another church's cell history by id).
+      if (!cell_id) return NextResponse.json({ data: null, error: { message: 'cell_id is required' } }, { status: 400 });
+      const ownRes = await fetch(`${SURL}/rest/v1/cells?id=eq.${cell_id}&church_id=eq.${user.church_id}&select=id,branch_id`, { headers: H() });
+      const ownRows = await ownRes.json();
+      const ownCell = Array.isArray(ownRows) ? ownRows[0] : null;
+      if (!ownCell) return NextResponse.json({ data: null, error: { message: 'Cell not found' } }, { status: 404 });
+      if (user.role === 'branch_pastor' && ownCell.branch_id !== user.branch_id) {
+        return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
+      }
+    } else {
       return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     }
     if (!cell_id) return NextResponse.json({ data: null, error: { message: 'cell_id is required' } }, { status: 400 });
