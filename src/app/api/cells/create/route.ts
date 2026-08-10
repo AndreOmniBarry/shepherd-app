@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { isBranchScopedMandatory } from '@/lib/branch-scope';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { name, fellowship_id: bodyFellowshipId, target_size } = body;
+    const { name, fellowship_id: bodyFellowshipId, target_size, branch_id: bodyBranchId } = body;
     if (!name?.trim()) return NextResponse.json({ data: null, error: { message: 'Cell name is required' } }, { status: 400 });
 
     // Fellowship heads can only create cells within their own fellowship
@@ -34,6 +35,22 @@ export async function POST(req: Request) {
     if (user.role === 'fellowship_head') {
       fellowship_id = user.fellowship_id;
       if (!fellowship_id) return NextResponse.json({ data: null, error: { message: 'No fellowship assigned to your account' } }, { status: 400 });
+    }
+
+    // Same shape as fellowship_id above: a mandatorily branch-scoped role
+    // (branch_pastor) always gets their own branch — never an explicit
+    // choice, and never optional. Every other allowed role here may pass an
+    // explicit branch_id (validated against their own church) or omit it.
+    let branch_id: string | null = bodyBranchId || null;
+    if (isBranchScopedMandatory(user.role)) {
+      branch_id = user.branch_id ?? null;
+      if (!branch_id) return NextResponse.json({ data: null, error: { message: 'No branch assigned to your account' } }, { status: 400 });
+    } else if (branch_id) {
+      const branchCheck = await fetch(
+        `${SUPABASE_URL}/rest/v1/branches?id=eq.${branch_id}&church_id=eq.${user.church_id}&select=id&limit=1`,
+        { headers: hdrs() }
+      ).then(r => r.json());
+      if (!branchCheck?.[0]) return NextResponse.json({ data: null, error: { message: 'Branch not found' } }, { status: 404 });
     }
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/cells`, {
@@ -45,6 +62,7 @@ export async function POST(req: Request) {
         target_size: target_size ? parseInt(target_size) : null,
         is_active: true,
         church_id: user.church_id || null,
+        branch_id: branch_id || null,
       }),
     });
     const data = await res.json();
