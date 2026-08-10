@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { assignToLeastLoadedCareTeamMember } from '@/lib/care-assignment';
+import { notifyUsers } from '@/lib/notify';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -88,21 +89,20 @@ export async function POST(req: Request) {
       firstTimerId = created?.id || null;
 
       if (prayer_point?.trim()) {
-        try {
-          const adminRes = await fetch(`${SURL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&select=id`, { headers: H() });
-          const admins = await adminRes.json();
-          const recipients = Array.isArray(admins) ? admins.map((u: { id: string }) => u.id) : [];
-          if (recipients.length > 0) {
-            await fetch(`${SURL}/rest/v1/notifications`, {
-              method: 'POST', headers: { ...H(), Prefer: 'return=minimal' },
-              body: JSON.stringify(recipients.map((uid: string) => ({
-                user_id: uid, type: 'pastoral', read: false,
-                title: `Prayer point — ${full_name.trim()}`,
-                body: prayer_point.trim(), link: '/care',
-              }))),
-            });
-          }
-        } catch (e) { console.error('Event checkin prayer routing error (non-fatal):', e); }
+        // NOTE (pre-existing, preserved as-is): this admin lookup has no
+        // church_id filter, unlike the equivalent prayer-point routing in
+        // care/first-timers — it fans out to every church's overseer/pa/
+        // lead_tech, not just this caller's own church. Flagged in the
+        // notify-consolidation report rather than silently changed here.
+        const adminRes = await fetch(`${SURL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&select=id`, { headers: H() });
+        const admins = await adminRes.json();
+        const recipients = Array.isArray(admins) ? admins.map((u: { id: string }) => u.id) : [];
+        await notifyUsers(recipients, {
+          type: 'pastoral',
+          title: `Prayer point — ${full_name.trim()}`,
+          body: prayer_point.trim(),
+          link: '/care',
+        }, user.church_id);
       }
     }
 
