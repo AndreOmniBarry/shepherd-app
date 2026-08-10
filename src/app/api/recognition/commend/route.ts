@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { notifyUsersChecked } from '@/lib/notify';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -109,26 +110,15 @@ export async function POST(req: Request) {
     }
 
     const cfg = CATEGORY_CFG[category] || CATEGORY_CFG.commendation;
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-      method: 'POST',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify(recipients.map(uid => ({
-        user_id: uid,
-        church_id: user.church_id || null,
-        type: category === 'commendation' ? 'commendation' : category === 'meeting' ? 'meeting_request' : 'pastoral',
-        read: false,
-        title: cfg.title,
-        body: commendation.trim(),
-        link: category === 'meeting' ? '/church-center?tab=meetings' : category === 'commendation' ? '/church-center?tab=recognition' : '/church-center',
-      }))),
-    });
+    const result = await notifyUsersChecked(recipients, {
+      type: category === 'commendation' ? 'commendation' : category === 'meeting' ? 'meeting_request' : 'pastoral',
+      title: cfg.title,
+      body: commendation.trim(),
+      link: category === 'meeting' ? '/church-center?tab=meetings' : category === 'commendation' ? '/church-center?tab=recognition' : '/church-center',
+    }, user.church_id);
 
-    if (!res.ok) {
-      const err = await res.text();
-      console.error('[POST /api/recognition/commend] Supabase error:', res.status, err);
-      let detail = '';
-      try { detail = JSON.parse(err)?.message || ''; } catch {}
-      return NextResponse.json({ data: null, error: { message: detail ? `Failed to send: ${detail}` : 'Failed to send' } }, { status: 502 });
+    if (!result.ok) {
+      return NextResponse.json({ data: null, error: { message: result.error ? `Failed to send: ${result.error}` : 'Failed to send' } }, { status: 502 });
     }
 
     return NextResponse.json({ data: { sent: true, recipient_count: recipients.length, category: category || null }, error: null }, { status: 201 });

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { resolveBranchScope } from '@/lib/branch-scope';
+import { notifyMany } from '@/lib/notify';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -77,19 +78,20 @@ export async function PATCH(req: Request) {
     }
     if (status === 'published') {
       // Notify all assigned users
-      try {
-        const itemsRes = await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items?plan_id=eq.${id}&assigned_to=not.is.null&select=assigned_to,title`, { headers: H() });
-        const assignedItems = await itemsRes.json();
-        if (Array.isArray(assignedItems) && assignedItems.length > 0) {
-          const notifications = assignedItems.map((i: Record<string,unknown>) => ({
-            user_id: i.assigned_to, type: 'service', read: false,
+      const itemsRes = await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items?plan_id=eq.${id}&assigned_to=not.is.null&select=assigned_to,title`, { headers: H() });
+      const assignedItems = await itemsRes.json();
+      if (Array.isArray(assignedItems)) {
+        const notifyRows = assignedItems.map((i: Record<string,unknown>) => ({
+          userId: i.assigned_to as string,
+          content: {
+            type: 'service',
             title: 'You have a role in Sunday\'s service',
             body: `You are assigned to: ${i.title}. Check My Assignments for the full programme.`,
             link: '/church-center?tab=assignments',
-          }));
-          await fetch(`${SUPABASE_URL}/rest/v1/notifications`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(notifications) });
-        }
-      } catch {}
+          },
+        }));
+        await notifyMany(notifyRows, user.church_id);
+      }
     }
     return NextResponse.json({ data: { updated: true }, error: null });
   } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
