@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { notifyUsers } from '@/lib/notify';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -53,14 +54,12 @@ export async function POST(req: Request) {
     }
     const inserted = await insertRes.json();
 
-    await fetch(`${SURL}/rest/v1/notifications`, {
-      method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify({
-        user_id: requested_of, church_id: user.church_id || null, type: 'meeting_request', read: false,
-        title: 'New meeting request', body: `${user.name || 'Someone'} requested a meeting: ${subject.trim()}`,
-        link: '/church-center?tab=meetings',
-      }),
-    }).catch(() => {});
+    await notifyUsers([requested_of], {
+      type: 'meeting_request',
+      title: 'New meeting request',
+      body: `${user.name || 'Someone'} requested a meeting: ${subject.trim()}`,
+      link: '/church-center?tab=meetings',
+    }, user.church_id);
 
     return NextResponse.json({ data: Array.isArray(inserted) ? inserted[0] : inserted, error: null }, { status: 201 });
   } catch (err) {
