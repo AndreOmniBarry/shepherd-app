@@ -1,119 +1,87 @@
 -- ============================================================
--- Remove demo/seed cells and their fake attendance history from the
--- live `cells` table, per founder confirmation: the system hasn't gone
--- live yet, demo data was fed in for structure while building, and the
--- only real records are from the original church-data import plus a
--- few additions on top of it (the "Group 1"-"Group 6" cells and "Men's
--- Fellowship" — which should be run through the Men Cell merge FIRST,
--- see the app's "Merge cells" tool, before this script runs).
+-- TEMPLATE — DO NOT RUN AS-IS. The real-cell id list below is a
+-- placeholder, not a finished list.
 --
--- Real cells are identified by an explicit allow-list of 7 ids (below),
--- not by any heuristic — the delete target is "everything NOT in this
--- list," so there's no risk of a typo'd id silently keeping a demo cell
--- around, and no risk of a wrong guess deleting a real one.
+-- History: an earlier version of this script used a 7-id allow-list
+-- (Group 1-6 + Men's Fellowship) built from which cells had nonzero
+-- member counts. The founder reviewed the actual list of cells this
+-- would have deleted and found real cells from the original import
+-- mixed in among the ones flagged for deletion — the "has members"
+-- heuristic wasn't sufficient to identify every real cell (some real
+-- cells may be temporarily empty, mid-reassignment, etc.). Deferred:
+-- the founder is manually profiling every cell and member and will
+-- guide real cell leaders through update/removal directly in the app
+-- before this runs.
 --
--- Deletes attendance_records and cell_meetings tied to those cells first
--- (children before parent, explicit, not relying on assumed cascade
--- behavior), sets first_timers.cell_id to NULL for any pointing at a
--- deleted cell (preserving the first-timer record itself, only clearing
--- the dangling reference), then deletes the cells themselves. All in one
--- transaction — either the whole cleanup applies, or none of it does.
+-- TO USE THIS TEMPLATE ONCE THE MANUAL REVIEW IS DONE:
+-- 1. Replace the placeholder array below with the complete, confirmed
+--    list of real cell ids — everything that should survive, in full,
+--    not just the ones that happened to have members at some point.
+-- 2. Run the PRE-FLIGHT block and read the output.
+-- 3. Run the "list the cells that would be deleted" query (see the
+--    conversation this was built in, or ask again — same pattern as
+--    the pre-flight, just SELECT instead of count) and read every
+--    single name before proceeding. This is the step that caught the
+--    problem last time — don't skip it.
+-- 4. Only then run the CLEANUP transaction below.
 -- ============================================================
 
 -- ------------------------------------------------------------
--- PRE-FLIGHT — run first, alone. Shows exactly what's about to be
--- deleted before anything is touched.
+-- FILL THIS IN — replace with the real, complete, confirmed list.
 -- ------------------------------------------------------------
-
-WITH real_cells AS (
-  SELECT unnest(ARRAY[
-    '30734330-3155-44f8-9f01-ee7c27344c77', -- Group 1
-    'f05461a6-3545-4c4c-a5e8-c6f75765ea2e', -- Group 2
-    '283772ff-60cb-43c7-bdb3-cfffed6a27c8', -- Group 3
-    'f4ca9a12-99fe-4b27-a3ee-1bb24e597ada', -- Group 4
-    'e4d422ed-a9c9-4c3b-ae3f-090084fadd42', -- Group 5
-    'dccdadfd-1133-4723-9304-1afd61b11852', -- Group 6
-    'd670b4d2-3e1f-4cfb-b246-e5ac83920e7b'  -- Men's Fellowship
-  ]::uuid[]) AS id
-)
-SELECT
-  (SELECT count(*) FROM cells WHERE id NOT IN (SELECT id FROM real_cells)) AS cells_to_delete,
-  (SELECT count(*) FROM attendance_records WHERE cell_id NOT IN (SELECT id FROM real_cells)) AS attendance_records_to_delete,
-  (SELECT count(*) FROM cell_meetings WHERE cell_id NOT IN (SELECT id FROM real_cells)) AS meeting_logs_to_delete,
-  (SELECT count(*) FROM first_timers WHERE cell_id NOT IN (SELECT id FROM real_cells)) AS first_timers_to_unlink,
-  -- Sanity check: should be 7. If it's not, one of the 7 ids above no
-  -- longer matches a real row (e.g. the Men Cell merge changed an id,
-  -- which it shouldn't, but check anyway before proceeding).
-  (SELECT count(*) FROM cells WHERE id IN (SELECT id FROM real_cells)) AS real_cells_confirmed_present;
-
--- Expect: cells_to_delete = 56, real_cells_confirmed_present = 7.
--- If real_cells_confirmed_present isn't 7, STOP — one of the 7 ids
--- didn't match, and the delete below would be too aggressive.
+-- WITH real_cells AS (
+--   SELECT unnest(ARRAY[
+--     'REPLACE-WITH-REAL-CELL-ID-1',
+--     'REPLACE-WITH-REAL-CELL-ID-2'
+--     -- ... every real cell, confirmed by manual review, not by a
+--     -- heuristic like "has members" alone
+--   ]::uuid[]) AS id
+-- )
 
 
 -- ------------------------------------------------------------
--- CLEANUP — run after the pre-flight looks right.
+-- PRE-FLIGHT — run first, alone, once the list above is filled in.
 -- ------------------------------------------------------------
 
-BEGIN;
-
-WITH real_cells AS (
-  SELECT unnest(ARRAY[
-    '30734330-3155-44f8-9f01-ee7c27344c77',
-    'f05461a6-3545-4c4c-a5e8-c6f75765ea2e',
-    '283772ff-60cb-43c7-bdb3-cfffed6a27c8',
-    'f4ca9a12-99fe-4b27-a3ee-1bb24e597ada',
-    'e4d422ed-a9c9-4c3b-ae3f-090084fadd42',
-    'dccdadfd-1133-4723-9304-1afd61b11852',
-    'd670b4d2-3e1f-4cfb-b246-e5ac83920e7b'
-  ]::uuid[]) AS id
-)
-DELETE FROM attendance_records WHERE cell_id NOT IN (SELECT id FROM real_cells);
-
-WITH real_cells AS (
-  SELECT unnest(ARRAY[
-    '30734330-3155-44f8-9f01-ee7c27344c77',
-    'f05461a6-3545-4c4c-a5e8-c6f75765ea2e',
-    '283772ff-60cb-43c7-bdb3-cfffed6a27c8',
-    'f4ca9a12-99fe-4b27-a3ee-1bb24e597ada',
-    'e4d422ed-a9c9-4c3b-ae3f-090084fadd42',
-    'dccdadfd-1133-4723-9304-1afd61b11852',
-    'd670b4d2-3e1f-4cfb-b246-e5ac83920e7b'
-  ]::uuid[]) AS id
-)
-DELETE FROM cell_meetings WHERE cell_id NOT IN (SELECT id FROM real_cells);
-
-WITH real_cells AS (
-  SELECT unnest(ARRAY[
-    '30734330-3155-44f8-9f01-ee7c27344c77',
-    'f05461a6-3545-4c4c-a5e8-c6f75765ea2e',
-    '283772ff-60cb-43c7-bdb3-cfffed6a27c8',
-    'f4ca9a12-99fe-4b27-a3ee-1bb24e597ada',
-    'e4d422ed-a9c9-4c3b-ae3f-090084fadd42',
-    'dccdadfd-1133-4723-9304-1afd61b11852',
-    'd670b4d2-3e1f-4cfb-b246-e5ac83920e7b'
-  ]::uuid[]) AS id
-)
-UPDATE first_timers SET cell_id = NULL WHERE cell_id NOT IN (SELECT id FROM real_cells);
-
-WITH real_cells AS (
-  SELECT unnest(ARRAY[
-    '30734330-3155-44f8-9f01-ee7c27344c77',
-    'f05461a6-3545-4c4c-a5e8-c6f75765ea2e',
-    '283772ff-60cb-43c7-bdb3-cfffed6a27c8',
-    'f4ca9a12-99fe-4b27-a3ee-1bb24e597ada',
-    'e4d422ed-a9c9-4c3b-ae3f-090084fadd42',
-    'dccdadfd-1133-4723-9304-1afd61b11852',
-    'd670b4d2-3e1f-4cfb-b246-e5ac83920e7b'
-  ]::uuid[]) AS id
-)
-DELETE FROM cells WHERE id NOT IN (SELECT id FROM real_cells);
-
-COMMIT;
+-- WITH real_cells AS ( ... same array as above ... )
+-- SELECT
+--   (SELECT count(*) FROM cells WHERE id NOT IN (SELECT id FROM real_cells)) AS cells_to_delete,
+--   (SELECT count(*) FROM attendance_records WHERE cell_id NOT IN (SELECT id FROM real_cells)) AS attendance_records_to_delete,
+--   (SELECT count(*) FROM cell_meetings WHERE cell_id NOT IN (SELECT id FROM real_cells)) AS meeting_logs_to_delete,
+--   (SELECT count(*) FROM first_timers WHERE cell_id NOT IN (SELECT id FROM real_cells)) AS first_timers_to_unlink,
+--   (SELECT count(*) FROM cells WHERE id IN (SELECT id FROM real_cells)) AS real_cells_confirmed_present;
 
 -- ------------------------------------------------------------
--- VERIFICATION — run after commit.
+-- REVIEW — list every cell that would be deleted, by name, and read
+-- all of them yourself before proceeding. This is not optional.
 -- ------------------------------------------------------------
 
-SELECT count(*) AS remaining_cells FROM cells; -- expect 7
-SELECT id, name, member_count FROM cells ORDER BY name; -- eyeball: should be exactly the 7 real ones, Men's Fellowship (or already renamed "Men Cell") should show ~75 if the merge ran first
+-- WITH real_cells AS ( ... same array as above ... )
+-- SELECT c.id, c.name, c.is_active, c.created_at::date,
+--   (SELECT count(*) FROM attendance_records ar WHERE ar.cell_id = c.id) AS attendance_records
+-- FROM cells c
+-- WHERE c.id NOT IN (SELECT id FROM real_cells)
+-- ORDER BY c.name;
+
+-- ------------------------------------------------------------
+-- CLEANUP — only after the above two steps look right.
+-- ------------------------------------------------------------
+
+-- BEGIN;
+--
+-- WITH real_cells AS ( ... same array as above ... )
+-- DELETE FROM attendance_records WHERE cell_id NOT IN (SELECT id FROM real_cells);
+--
+-- WITH real_cells AS ( ... same array as above ... )
+-- DELETE FROM cell_meetings WHERE cell_id NOT IN (SELECT id FROM real_cells);
+--
+-- WITH real_cells AS ( ... same array as above ... )
+-- UPDATE first_timers SET cell_id = NULL WHERE cell_id NOT IN (SELECT id FROM real_cells);
+--
+-- WITH real_cells AS ( ... same array as above ... )
+-- DELETE FROM cells WHERE id NOT IN (SELECT id FROM real_cells);
+--
+-- COMMIT;
+--
+-- SELECT count(*) AS remaining_cells FROM cells;
+-- SELECT id, name, member_count FROM cells ORDER BY name;
