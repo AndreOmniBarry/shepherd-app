@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { computeHealth, computeBirthdayStatus, buildTrend, buildSlaHistory, computeAvgRate } from '@/lib/structure-overview';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -93,25 +94,8 @@ export async function GET(req: Request) {
       const att = memberAttendance[m.id] || { present: 0, absent: 0, consecutiveAbsences: 0 };
       const total = att.present + att.absent;
       const rate = total > 0 ? Math.round((att.present / total) * 100) : null;
-      const health = att.consecutiveAbsences >= 3 ? 'critical'
-        : att.consecutiveAbsences >= 2 ? 'warning'
-        : att.consecutiveAbsences >= 1 ? 'watch'
-        : rate !== null && rate >= 80 ? 'healthy'
-        : rate !== null && rate >= 60 ? 'fair'
-        : rate !== null ? 'low'
-        : 'new';
-
-      // Birthday check
-      let birthdayStatus = null;
-      if (m.date_of_birth) {
-        const today = new Date();
-        const bday = new Date(m.date_of_birth);
-        const thisYearBday = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
-        const daysUntil = Math.ceil((thisYearBday.getTime() - today.getTime()) / 86400000);
-        if (daysUntil === 0) birthdayStatus = 'today';
-        else if (daysUntil > 0 && daysUntil <= 7) birthdayStatus = `in ${daysUntil} day${daysUntil > 1 ? 's' : ''}`;
-        else if (daysUntil < 0 && daysUntil >= -3) birthdayStatus = 'recently';
-      }
+      const health = computeHealth(att.consecutiveAbsences, rate);
+      const birthdayStatus = computeBirthdayStatus(m.date_of_birth, { includeRecently: true });
 
       return {
         id: m.id,
@@ -128,17 +112,10 @@ export async function GET(req: Request) {
     }) : [];
 
     // ── 6. Attendance trend ───────────────────────────────────
-    const trend = Array.isArray(records) ? records.slice(0, 8).reverse().map((r: Record<string, unknown>, i: number) => ({
-      week: `W${i + 1}`,
-      present: r.present_count,
-      absent: r.absent_count,
-      rate: Math.round(((r.present_count as number) / Math.max(1, (r.present_count as number) + (r.absent_count as number))) * 100),
-      sla: r.sla_grade,
-      date: (r.services as Record<string, string>)?.service_date,
-    })) : [];
+    const trend = buildTrend(Array.isArray(records) ? records : []);
 
     // ── 7. Cell summary stats ─────────────────────────────────
-    const avgRate = trend.length > 0 ? Math.round(trend.reduce((a, t) => a + t.rate, 0) / trend.length) : null;
+    const avgRate = computeAvgRate(trend);
     const bestSunday = trend.reduce((best, t) => t.rate > (best?.rate || 0) ? t : best, trend[0] || null);
     const worstSunday = trend.reduce((worst, t) => t.rate < (worst?.rate || 100) ? t : worst, trend[0] || null);
     const lastRecord = Array.isArray(records) && records[0] ? records[0] : null;
@@ -174,10 +151,7 @@ export async function GET(req: Request) {
     else if (dayOfWeek === 1) actions.push({ priority: 'medium', message: 'Submit today for a B SLA grade — submitting Tuesday drops you to C' });
 
     // ── 9. SLA history ────────────────────────────────────────
-    const slaHistory = Array.isArray(records) ? records.slice(0, 8).map((r: Record<string, unknown>) => ({
-      date: (r.services as Record<string, string>)?.service_date,
-      grade: r.sla_grade as string,
-    })) : [];
+    const slaHistory = buildSlaHistory(Array.isArray(records) ? records : []);
 
     return NextResponse.json({
       data: {
