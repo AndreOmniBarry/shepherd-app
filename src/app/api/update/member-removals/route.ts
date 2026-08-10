@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+import { notifyUsers } from '@/lib/notify';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -77,18 +78,12 @@ export async function POST(req: Request) {
 
     const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
     const adminData = await adminRes.json();
-    if (Array.isArray(adminData) && adminData.length) {
-      await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-        method: 'POST', headers: { ...hdrs(), Prefer: 'return=minimal' },
-        body: JSON.stringify(adminData.map((u: { id: string }) => ({
-          user_id: u.id, type: 'pipeline', read: false,
-          title: 'Member removal recommended',
-          body: `${member.full_name} recommended for removal by ${user.name || user.role} — pending approval`,
-          link: '/dashboard',
-          church_id: user.church_id || null,
-        }))),
-      }).catch(() => {});
-    }
+    await notifyUsers(Array.isArray(adminData) ? adminData.map((u: { id: string }) => u.id) : [], {
+      type: 'pipeline',
+      title: 'Member removal recommended',
+      body: `${member.full_name} recommended for removal by ${user.name || user.role} — pending approval`,
+      link: '/dashboard',
+    }, user.church_id);
 
     return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
   } catch (err) {
@@ -198,15 +193,11 @@ export async function PATCH(req: Request) {
         body: JSON.stringify({ status: 'approved', approved_by: user.id, approved_at: new Date().toISOString(), approval_comment: comment || null }),
       });
 
-      await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-        method: 'POST', headers: { ...hdrs(), Prefer: 'return=minimal' },
-        body: JSON.stringify([{
-          user_id: record.recommended_by, type: 'pipeline', read: false,
-          title: 'Removal approved',
-          body: `${record.member_name}'s removal was authorised.`,
-          church_id: user.church_id || null,
-        }]),
-      }).catch(() => {});
+      await notifyUsers([record.recommended_by], {
+        type: 'pipeline',
+        title: 'Removal approved',
+        body: `${record.member_name}'s removal was authorised.`,
+      }, user.church_id);
 
       logAudit({ actor_id: user.id, actor_role: user.role, action: 'member_removal_approved', target_type: 'member_removal', target_id: id, detail: { member_id: record.member_id, member_name: record.member_name } });
 

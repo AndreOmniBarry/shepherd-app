@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { sendSMS, welcomeMessage } from '@/lib/sms';
 import { computeSlaGrade } from '@/lib/sla';
+import { notifyUsers } from '@/lib/notify';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -86,22 +87,13 @@ export async function POST(req: Request) {
     const l1Data = l1Res ? await l1Res.json() : [];
     const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
     const adminData = await adminRes.json();
-    const notifyIds = [...(Array.isArray(l1Data) ? l1Data.map((u: Record<string,string>) => u.id) : []), ...(Array.isArray(adminData) ? adminData.map((u: Record<string,string>) => u.id) : [])].filter((v, i, a) => a.indexOf(v) === i);
-    if (notifyIds.length > 0) {
-      await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-        method: 'POST',
-        headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-        body: JSON.stringify(notifyIds.map(uid => ({
-          user_id: uid,
-          church_id: user.church_id || null,
-          type: 'pipeline',
-          title: 'New member addition request',
-          body: `${full_name} submitted by ${user.name || user.role} — pending approval`,
-          link: '/dashboard',
-          read: false,
-        }))),
-      });
-    }
+    const notifyIds = [...(Array.isArray(l1Data) ? l1Data.map((u: Record<string,string>) => u.id) : []), ...(Array.isArray(adminData) ? adminData.map((u: Record<string,string>) => u.id) : [])];
+    await notifyUsers(notifyIds, {
+      type: 'pipeline',
+      title: 'New member addition request',
+      body: `${full_name} submitted by ${user.name || user.role} — pending approval`,
+      link: '/dashboard',
+    }, user.church_id);
 
     return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
   } catch (err) {
@@ -284,14 +276,11 @@ export async function PATCH(req: Request) {
         }),
       });
 
-      await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-        method: 'POST', headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-        body: JSON.stringify([{
-          user_id: record.submitted_by, church_id: user.church_id || null, type: 'pipeline', read: false,
-          title: 'Member addition approved',
-          body: `${record.full_name} is now a live member.`,
-        }]),
-      }).catch(() => {});
+      await notifyUsers([record.submitted_by], {
+        type: 'pipeline',
+        title: 'Member addition approved',
+        body: `${record.full_name} is now a live member.`,
+      }, user.church_id);
 
       if (member.phone) sendSMS(member.phone, welcomeMessage(member.full_name), user.church_id).catch(() => {});
 
