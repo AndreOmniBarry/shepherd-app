@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { notifyUsers } from '@/lib/notify';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -159,19 +160,16 @@ export async function POST(req: Request) {
     });
     const data = await res.json();
 
-    // Notify pastor and PA
-    await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-      method: 'POST',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify([{
-        user_id: user.id,
-        type: 'attendance',
-        title: 'CYDF attendance submitted',
-        body: `Children: ${children_count || 0} · Teenagers: ${teenagers_count || 0} · SLA: ${sla_grade}`,
-        read: false,
-        church_id: user.church_id || null,
-      }]),
-    });
+    // NOTE (pre-existing, preserved as-is): this comment has said "Notify
+    // pastor and PA" but the recipient has only ever been the submitter
+    // (user.id) themselves — no pastor/PA lookup exists here. Left exactly
+    // as it was to avoid changing who gets notified during a plumbing-only
+    // consolidation; flagged in the notify-consolidation report.
+    await notifyUsers([user.id], {
+      type: 'attendance',
+      title: 'CYDF attendance submitted',
+      body: `Children: ${children_count || 0} · Teenagers: ${teenagers_count || 0} · SLA: ${sla_grade}`,
+    }, user.church_id);
 
     return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
   } catch (err) {
