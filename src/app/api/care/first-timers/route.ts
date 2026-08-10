@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { assignToLeastLoadedCareTeamMember } from '@/lib/care-assignment';
 import { resolveBranchScope } from '@/lib/branch-scope';
+import { notifyUsers } from '@/lib/notify';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -105,55 +106,35 @@ export async function POST(req: Request) {
     const data = await res.json();
     const created = Array.isArray(data) ? data[0] : data;
 
-    // Notify overseers/PAs about new first timer - best effort
-    try {
-      const overseerIds = await getOverseerIds(user.church_id);
-      if (overseerIds.length > 0) {
-        await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-          method: 'POST',
-          headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-          body: JSON.stringify(overseerIds.map(uid => ({
-            user_id: uid,
-            type: 'pipeline',
-            title: 'New first timer logged',
-            body: `${full_name} (${phone}) — logged by care team`,
-            read: false,
-            church_id: user.church_id || null,
-          }))),
-        });
-      }
-    } catch (e) { console.error('First timer notify error (non-fatal):', e); }
+    // Notify overseers/PAs about new first timer
+    const overseerIds = await getOverseerIds(user.church_id);
+    await notifyUsers(overseerIds, {
+      type: 'pipeline',
+      title: 'New first timer logged',
+      body: `${full_name} (${phone}) — logged by care team`,
+    }, user.church_id);
 
     // Prayer point — route to the Prayer department head + admins in
     // near-real-time (same notification pipeline everything else uses).
     if (prayer_point?.trim()) {
-      try {
-        const prayerDeptRes = await fetch(`${SUPABASE_URL}/rest/v1/departments?name=ilike.*prayer*&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: hdrs() });
-        const prayerDept = (await prayerDeptRes.json())?.[0];
-        const recipients: string[] = [];
-        if (prayerDept?.id) {
-          const headsRes = await fetch(`${SUPABASE_URL}/rest/v1/users?department_id=eq.${prayerDept.id}&role=eq.department_head&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
-          const heads = await headsRes.json();
-          if (Array.isArray(heads)) recipients.push(...heads.map((u: { id: string }) => u.id));
-        }
-        const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
-        const adminData = await adminRes.json();
-        if (Array.isArray(adminData)) recipients.push(...adminData.map((u: { id: string }) => u.id));
+      const prayerDeptRes = await fetch(`${SUPABASE_URL}/rest/v1/departments?name=ilike.*prayer*&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: hdrs() });
+      const prayerDept = (await prayerDeptRes.json())?.[0];
+      const recipients: string[] = [];
+      if (prayerDept?.id) {
+        const headsRes = await fetch(`${SUPABASE_URL}/rest/v1/users?department_id=eq.${prayerDept.id}&role=eq.department_head&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
+        const heads = await headsRes.json();
+        if (Array.isArray(heads)) recipients.push(...heads.map((u: { id: string }) => u.id));
+      }
+      const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
+      const adminData = await adminRes.json();
+      if (Array.isArray(adminData)) recipients.push(...adminData.map((u: { id: string }) => u.id));
 
-        const unique = [...new Set(recipients)];
-        if (unique.length > 0) {
-          await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-            method: 'POST', headers: { ...hdrs(), Prefer: 'return=minimal' },
-            body: JSON.stringify(unique.map(uid => ({
-              user_id: uid, type: 'pastoral', read: false,
-              title: `Prayer point — ${full_name}`,
-              body: prayer_point.trim(),
-              link: '/care',
-              church_id: user.church_id || null,
-            }))),
-          });
-        }
-      } catch (e) { console.error('Prayer point routing error (non-fatal):', e); }
+      await notifyUsers(recipients, {
+        type: 'pastoral',
+        title: `Prayer point — ${full_name}`,
+        body: prayer_point.trim(),
+        link: '/care',
+      }, user.church_id);
     }
 
     return NextResponse.json({ data: created, error: null }, { status: 201 });

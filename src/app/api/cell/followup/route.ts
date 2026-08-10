@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { notifyUsers } from '@/lib/notify';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -122,18 +123,11 @@ export async function POST(req: Request) {
     });
 
     if (assignedTo) {
-      await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-        method: 'POST',
-        headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-        body: JSON.stringify([{
-          user_id: assignedTo,
-          type: 'pipeline',
-          title: 'Cell leader logged a follow-up',
-          body: `Action logged: ${action.slice(0, 100)}${action.length > 100 ? '...' : ''}`,
-          read: false,
-          church_id: user.church_id || null,
-        }]),
-      });
+      await notifyUsers([assignedTo], {
+        type: 'pipeline',
+        title: 'Cell leader logged a follow-up',
+        body: `Action logged: ${action.slice(0, 100)}${action.length > 100 ? '...' : ''}`,
+      }, user.church_id);
     }
 
     return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
