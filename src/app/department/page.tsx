@@ -2,7 +2,7 @@
 import { useTheme } from '@/hooks/useTheme';
 import NotificationBell from "@/components/NotificationBell";
 import MyAccountButton from "@/components/MyAccountButton";
-import DeptOverview from '@/components/DeptOverview';
+import StructureOverview from '@/components/StructureOverview';
 import BirthdayPanel from '@/components/BirthdayPanel';
 import WorkforceServingTab from '@/components/WorkforceServingTab';
 import CareEventsTab from '@/components/CareEventsTab';
@@ -387,7 +387,14 @@ export default function DepartmentHeadPage() {
       <div style={{ maxWidth: 540, margin: '0 auto', padding: '20px 16px' }}>
 
         {tab === 'overview' && (
-          <DeptOverview dark={dark} t={t} isMobile={isMobile} />
+          <StructureOverview
+            dark={dark} t={t} isMobile={isMobile}
+            fetchUrl="/api/department/overview"
+            structureKey="dept"
+            unitLabel="Department"
+            emptyTitle="No department assigned."
+            emptySubtitle="Contact your administrator."
+          />
         )}
 
         {tab === 'events' && (

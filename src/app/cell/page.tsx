@@ -5,7 +5,7 @@ import NotificationBell from "@/components/NotificationBell";
 import MyAccountButton from "@/components/MyAccountButton";
 import Icon from "@/components/Icon";
 import BirthdayPanel from '@/components/BirthdayPanel';
-import CellOverview from '@/components/CellOverview';
+import StructureOverview from '@/components/StructureOverview';
 import CellFollowup from '@/components/CellFollowup';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import CellMeetingsTab from '@/components/CellMeetingsTab';
@@ -466,7 +466,14 @@ export default function CellPage() {
         </div>
 
         {tab === 'overview' && (
-          <CellOverview dark={dark} t={t} isMobile={isMobile} />
+          <StructureOverview
+            dark={dark} t={t} isMobile={isMobile}
+            fetchUrl="/api/cell/overview"
+            structureKey="cell"
+            unitLabel="Cell"
+            emptyTitle="No cell assigned to your account."
+            emptySubtitle="Contact your administrator."
+          />
         )}
         {tab === 'submit' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
