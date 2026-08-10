@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { notifyUsers } from '@/lib/notify';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -88,27 +89,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: detail ? `Failed to submit prayer request: ${detail}` : 'Failed to submit prayer request' } }, { status: 502 });
     }
 
-    // Notify all overseers/PAs - best effort, don't break main flow
-    try {
-      const overseerIds = await getOverseerIds(user.church_id);
-      if (overseerIds.length > 0) {
-        await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-          method: 'POST',
-          headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-          body: JSON.stringify(overseerIds.map(uid => ({
-            user_id: uid,
-            church_id: user.church_id || null,
-            type: 'pastoral',
-            title: 'New prayer request',
-            body: `${is_anonymous ? 'Anonymous' : requester_name || user.name || 'A member'} — ${request.slice(0, 80)}${request.length > 80 ? '...' : ''}`,
-            read: false,
-            link: '/dashboard?page=prayer',
-          }))),
-        });
-      }
-    } catch (notifyErr) {
-      console.error('Prayer notify error (non-fatal):', notifyErr);
-    }
+    // Notify all overseers/PAs
+    const overseerIds = await getOverseerIds(user.church_id);
+    await notifyUsers(overseerIds, {
+      type: 'pastoral',
+      title: 'New prayer request',
+      body: `${is_anonymous ? 'Anonymous' : requester_name || user.name || 'A member'} — ${request.slice(0, 80)}${request.length > 80 ? '...' : ''}`,
+      link: '/dashboard?page=prayer',
+    }, user.church_id);
 
     return NextResponse.json({ data: data[0], error: null }, { status: 201 });
   } catch (err) {

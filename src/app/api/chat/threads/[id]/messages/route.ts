@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { requireChatAccess } from '@/lib/plan-gate';
+import { notifyUsers } from '@/lib/notify';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -103,13 +104,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
 
     if (mentionedIds.length > 0) {
-      await fetch(`${S}/rest/v1/notifications`, {
-        method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' },
-        body: JSON.stringify(mentionedIds.map(uid => ({
-          user_id: uid, type: 'pastoral', title: `${user.name} mentioned you in chat`,
-          body: text.trim().slice(0, 120), read: false, link: `/chat?thread=${threadId}`,
-        }))),
-      });
+      await notifyUsers(mentionedIds, {
+        type: 'pastoral',
+        title: `${user.name} mentioned you in chat`,
+        body: text.trim().slice(0, 120),
+        link: `/chat?thread=${threadId}`,
+      }, user.church_id);
     }
 
     return NextResponse.json({ data: { ...message, reactions: [] }, error: null }, { status: 201 });
