@@ -25,9 +25,18 @@ export async function GET(req: Request) {
   if (!user || !ADMIN_ROLES.includes(user.role)) {
     return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 403 });
   }
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/users?select=id,full_name,email,role,is_active&church_id=eq.${user.church_id}&order=role.asc,full_name.asc${EXCLUDE_DEMO_IDS}`, { headers: hdrs() });
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/users?select=id,full_name,email,role,is_active,branch_id,branches(name)&church_id=eq.${user.church_id}&order=role.asc,full_name.asc${EXCLUDE_DEMO_IDS}`, { headers: hdrs() });
   const data = await res.json();
-  return NextResponse.json({ data: { users: Array.isArray(data) ? data : [] }, error: null });
+  const users = (Array.isArray(data) ? data : []).map((u: Record<string, unknown>) => ({
+    id: u.id,
+    full_name: u.full_name,
+    email: u.email,
+    role: u.role,
+    is_active: u.is_active,
+    branch_id: u.branch_id ?? null,
+    branch_name: (u.branches as Record<string, string> | null)?.name || null,
+  }));
+  return NextResponse.json({ data: { users }, error: null });
 }
 
 // Suspend or reinstate a user — the "I retain the right to permanently
@@ -44,20 +53,40 @@ export async function PATCH(req: Request) {
     if (!admin || !ADMIN_ROLES.includes(admin.role)) {
       return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 403 });
     }
-    const { userId, action, reason } = await req.json();
-    if (!userId || !['suspend', 'reinstate'].includes(action)) {
+    const { userId, action, reason, branch_id } = await req.json();
+    if (!userId || !['suspend', 'reinstate', 'set_branch'].includes(action)) {
       return NextResponse.json({ data: null, error: { message: 'userId and a valid action are required' } }, { status: 400 });
     }
     if (action === 'suspend' && !reason?.trim()) {
       return NextResponse.json({ data: null, error: { message: 'A reason is required to suspend an account' } }, { status: 400 });
     }
-    if (userId === admin.id) {
+    if (action !== 'set_branch' && userId === admin.id) {
       return NextResponse.json({ data: null, error: { message: 'You cannot suspend your own account' } }, { status: 400 });
     }
 
     const targetRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&church_id=eq.${admin.church_id}&select=id&limit=1`, { headers: hdrs() });
     const targetData = await targetRes.json();
     if (!targetData?.[0]) return NextResponse.json({ data: null, error: { message: 'User not found' } }, { status: 404 });
+
+    // Reassign (or clear) which branch this user belongs to — the
+    // "existing user" counterpart to setting branch_id at invite time.
+    // branch_id is client-supplied — verify it belongs to this admin's own
+    // church before use (or allow null to unassign), same ownership-check
+    // pattern used at invite creation.
+    if (action === 'set_branch') {
+      if (branch_id) {
+        const branchCheck = await fetch(
+          `${SUPABASE_URL}/rest/v1/branches?id=eq.${branch_id}&church_id=eq.${admin.church_id}&select=id&limit=1`,
+          { headers: hdrs() }
+        ).then(r => r.json());
+        if (!branchCheck?.[0]) return NextResponse.json({ data: null, error: { message: 'Branch not found' } }, { status: 404 });
+      }
+      await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {
+        method: 'PATCH', headers: { ...hdrs(), Prefer: 'return=minimal' },
+        body: JSON.stringify({ branch_id: branch_id || null }),
+      });
+      return NextResponse.json({ data: { userId, branch_id: branch_id || null }, error: null });
+    }
 
     const isActive = action === 'reinstate';
     await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {

@@ -505,13 +505,14 @@ const CREATABLE_ROLES: {value:string;refKind:'cell'|'fellowship'|'department'|nu
 ];
 
 function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; isMobile?: boolean; churchConfig: RoleLabelConfig}) {
-  const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string;is_active:boolean}[]>([]);
-  const [invites, setInvites] = React.useState<{id:string;email:string;full_name:string;role:string;unit_name:string;used:boolean;expired:boolean;created_at:string}[]>([]);
+  const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string;is_active:boolean;branch_id:string|null;branch_name:string|null}[]>([]);
+  const [invites, setInvites] = React.useState<{id:string;email:string;full_name:string;role:string;unit_name:string;branch_name:string|null;used:boolean;expired:boolean;created_at:string}[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [q, setQ] = React.useState('');
   const [resetting, setResetting] = React.useState<string|null>(null);
   const [loggingInAs, setLoggingInAs] = React.useState<string|null>(null);
   const [suspending, setSuspending] = React.useState<string|null>(null);
+  const [reassigningBranch, setReassigningBranch] = React.useState<string|null>(null);
   const [issued, setIssued] = React.useState<{full_name:string;email:string;password:string}|null>(null);
 
   function loadUsers() {
@@ -557,10 +558,12 @@ function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; i
   const [cellList, setCellList] = React.useState<{id:string;name:string}[]>([]);
   const [fellowshipList, setFellowshipList] = React.useState<{id:string;name:string}[]>([]);
   const [deptList, setDeptList] = React.useState<{id:string;name:string}[]>([]);
+  const [branchList, setBranchList] = React.useState<{id:string;name:string}[]>([]);
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
   const [newRole, setNewRole] = React.useState('cell_leader');
   const [newRefId, setNewRefId] = React.useState('');
+  const [newBranchId, setNewBranchId] = React.useState('');
   const [creating, setCreating] = React.useState(false);
   const [createError, setCreateError] = React.useState('');
   const [newLink, setNewLink] = React.useState('');
@@ -576,6 +579,10 @@ function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; i
     fetch('/api/cells/all', { credentials: 'include' }).then(r=>r.json()).then(({data})=>setCellList((data?.cells||[]).map((c:{id:string;cell:string})=>({id:c.id,name:c.cell})))).catch(()=>{});
     fetch('/api/fellowships/all', { credentials: 'include' }).then(r=>r.json()).then(({data})=>setFellowshipList(data?.fellowships||[])).catch(()=>{});
     fetch('/api/departments/all', { credentials: 'include' }).then(r=>r.json()).then(({data})=>setDeptList(data?.departments||[])).catch(()=>{});
+    // Church-scoped per #29a/prior audit work — only ever returns branches
+    // belonging to the caller's own church_id, same as every other
+    // reference-picker on this panel.
+    fetch('/api/branches', { credentials: 'include' }).then(r=>r.json()).then(({data})=>setBranchList(data?.branches||[])).catch(()=>{});
   }, []);
 
   async function doReset(u: {id:string;full_name:string;email:string}) {
@@ -620,12 +627,13 @@ function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; i
           cell_id: selectedRoleDef?.refKind==='cell' ? newRefId : null,
           fellowship_id: selectedRoleDef?.refKind==='fellowship' ? newRefId : null,
           department_id: selectedRoleDef?.refKind==='department' ? newRefId : null,
+          branch_id: newBranchId || null,
         }),
       });
       const json = await res.json();
       if (res.ok && json.data) {
         setNewLink(json.data.invite_link);
-        setNewName(''); setNewEmail(''); setNewRefId('');
+        setNewName(''); setNewEmail(''); setNewRefId(''); setNewBranchId('');
         loadInvites();
       } else setCreateError(json.error?.message || 'Failed to create invite');
     } catch { setCreateError('Network error — invite was not created.'); }
@@ -637,6 +645,20 @@ function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; i
       await fetch(`/api/invites?id=${id}`, { method: 'DELETE', credentials: 'include' });
       loadInvites();
     } catch {}
+  }
+
+  async function doSetBranch(u: {id:string;full_name:string}, branchId: string) {
+    setReassigningBranch(u.id);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ userId: u.id, action: 'set_branch', branch_id: branchId || null }),
+      });
+      const json = await res.json();
+      if (res.ok) loadUsers();
+      else alert(json.error?.message || `Failed to update ${getBranchLabel(churchConfig).toLowerCase()}`);
+    } catch { alert('Network error — assignment was not saved.'); }
+    setReassigningBranch(null);
   }
 
   function copyLink() {
@@ -684,6 +706,15 @@ function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; i
               </select>
             )}
           </div>
+          {branchList.length > 0 && (
+            <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:10}}>
+              <select value={newBranchId} onChange={e=>setNewBranchId(e.target.value)}
+                style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
+                <option value="">{`${getBranchLabel(churchConfig)} (optional)...`}</option>
+                {branchList.map(b=>(<option key={b.id} value={b.id}>{b.name}</option>))}
+              </select>
+            </div>
+          )}
           {createError && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12}}>{createError}</div>}
           {newLink && (
             <div style={{background:'rgba(45,212,170,0.1)',border:'0.5px solid rgba(45,212,170,0.3)',borderRadius:9,padding:'10px 12px',display:'flex',alignItems:'center',gap:10}}>
@@ -703,7 +734,7 @@ function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; i
           <div style={{fontSize:11,color:t.muted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Pending invites ({pendingInvites.length})</div>
           {pendingInvites.map(inv => (
             <div key={inv.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0',borderBottom:`0.5px solid ${t.border}`,fontSize:12}}>
-              <span style={{color:t.text}}>{inv.full_name} <span style={{color:t.muted}}>— {inv.role.replace('_',' ')}{inv.unit_name!=='—'?` · ${inv.unit_name}`:''}</span></span>
+              <span style={{color:t.text}}>{inv.full_name} <span style={{color:t.muted}}>— {inv.role.replace('_',' ')}{inv.unit_name!=='—'?` · ${inv.unit_name}`:''}{inv.branch_name?` · ${inv.branch_name}`:''}</span></span>
               <span style={{display:'flex',alignItems:'center',gap:8}}>
                 {inv.expired && <span style={{color:t.coral,fontSize:10}}>Expired</span>}
                 <button onClick={()=>revokeInvite(inv.id)} style={{background:'transparent',border:`0.5px solid ${t.border}`,borderRadius:6,padding:'3px 9px',fontSize:10,color:t.sub,cursor:'pointer'}}>Revoke</button>
@@ -735,6 +766,13 @@ function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; i
               </div>
               <div style={{fontSize:11,color:t.sub,marginTop:2}}>{u.email}</div>
               <div style={{fontSize:11,color:t.muted,marginTop:1}}>{u.role}</div>
+              {branchList.length > 0 && (
+                <select value={u.branch_id || ''} onChange={e=>doSetBranch(u, e.target.value)} disabled={reassigningBranch===u.id}
+                  style={{marginTop:6,width:'100%',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'6px 9px',fontSize:11,background:t.input,color:t.text,outline:'none',fontFamily:'inherit'}}>
+                  <option value="">{`No ${getBranchLabel(churchConfig).toLowerCase()} assigned`}</option>
+                  {branchList.map(b=>(<option key={b.id} value={b.id}>{b.name}</option>))}
+                </select>
+              )}
               <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
                 <button onClick={()=>doLoginAs(u)} disabled={loggingInAs===u.id||!u.id||u.is_active===false}
                   style={{flex:1,background:t.purple,border:'none',borderRadius:7,padding:'6px 11px',fontSize:11,color:'#fff',cursor:loggingInAs===u.id?'wait':'pointer',fontFamily:'inherit',opacity:u.is_active===false?0.5:1}}>
@@ -767,6 +805,7 @@ function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; i
                 <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Name</th>
                 <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Email</th>
                 <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Role</th>
+                {branchList.length > 0 && <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>{getBranchLabel(churchConfig)}</th>}
                 <th style={{textAlign:'right',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Action</th>
               </tr>
             </thead>
@@ -779,6 +818,15 @@ function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; i
                   </td>
                   <td style={{padding:'8px',fontSize:12,color:t.sub}}>{u.email}</td>
                   <td style={{padding:'8px',fontSize:12,color:t.sub}}>{u.role}</td>
+                  {branchList.length > 0 && (
+                    <td style={{padding:'8px',fontSize:12,color:t.sub}}>
+                      <select value={u.branch_id || ''} onChange={e=>doSetBranch(u, e.target.value)} disabled={reassigningBranch===u.id}
+                        style={{border:`0.5px solid ${t.border}`,borderRadius:7,padding:'4px 8px',fontSize:11,background:t.input,color:t.text,outline:'none',fontFamily:'inherit'}}>
+                        <option value="">{`Unassigned`}</option>
+                        {branchList.map(b=>(<option key={b.id} value={b.id}>{b.name}</option>))}
+                      </select>
+                    </td>
+                  )}
                   <td style={{padding:'8px',textAlign:'right',whiteSpace:'nowrap'}}>
                     <button onClick={()=>doLoginAs(u)} disabled={loggingInAs===u.id||!u.id||u.is_active===false}
                       style={{background:t.purple,border:'none',borderRadius:7,padding:'5px 11px',fontSize:11,color:'#fff',cursor:loggingInAs===u.id?'wait':'pointer',fontFamily:'inherit',marginRight:6,opacity:u.is_active===false?0.5:1}}>
