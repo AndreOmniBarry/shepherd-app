@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { requireWithinPlanLimit } from '@/lib/plan-gate';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -93,6 +94,11 @@ export async function POST(req: Request) {
     entries = (body.names || []).map(n => n.trim()).filter(Boolean).map(name => ({ name, service_days: ['Sunday'], day_service_counts: { Sunday: 1 } }));
   }
   if (entries.length === 0) return NextResponse.json({ data: null, error: { message: 'At least one branch name is required' } }, { status: 400 });
+
+  // Bulk-create aware: pass how many new branches this request would add,
+  // not just 1, so a single call can't jump straight past the cap.
+  const limitBlocked = await requireWithinPlanLimit(user.church_id, 'branches', user.id, entries.length);
+  if (limitBlocked) return limitBlocked;
 
   const existingRes = await fetch(`${S}/rest/v1/branches?select=id,name,is_headquarters&church_id=eq.${user.church_id}`, { headers: H() });
   const existing = await existingRes.json();

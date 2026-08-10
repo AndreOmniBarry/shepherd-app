@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { sendSMS, welcomeMessage } from '@/lib/sms';
+import { requireWithinPlanLimit } from '@/lib/plan-gate';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -26,6 +27,9 @@ export async function POST(req: Request) {
     if (!user || !['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Only the pastor or church admin can create a member directly' } }, { status: 403 });
     }
+
+    const limitBlocked = await requireWithinPlanLimit(user.church_id, 'members', user.id);
+    if (limitBlocked) return limitBlocked;
 
     const body = await req.json();
     const { full_name, phone, email, gender, date_of_birth, address, occupation, cell_id, fellowship_id, department_id } = body;

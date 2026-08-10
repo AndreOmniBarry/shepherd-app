@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { isBranchScopedMandatory } from '@/lib/branch-scope';
+import { requireWithinPlanLimit } from '@/lib/plan-gate';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -25,6 +26,9 @@ export async function POST(req: Request) {
     if (!user || !['overseer', 'pa', 'lead_tech', 'fellowship_head'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Not authorized to create a cell' } }, { status: 403 });
     }
+
+    const limitBlocked = await requireWithinPlanLimit(user.church_id, 'cells', user.id);
+    if (limitBlocked) return limitBlocked;
 
     const body = await req.json();
     const { name, fellowship_id: bodyFellowshipId, target_size, branch_id: bodyBranchId } = body;
