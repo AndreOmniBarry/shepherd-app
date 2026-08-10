@@ -62,7 +62,7 @@ export async function GET(req: Request) {
 // church_config for them and re-issues their session cookie carrying the
 // new church_id, so every request after this one is correctly scoped
 // without requiring a fresh login.
-async function bootstrapChurch(user: AuthUser, churchName: string): Promise<{ churchId: string; freshToken: string } | null> {
+async function bootstrapChurch(user: AuthUser, churchName: string, structureType?: string): Promise<{ churchId: string; freshToken: string } | null> {
   const churchRes = await fetch(`${SUPABASE_URL}/rest/v1/churches`, {
     method: 'POST',
     headers: { ...hdrs(), Prefer: 'return=representation' },
@@ -78,12 +78,62 @@ async function bootstrapChurch(user: AuthUser, churchName: string): Promise<{ ch
     body: JSON.stringify({ church_id: church.id }),
   });
 
+  // A `single`-structure church ("one congregation, one pastor, no
+  // sub-structure needed") has no fellowship/cell hierarchy for anyone to
+  // set up by hand — but attendance submission is hard-gated on the
+  // submitter having a cell_id. Without this, a single-structure church
+  // would have zero way to ever record attendance. So for this preset
+  // only, auto-provision one fellowship + one cell right here at
+  // bootstrap time, and attach the founding user (who stays `overseer`,
+  // keeping full admin permissions everywhere else) to both.
+  let singleCellId: string | null = null;
+  let singleFellowshipId: string | null = null;
+  if (structureType === 'single') {
+    const fellowshipRes = await fetch(`${SUPABASE_URL}/rest/v1/fellowships`, {
+      method: 'POST',
+      headers: { ...hdrs(), Prefer: 'return=representation' },
+      body: JSON.stringify({
+        name: churchName || 'Congregation',
+        church_id: church.id,
+        branch_id: user.branch_id ?? null,
+      }),
+    });
+    const fellowshipData = await fellowshipRes.json();
+    const fellowship = Array.isArray(fellowshipData) ? fellowshipData[0] : fellowshipData;
+    singleFellowshipId = fellowship?.id || null;
+
+    if (singleFellowshipId) {
+      const cellRes = await fetch(`${SUPABASE_URL}/rest/v1/cells`, {
+        method: 'POST',
+        headers: { ...hdrs(), Prefer: 'return=representation' },
+        body: JSON.stringify({
+          name: churchName || 'Congregation',
+          fellowship_id: singleFellowshipId,
+          church_id: church.id,
+          branch_id: user.branch_id ?? null,
+          is_active: true,
+        }),
+      });
+      const cellData = await cellRes.json();
+      const cell = Array.isArray(cellData) ? cellData[0] : cellData;
+      singleCellId = cell?.id || null;
+    }
+
+    if (singleCellId && singleFellowshipId) {
+      await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}`, {
+        method: 'PATCH',
+        headers: hdrs(),
+        body: JSON.stringify({ cell_id: singleCellId, fellowship_id: singleFellowshipId }),
+      });
+    }
+  }
+
   const freshToken = await signToken({
     id: user.id,
     email: user.email,
     role: user.role,
-    cell_id: user.cell_id,
-    fellowship_id: user.fellowship_id,
+    cell_id: singleCellId ?? user.cell_id,
+    fellowship_id: singleFellowshipId ?? user.fellowship_id,
     member_id: user.member_id,
     branch_id: user.branch_id,
     church_id: church.id,
@@ -108,7 +158,7 @@ export async function PATCH(req: Request) {
     let churchId = user.church_id;
     let freshToken: string | null = null;
     if (!churchId) {
-      const bootstrapped = await bootstrapChurch(user, (body.church_name as string) || 'My Church');
+      const bootstrapped = await bootstrapChurch(user, (body.church_name as string) || 'My Church', body.structure_type as string | undefined);
       if (!bootstrapped) {
         return NextResponse.json({ data: null, error: { message: 'Failed to initialize church' } }, { status: 500 });
       }
