@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { assignToLeastLoadedCareTeamMember } from '@/lib/care-assignment';
+import { resolveBranchScope } from '@/lib/branch-scope';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -33,8 +34,10 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const all = searchParams.get('all') === 'true';
-    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
-    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+    const { branchFilter, forbidden } = resolveBranchScope(user, searchParams);
+    if (forbidden) {
+      return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
+    }
 
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 60);

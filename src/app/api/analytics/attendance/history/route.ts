@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { bucketBounds } from '@/lib/history-buckets';
+import { resolveBranchScope } from '@/lib/branch-scope';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -30,7 +31,10 @@ export async function GET(req: Request) {
     const offset = Math.max(0, parseInt(searchParams.get('offset') || '0', 10));
     const BUCKETS = 12;
 
-    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
+    const { branchId, forbidden } = resolveBranchScope(user, searchParams);
+    if (forbidden) {
+      return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
+    }
 
     const bounds = bucketBounds(granularity, offset, BUCKETS);
     const windowStart = bounds[0].start;

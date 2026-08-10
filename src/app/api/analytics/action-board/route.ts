@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { resolveBranchScope } from '@/lib/branch-scope';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -26,7 +27,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     }
     const { searchParams } = new URL(req.url);
-    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
+    const { branchId, forbidden } = resolveBranchScope(user, searchParams);
+    if (forbidden) {
+      return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
+    }
 
     const flags: Flag[] = [];
     const WEEKS = 8;

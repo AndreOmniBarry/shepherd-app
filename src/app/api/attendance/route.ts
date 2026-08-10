@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { computeSlaGrade } from '@/lib/sla';
+import { resolveBranchScope } from '@/lib/branch-scope';
 
 async function getUser(req: Request) {
   const cookie = req.headers.get('cookie') || '';
@@ -261,7 +262,10 @@ export async function GET(req: Request) {
       // dashboard with no branch_id given would leak every church's
       // attendance records.
       const { searchParams: sp2 } = new URL(req.url);
-      const branchId = user.role === 'branch_pastor' ? user.branch_id : sp2.get('branch_id');
+      const { branchId, forbidden } = resolveBranchScope(user, sp2);
+      if (forbidden) {
+        return NextResponse.json({ data: { records: [] }, error: null });
+      }
       let cellsUrl = `${SUPABASE_URL}/rest/v1/cells?church_id=eq.${user.church_id}&select=id`;
       if (branchId) cellsUrl += `&branch_id=eq.${branchId}`;
       const cellsRes = await fetch(cellsUrl, { headers: hdrs() });

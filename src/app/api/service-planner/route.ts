@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { resolveBranchScope } from '@/lib/branch-scope';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -20,8 +21,10 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const upcoming = searchParams.get('upcoming') === 'true';
     const today = new Date().toISOString().split('T')[0];
-    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
-    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+    const { branchFilter, forbidden } = resolveBranchScope(user, searchParams);
+    if (forbidden) {
+      return NextResponse.json({ data: { plans: [] }, error: null });
+    }
     const churchFilter = `&church_id=eq.${user.church_id}`;
     let url = `${SUPABASE_URL}/rest/v1/service_plans?order=service_date.desc&limit=20&select=id,service_date,service_type,title,theme,status,created_by,published_at,created_at${branchFilter}${churchFilter}`;
     if (upcoming) url = `${SUPABASE_URL}/rest/v1/service_plans?service_date=gte.${today}&order=service_date.asc&limit=5&select=id,service_date,service_type,title,theme,status,published_at${branchFilter}${churchFilter}`;
@@ -100,8 +103,10 @@ export async function DELETE(req: Request) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ data: null, error: { message: 'id is required' } }, { status: 400 });
-    const branchId = user.role === 'branch_pastor' ? user.branch_id : null;
-    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+    const { branchFilter, forbidden } = resolveBranchScope(user, null);
+    if (forbidden) {
+      return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
+    }
     await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items?plan_id=eq.${id}`, { method: 'DELETE', headers: H() });
     await fetch(`${SUPABASE_URL}/rest/v1/service_plans?id=eq.${id}&church_id=eq.${user.church_id}${branchFilter}`, { method: 'DELETE', headers: H() });
     return NextResponse.json({ data: { deleted: true }, error: null });

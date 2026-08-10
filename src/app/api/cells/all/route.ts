@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { gradeToScore } from '@/lib/sla';
 import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
+import { resolveBranchScope } from '@/lib/branch-scope';
 
 export async function GET(req: Request) {
   try {
@@ -22,8 +23,10 @@ export async function GET(req: Request) {
     // everyone else can pass ?branch_id= to drill in, or omit it for the
     // consolidated all-branches view.
     const { searchParams } = new URL(req.url);
-    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
-    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+    const { branchFilter, forbidden } = resolveBranchScope(user, searchParams);
+    if (forbidden) {
+      return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
+    }
 
     // Get all active cells with fellowship
     const cellsRes = await fetch(

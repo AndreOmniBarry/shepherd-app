@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { resolveBranchScope } from '@/lib/branch-scope';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -23,8 +24,10 @@ export async function GET(req: Request) {
     const isAdmin = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role);
     const scope = isAdmin ? '' : `&assigned_to=eq.${user.id}`;
     const { searchParams } = new URL(req.url);
-    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
-    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+    const { branchFilter, forbidden } = resolveBranchScope(user, searchParams);
+    if (forbidden) {
+      return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
+    }
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/care_leads?order=created_at.desc&limit=100&select=id,member_id,weeks_absent,status,contact_attempts,last_contact,notes,outcome,sla_grade,assigned_to,created_at,members(full_name,phone,cells(name),fellowships(name))&church_id=eq.${user.church_id}${scope}${branchFilter}`,
       { headers: hdrs() }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { computeSlaGrade } from '@/lib/sla';
+import { resolveBranchScope } from '@/lib/branch-scope';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -23,8 +24,10 @@ export async function GET(req: Request) {
   // PA and branch_pastor only ever see their own branch's income — never
   // other branches', regardless of any query param.
   const { searchParams } = new URL(req.url);
-  const branchId = ['pa', 'branch_pastor'].includes(user.role) ? user.branch_id : searchParams.get('branch_id');
-  const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+  const { branchFilter, forbidden } = resolveBranchScope(user, searchParams, ['pa', 'branch_pastor']);
+  if (forbidden) {
+    return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
+  }
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
   const res = await fetch(
