@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { getRoleLabel } from '@/lib/church-config';
+import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 
 interface Props { dark?: boolean; compact?: boolean; }
 
@@ -7,21 +9,22 @@ const ADMIN_ROLES = ['overseer', 'general_overseer', 'lead_tech'];
 // overseer and general_overseer are the same effective top tier (full access,
 // same portal) — previewing one from the other is a no-op, not a real test.
 const SAME_TIER = ['overseer', 'general_overseer'];
-const PREVIEW_ROLES: { value: string; label: string; refKind: 'cell' | 'fellowship' | 'department' | 'branch' | null }[] = [
-  { value: 'overseer', label: 'Overseer / Pastor', refKind: null },
-  { value: 'general_overseer', label: 'General Overseer', refKind: null },
-  { value: 'branch_pastor', label: 'Branch Pastor', refKind: 'branch' },
-  { value: 'pa', label: 'PA', refKind: 'branch' },
-  { value: 'fellowship_head', label: 'Fellowship Head', refKind: 'fellowship' },
-  { value: 'cell_leader', label: 'Cell Leader', refKind: 'cell' },
-  { value: 'department_head', label: 'Department Head', refKind: 'department' },
-  { value: 'care_team', label: 'Care Team', refKind: null },
-  { value: 'accounts', label: 'Accounts', refKind: null },
-  { value: 'partnership', label: 'Partnership', refKind: null },
-  { value: 'workforce', label: 'Workforce', refKind: null },
+const PREVIEW_ROLES: { value: string; refKind: 'cell' | 'fellowship' | 'department' | 'branch' | null }[] = [
+  { value: 'overseer', refKind: null },
+  { value: 'general_overseer', refKind: null },
+  { value: 'branch_pastor', refKind: 'branch' },
+  { value: 'pa', refKind: 'branch' },
+  { value: 'fellowship_head', refKind: 'fellowship' },
+  { value: 'cell_leader', refKind: 'cell' },
+  { value: 'department_head', refKind: 'department' },
+  { value: 'care_team', refKind: null },
+  { value: 'accounts', refKind: null },
+  { value: 'partnership', refKind: null },
+  { value: 'workforce', refKind: null },
 ];
 
 export default function MyAccountButton({ dark = false, compact = false }: Props) {
+  const { config: churchConfig } = useChurchConfigStandalone();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -149,7 +152,7 @@ export default function MyAccountButton({ dark = false, compact = false }: Props
       {open && (
         <div style={{ position: 'absolute', right: 0, top: 42, width: 320, maxWidth: 'calc(100vw - 24px)', background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 14, boxShadow: dark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 32px rgba(83,74,183,0.12)', zIndex: 100, padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 2 }}>My account</div>
-          <div style={{ fontSize: 11, color: t.muted, marginBottom: 14 }}>{email}{role ? ` · ${role.replace('_', ' ')}` : ''}</div>
+          <div style={{ fontSize: 11, color: t.muted, marginBottom: 14 }}>{email}{role ? ` · ${getRoleLabel(role, churchConfig)}` : ''}</div>
 
           {msg && (
             <div style={{ background: msg.error ? t.coralBg : t.tealBg, color: msg.error ? t.coral : t.teal, borderRadius: 8, padding: '8px 10px', fontSize: 12, fontWeight: 500, marginBottom: 12 }}>
@@ -196,7 +199,7 @@ export default function MyAccountButton({ dark = false, compact = false }: Props
                     <div style={label}>Preview a portal (no password needed)</div>
                     <select value={previewRole} onChange={e => setPreviewRole(e.target.value)} style={{ ...inp, marginBottom: 8 }}>
                       <option value="">Choose a role…</option>
-                      {PREVIEW_ROLES.filter(r => r.value !== role && !(SAME_TIER.includes(role) && SAME_TIER.includes(r.value))).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      {PREVIEW_ROLES.filter(r => r.value !== role && !(SAME_TIER.includes(role) && SAME_TIER.includes(r.value))).map(r => <option key={r.value} value={r.value}>{getRoleLabel(r.value, churchConfig)}</option>)}
                     </select>
                     {PREVIEW_ROLES.find(r => r.value === previewRole)?.refKind && (
                       <select value={refId} onChange={e => setRefId(e.target.value)} style={{ ...inp, marginBottom: 8 }}>

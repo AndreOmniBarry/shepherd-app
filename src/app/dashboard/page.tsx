@@ -20,6 +20,7 @@ import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 import LoadingScreen from '@/components/LoadingScreen';
 import { CURRENCIES, formatMoney } from '@/lib/currency';
 import { COUNTRY_NAMES } from '@/lib/countries';
+import { getRoleLabel, type RoleLabelConfig } from '@/lib/church-config';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -490,20 +491,20 @@ function WorkforceIntelligencePanel({t, branchId, isMobile=false}: {t: Record<st
   );
 }
 
-const CREATABLE_ROLES: {value:string;label:string;refKind:'cell'|'fellowship'|'department'|null}[] = [
-  {value:'cell_leader',label:'Cell Leader',refKind:'cell'},
-  {value:'fellowship_head',label:'Fellowship Head',refKind:'fellowship'},
-  {value:'department_head',label:'Department Head',refKind:'department'},
-  {value:'care_team',label:'Follow-Up & Care Team',refKind:null},
-  {value:'workforce',label:'Workforce',refKind:null},
-  {value:'accounts',label:'Accounts',refKind:null},
-  {value:'partnership',label:'Partnership',refKind:null},
-  {value:'pa',label:'PA / Church Admin',refKind:null},
-  {value:'overseer',label:'Overseer',refKind:null},
-  {value:'lead_tech',label:'Lead Tech',refKind:null},
+const CREATABLE_ROLES: {value:string;refKind:'cell'|'fellowship'|'department'|null}[] = [
+  {value:'cell_leader',refKind:'cell'},
+  {value:'fellowship_head',refKind:'fellowship'},
+  {value:'department_head',refKind:'department'},
+  {value:'care_team',refKind:null},
+  {value:'workforce',refKind:null},
+  {value:'accounts',refKind:null},
+  {value:'partnership',refKind:null},
+  {value:'pa',refKind:null},
+  {value:'overseer',refKind:null},
+  {value:'lead_tech',refKind:null},
 ];
 
-function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boolean}) {
+function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; isMobile?: boolean; churchConfig: RoleLabelConfig}) {
   const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string;is_active:boolean}[]>([]);
   const [invites, setInvites] = React.useState<{id:string;email:string;full_name:string;role:string;unit_name:string;used:boolean;expired:boolean;created_at:string}[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -673,7 +674,7 @@ function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boo
           <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':(selectedRoleDef?.refKind?'1fr 1fr':'1fr'),gap:10}}>
             <select value={newRole} onChange={e=>{setNewRole(e.target.value);setNewRefId('');}}
               style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
-              {CREATABLE_ROLES.map(r=>(<option key={r.value} value={r.value}>{r.label}</option>))}
+              {CREATABLE_ROLES.map(r=>(<option key={r.value} value={r.value}>{getRoleLabel(r.value, churchConfig)}</option>))}
             </select>
             {selectedRoleDef?.refKind && (
               <select value={newRefId} onChange={e=>setNewRefId(e.target.value)}
@@ -3389,7 +3390,7 @@ export default function DashboardPage(){
           {page==='settings'&&(
             <div>
               <ChurchSettingsPanel t={t} dark={dark} userRole={userRole} onConfigSaved={(cfg)=>setChurchConfig(cfg)} />
-              {['overseer','general_overseer','lead_tech'].includes(userRole) && <TeamAccessPanel t={t} isMobile={isMobile} />}
+              {['overseer','general_overseer','lead_tech'].includes(userRole) && <TeamAccessPanel t={t} isMobile={isMobile} churchConfig={churchConfig} />}
             </div>
           )}
           {page==='admin'&&(

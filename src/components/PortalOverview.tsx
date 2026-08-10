@@ -1,10 +1,17 @@
 'use client';
+import { getRoleLabel } from '@/lib/church-config';
 
 interface PortalOverviewProps {
   role: 'cell_leader' | 'fellowship_head' | 'department_head' | 'care_team';
   name: string;
   dark?: boolean;
   t: Record<string, string>;
+  // This is a pure presentational component with no data-fetching of its
+  // own — callers that have the church's configured labels in scope
+  // (via useChurchConfig/useChurchConfigStandalone) should pass the
+  // resolved label through here. Falls back to a static label via
+  // getRoleLabel() so existing callers keep working unchanged.
+  roleLabel?: string;
   stats: {
     slaGrade?: string;
     lastSubmission?: string;
@@ -36,15 +43,12 @@ const TIER_LABELS: Record<string, string> = {
   'F-': 'Critical — overdue',
 };
 
-export default function PortalOverview({ role, name, dark = false, t, stats }: PortalOverviewProps) {
+export default function PortalOverview({ role, name, dark = false, t, stats, roleLabel }: PortalOverviewProps) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const firstName = name.split(' ')[0];
 
-  const roleLabel = role === 'cell_leader' ? 'Cell Leader'
-    : role === 'fellowship_head' ? 'Fellowship Head'
-    : role === 'department_head' ? 'Department Head'
-    : 'Care Team';
+  const resolvedRoleLabel = roleLabel || getRoleLabel(role);
 
   const sla = stats.slaGrade || '—';
   const slaColor = SLA_COLORS[sla] || { bg: t.purpleBg, text: t.purple };
@@ -76,7 +80,7 @@ export default function PortalOverview({ role, name, dark = false, t, stats }: P
           {greeting}{firstName ? `, ${firstName}` : ''}
         </div>
         <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }} suppressHydrationWarning>
-          {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {roleLabel}
+          {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {resolvedRoleLabel}
         </div>
       </div>
 
