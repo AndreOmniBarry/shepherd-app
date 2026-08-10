@@ -5,7 +5,7 @@ import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 import NotificationBell from "@/components/NotificationBell";
 import MyAccountButton from "@/components/MyAccountButton";
 import BirthdayPanel from '@/components/BirthdayPanel';
-import UpcomingEventsCard from '@/components/UpcomingEventsCard';
+import FellowshipOverview from '@/components/FellowshipOverview';
 import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
 import DateTimePicker from '@/components/DateTimePicker';
 import Icon from '@/components/Icon';
@@ -376,7 +376,6 @@ export default function FellowshipHeadPage() {
   }
 
   const fmtNGN = (n: number) => formatMoney(n, currency);
-  const todayStr = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   const filteredMembers = members.filter(m =>
     memberSearch ? m.full_name.toLowerCase().includes(memberSearch.toLowerCase()) : true
@@ -475,88 +474,21 @@ export default function FellowshipHeadPage() {
 
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && (
-          <div>
-            {/* Greeting */}
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>
-                {new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 17 ? 'Good afternoon' : 'Good evening'}{leaderName ? `, ${leaderName.split(' ')[0]}` : ''}
-              </div>
-              <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }} suppressHydrationWarning>{todayStr}</div>
-            </div>
-
-            {/* Submission status banner with nudge button */}
-            <div style={{ background: overdueCells > 0 ? t.coralBg : pendingCells > 0 ? t.amberBg : t.tealBg, borderRadius: 10, padding: '10px 14px', marginBottom: 18, border: `0.5px solid ${overdueCells > 0 ? 'rgba(216,90,48,0.2)' : pendingCells > 0 ? 'rgba(186,117,23,0.2)' : 'rgba(29,158,117,0.2)'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 12, color: overdueCells > 0 ? t.coral : pendingCells > 0 ? t.amber : t.teal, fontWeight: 500 }}>
-                {overdueCells > 0
-                  ? `${overdueCells} cell${overdueCells > 1 ? 's' : ''} overdue — submission window closing soon`
-                  : pendingCells > 0
-                  ? `${pendingCells} cell${pendingCells > 1 ? 's' : ''} pending — remind your leaders to submit`
-                  : `All ${submittedCells} cells submitted for this Sunday`}
-              </div>
-              {(pendingCells > 0 || overdueCells > 0) && (
-                <button
-                  onClick={async () => {
-                    const pendingLeaders = cells.filter(c => c.status !== 'submitted');
-                    await fetch('/api/notify/dispatch', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      credentials: 'include',
-                      body: JSON.stringify({ type: 'nudge_submission', cells: pendingLeaders.map(c => c.id) }),
-                    });
-                    setNudgeMsg(`Nudge sent to ${pendingLeaders.length} cell leader${pendingLeaders.length > 1 ? 's' : ''}`); setTimeout(() => setNudgeMsg(''), 3500);;
-                  }}
-                  style={{ background: overdueCells > 0 ? '#D85A30' : '#BA7517', color: '#fff', border: 'none', borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 10 }}>
-                  Nudge all
-                </button>
-              )}
-            </div>
-
-            <div style={{ marginBottom: 18 }}>
-              <UpcomingEventsCard t={t} />
-            </div>
-
-            {/* KPI cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 18 }}>
-              {[
-                { label: 'Total members', value: totalMembers, accent: '#534AB7', sub: `${cells.length} cells` },
-                { label: 'Avg attendance', value: `${avgRate}%`, accent: '#1D9E75', sub: 'Last Sunday' },
-                { label: 'Submitted', value: `${submittedCells}/${cells.length}`, accent: '#BA7517', sub: 'This Sunday' },
-                { label: 'YTD giving', value: fmtNGN(ytdGiving), accent: '#D85A30', sub: 'All types' },
-              ].map(k => (
-                <div key={k.label} style={{ ...card(), borderTop: `2.5px solid ${k.accent}` }}>
-                  <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>{k.label}</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: t.text, lineHeight: 1 }}>{k.value}</div>
-                  <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>{k.sub}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Cells needing attention */}
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
-              <div style={card()}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{churchConfig.tier2_label || 'Cell'} submission status</span>
-                  <span style={{ fontSize: 11, color: t.purple, cursor: 'pointer' }} onClick={() => setTab('cells')}>View all</span>
-                </div>
-                {cells.slice(0, 6).map(c => (
-                  <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `0.5px solid ${t.border}` }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{c.name}</div>
-                      <div style={{ fontSize: 10, color: t.muted }}>{c.leader_name}</div>
-                    </div>
-                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500, background: c.status === 'submitted' ? t.tealBg : c.status === 'pending' ? t.amberBg : t.coralBg, color: c.status === 'submitted' ? t.teal : c.status === 'pending' ? t.amber : t.coral }}>
-                      {c.status === 'submitted' ? `Submitted · ${c.sla_grade || ''}` : c.status === 'pending' ? 'Pending' : 'Overdue'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div style={card()}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Attendance trend</div>
-                <AttendanceHistoryPanel t={t} fetchUrl={(g, o) => `/api/fellowship/history?granularity=${g}&offset=${o}`} color={t.purple} />
-              </div>
-            </div>
-          </div>
+          <FellowshipOverview
+            t={t} isMobile={isMobile}
+            leaderName={leaderName}
+            tier2Label={churchConfig.tier2_label || 'Cell'}
+            cells={cells}
+            totalMembers={totalMembers}
+            avgRate={avgRate}
+            submittedCells={submittedCells}
+            pendingCells={pendingCells}
+            overdueCells={overdueCells}
+            ytdGiving={ytdGiving}
+            formatGiving={fmtNGN}
+            onNudgeSent={msg => { setNudgeMsg(msg); setTimeout(() => setNudgeMsg(''), 3500); }}
+            onViewCells={() => setTab('cells')}
+          />
         )}
 
         {/* ── CELLS ── */}
