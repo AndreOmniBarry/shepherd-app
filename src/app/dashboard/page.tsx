@@ -1977,8 +1977,11 @@ export default function DashboardPage(){
 
   // Structure changed (or loaded) while viewing the Cell Ministry tab, which no
   // longer applies — bounce to the dashboard rather than showing a dead tab.
+  // Excluded for campus (needs its own multi-campus handling — Stage 3) and
+  // single (auto-provisioned single-congregation handling — Stage 2); every
+  // other preset (cell_church, zonal, house_network, department) sees it.
   useEffect(()=>{
-    if(churchConfig.structure_type!=='cell_church' && page==='cells'){
+    if(['campus','single'].includes(churchConfig.structure_type) && page==='cells'){
       setPage('dashboard');
     }
   },[churchConfig.structure_type,page]);
@@ -2057,9 +2060,11 @@ export default function DashboardPage(){
       {id:'members' as NavPage,icon:'ti-users',label:'Members'},
       {id:'departments' as NavPage,icon:'ti-building',label:'Departments'},
       {id:'attendance' as NavPage,icon:'ti-calendar-stats',label:'Attendance'},
-      // The Cell Ministry tab only applies to the two-tier fellowship→cell structure —
-      // hidden entirely for zonal/campus/department/house_network/single churches.
-      ...(churchConfig.structure_type==='cell_church'?[{id:'cells' as NavPage,icon:'ti-circles',label:`${churchConfig.tier2_label||'Cell'} Ministry`}]:[]),
+      // Hidden for campus (Stage 3 — needs a founder design decision first)
+      // and single (Stage 2 — single-congregation auto-provisioning) — every
+      // other preset (cell_church, zonal, house_network, department-with-a-
+      // configured-cell-tier) sees it.
+      ...(!['campus','single'].includes(churchConfig.structure_type)?[{id:'cells' as NavPage,icon:'ti-circles',label:`${churchConfig.tier2_label||'Cell'} Ministry`}]:[]),
       {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
     ]},
     {label:'Finance', items:[
