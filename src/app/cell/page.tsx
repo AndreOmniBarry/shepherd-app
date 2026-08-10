@@ -470,7 +470,7 @@ export default function CellPage() {
             dark={dark} t={t} isMobile={isMobile}
             fetchUrl="/api/cell/overview"
             structureKey="cell"
-            unitLabel="Cell"
+            unitLabel={churchConfig.tier2_label || 'Cell'}
             emptyTitle="No cell assigned to your account."
             emptySubtitle="Contact your administrator."
           />

@@ -391,7 +391,7 @@ export default function DepartmentHeadPage() {
             dark={dark} t={t} isMobile={isMobile}
             fetchUrl="/api/department/overview"
             structureKey="dept"
-            unitLabel="Department"
+            unitLabel={churchConfig.tier1_label || 'Department'}
             emptyTitle="No department assigned."
             emptySubtitle="Contact your administrator."
           />

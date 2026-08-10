@@ -889,7 +889,7 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
 
   const STRUCTURES = [
     { value: 'cell_church', label: 'Cell Church', sub: 'Fellowship → Cell → Member' },
-    { value: 'zonal', label: 'Zonal Church', sub: 'Zone → District → Cell → Member' },
+    { value: 'zonal', label: 'Zonal Church', sub: 'Zone → District → Member' },
     { value: 'campus', label: 'Multi-Campus', sub: 'Campus → Fellowship → Cell → Member' },
     { value: 'department', label: 'Department Church', sub: 'Department → Unit → Member' },
     { value: 'house_network', label: 'House Church Network', sub: 'Network → Home Group → Member' },
@@ -2553,7 +2553,7 @@ export default function DashboardPage(){
                 </div>
                 <div style={{overflowX:'auto'}}>
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Phone','Date Joined','Cell','Fellowship','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Phone','Date Joined',churchConfig.tier2_label||'Cell',churchConfig.tier1_label||'Fellowship','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
                       {membersList.length===0 ? (
                         <tr><td colSpan={6} style={{padding:'16px 8px',color:t.muted,textAlign:'center'}}>No members yet.</td></tr>
@@ -2582,7 +2582,7 @@ export default function DashboardPage(){
                   {membersExpanded&&(
                     <div style={{display:'flex',gap:8}}>
                       <button onClick={()=>setShowCreateMember(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Create Member</button>
-                      <button onClick={()=>exportCSV(membersList.map(m=>({Name:m.full_name,Phone:m.phone,Cell:m.cell_name||'—',Fellowship:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),'full_member_database')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}><Icon name="ti-download" size={12}/>Export</button>
+                      <button onClick={()=>exportCSV(membersList.map(m=>({Name:m.full_name,Phone:m.phone,[churchConfig.tier2_label||'Cell']:m.cell_name||'—',[churchConfig.tier1_label||'Fellowship']:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),'full_member_database')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}><Icon name="ti-download" size={12}/>Export</button>
                     </div>
                   )}
                 </div>
@@ -2620,8 +2620,8 @@ export default function DashboardPage(){
                           </div>
                           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,fontSize:11,color:t.sub,marginBottom:canManage?8:0}}>
                             <div><span style={{color:t.muted}}>Phone: </span>{m.phone||'—'}</div>
-                            <div><span style={{color:t.muted}}>Cell: </span>{m.cell_name||'—'}</div>
-                            <div><span style={{color:t.muted}}>Fellowship: </span>{m.fellowship_name||'—'}</div>
+                            <div><span style={{color:t.muted}}>{churchConfig.tier2_label||'Cell'}: </span>{m.cell_name||'—'}</div>
+                            <div><span style={{color:t.muted}}>{churchConfig.tier1_label||'Fellowship'}: </span>{m.fellowship_name||'—'}</div>
                             <div><span style={{color:t.muted}}>Joined: </span>{m.join_date?new Date(m.join_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</div>
                           </div>
                           {canManage&&(
@@ -2652,7 +2652,7 @@ export default function DashboardPage(){
                     <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
                       <thead style={{position:'sticky',top:0,background:t.card}}>
                         <tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>
-                          {[...['Name','Phone','Cell','Fellowship','Joined','Status'],...(canManage?['']:[])].map((h,hi)=>(
+                          {[...['Name','Phone',churchConfig.tier2_label||'Cell',churchConfig.tier1_label||'Fellowship','Joined','Status'],...(canManage?['']:[])].map((h,hi)=>(
                             <th key={h||`action-${hi}`} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap',background:t.card}}>{h}</th>
                           ))}
                         </tr>
@@ -2929,17 +2929,17 @@ export default function DashboardPage(){
           {page==='cells'&&!selectedCell&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
-                {[{label:'Total Active Cells',value:String((dbCells||[]).length)},{label:'Rising',value:String((dbCells||[]).filter(c=>c.status==='rising').length)},{label:'Need Attention',value:String((dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length)},{label:'Avg Attendance Rate',value:(()=>{const cells=(dbCells||[]);const withRate=cells.filter(c=>c.members>0);return withRate.length>0?`${Math.round(withRate.reduce((s,c)=>s+(c.avg/c.members*100),0)/withRate.length)}%`:'—';})()}].map(s=>(
+                {[{label:`Total Active ${churchConfig.tier2_label||'Cell'}s`,value:String((dbCells||[]).length)},{label:'Rising',value:String((dbCells||[]).filter(c=>c.status==='rising').length)},{label:'Need Attention',value:String((dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length)},{label:'Avg Attendance Rate',value:(()=>{const cells=(dbCells||[]);const withRate=cells.filter(c=>c.members>0);return withRate.length>0?`${Math.round(withRate.reduce((s,c)=>s+(c.avg/c.members*100),0)/withRate.length)}%`:'—';})()}].map(s=>(
                   <div key={s.label} style={card({padding:'10px 12px'})}><div style={{fontSize:11,color:t.sub,marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500,color:t.text}}>{s.value}</div></div>
                 ))}
               </div>
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:isMobile?'stretch':'center',marginBottom:10,flexDirection:isMobile?'column':'row',gap:isMobile?10:0}}>
-                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>All {(dbCells||[]).length} Cells - click any cell to drill down</div>
+                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>All {(dbCells||[]).length} {churchConfig.tier2_label||'Cell'}s - click any {(churchConfig.tier2_label||'Cell').toLowerCase()} to drill down</div>
                   <div style={{display:'flex',gap:8,flexWrap:isMobile?'wrap':undefined}}>
-                    <button onClick={()=>setShowCreateCell(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined,whiteSpace:'nowrap'}}>+ Create Cell</button>
-                    <button onClick={()=>setShowMergeCells(true)} style={{background:'transparent',color:t.coral,border:`0.5px solid ${t.coral}`,borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined,whiteSpace:'nowrap'}}>Merge Cells</button>
-                    <button onClick={()=>exportCSV((dbCells||[]).map(c=>({Cell:c.cell,Fellowship:c.fel,Leader:c.leader,Members:c.members,AvgAttendance:c.avg,Rate:`${c.rate}%`,Trend:c.trend,Status:c.status})),'cells_export')}
+                    <button onClick={()=>setShowCreateCell(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined,whiteSpace:'nowrap'}}>+ Create {churchConfig.tier2_label||'Cell'}</button>
+                    <button onClick={()=>setShowMergeCells(true)} style={{background:'transparent',color:t.coral,border:`0.5px solid ${t.coral}`,borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined,whiteSpace:'nowrap'}}>Merge {churchConfig.tier2_label||'Cell'}s</button>
+                    <button onClick={()=>exportCSV((dbCells||[]).map(c=>({[churchConfig.tier2_label||'Cell']:c.cell,[churchConfig.tier1_label||'Fellowship']:c.fel,Leader:c.leader,Members:c.members,AvgAttendance:c.avg,Rate:`${c.rate}%`,Trend:c.trend,Status:c.status})),'cells_export')}
                       style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:5,flex:isMobile?1:undefined,whiteSpace:'nowrap'}}><Icon name="ti-download" size={12}/>Export CSV</button>
                   </div>
                 </div>
@@ -2978,7 +2978,7 @@ export default function DashboardPage(){
                 ) : (
                 <div className="table-wrap">
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse',minWidth:600}}>
-                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Cell','Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status','Weekly Meeting'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{[churchConfig.tier2_label||'Cell',churchConfig.tier1_label||'Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status','Weekly Meeting'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
                       {(dbCells||[]).filter(row=>cellFilter==='all'||(row.status===cellFilter)||(row.fel===cellFilter)).map((row,i)=>{const s=ss(row.status);return(
                         <tr key={i} onClick={()=>setSelectedCell(row)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
@@ -3004,7 +3004,7 @@ export default function DashboardPage(){
           )}
           {page==='cells'&&selectedCell&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <button onClick={()=>setSelectedCell(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to Cells</button>
+              <button onClick={()=>setSelectedCell(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to {churchConfig.tier2_label||'Cell'}s</button>
               <div style={card()}>
                 <input defaultValue={selectedCell.cell}
                   onBlur={async e=>{
@@ -3017,7 +3017,7 @@ export default function DashboardPage(){
                     else window.alert('Failed to rename cell.');
                   }}
                   style={{fontSize:15,fontWeight:600,color:t.text,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'4px 8px',background:t.input,outline:'none',fontFamily:'inherit',marginBottom:6,width:'100%',boxSizing:'border-box'}} />
-                <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} Fellowship · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
+                <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} {churchConfig.tier1_label||'Fellowship'} · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
                 <AttendanceHistoryPanel t={t} color={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'}
                   fetchUrl={(g,o)=>`/api/cells/history?cell_id=${(selectedCell as unknown as {id?:string})?.id}&granularity=${g}&offset=${o}`} />
               </div>
@@ -3028,13 +3028,13 @@ export default function DashboardPage(){
           {page==='reports'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{background:t.tealBg,border:dark?'0.5px solid #1D9E75':'0.5px solid #9FE1CB',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#085041'}}>
-                <strong>Monthly Summary — {new Date().toLocaleDateString('en-GB',{month:'long',year:'numeric'})}:</strong> Membership at {fmt(kpi?.total_members)} ({kpi?.new_members_month?`+${kpi.new_members_month}`:'no'} this month). YTD giving {kpi?formatMoney(kpi.ytd_giving_ngn,churchConfig.currency):'—'}. {(dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length} cell{(dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length===1?'':'s'} flagged for attention.
+                <strong>Monthly Summary — {new Date().toLocaleDateString('en-GB',{month:'long',year:'numeric'})}:</strong> Membership at {fmt(kpi?.total_members)} ({kpi?.new_members_month?`+${kpi.new_members_month}`:'no'} this month). YTD giving {kpi?formatMoney(kpi.ytd_giving_ngn,churchConfig.currency):'—'}. {(dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length} {(churchConfig.tier2_label||'Cell').toLowerCase()}{(dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length===1?'':'s'} flagged for attention.
               </div>
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:500,marginBottom:4}}>AI-Powered Reports</div>
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Select a prompt to generate a narrative report via Moshe. Add credits at console.anthropic.com if needed.</div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-                  {[...['Monthly attendance report for June 2026'],...(userRole==='pa'?[]:['YTD giving analysis and projections']),...['Cell performance review with intervention recommendations','Membership growth analysis and conversion trends','Plan a realistic membership budget for all 35 cells based on current trends','Which 3 cells need immediate pastoral intervention and why?']].map(q=>(
+                  {[...['Monthly attendance report for June 2026'],...(userRole==='pa'?[]:['YTD giving analysis and projections']),...[`${churchConfig.tier2_label||'Cell'} performance review with intervention recommendations`,'Membership growth analysis and conversion trends',`Plan a realistic membership budget for all 35 ${(churchConfig.tier2_label||'Cell').toLowerCase()}s based on current trends`,`Which 3 ${(churchConfig.tier2_label||'Cell').toLowerCase()}s need immediate pastoral intervention and why?`]].map(q=>(
                     <button key={q} onClick={()=>{setChatOpen(true);setChatInput(q);}}
                       style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,cursor:'pointer',fontWeight:500,textAlign:'left'}}>
                       {q}
@@ -3043,7 +3043,7 @@ export default function DashboardPage(){
                 </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(2,1fr)',gap:10}}>
-                {[{label:'Export All Attendance',data:(dbCells||[]).map(c=>({Cell:c.cell,Fellowship:c.fel,Avg:c.avg,Rate:`${c.rate}%`,Trend:c.trend})),file:'full_attendance'},{label:'Export Member List',data:membersList.map(m=>({Name:m.full_name,Phone:m.phone,Cell:m.cell_name||'—',Fellowship:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),file:'member_list'}].map(e=>(
+                {[{label:'Export All Attendance',data:(dbCells||[]).map(c=>({[churchConfig.tier2_label||'Cell']:c.cell,[churchConfig.tier1_label||'Fellowship']:c.fel,Avg:c.avg,Rate:`${c.rate}%`,Trend:c.trend})),file:'full_attendance'},{label:'Export Member List',data:membersList.map(m=>({Name:m.full_name,Phone:m.phone,[churchConfig.tier2_label||'Cell']:m.cell_name||'—',[churchConfig.tier1_label||'Fellowship']:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),file:'member_list'}].map(e=>(
                   <button key={e.label} onClick={()=>exportCSV(e.data,e.file)}
                     style={{...card(),border:'0.5px solid #534AB7',cursor:'pointer',textAlign:'left'}}>
                     <div style={{fontSize:13,fontWeight:500,color:'#3C3489',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><Icon name="ti-download" size={13}/>{e.label}</div>
@@ -3090,7 +3090,7 @@ export default function DashboardPage(){
 
               {/* Top Cell Leaders */}
               <div style={card()}>
-                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Top Cell Leaders</div>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Top {churchConfig.tier2_head_label||'Cell Leader'}s</div>
                 {isMobile ? (
                   <div style={{display:'flex',flexDirection:'column',gap:8}}>
                     {(showAlertOnly
@@ -3115,7 +3115,7 @@ export default function DashboardPage(){
                               <div style={{fontWeight:700,fontSize:14,color:overall>=75?t.teal:t.coral}}>{overall}%</div>
                               <div style={{display:'flex',gap:3,justifyContent:'flex-end'}}>
                                 {slaScore!=null&&slaScore>=90&&<span title="Unbroken — 12 consecutive on-time" style={{color:t.purple}}><Icon name="ti-trophy" size={12}/></span>}
-                                {c.rate>=85&&<span title="Fellowship Excellence" style={{color:t.amber}}><Icon name="ti-star" size={12}/></span>}
+                                {c.rate>=85&&<span title={`${churchConfig.tier1_label||'Fellowship'} Excellence`} style={{color:t.amber}}><Icon name="ti-star" size={12}/></span>}
                                 {c.trend.startsWith('+')&&parseInt(c.trend)>=10&&<span title="Soul Winner" style={{color:t.teal}}><Icon name="ti-sprout" size={12}/></span>}
                               </div>
                             </div>
@@ -3130,7 +3130,7 @@ export default function DashboardPage(){
                   <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
                     <thead>
                       <tr style={{borderBottom:`0.5px solid ${t.border}`}}>
-                        {['Rank','Leader','Cell','Fellowship','SLA Score','Attendance','Growth','Accuracy','Overall','Tier','Badges'].map(h=>(
+                        {['Rank','Leader',churchConfig.tier2_label||'Cell',churchConfig.tier1_label||'Fellowship','SLA Score','Attendance','Growth','Accuracy','Overall','Tier','Badges'].map(h=>(
                           <th key={h} style={{textAlign:'left',padding:'8px 10px',fontSize:10,color:t.muted,fontWeight:500,textTransform:'uppercase',letterSpacing:'0.4px',whiteSpace:'nowrap'}}>{h}</th>
                         ))}
                       </tr>
@@ -3159,7 +3159,7 @@ export default function DashboardPage(){
                             <td style={{padding:'10px 10px'}}>
                               <div style={{display:'flex',gap:4}}>
                                 {slaScore!=null&&slaScore>=90&&<span title="Unbroken — 12 consecutive on-time" style={{color:t.purple}}><Icon name="ti-trophy" size={14}/></span>}
-                                {c.rate>=85&&<span title="Fellowship Excellence" style={{color:t.amber}}><Icon name="ti-star" size={14}/></span>}
+                                {c.rate>=85&&<span title={`${churchConfig.tier1_label||'Fellowship'} Excellence`} style={{color:t.amber}}><Icon name="ti-star" size={14}/></span>}
                                 {c.trend.startsWith('+')&&parseInt(c.trend)>=10&&<span title="Soul Winner" style={{color:t.teal}}><Icon name="ti-sprout" size={14}/></span>}
                               </div>
                             </td>
@@ -3174,7 +3174,7 @@ export default function DashboardPage(){
 
               {/* Top Fellowship Heads */}
               <div style={card()}>
-                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Fellowship Heads</div>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>{churchConfig.tier1_head_label||'Fellowship Head'}s</div>
                 <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:12}}>
                   {Object.entries((dbCells||[]).reduce((acc:Record<string,NonNullable<typeof dbCells>>,c)=>{(acc[c.fel]=acc[c.fel]||[]).push(c);return acc;},{}))
                     .map(([name,group])=>{
@@ -3389,7 +3389,7 @@ export default function DashboardPage(){
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <MemberApprovalPanel t={t} dark={dark} />
               <RemovalApprovalPanel t={t} dark={dark} userRole={userRole} />
-              <FellowshipValidation t={t} dark={dark} isMobile={isMobile} />
+              <FellowshipValidation t={t} dark={dark} isMobile={isMobile} tier2Label={churchConfig.tier2_label} />
             </div>
           )}
           {page==='settings'&&(
