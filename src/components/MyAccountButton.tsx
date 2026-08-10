@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { getRoleLabel } from '@/lib/church-config';
+import { getRoleLabel, getLeafUnitLabel, getTierLabel, getBranchLabel } from '@/lib/church-config';
 import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 
 interface Props { dark?: boolean; compact?: boolean; }
@@ -42,6 +42,19 @@ export default function MyAccountButton({ dark = false, compact = false }: Props
   const [starting, setStarting] = useState(false);
   const [exiting, setExiting] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  // Dynamic label for a PREVIEW_ROLES refKind, honouring the church's
+  // custom tier labels (e.g. "Zone" instead of "Fellowship") — mirrors
+  // getRoleLabel's department_head handling: tier1_label only means
+  // "Department" when the church's actual structure_type is 'department'.
+  function refKindLabel(refKind: 'cell' | 'fellowship' | 'department' | 'branch'): string {
+    switch (refKind) {
+      case 'cell': return getLeafUnitLabel(churchConfig);
+      case 'fellowship': return getTierLabel(churchConfig, 1) || 'Fellowship';
+      case 'department': return churchConfig?.structure_type === 'department' ? (getTierLabel(churchConfig, 1) || 'Department') : 'Department';
+      case 'branch': return getBranchLabel(churchConfig);
+    }
+  }
 
   const t = {
     card: dark ? '#13102A' : '#FFFFFF',
@@ -117,7 +130,7 @@ export default function MyAccountButton({ dark = false, compact = false }: Props
   async function startPreview() {
     const cfg = PREVIEW_ROLES.find(r => r.value === previewRole);
     if (!cfg) { setMsg({ text: 'Choose a role to preview', error: true }); return; }
-    if (cfg.refKind && !refId) { setMsg({ text: `Choose a ${cfg.refKind} to preview`, error: true }); return; }
+    if (cfg.refKind && !refId) { setMsg({ text: `Choose a ${refKindLabel(cfg.refKind).toLowerCase()} to preview`, error: true }); return; }
     setStarting(true);
     try {
       const refName = refOptions.find(o => o.id === refId)?.name;
@@ -203,7 +216,7 @@ export default function MyAccountButton({ dark = false, compact = false }: Props
                     </select>
                     {PREVIEW_ROLES.find(r => r.value === previewRole)?.refKind && (
                       <select value={refId} onChange={e => setRefId(e.target.value)} style={{ ...inp, marginBottom: 8 }}>
-                        <option value="">Choose {PREVIEW_ROLES.find(r => r.value === previewRole)?.refKind}…</option>
+                        <option value="">Choose {refKindLabel(PREVIEW_ROLES.find(r => r.value === previewRole)!.refKind!).toLowerCase()}…</option>
                         {refOptions.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                       </select>
                     )}
