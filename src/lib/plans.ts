@@ -40,6 +40,20 @@ export type Plan = {
   // whole team onto it, without taking away a feature that has no
   // marginal cost to begin with.
   chat_admin_only: boolean;
+  // Hard resource caps for this tier, enforced by src/lib/plan-gate.ts's
+  // requireWithinPlanLimit() at creation time. null = unlimited. These are
+  // the machine-enforced version of the "Up to N members / X location(s) /
+  // Up to N cells/groups" copy in `features` above — keep both in sync.
+  // Enforcement is "grandfather existing, block new": a church already over
+  // a cap keeps everything it has, it just can't create more of that
+  // resource while at/over the cap. Departments are NOT covered by
+  // `cells` — the copy only ever promises a cap on cells/groups, so
+  // departments stay uncapped on every tier.
+  resource_limits: {
+    members: number | null;
+    cells: number | null;
+    branches: number | null;
+  };
 };
 
 export const PLANS: Plan[] = [
@@ -72,6 +86,7 @@ export const PLANS: Plan[] = [
     moshe_overage_ngn: 0,
     sms_overage_ngn: 0,
     chat_admin_only: true,
+    resource_limits: { members: 500, cells: 20, branches: 1 },
   },
   {
     id: 'growth',
@@ -99,6 +114,7 @@ export const PLANS: Plan[] = [
     moshe_overage_ngn: 50,
     sms_overage_ngn: 15,
     chat_admin_only: false,
+    resource_limits: { members: 5000, cells: null, branches: 10 },
   },
   {
     id: 'enterprise',
@@ -129,6 +145,7 @@ export const PLANS: Plan[] = [
     moshe_overage_ngn: 40,
     sms_overage_ngn: 12,
     chat_admin_only: false,
+    resource_limits: { members: null, cells: null, branches: null },
   },
 ];
 
