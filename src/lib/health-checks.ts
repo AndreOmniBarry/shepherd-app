@@ -127,7 +127,8 @@ async function computeInviteBacklogAlert(now: Date): Promise<ComputedAlert | nul
 
 // Mentor review feedback: "checkmate use violation... e.g. someone trying
 // to bypass payment and subscription." Every blocked attempt at a
-// premium/chat-gated action is logged to access_violations by
+// premium/chat-gated action, or at creating a resource past a plan's
+// cap, is logged to access_violations by
 // src/lib/plan-gate.ts (scripts/51_account_violations.sql). A handful of
 // blocks is normal — a trial church poking at Moshe, a Starter user
 // clicking a locked chat thread. A high volume in a short window reads
@@ -165,7 +166,7 @@ async function computeAccessViolationAlerts(now: Date): Promise<ComputedAlert[]>
     church_id,
     severity: count >= THRESHOLD_CRITICAL ? 'critical' : 'medium',
     category: 'possible_subscription_bypass',
-    title: `${nameByChurch[church_id] || 'A church'} hit a blocked premium/chat gate ${count} times in the last 24h`,
+    title: `${nameByChurch[church_id] || 'A church'} hit a blocked plan gate ${count} times in the last 24h`,
     detail: `That's an unusual volume for a normal "this feature is locked" moment — worth checking whether this is a confused user or someone probing for a bypass. If it's a real violation, use the Team & Access panel to suspend the account.`,
     metadata: { blocked_attempts_24h: count },
   }));
