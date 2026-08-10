@@ -25,25 +25,18 @@
 // `mandatoryRoles`, so a branch_pastor cannot view another branch by
 // passing one.
 //
-// A note on `pa`: three pre-existing accounts/finance routes
-// (accounts/income, accounts/requisitions, analytics/giving/history) —
-// and the already-hardened accounts/requisitions/[id] PATCH handler —
-// treat `pa` as mandatorily branch-scoped alongside `branch_pastor`. But
-// `pa` is documented elsewhere (church-config.ts's ROLE_LABELS: "PA /
-// Church Admin", middleware.ts's "full access" role grouping alongside
-// overseer/general_overseer/lead_tech, rolePortal.ts) as a church-wide
-// admin-tier role, and the other ~17 routes fixed alongside these three
-// all treat `pa` exactly like overseer/lead_tech (free ?branch_id=
-// choice, unscoped by default). That is a real, pre-existing
-// inconsistency in what `pa` means — not something this fix invents or
-// resolves. Rather than unilaterally guessing which of the two
-// conflicting conventions is "right" and silently changing `pa`'s
-// behavior in 17+ routes (or in the 3 that already lock it down), every
-// call site keeps its own pre-existing `mandatoryRoles` set exactly as it
-// was: ['branch_pastor'] (the default) almost everywhere, and
-// ['pa', 'branch_pastor'] only in the 3 routes that already used it. See
-// the PR/report for the explicit flag of this as something the product
-// should resolve deliberately.
+// A note on `pa`: this WAS a real, pre-existing inconsistency — three
+// accounts/finance routes locked `pa` to its own branch like
+// `branch_pastor`, while ~17 other routes treated `pa` as a church-wide
+// admin role (same as overseer/lead_tech). Resolved by founder decision:
+// PA is church-wide, never branch-locked — a PA sees everything an
+// overseer/lead_tech would by default, with the expectation that any
+// *narrower* scoping of what a specific PA can see (e.g. one PA who
+// should only handle finance, not care) is a future, separate governance/
+// permission-grant feature, not a branch restriction. The three
+// previously-inconsistent routes now use the same `['branch_pastor']`
+// default as everywhere else — `pa` is intentionally absent from every
+// `mandatoryRoles` array in this codebase.
 
 import type { AuthUser, Role } from '@/types';
 

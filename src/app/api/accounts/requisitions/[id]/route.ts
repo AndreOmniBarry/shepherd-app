@@ -20,15 +20,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   // Verify the requisition belongs to this caller's own church before
   // touching it — without this, any authorized role could approve/pay a
   // requisition belonging to a completely different church by guessing/
-  // enumerating its id (IDOR). A branch_pastor/pa is further restricted
-  // to their own branch's requisitions.
+  // enumerating its id (IDOR). A branch_pastor is further restricted to
+  // their own branch's requisitions. PA is church-wide (not branch-locked)
+  // by founder decision — matches the other routes that treat PA this way.
   const ownRes = await fetch(`${S}/rest/v1/expense_requisitions?id=eq.${params.id}&select=branch_id,church_id`, { headers: h() });
   const ownRows = await ownRes.json();
   const reqRow = Array.isArray(ownRows) ? ownRows[0] : null;
   if (!reqRow || reqRow.church_id !== user.church_id) {
     return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
   }
-  if (['pa', 'branch_pastor'].includes(user.role) && reqRow.branch_id !== user.branch_id) {
+  if (user.role === 'branch_pastor' && reqRow.branch_id !== user.branch_id) {
     return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
   }
 

@@ -32,7 +32,9 @@ export async function GET(req: Request) {
     const offset = Math.max(0, parseInt(searchParams.get('offset') || '0', 10));
     const BUCKETS = 12;
 
-    const { branchFilter, forbidden } = resolveBranchScope(user, searchParams, ['pa', 'branch_pastor']);
+    // branch_pastor is branch-locked; PA is church-wide (not branch-locked)
+    // by founder decision — matches the other routes that treat PA this way.
+    const { branchFilter, forbidden } = resolveBranchScope(user, searchParams, ['branch_pastor']);
     if (forbidden) {
       return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
     }

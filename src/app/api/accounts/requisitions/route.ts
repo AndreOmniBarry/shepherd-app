@@ -21,10 +21,12 @@ export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
-  // PA and branch_pastor only ever see their own branch's requisitions —
-  // never other branches', regardless of any query param.
+  // branch_pastor only ever sees their own branch's requisitions — never
+  // other branches', regardless of any query param. PA is church-wide (not
+  // branch-locked) by founder decision — same free ?branch_id= choice as
+  // overseer/lead_tech, matching the other routes that treat PA this way.
   const { searchParams } = new URL(req.url);
-  const { branchFilter, forbidden } = resolveBranchScope(user, searchParams, ['pa', 'branch_pastor']);
+  const { branchFilter, forbidden } = resolveBranchScope(user, searchParams, ['branch_pastor']);
   if (forbidden) {
     return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
   }
