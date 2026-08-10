@@ -78,6 +78,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'A message is required' } }, { status: 400 });
     }
 
+    // scope === 'all' resolves to "every leader in the caller's branch"
+    // via opts.branch_id below — for a branch_pastor with no branch_id
+    // assigned yet, that must mean "no recipients", not silently fall
+    // through to every leader in the whole church.
+    if ((scope || 'individual') === 'all' && user.role === 'branch_pastor' && !user.branch_id) {
+      return NextResponse.json({ data: null, error: { message: 'No recipients found for that selection' } }, { status: 400 });
+    }
+
     const recipients = await resolveRecipients(scope || 'individual', { leader_id, fellowship_id, department_id, branch_id: user.branch_id, church_id: user.church_id });
     if (recipients.length === 0) {
       return NextResponse.json({ data: null, error: { message: 'No recipients found for that selection' } }, { status: 400 });
