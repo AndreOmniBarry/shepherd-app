@@ -89,12 +89,12 @@ export async function POST(req: Request) {
       firstTimerId = created?.id || null;
 
       if (prayer_point?.trim()) {
-        // NOTE (pre-existing, preserved as-is): this admin lookup has no
-        // church_id filter, unlike the equivalent prayer-point routing in
-        // care/first-timers — it fans out to every church's overseer/pa/
-        // lead_tech, not just this caller's own church. Flagged in the
-        // notify-consolidation report rather than silently changed here.
-        const adminRes = await fetch(`${SURL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&select=id`, { headers: H() });
+        // Scoped to the caller's own church only — this used to have no
+        // church_id filter at all, which meant a prayer point submitted at
+        // one church's event was sent to every church's overseer/pa/
+        // lead_tech on the platform. Matches the equivalent, already-
+        // correct prayer-point routing in care/first-timers.
+        const adminRes = await fetch(`${SURL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: H() });
         const admins = await adminRes.json();
         const recipients = Array.isArray(admins) ? admins.map((u: { id: string }) => u.id) : [];
         await notifyUsers(recipients, {
