@@ -20,7 +20,7 @@ import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 import LoadingScreen from '@/components/LoadingScreen';
 import { CURRENCIES, formatMoney } from '@/lib/currency';
 import { COUNTRY_NAMES } from '@/lib/countries';
-import { getRoleLabel, type RoleLabelConfig } from '@/lib/church-config';
+import { getRoleLabel, getLeafUnitLabel, getBranchLabel, pluralizeLabel, type RoleLabelConfig } from '@/lib/church-config';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -1977,11 +1977,11 @@ export default function DashboardPage(){
 
   // Structure changed (or loaded) while viewing the Cell Ministry tab, which no
   // longer applies — bounce to the dashboard rather than showing a dead tab.
-  // Excluded for campus (needs its own multi-campus handling — Stage 3) and
-  // single (auto-provisioned single-congregation handling — Stage 2); every
-  // other preset (cell_church, zonal, house_network, department) sees it.
+  // Excluded for single (auto-provisioned single-congregation handling —
+  // Stage 2); every other preset, including campus as of Stage 3 (tier3_label
+  // wired up as the leaf unit via getLeafUnitLabel), sees it.
   useEffect(()=>{
-    if(['campus','single'].includes(churchConfig.structure_type) && page==='cells'){
+    if(churchConfig.structure_type==='single' && page==='cells'){
       setPage('dashboard');
     }
   },[churchConfig.structure_type,page]);
@@ -2060,11 +2060,11 @@ export default function DashboardPage(){
       {id:'members' as NavPage,icon:'ti-users',label:'Members'},
       {id:'departments' as NavPage,icon:'ti-building',label:'Departments'},
       {id:'attendance' as NavPage,icon:'ti-calendar-stats',label:'Attendance'},
-      // Hidden for campus (Stage 3 — needs a founder design decision first)
-      // and single (Stage 2 — single-congregation auto-provisioning) — every
-      // other preset (cell_church, zonal, house_network, department-with-a-
-      // configured-cell-tier) sees it.
-      ...(!['campus','single'].includes(churchConfig.structure_type)?[{id:'cells' as NavPage,icon:'ti-circles',label:`${churchConfig.tier2_label||'Cell'} Ministry`}]:[]),
+      // Hidden only for single (Stage 2 — single-congregation
+      // auto-provisioning); every other preset sees it, including campus as
+      // of Stage 3 — its leaf unit is tier3_label (Cell), not tier2_label
+      // (Fellowship), via getLeafUnitLabel().
+      ...(churchConfig.structure_type!=='single'?[{id:'cells' as NavPage,icon:'ti-circles',label:`${getLeafUnitLabel(churchConfig)} Ministry`}]:[]),
       {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
     ]},
     {label:'Finance', items:[

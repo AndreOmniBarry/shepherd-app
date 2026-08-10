@@ -13,6 +13,7 @@ import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
+import { getLeafUnitLabel } from '@/lib/church-config';
 import ChatNavButton from '@/components/ChatNavButton';
 import LoadingScreen from '@/components/LoadingScreen';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -470,7 +471,7 @@ export default function CellPage() {
             dark={dark} t={t} isMobile={isMobile}
             fetchUrl="/api/cell/overview"
             structureKey="cell"
-            unitLabel={churchConfig.tier2_label || 'Cell'}
+            unitLabel={getLeafUnitLabel(churchConfig)}
             emptyTitle="No cell assigned to your account."
             emptySubtitle="Contact your administrator."
           />
