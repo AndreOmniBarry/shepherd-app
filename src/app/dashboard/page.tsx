@@ -897,6 +897,9 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
   ];
 
   const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  // "Branch" is only ever relabelled for campus (tier1_label there is the
+  // Campus/Branch-equivalent) — every other preset keeps the plain word.
+  const branchLabel = getBranchLabel({ structure_type: structureType, tier1_label: tier1Label });
   const cardS = (e?: React.CSSProperties): React.CSSProperties => ({
     background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '18px 20px', ...e,
   });
@@ -1033,12 +1036,12 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
             Active: {serviceDays.join(', ') || 'None selected'}
           </div>
           <div style={{marginTop:6,fontSize:11,color:t.muted}}>
-            This is the church-wide default. Branches can run their own schedule below — different days, or more than one service in a day.
+            This is the church-wide default. {pluralizeLabel(branchLabel)} can run their own schedule below — different days, or more than one service in a day.
           </div>
         </div>
       )}
       {activeTab === 'services' && ['overseer','general_overseer','branch_pastor','lead_tech'].includes(userRole||'') && (
-        <BranchScheduleEditor t={t} userRole={userRole||''} allDays={DAYS} />
+        <BranchScheduleEditor t={t} userRole={userRole||''} allDays={DAYS} branchLabel={branchLabel} />
       )}
     </div>
   );
@@ -1046,7 +1049,8 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
 
 type BranchRow = {id:string;name:string;service_days:string[];day_service_counts:Record<string,number>};
 
-function BranchScheduleEditor({t, userRole, allDays}: {t: Record<string,string>; userRole: string; allDays: string[]}) {
+function BranchScheduleEditor({t, userRole, allDays, branchLabel}: {t: Record<string,string>; userRole: string; allDays: string[]; branchLabel: string}) {
+  const branchLower = branchLabel.toLowerCase();
   const [branches, setBranches] = React.useState<BranchRow[]>([]);
   const [selectedId, setSelectedId] = React.useState('');
   const [days, setDays] = React.useState<string[]>(['Sunday']);
@@ -1105,17 +1109,17 @@ function BranchScheduleEditor({t, userRole, allDays}: {t: Record<string,string>;
   return (
     <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'18px 20px'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:2}}>
-        <div style={{fontSize:13,fontWeight:600,color:t.text}}>Branch Schedule</div>
+        <div style={{fontSize:13,fontWeight:600,color:t.text}}>{branchLabel} Schedule</div>
         {userRole !== 'branch_pastor' && (
-          <button onClick={()=>setShowCreate(true)} style={{background:t.purpleBg,color:t.purple,border:'none',borderRadius:8,padding:'6px 12px',fontSize:12,fontWeight:600,cursor:'pointer'}}>+ Create Branch</button>
+          <button onClick={()=>setShowCreate(true)} style={{background:t.purpleBg,color:t.purple,border:'none',borderRadius:8,padding:'6px 12px',fontSize:12,fontWeight:600,cursor:'pointer'}}>+ Create {branchLabel}</button>
         )}
       </div>
-      <div style={{fontSize:12,color:t.muted,marginBottom:14}}>Each branch can run its own service days, and its own number of services on each of those days (e.g. 3 Sunday services but only 1 midweek service) — a branch pastor only ever edits their own branch.</div>
+      <div style={{fontSize:12,color:t.muted,marginBottom:14}}>Each {branchLower} can run its own service days, and its own number of services on each of those days (e.g. 3 Sunday services but only 1 midweek service) — a branch pastor only ever edits their own {branchLower}.</div>
 
-      {showCreate && <CreateBranchModal t={t} allDays={allDays} onClose={()=>setShowCreate(false)} onCreated={()=>{setShowCreate(false);load();}} />}
+      {showCreate && <CreateBranchModal t={t} allDays={allDays} branchLabel={branchLabel} onClose={()=>setShowCreate(false)} onCreated={()=>{setShowCreate(false);load();}} />}
 
       {branches.length === 0 ? (
-        <div style={{fontSize:12,color:t.muted}}>No branches yet — create one to configure its schedule.</div>
+        <div style={{fontSize:12,color:t.muted}}>No {pluralizeLabel(branchLower)} yet — create one to configure its schedule.</div>
       ) : (
         <>
           {userRole !== 'branch_pastor' && branches.length > 1 && (
@@ -1155,7 +1159,7 @@ function BranchScheduleEditor({t, userRole, allDays}: {t: Record<string,string>;
 
           <button onClick={save} disabled={saving || days.length===0}
             style={{marginTop:10,background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'9px 18px',fontSize:13,fontWeight:600,cursor:saving?'wait':'pointer',opacity:days.length===0?0.5:1}}>
-            {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save branch schedule'}
+            {saving ? 'Saving…' : saved ? '✓ Saved' : `Save ${branchLower} schedule`}
           </button>
         </>
       )}
@@ -1163,7 +1167,8 @@ function BranchScheduleEditor({t, userRole, allDays}: {t: Record<string,string>;
   );
 }
 
-function CreateBranchModal({t, allDays, onClose, onCreated}: {t: Record<string,string>; allDays: string[]; onClose: ()=>void; onCreated: ()=>void}) {
+function CreateBranchModal({t, allDays, branchLabel, onClose, onCreated}: {t: Record<string,string>; allDays: string[]; branchLabel: string; onClose: ()=>void; onCreated: ()=>void}) {
+  const branchLower = branchLabel.toLowerCase();
   const [name, setName] = React.useState('');
   const [days, setDays] = React.useState<string[]>(['Sunday']);
   const [counts, setCounts] = React.useState<Record<string,number>>({Sunday:1});
@@ -1179,7 +1184,7 @@ function CreateBranchModal({t, allDays, onClose, onCreated}: {t: Record<string,s
   }
 
   async function create() {
-    if (!name.trim()) { setError('Branch name is required.'); return; }
+    if (!name.trim()) { setError(`${branchLabel} name is required.`); return; }
     if (days.length === 0) { setError('Select at least one service day.'); return; }
     setCreating(true); setError('');
     try {
@@ -1189,16 +1194,16 @@ function CreateBranchModal({t, allDays, onClose, onCreated}: {t: Record<string,s
       });
       const json = await res.json();
       if (res.ok && (json.data?.branches?.length ?? 0) > 0) onCreated();
-      else setError(json.error?.message || 'A branch with that name may already exist.');
-    } catch { setError('Network error — branch was not created.'); }
+      else setError(json.error?.message || `A ${branchLower} with that name may already exist.`);
+    } catch { setError(`Network error — ${branchLower} was not created.`); }
     setCreating(false);
   }
 
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={()=>!creating&&onClose()}>
       <div onClick={e=>e.stopPropagation()} style={{background:t.card,borderRadius:16,padding:22,maxWidth:420,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,0.4)'}}>
-        <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:14}}>Create a new branch</div>
-        <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:6}}>Branch name</div>
+        <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:14}}>Create a new {branchLower}</div>
+        <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:6}}>{branchLabel} name</div>
         <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Redemption Camp"
           style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:13,background:t.input,color:t.text,outline:'none',marginBottom:14,boxSizing:'border-box'}} />
 
@@ -1233,7 +1238,7 @@ function CreateBranchModal({t, allDays, onClose, onCreated}: {t: Record<string,s
         <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
           <button onClick={onClose} disabled={creating} style={{background:t.input,color:t.text,border:'none',borderRadius:8,padding:'9px 16px',fontSize:13,cursor:'pointer'}}>Cancel</button>
           <button onClick={create} disabled={creating} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'9px 16px',fontSize:13,fontWeight:600,cursor:creating?'wait':'pointer'}}>
-            {creating ? 'Creating…' : 'Create & activate branch'}
+            {creating ? 'Creating…' : `Create & activate ${branchLower}`}
           </button>
         </div>
       </div>
@@ -2224,10 +2229,10 @@ export default function DashboardPage(){
           </div>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:12,flexShrink:0}}>
             {userRole==='branch_pastor' ? (
-              <div title="You are scoped to your own branch — every figure and action here applies only to it"
+              <div title={`You are scoped to your own ${getBranchLabel(churchConfig).toLowerCase()} — every figure and action here applies only to it`}
                 style={{display:'flex',alignItems:'center',gap:isMobile?5:7,padding:isMobile?'4px 8px':'6px 12px',borderRadius:20,border:'0.5px solid rgba(29,158,117,0.3)',background:dark?'rgba(29,158,117,0.12)':'#E1F5EE'}}>
                 <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',flexShrink:0,boxShadow:'0 0 0 3px rgba(29,158,117,0.2)'}}/>
-                {!isMobile&&<span style={{fontSize:11,fontWeight:700,color:'#085041'}}>Viewing: {branchesList.find(b=>b.id===userBranchId)?.name || 'Your Branch'}</span>}
+                {!isMobile&&<span style={{fontSize:11,fontWeight:700,color:'#085041'}}>Viewing: {branchesList.find(b=>b.id===userBranchId)?.name || `Your ${getBranchLabel(churchConfig)}`}</span>}
               </div>
             ) : (
               // Always rendered for overseer/general_overseer/pa/lead_tech
@@ -2246,7 +2251,7 @@ export default function DashboardPage(){
                 <select value={selectedBranch} onChange={e=>setSelectedBranch(e.target.value)}
                   title="Viewing scope — every figure and action on this page applies to whatever is selected here"
                   style={{border:`1px solid ${selectedBranch?'rgba(186,117,23,0.35)':'rgba(83,74,183,0.35)'}`,borderRadius:20,padding:isMobile?'5px 8px 5px 18px':'6px 12px 6px 22px',fontSize:isMobile?10:11,fontWeight:700,maxWidth:isMobile?110:isCompact?120:170,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flexShrink:0,background:selectedBranch?(dark?'rgba(186,117,23,0.12)':'#FAEEDA'):(dark?'rgba(83,74,183,0.12)':t.purpleBg),color:selectedBranch?'#633806':'#3C3489',outline:'none',fontFamily:'inherit',cursor:'pointer',appearance:'none' as const}}>
-                  <option value="">{isMobile||isCompact?'All Branches':'Viewing: All Branches (Consolidated)'}</option>
+                  <option value="">{isMobile||isCompact?`All ${pluralizeLabel(getBranchLabel(churchConfig))}`:`Viewing: All ${pluralizeLabel(getBranchLabel(churchConfig))} (Consolidated)`}</option>
                   {branchesList.map(b=>(<option key={b.id} value={b.id}>{isMobile||isCompact?b.name:`Viewing: ${b.name}`}</option>))}
                 </select>
               </div>
