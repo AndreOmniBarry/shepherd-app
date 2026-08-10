@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { notifyMany } from '@/lib/notify';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -88,15 +89,16 @@ export async function POST(req: Request) {
         const userRes = await fetch(`${SURL}/rest/v1/users?id=in.(${memberIds.join(',')})&select=id`, { headers: H() });
         const users = await userRes.json();
         const userIds = new Set(Array.isArray(users) ? users.map((u: Record<string,string>) => u.id) : []);
-        const notifications = (entries || []).filter((e: Record<string,unknown>) => e.member_id && userIds.has(e.member_id)).map((e: Record<string,unknown>) => ({
-          user_id: e.member_id, type: 'service', read: false,
-          title: `You are on the ${deptName} rota`,
-          body: `${service_date} · Your role: ${e.role_title}${e.position ? ` — ${e.position}` : ''}. Check My Assignments.`,
-          link: '/church-center?tab=assignments',
+        const notifyRows = (entries || []).filter((e: Record<string,unknown>) => e.member_id && userIds.has(e.member_id)).map((e: Record<string,unknown>) => ({
+          userId: e.member_id as string,
+          content: {
+            type: 'service',
+            title: `You are on the ${deptName} rota`,
+            body: `${service_date} · Your role: ${e.role_title}${e.position ? ` — ${e.position}` : ''}. Check My Assignments.`,
+            link: '/church-center?tab=assignments',
+          },
         }));
-        if (notifications.length > 0) {
-          await fetch(`${SURL}/rest/v1/notifications`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(notifications) });
-        }
+        await notifyMany(notifyRows, user.church_id);
       }
     }
     return NextResponse.json({ data: { roster }, error: null }, { status: 201 });
