@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { dispatchEvent } from '@/lib/notify';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -45,16 +46,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     body: JSON.stringify(update),
   });
   // Notify accounts admin when pastor approves/rejects
-  fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://shepherd-app-beta.vercel.app'}/api/notify/dispatch`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_SECRET || '' },
-    body: JSON.stringify({
-      event: status === 'paid' ? 'requisition_approved' : 'requisition_raised',
-      actor_name: user.id,
-      actor_role: user.role,
-      church_id: user.church_id,
-      detail: `Requisition ${status} by ${user.role}`,
-    }),
-  }).catch(() => {});
+  await dispatchEvent({
+    event: status === 'paid' ? 'requisition_approved' : 'requisition_raised',
+    actor_name: user.id,
+    actor_role: user.role,
+    church_id: user.church_id,
+    detail: `Requisition ${status} by ${user.role}`,
+  });
   return NextResponse.json({ data: { updated: true }, error: null });
 }

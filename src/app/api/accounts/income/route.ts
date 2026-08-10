@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { computeSlaGrade } from '@/lib/sla';
 import { resolveBranchScope } from '@/lib/branch-scope';
+import { dispatchEvent } from '@/lib/notify';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -86,17 +87,13 @@ export async function POST(req: Request) {
   const data = await res.json();
   // Fire to pastor dashboard and PA
   const entry = Array.isArray(data) ? data[0] : data;
-  fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://shepherd-app-beta.vercel.app'}/api/notify/dispatch`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_SECRET || '' },
-    body: JSON.stringify({
-      event: 'income_logged',
-      actor_name: user.id,
-      actor_role: user.role,
-      church_id: user.church_id,
-      detail: `Income recorded — ${Number(body.amount || 0).toLocaleString()}`,
-      amount: parseFloat(body.amount) || 0,
-    }),
-  }).catch(() => {});
+  await dispatchEvent({
+    event: 'income_logged',
+    actor_name: user.id,
+    actor_role: user.role,
+    church_id: user.church_id,
+    detail: `Income recorded — ${Number(body.amount || 0).toLocaleString()}`,
+    amount: parseFloat(body.amount) || 0,
+  });
   return NextResponse.json({ data: entry, error: null }, { status: 201 });
 }
