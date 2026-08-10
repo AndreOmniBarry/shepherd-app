@@ -31,9 +31,47 @@ export async function POST(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Authentication required' } }, { status: 401 });
-    if (user.role !== 'cell_leader') return NextResponse.json({ data: null, error: { message: 'Cell leaders only' } }, { status: 403 });
 
     const body = await req.json();
+
+    if (user.role !== 'cell_leader') {
+      // Narrow, explicit exception, additive on top of the existing
+      // cell_leader-only check above (which is unchanged for everyone
+      // else): a `single`-structure church ("one congregation, one
+      // pastor, no sub-structure needed") has no cell_leader at all —
+      // its one auto-provisioned cell (see bootstrapChurch in
+      // /api/settings/church-config) is meant to be submitted for by
+      // its admin roles instead. Every other role/structure combination
+      // still hits the 403 below exactly as before.
+      const ADMIN_ROLES = ['overseer', 'general_overseer', 'pa', 'lead_tech'];
+      let allowed = false;
+      if (ADMIN_ROLES.includes(user.role) && user.church_id && body.cell_id) {
+        const cfgRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/church_config?church_id=eq.${user.church_id}&select=structure_type&limit=1`,
+          { headers: hdrs() }
+        );
+        const cfgData = await cfgRes.json();
+        const structureType = cfgData?.[0]?.structure_type;
+        if (structureType === 'single') {
+          // Re-validate the client-supplied cell_id belongs to this same
+          // church before allowing it through — never trust it alone
+          // (see MULTI_TENANT_AUDIT.md's canonical pattern for
+          // client-supplied ids). This is what stops an admin of one
+          // single-structure church from submitting for a cell in a
+          // *different* single-structure church.
+          const cellCheckRes = await fetch(
+            `${SUPABASE_URL}/rest/v1/cells?id=eq.${body.cell_id}&church_id=eq.${user.church_id}&select=id&limit=1`,
+            { headers: hdrs() }
+          );
+          const cellCheckData = await cellCheckRes.json();
+          allowed = !!cellCheckData?.[0]?.id;
+        }
+      }
+      if (!allowed) {
+        return NextResponse.json({ data: null, error: { message: 'Cell leaders only' } }, { status: 403 });
+      }
+    }
+
     const { service_date, entries, visitor_count, absence_reasons } = body;
     const service_number = Math.max(1, Math.min(10, Number(body.service_number) || 1));
 
@@ -41,7 +79,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'service_date and entries are required' } }, { status: 400 });
     }
 
-    const cell_id = user.cell_id;
+    // cell_leader submits implicitly for their own assigned cell, exactly
+    // as before. The newly-allowed admin-role/single-structure-church
+    // path above already re-validated body.cell_id against this church,
+    // so it's safe to accept it from the body only for that narrow case.
+    const cell_id = user.role === 'cell_leader' ? user.cell_id : (body.cell_id || user.cell_id);
     if (!cell_id) return NextResponse.json({ data: null, error: { message: 'No cell assigned to your account' } }, { status: 400 });
 
     if (!isWithinWindow(service_date)) {
