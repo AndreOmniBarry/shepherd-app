@@ -504,8 +504,14 @@ const CREATABLE_ROLES: {value:string;refKind:'cell'|'fellowship'|'department'|nu
   {value:'lead_tech',refKind:null},
 ];
 
-function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; isMobile?: boolean; churchConfig: RoleLabelConfig}) {
-  const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string;is_active:boolean;branch_id:string|null;branch_name:string|null}[]>([]);
+function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,string>; isMobile?: boolean; churchConfig: RoleLabelConfig; userRole?: string}) {
+  // Grant/revoke a PA's access to financial/giving data is GO-only — the
+  // same "overseer and general_overseer are the same effective top tier"
+  // rule as MyAccountButton.tsx, deliberately excluding lead_tech (platform
+  // support, not church leadership) even though lead_tech can otherwise
+  // reach this whole panel.
+  const canManageFinanceAccess = userRole === 'overseer' || userRole === 'general_overseer';
+  const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string;is_active:boolean;branch_id:string|null;branch_name:string|null;finance_access_granted?:boolean}[]>([]);
   const [invites, setInvites] = React.useState<{id:string;email:string;full_name:string;role:string;unit_name:string;branch_name:string|null;used:boolean;expired:boolean;created_at:string}[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [q, setQ] = React.useState('');
@@ -513,6 +519,7 @@ function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; i
   const [loggingInAs, setLoggingInAs] = React.useState<string|null>(null);
   const [suspending, setSuspending] = React.useState<string|null>(null);
   const [reassigningBranch, setReassigningBranch] = React.useState<string|null>(null);
+  const [reassigningFinance, setReassigningFinance] = React.useState<string|null>(null);
   const [issued, setIssued] = React.useState<{full_name:string;email:string;password:string}|null>(null);
 
   function loadUsers() {
@@ -661,6 +668,20 @@ function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; i
     setReassigningBranch(null);
   }
 
+  async function doSetFinanceAccess(u: {id:string;full_name:string}, granted: boolean) {
+    setReassigningFinance(u.id);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ userId: u.id, action: 'set_finance_access', finance_access_granted: granted }),
+      });
+      const json = await res.json();
+      if (res.ok) loadUsers();
+      else alert(json.error?.message || 'Failed to update financial access');
+    } catch { alert('Network error — financial access was not changed.'); }
+    setReassigningFinance(null);
+  }
+
   function copyLink() {
     navigator.clipboard?.writeText(newLink).then(()=>{ setCopied(true); setTimeout(()=>setCopied(false),2000); }).catch(()=>{});
   }
@@ -773,6 +794,13 @@ function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; i
                   {branchList.map(b=>(<option key={b.id} value={b.id}>{b.name}</option>))}
                 </select>
               )}
+              {u.role==='pa' && canManageFinanceAccess && (
+                <label style={{display:'flex',alignItems:'center',gap:6,marginTop:8,fontSize:11,color:t.text,cursor:reassigningFinance===u.id?'wait':'pointer'}}>
+                  <input type="checkbox" checked={!!u.finance_access_granted} disabled={reassigningFinance===u.id}
+                    onChange={e=>doSetFinanceAccess(u, e.target.checked)} />
+                  Finance access
+                </label>
+              )}
               <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
                 <button onClick={()=>doLoginAs(u)} disabled={loggingInAs===u.id||!u.id||u.is_active===false}
                   style={{flex:1,background:t.purple,border:'none',borderRadius:7,padding:'6px 11px',fontSize:11,color:'#fff',cursor:loggingInAs===u.id?'wait':'pointer',fontFamily:'inherit',opacity:u.is_active===false?0.5:1}}>
@@ -806,6 +834,7 @@ function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; i
                 <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Email</th>
                 <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Role</th>
                 {branchList.length > 0 && <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>{getBranchLabel(churchConfig)}</th>}
+                {canManageFinanceAccess && <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Finance</th>}
                 <th style={{textAlign:'right',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Action</th>
               </tr>
             </thead>
@@ -825,6 +854,15 @@ function TeamAccessPanel({t,isMobile,churchConfig}: {t: Record<string,string>; i
                         <option value="">{`Unassigned`}</option>
                         {branchList.map(b=>(<option key={b.id} value={b.id}>{b.name}</option>))}
                       </select>
+                    </td>
+                  )}
+                  {canManageFinanceAccess && (
+                    <td style={{padding:'8px',fontSize:12,color:t.sub}}>
+                      {u.role==='pa' && (
+                        <input type="checkbox" checked={!!u.finance_access_granted} disabled={reassigningFinance===u.id}
+                          onChange={e=>doSetFinanceAccess(u, e.target.checked)}
+                          title="Grant this PA access to financial/giving data" />
+                      )}
                     </td>
                   )}
                   <td style={{padding:'8px',textAlign:'right',whiteSpace:'nowrap'}}>
@@ -3448,7 +3486,7 @@ export default function DashboardPage(){
           {page==='settings'&&(
             <div>
               <ChurchSettingsPanel t={t} dark={dark} userRole={userRole} onConfigSaved={(cfg)=>setChurchConfig(cfg)} />
-              {['overseer','general_overseer','lead_tech'].includes(userRole) && <TeamAccessPanel t={t} isMobile={isMobile} churchConfig={churchConfig} />}
+              {['overseer','general_overseer','lead_tech'].includes(userRole) && <TeamAccessPanel t={t} isMobile={isMobile} churchConfig={churchConfig} userRole={userRole} />}
             </div>
           )}
           {page==='admin'&&(
