@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
+import { recordUsage } from '@/lib/usage';
+import { getChurchPlan } from '@/lib/plan-gate';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -53,5 +55,15 @@ export async function POST(req: Request) {
   }
 
   const url = `${S}/storage/v1/object/public/${BUCKET}/${path}`;
+
+  // Fire-and-forget storage-volume logging — cost_ngn is 0 (no defensible
+  // per-byte NGN estimate without knowing the founder's actual Supabase
+  // Storage pricing tier); the real byte count in metadata is what gives
+  // the command center exact storage-volume-per-church numbers. See
+  // scripts/62_platform_cost_accounting.sql.
+  getChurchPlan(user.church_id)
+    .then(plan => recordUsage(user.church_id, 'storage', plan.plan_tier, { bytes: file.size, context }))
+    .catch(() => {});
+
   return NextResponse.json({ data: { url, media_type: mime }, error: null }, { status: 201 });
 }
