@@ -105,6 +105,59 @@ export function buildPollView(poll: PollRow, options: PollOptionRow[], votes: Po
   };
 }
 
+/**
+ * Batch version of buildPollView for a page of posts/messages — one
+ * shared implementation for GET /api/feed/posts and
+ * GET /api/chat/threads/[id]/messages so both list routes attach poll
+ * card-views (and their vote-gated hiding rule) identically instead of
+ * each re-deriving it. `rows` only needs a `poll_id` field (both
+ * feed_posts and chat_messages happen to name it the same).
+ */
+export async function attachPollViews(
+  rows: { poll_id: string | null }[],
+  caller: { id: string; role: string }
+): Promise<Map<string, ReturnType<typeof buildPollView>>> {
+  const pollIds = [...new Set(rows.map(r => r.poll_id).filter(Boolean))] as string[];
+  if (pollIds.length === 0) return new Map();
+
+  const [pollsRes, optsRes, votesRes] = await Promise.all([
+    fetch(`${S}/rest/v1/feed_polls?id=in.(${pollIds.join(',')})&select=id,post_id,message_id,question,poll_type,allow_vote_change,closes_at,closed_by,closed_at,created_by,created_at`, { headers: H() }),
+    fetch(`${S}/rest/v1/feed_poll_options?poll_id=in.(${pollIds.join(',')})&order=display_order.asc&select=id,poll_id,option_text,display_order`, { headers: H() }),
+    fetch(`${S}/rest/v1/feed_poll_votes?poll_id=in.(${pollIds.join(',')})&select=poll_id,option_id,user_id`, { headers: H() }),
+  ]);
+  const polls: PollRow[] = await pollsRes.json().catch(() => []);
+  const opts: (PollOptionRow & { poll_id: string })[] = await optsRes.json().catch(() => []);
+  const votes: (PollVoteRow & { poll_id: string })[] = await votesRes.json().catch(() => []);
+
+  const optsByPoll = new Map<string, PollOptionRow[]>();
+  (Array.isArray(opts) ? opts : []).forEach(o => { (optsByPoll.get(o.poll_id) || optsByPoll.set(o.poll_id, []).get(o.poll_id))!.push(o); });
+  const votesByPoll = new Map<string, PollVoteRow[]>();
+  (Array.isArray(votes) ? votes : []).forEach(v => { (votesByPoll.get(v.poll_id) || votesByPoll.set(v.poll_id, []).get(v.poll_id))!.push(v); });
+
+  const out = new Map<string, ReturnType<typeof buildPollView>>();
+  (Array.isArray(polls) ? polls : []).forEach(p => {
+    out.set(p.id, buildPollView(p, optsByPoll.get(p.id) || [], votesByPoll.get(p.id) || [], caller));
+  });
+  return out;
+}
+
+// ── Poll creation input validation (shared by the feed and chat post
+// routes, so the rules — question required, 2-20 options, valid
+// poll_type, parseable closes_at — can never drift between them) ──
+
+export type PollInput = { question: string; poll_type: 'single' | 'multiple'; options: string[]; allow_vote_change?: boolean; closes_at?: string | null };
+
+export function validatePollInput(poll: PollInput | undefined | null): string | null {
+  if (!poll) return null;
+  if (!poll.question?.trim()) return 'Poll question is required';
+  if (poll.poll_type !== 'single' && poll.poll_type !== 'multiple') return 'poll_type must be "single" or "multiple"';
+  const cleanOptions = (poll.options || []).map(o => (o || '').trim()).filter(Boolean);
+  if (cleanOptions.length < 2) return 'A poll needs at least 2 options';
+  if (cleanOptions.length > 20) return 'A poll can have at most 20 options';
+  if (poll.closes_at && isNaN(new Date(poll.closes_at).getTime())) return 'closes_at is not a valid date';
+  return null;
+}
+
 export type PollParent =
   | { kind: 'feed'; pollId: string; postId: string; groupId: string; churchId: string }
   | { kind: 'chat'; pollId: string; messageId: string; threadId: string; churchId: string };

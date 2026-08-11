@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { extractGroupMentions } from '@/lib/mention-groups';
 import { notifyUsers } from '@/lib/notify';
-import { buildPollView, type PollRow, type PollOptionRow, type PollVoteRow } from '@/lib/poll-analytics';
+import { buildPollView, attachPollViews, validatePollInput } from '@/lib/poll-analytics';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -15,40 +15,6 @@ const POST_SELECT = 'id,author_id,author_name,author_role,body,urgent,pinned,cre
 
 async function getUser(req: Request) {
   return getAuthUser(req);
-}
-
-// Attaches poll data (question/options/tally/my-vote) to every post whose
-// poll_id is set, via buildPollView — the single shared place that
-// decides when tallies become visible (Telegram convention: hidden from a
-// plain voter until they've cast a ballot, the poll closes, or they're
-// the creator/leadership) so this can never drift from the vote routes'
-// own idea of the same gating. This is the aggregate-only side of the
-// fixed visibility model; full per-voter attribution never appears here
-// regardless of who's asking — that only ever comes from
-// GET /api/feed/polls/[id]/results, itself restricted to creator/leadership.
-async function attachPolls(rows: Record<string, unknown>[], caller: { id: string; role: string }) {
-  const pollIds = rows.map(p => p.poll_id).filter(Boolean) as string[];
-  if (pollIds.length === 0) return new Map<string, ReturnType<typeof buildPollView>>();
-
-  const [pollsRes, optsRes, votesRes] = await Promise.all([
-    fetch(`${S}/rest/v1/feed_polls?id=in.(${pollIds.join(',')})&select=id,post_id,message_id,question,poll_type,allow_vote_change,closes_at,closed_by,closed_at,created_by,created_at`, { headers: H() }),
-    fetch(`${S}/rest/v1/feed_poll_options?poll_id=in.(${pollIds.join(',')})&order=display_order.asc&select=id,poll_id,option_text,display_order`, { headers: H() }),
-    fetch(`${S}/rest/v1/feed_poll_votes?poll_id=in.(${pollIds.join(',')})&select=poll_id,option_id,user_id`, { headers: H() }),
-  ]);
-  const polls: PollRow[] = await pollsRes.json().catch(() => []);
-  const opts: (PollOptionRow & { poll_id: string })[] = await optsRes.json().catch(() => []);
-  const votes: (PollVoteRow & { poll_id: string })[] = await votesRes.json().catch(() => []);
-
-  const optsByPoll = new Map<string, PollOptionRow[]>();
-  (Array.isArray(opts) ? opts : []).forEach(o => { (optsByPoll.get(o.poll_id) || optsByPoll.set(o.poll_id, []).get(o.poll_id))!.push(o); });
-  const votesByPoll = new Map<string, PollVoteRow[]>();
-  (Array.isArray(votes) ? votes : []).forEach(v => { (votesByPoll.get(v.poll_id) || votesByPoll.set(v.poll_id, []).get(v.poll_id))!.push(v); });
-
-  const out = new Map<string, ReturnType<typeof buildPollView>>();
-  (Array.isArray(polls) ? polls : []).forEach(p => {
-    out.set(p.id, buildPollView(p, optsByPoll.get(p.id) || [], votesByPoll.get(p.id) || [], caller));
-  });
-  return out;
 }
 
 // Cursor-paginated: the first page (no `before`) always includes every
@@ -95,7 +61,7 @@ export async function GET(req: Request) {
     fetch(`${S}/rest/v1/feed_acknowledgements?post_id=in.(${ids.join(',')})&select=post_id`, { headers: H() }),
     fetch(`${S}/rest/v1/feed_acknowledgements?post_id=in.(${ids.join(',')})&user_id=eq.${user.id}&select=post_id`, { headers: H() }),
     fetch(`${S}/rest/v1/feed_post_reactions?post_id=in.(${ids.join(',')})&select=post_id,user_id,emoji,users(full_name)`, { headers: H() }),
-    attachPolls(rows, { id: user.id, role: user.role }),
+    attachPollViews(rows as { poll_id: string | null }[], { id: user.id, role: user.role }),
   ]);
   const comments: { post_id: string }[] = await commentsRes.json().catch(() => []);
   const acks: { post_id: string }[] = await acksRes.json().catch(() => []);
@@ -135,19 +101,6 @@ async function canPost(user: { id: string; role: string }, group: { type: string
     return { post: data?.[0]?.department_id === group.department_id, pin: false };
   }
   return { post: false, pin: false };
-}
-
-type PollInput = { question: string; poll_type: 'single' | 'multiple'; options: string[]; allow_vote_change?: boolean; closes_at?: string | null };
-
-function validatePollInput(poll: PollInput | undefined | null): string | null {
-  if (!poll) return null;
-  if (!poll.question?.trim()) return 'Poll question is required';
-  if (poll.poll_type !== 'single' && poll.poll_type !== 'multiple') return 'poll_type must be "single" or "multiple"';
-  const cleanOptions = (poll.options || []).map(o => (o || '').trim()).filter(Boolean);
-  if (cleanOptions.length < 2) return 'A poll needs at least 2 options';
-  if (cleanOptions.length > 20) return 'A poll can have at most 20 options';
-  if (poll.closes_at && isNaN(new Date(poll.closes_at).getTime())) return 'closes_at is not a valid date';
-  return null;
 }
 
 export async function POST(req: Request) {
