@@ -1879,7 +1879,7 @@ export default function DashboardPage(){
   const [moving,setMoving]=useState(false);
   const [moveError,setMoveError]=useState('');
   const [attDrill,setAttDrill]=useState<string|null>(null);
-  type DeptRow = {id:string;name:string;leader:string;count:number;absent:number;present:number;rate:number|null;status:string;submitted:boolean};
+  type DeptRow = {id:string;name:string;leader:string;count:number;absent:number;present:number;rate:number|null;status:string;submitted:boolean;department_head_sla?:number|null};
   type DeptDetail = {department:{id:string;name:string};members:{id:string;name:string;phone:string|null;role:string;status:string|null}[];last_submission:string|null};
   const [deptsList,setDeptsList]=useState<DeptRow[]>([]);
   const [deptsLoading,setDeptsLoading]=useState(true);
@@ -3343,6 +3343,34 @@ export default function DashboardPage(){
                       );
                   })}
                 </div>
+              </div>
+
+              {/* Top Department Heads */}
+              <div style={card()}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Department Heads</div>
+                {(deptsList||[]).filter(d=>d.department_head_sla!=null).length===0 ? (
+                  <div style={{padding:'16px 0',textAlign:'center',color:t.muted,fontSize:12}}>No department SLA data yet</div>
+                ) : (
+                <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:12}}>
+                  {[...(deptsList||[])].filter(d=>d.department_head_sla!=null)
+                    .sort((a,b)=>(b.department_head_sla??0)-(a.department_head_sla??0))
+                    .map(d=>{
+                      const score=d.department_head_sla??0;
+                      const tier=score>=90?'Elite Shepherd':score>=75?'Faithful Steward':score>=60?'Consistent Servant':'Needs Improvement';
+                      const tierColor=score>=90?{bg:'#EEEDFE',c:'#3C3489'}:score>=75?{bg:'#E1F5EE',c:'#085041'}:{bg:'#F3F4F6',c:'#374151'};
+                      return(
+                        <div key={d.id} style={{background:t.cardInner,borderRadius:10,padding:'14px 16px',border:`0.5px solid ${t.border}`}}>
+                          <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:2}}>{d.name}</div>
+                          <div style={{fontSize:11,color:t.muted,marginBottom:8}}>{d.leader}</div>
+                          <div style={{fontSize:26,fontWeight:700,color:score>=80?t.teal:t.amber,marginBottom:8}}>{score}%</div>
+                          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                            <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:tierColor.bg,color:tierColor.c,fontWeight:500}}>{tier}</span>
+                          </div>
+                        </div>
+                      );
+                  })}
+                </div>
+                )}
               </div>
 
               {/* Badge showcase */}

@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 import { resolveBranchScope } from '@/lib/branch-scope';
+import { gradeToScore } from '@/lib/sla';
+import { avgScore, computeGrowthTrend, computeDepartmentHeadScore } from '@/lib/leadership-sla';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -97,6 +99,35 @@ export async function GET(req: Request) {
       });
     }
 
+    // ── Department head leadership SLA (for a "Top Department Heads"
+    // leaderboard, parallel to cells/all's per-cell overall_score) — a
+    // wider, separate window from the 14-day `latestAtt` above (which
+    // only ever needs the single most recent submission for the existing
+    // departments list). Same computeDepartmentHeadScore/computeGrowthTrend
+    // used by GET /api/department/overview, so a department head's own
+    // score and this admin-wide leaderboard's number for them can never
+    // silently drift apart.
+    const slaCutoff = new Date(Date.now() - 84 * 24 * 60 * 60 * 1000).toISOString();
+    const slaAttRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/department_attendance?submitted_at=gte.${slaCutoff}&order=submitted_at.desc&limit=1000&select=department_id,present_count,absent_count,submitted_at,sla_grade`,
+      { headers: hdrs() }
+    );
+    const slaAttRecords = await slaAttRes.json();
+    const slaRecordsByDept: Record<string, { present: number; absent: number; sla_grade: string | null }[]> = {};
+    if (Array.isArray(slaAttRecords)) {
+      // Newest-first from the query; cap each department's own list to the
+      // most recent 12 (same window size department/overview itself uses)
+      // before reversing to chronological order for the growth calc.
+      slaAttRecords.forEach((r: Record<string, unknown>) => {
+        const did = r.department_id as string;
+        if (!did) return;
+        if (!slaRecordsByDept[did]) slaRecordsByDept[did] = [];
+        if (slaRecordsByDept[did].length < 12) {
+          slaRecordsByDept[did].push({ present: (r.present_count as number) || 0, absent: (r.absent_count as number) || 0, sla_grade: r.sla_grade as string | null });
+        }
+      });
+    }
+
     const result = Array.isArray(depts) ? depts.map((d: Record<string, string>) => {
       const att = latestAtt[d.id];
       const count = memberCount[d.id] || 0;
@@ -104,6 +135,16 @@ export async function GET(req: Request) {
       const present = att?.present ?? 0;
       const rate = (present + absent) > 0 ? Math.round((present / (present + absent)) * 100) : null;
       const status = rate === null ? 'no_data' : rate >= 80 ? 'healthy' : rate >= 60 ? 'stable' : rate >= 40 ? 'watch' : 'alert';
+
+      const slaRecords = slaRecordsByDept[d.id] || [];
+      const rates = slaRecords.map(r => (r.present + r.absent) > 0 ? Math.round((r.present / (r.present + r.absent)) * 100) : null).filter((v): v is number => v !== null);
+      const avgRate = rates.length > 0 ? Math.round(rates.reduce((a, b) => a + b, 0) / rates.length) : null;
+      const cappedRate = avgRate !== null ? Math.min(avgRate, 95) : null;
+      const presentHistory = slaRecords.slice().reverse().map(r => r.present);
+      const growthScore = presentHistory.length >= 4 ? computeGrowthTrend(presentHistory).growthScore : null;
+      const submissionSla = avgScore(slaRecords.map(r => gradeToScore(r.sla_grade)));
+      const department_head_sla = computeDepartmentHeadScore({ cappedRate, submissionSla, growthScore });
+
       return {
         id: d.id,
         name: d.name,
@@ -114,6 +155,7 @@ export async function GET(req: Request) {
         rate,
         status,
         submitted: !!att,
+        department_head_sla,
       };
     }) : [];
 

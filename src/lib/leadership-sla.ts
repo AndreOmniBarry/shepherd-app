@@ -321,11 +321,11 @@ export function computeFellowshipHeadScore(input: {
 // cell-formula's own weights here reproduces the cell formula's relative
 // emphasis (rate > submission > growth) rather than inventing a fresh
 // ranking. Roster-publishing promptness was investigated as a 4th input
-// (see fellowship/../department SLA route comment) but workforce_rosters
-// has no timestamp that isolates "the moment this roster was published"
-// from "the moment it was last edited" — see that route's comment — so it
-// is deliberately not included here rather than forced in as a
-// mismeasured signal.
+// but workforce_rosters has no timestamp that isolates "the moment this
+// roster was published" from "the moment it was last edited" — see the
+// comment at the top of src/app/api/workforce/rosters/route.ts — so it is
+// deliberately not included here rather than forced in as a mismeasured
+// signal.
 export function computeDepartmentHeadScore(input: {
   cappedRate: number | null;
   submissionSla: number | null;
