@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 import { requirePremium, getChurchPlan } from '@/lib/plan-gate';
 import { recordUsage } from '@/lib/usage';
 import type { AgentName, AuthUser } from '@/types';
@@ -10,14 +10,7 @@ const anthropic = new Anthropic({
 });
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const cookieMatch = cookie.match(/shepherd_token=([^;]+)/);
-  const authHeader = req.headers.get('Authorization')?.replace('Bearer ', '');
-  const token = cookieMatch?.[1] || authHeader;
-  if (!token) return null;
-  const payload = await verifyToken(token);
-  if (!payload) return null;
-  return payloadToAuthUser(payload);
+  return getAuthUser(req);
 }
 
 // Only general_overseer and lead_tech have unrestricted BRANCH reach —

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 import { bucketBounds } from '@/lib/history-buckets';
 import { resolveBranchScope } from '@/lib/branch-scope';
 
@@ -9,10 +9,7 @@ const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const H = () => ({ 'apikey': KEY, 'Authorization': `Bearer ${KEY}` });
 
 async function getUser(req: Request) {
-  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
-  if (!m) return null;
-  const p = await verifyToken(m[1]);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 // Same paginated week/month/year pattern as attendance/care/department

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -9,10 +9,7 @@ const hdrs = () => ({ apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}
 const ADMIN_ROLES = ['overseer', 'general_overseer', 'lead_tech'];
 
 async function getUser(req: Request) {
-  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
-  if (!m) return null;
-  const p = await verifyToken(m[1]);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 // Full staff directory for the Team & Access settings panel — admin-only,
