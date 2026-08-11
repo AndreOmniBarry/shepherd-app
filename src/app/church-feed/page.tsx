@@ -174,7 +174,7 @@ export default function ChurchFeedPage() {
     try {
       const res = await fetch('/api/feed/posts', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ group_id: activeGroupId, body: composerBody.trim() || ' ', urgent: composerUrgent, pinned: composerPinned, media_url: composerMedia?.url, media_type: composerMedia?.type }),
+        body: JSON.stringify({ group_id: activeGroupId, body: composerBody.trim(), urgent: composerUrgent, pinned: composerPinned, media_url: composerMedia?.url, media_type: composerMedia?.type }),
       });
       const json = await res.json();
       if (!res.ok) { setPostError(json.error?.message || 'Failed to post.'); return; }

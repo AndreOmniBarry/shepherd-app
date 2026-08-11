@@ -103,7 +103,10 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 
   const { group_id, body, urgent, pinned, media_url, media_type } = await req.json();
-  if (!group_id || !body?.trim()) return NextResponse.json({ data: null, error: { message: 'group_id and body are required' } }, { status: 400 });
+  // A photo-only post (no caption) is allowed — text or media, at least one.
+  if (!group_id || (!body?.trim() && !media_url)) {
+    return NextResponse.json({ data: null, error: { message: 'group_id and a body or photo are required' } }, { status: 400 });
+  }
 
   const groupRes = await fetch(`${S}/rest/v1/feed_groups?id=eq.${group_id}&church_id=eq.${user.church_id}&select=id,type,department_id&limit=1`, { headers: H() });
   const groupData = await groupRes.json().catch(() => []);
@@ -117,7 +120,7 @@ export async function POST(req: Request) {
     method: 'POST', headers: { ...H(), 'Prefer': 'return=representation' },
     body: JSON.stringify({
       group_id, author_id: user.id, author_name: user.name || 'Someone', author_role: user.role,
-      body: body.trim(), urgent: !!urgent, pinned: !!pinned && perm.pin,
+      body: (body || '').trim(), urgent: !!urgent, pinned: !!pinned && perm.pin,
       media_url: media_url || null, media_type: media_type || null,
     }),
   });
