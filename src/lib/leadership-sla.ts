@@ -51,6 +51,29 @@ export function avgScore(nums: (number | null | undefined)[]): number | null {
   return present.length > 0 ? Math.round(present.reduce((a, b) => a + b, 0) / present.length) : null;
 }
 
+// Recent-vs-older attendance trend — the exact "compare the last 2 data
+// points to the first 2" calc cells/all/route.ts has always used, now
+// also reused by the department-head composite (see
+// computeDepartmentHeadScore) so "growth" means the same thing at both
+// levels. `history` must be in chronological (oldest-first) order.
+export function computeGrowthTrend(history: number[]): { trend: string; trendPct: number; status: string; growthScore: number } {
+  let trend = '+0%';
+  let trendPct = 0;
+  let status = 'stable';
+  if (history.length >= 4) {
+    const recent = history.slice(-2).reduce((a, b) => a + b, 0) / 2;
+    const older = history.slice(0, 2).reduce((a, b) => a + b, 0) / 2;
+    if (older > 0) {
+      const pct = Math.round(((recent - older) / older) * 100);
+      trendPct = pct;
+      trend = pct >= 0 ? `+${pct}%` : `${pct}%`;
+      status = pct >= 10 ? 'rising' : pct <= -10 ? 'alert' : pct <= -3 ? 'watch' : 'stable';
+    }
+  }
+  const growthScore = Math.max(0, Math.min(100, 50 + trendPct * 2));
+  return { trend, trendPct, status, growthScore };
+}
+
 // ── Cell composite (attendance rate, accuracy, growth, submission and
 // meeting promptness) — the exact formula from cells/all/route.ts,
 // unchanged. weight 0.35 / 0.15 / 0.15 / 0.20 / 0.15.
@@ -217,26 +240,13 @@ export async function buildCellScores(params: {
     const count = memberCount[cid] || 0;
     const rate = count > 0 ? Math.round((avg / count) * 100) : 0;
 
-    let trend = '+0%';
-    let trendPct = 0;
-    let status = 'stable';
-    if (history.length >= 4) {
-      const recent = history.slice(-2).reduce((a, b) => a + b, 0) / 2;
-      const older = history.slice(0, 2).reduce((a, b) => a + b, 0) / 2;
-      if (older > 0) {
-        const pct = Math.round(((recent - older) / older) * 100);
-        trendPct = pct;
-        trend = pct >= 0 ? `+${pct}%` : `${pct}%`;
-        status = pct >= 10 ? 'rising' : pct <= -10 ? 'alert' : pct <= -3 ? 'watch' : 'stable';
-      }
-    }
+    const { trend, status, growthScore } = computeGrowthTrend(history);
 
     const meeting = meetingMap[cid];
     const cappedRate = Math.min(rate, 95);
     const submissionSla = avgScore(attSlaMap[cid] || []);
     const meetingSla = avgScore(meetingSlaMap[cid] || []);
     const accuracy = accuracyMap[cid] ?? 100;
-    const growthScore = Math.max(0, Math.min(100, 50 + trendPct * 2));
     const overallScore = computeCellOverallScore({ cappedRate, accuracy, growthScore, submissionSla, meetingSla });
 
     return {

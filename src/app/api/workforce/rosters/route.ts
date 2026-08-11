@@ -3,6 +3,22 @@ import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { notifyMany } from '@/lib/notify';
 
+// A note for anyone tempted to add "roster-publishing promptness" to the
+// department-head leadership SLA (src/lib/leadership-sla.ts,
+// computeDepartmentHeadScore): it was investigated for that ticket and
+// deliberately left out. workforce_rosters (see scripts/05_service_planner
+// .sql) only has created_at (first save, draft or published) and
+// updated_at (rewritten on every save) — there is no published_at that
+// isolates the moment `published` actually flipped to true. Department
+// heads commonly save a draft roster, edit it over several days, and
+// publish later (see POST below and src/app/api/department/roster/
+// route.ts) — sometimes editing further *after* publishing (swapping a
+// server, say). Using updated_at as a stand-in would silently mismeasure
+// promptness for that last case (a roster published on time but tweaked
+// afterward would look late) rather than just being imprecise, so it was
+// dropped instead of forced in as a fake signal. Revisit if a real
+// published_at column is ever added to this table.
+
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const H = () => ({ 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' });

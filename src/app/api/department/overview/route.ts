@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { computeHealth, computeBirthdayStatus, buildTrend, buildSlaHistory, computeAvgRate } from '@/lib/structure-overview';
+import { gradeToScore } from '@/lib/sla';
+import { avgScore, computeGrowthTrend, computeDepartmentHeadScore } from '@/lib/leadership-sla';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -125,6 +127,33 @@ export async function GET(req: Request) {
     // SLA history
     const slaHistory = buildSlaHistory(Array.isArray(records) ? records : []);
 
+    // ── Department head leadership SLA ───────────────────────────
+    // Same "real inputs only, drop what's missing" discipline as
+    // cells/all, extended to department level via the shared helpers in
+    // src/lib/leadership-sla.ts. Only 3 inputs exist for a department (no
+    // dispute-accuracy or meeting-compliance equivalent — see
+    // computeDepartmentHeadScore's comment); a 4th candidate,
+    // roster-publishing promptness, was investigated and deliberately
+    // left out — see src/app/api/workforce/rosters/route.ts's comment.
+    const recordsArr = Array.isArray(records) ? records : [];
+    // Chronological (oldest-first) present-count history, same shape
+    // buildCellScores feeds computeGrowthTrend — `records` here is
+    // fetched newest-first, so reverse it.
+    const presentHistory = recordsArr.slice().reverse().map((r: Record<string, unknown>) => (r.present_count as number) ?? 0);
+    // Growth is only reported once there's enough history to mean
+    // anything (same 4-point minimum computeGrowthTrend itself checks) —
+    // dropped, not defaulted to a neutral midpoint, so a brand-new
+    // department never shows a number that looks measured but isn't.
+    const growthScore = presentHistory.length >= 4 ? computeGrowthTrend(presentHistory).growthScore : null;
+    const submissionSla = avgScore(recordsArr.map((r: Record<string, unknown>) => gradeToScore(r.sla_grade as string | null)));
+    const cappedRate = avgRate !== null ? Math.min(avgRate, 95) : null;
+    const department_head_sla = {
+      score: computeDepartmentHeadScore({ cappedRate, submissionSla, growthScore }),
+      attendance_rate: cappedRate,
+      submission_sla_score: submissionSla,
+      growth_score: growthScore,
+    };
+
     return NextResponse.json({
       data: {
         dept: { id: dept?.id, name: dept?.name, totalMembers: members.length },
@@ -134,6 +163,7 @@ export async function GET(req: Request) {
         slaHistory,
         actions,
         birthdayToday,
+        department_head_sla,
       },
       error: null,
     });
