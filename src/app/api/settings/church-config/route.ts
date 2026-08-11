@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser, signToken } from '@/lib/auth';
+import { signToken, getAuthUser } from '@/lib/auth';
 import { DEFAULT_CONFIG, type ChurchConfig } from '@/lib/church-config';
 import type { AuthUser } from '@/types';
 
@@ -12,13 +12,7 @@ const hdrs = () => ({
 });
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const m = cookie.match(/shepherd_token=([^;]+)/);
-  const token = m?.[1];
-  if (!token) return null;
-  const payload = await verifyToken(token);
-  if (!payload) return null;
-  return payloadToAuthUser(payload);
+  return getAuthUser(req);
 }
 
 export async function GET(req: Request) {
