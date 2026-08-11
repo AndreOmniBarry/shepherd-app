@@ -10,6 +10,7 @@ import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
 import DateTimePicker from '@/components/DateTimePicker';
 import Icon from '@/components/Icon';
 import { formatMoney, currencySymbol } from '@/lib/currency';
+import { gradeColors } from '@/lib/sla';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import ChatNavButton from '@/components/ChatNavButton';
@@ -73,16 +74,6 @@ const DISPUTE_REASONS = [
   { value: 'member_marked_absent', label: 'Member marked absent who was present' },
   { value: 'other', label: 'Other inaccuracy' },
 ];
-
-const SLA_COLORS: Record<string, { bg: string; text: string }> = {
-  'A+': { bg: '#E1F5EE', text: '#085041' },
-  'A':  { bg: '#E1F5EE', text: '#085041' },
-  'B':  { bg: '#EEEDFE', text: '#3C3489' },
-  'C':  { bg: '#FAEEDA', text: '#633806' },
-  'D':  { bg: '#FAECE7', text: '#993C1D' },
-  'F':  { bg: '#FCEBEB', text: '#A32D2D' },
-  'F-': { bg: '#FCEBEB', text: '#A32D2D' },
-};
 
 function FellowshipApprovalPanel({t, dark}: {t: Record<string,string>; dark: boolean}) {
   const [additions, setAdditions] = React.useState<{id:string;full_name:string;phone:string;gender:string;date_of_birth:string;join_date:string;status:string;created_at:string}[]>([]);
@@ -612,7 +603,7 @@ export default function FellowshipHeadPage() {
                 {isMobile ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {cells.map(c => {
-                      const sla = SLA_COLORS[c.sla_grade || ''] || null;
+                      const sla = gradeColors(c.sla_grade);
                       return (
                         <div key={c.id} onClick={() => setSelectedCell(c)} style={{ ...card({ padding: '11px 13px' }), cursor: 'pointer' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
@@ -647,7 +638,7 @@ export default function FellowshipHeadPage() {
                     </thead>
                     <tbody>
                       {cells.map((c, i) => {
-                        const sla = SLA_COLORS[c.sla_grade || ''] || null;
+                        const sla = gradeColors(c.sla_grade);
                         return (
                           <tr key={c.id} onClick={() => setSelectedCell(c)} style={{ borderBottom: i < cells.length - 1 ? `0.5px solid ${t.border}` : 'none', cursor: 'pointer' }}
                             onMouseEnter={e => e.currentTarget.style.background = dark ? '#1A1635' : '#F7F6FF'}
