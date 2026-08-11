@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { requirePremium } from '@/lib/plan-gate';
+import { requireFinanceAccess } from '@/lib/pa-governance';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -15,6 +16,8 @@ const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_te
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const financeBlocked = requireFinanceAccess(user);
+  if (financeBlocked) return financeBlocked;
   const blocked = await requirePremium(user.church_id, user.id);
   if (blocked) return blocked;
   const res = await fetch(
@@ -76,6 +79,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const financeBlocked = requireFinanceAccess(user);
+  if (financeBlocked) return financeBlocked;
   const blocked = await requirePremium(user.church_id, user.id);
   if (blocked) return blocked;
   const body = await req.json();

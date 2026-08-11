@@ -3,6 +3,7 @@ import { getAuthUser } from '@/lib/auth';
 import { computeSlaGrade } from '@/lib/sla';
 import { resolveBranchScope } from '@/lib/branch-scope';
 import { dispatchEvent } from '@/lib/notify';
+import { requireFinanceAccess } from '@/lib/pa-governance';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -17,6 +18,8 @@ const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_te
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const financeBlocked = requireFinanceAccess(user);
+  if (financeBlocked) return financeBlocked;
   // branch_pastor only ever sees their own branch's income — never other
   // branches', regardless of any query param. PA is church-wide (not
   // branch-locked) by founder decision — same free ?branch_id= choice as
@@ -46,6 +49,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const financeBlocked = requireFinanceAccess(user);
+  if (financeBlocked) return financeBlocked;
   const body = await req.json();
   const { income_type_id, member_name, amount, service_date, notes, fellowship_id, is_adjustment, adjustment_note } = body;
 

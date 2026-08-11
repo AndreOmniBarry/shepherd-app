@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { dispatchEvent } from '@/lib/notify';
+import { requireFinanceAccess } from '@/lib/pa-governance';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -17,6 +18,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) {
     return NextResponse.json({ data: null, error: { message: 'Not authorized' } }, { status: 403 });
   }
+  const financeBlocked = requireFinanceAccess(user);
+  if (financeBlocked) return financeBlocked;
 
   // Verify the requisition belongs to this caller's own church before
   // touching it — without this, any authorized role could approve/pay a

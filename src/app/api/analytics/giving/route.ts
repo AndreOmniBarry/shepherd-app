@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { resolveBranchScope } from '@/lib/branch-scope';
+import { requireFinanceAccess } from '@/lib/pa-governance';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -16,6 +17,8 @@ export async function GET(req: Request) {
     if (!user || !['overseer','general_overseer','branch_pastor','pa','lead_tech','accounts'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     }
+    const financeBlocked = requireFinanceAccess(user);
+    if (financeBlocked) return financeBlocked;
 
     const { searchParams } = new URL(req.url);
     const { branchFilter, forbidden } = resolveBranchScope(user, searchParams);

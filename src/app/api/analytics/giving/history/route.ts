@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { bucketBounds } from '@/lib/history-buckets';
 import { resolveBranchScope } from '@/lib/branch-scope';
+import { requireFinanceAccess } from '@/lib/pa-governance';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -22,6 +23,8 @@ export async function GET(req: Request) {
     if (!user || !['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech', 'accounts'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     }
+    const financeBlocked = requireFinanceAccess(user);
+    if (financeBlocked) return financeBlocked;
 
     const { searchParams } = new URL(req.url);
     const granularityParam = searchParams.get('granularity');

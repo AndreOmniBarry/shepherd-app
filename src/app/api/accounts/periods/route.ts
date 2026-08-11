@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
+import { requireFinanceAccess } from '@/lib/pa-governance';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -15,6 +16,8 @@ const ALLOWED = ['overseer', 'pa', 'lead_tech', 'accounts'];
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const financeBlocked = requireFinanceAccess(user);
+  if (financeBlocked) return financeBlocked;
   const res = await fetch(`${S}/rest/v1/financial_periods?order=period_month.desc&limit=24&select=id,period_month,closed_at,note&church_id=eq.${user.church_id}`, { headers: h() });
   const data = await res.json();
   return NextResponse.json({ data: { periods: Array.isArray(data) ? data : [] }, error: null });
@@ -25,6 +28,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const financeBlocked = requireFinanceAccess(user);
+  if (financeBlocked) return financeBlocked;
   const { period_month, note } = await req.json();
   if (!period_month) return NextResponse.json({ data: null, error: { message: 'period_month is required' } }, { status: 400 });
   const monthStart = period_month.slice(0, 7) + '-01';
