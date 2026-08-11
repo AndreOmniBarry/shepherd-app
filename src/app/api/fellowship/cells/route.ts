@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
-import { computeSlaGrade, gradeToScore } from '@/lib/sla';
 import { buildCellScores, avgScore, computeFellowshipHeadScore } from '@/lib/leadership-sla';
 
 export async function GET(req: Request) {
@@ -122,18 +121,18 @@ export async function GET(req: Request) {
     }
 
     // ── Fellowship head leadership SLA ───────────────────────────
-    // A composite of two real inputs — see computeFellowshipHeadScore in
-    // src/lib/leadership-sla.ts for the full weighting rationale:
+    // A composite of two real, coordinate (50/50) inputs — see
+    // computeFellowshipHeadScore in src/lib/leadership-sla.ts for the full
+    // weighting rationale:
     //   1. cellsAvgScore — the plain average of this fellowship's own
     //      cells' overall_score, computed via the exact same
     //      buildCellScores() cells/all/route.ts uses (church_id- and
     //      fellowship_id-scoped here so this head only ever sees their
     //      own fellowship's cells).
-    //   2. validationPromptness — how quickly this head has actually
-    //      acted (validated/rejected) on monthly_attendance records their
-    //      cell leaders submitted, graded with the same computeSlaGrade()
-    //      used everywhere else, just applied to a new pair of timestamps
-    //      (submission → validation) instead of (service → submission).
+    //   2. fellowshipAttendanceRate — overall attendance for members of
+    //      this particular fellowship, computed below as one direct
+    //      fellowship-wide ratio (NOT an average of the per-cell rates
+    //      cellsAvgScore already folds in).
     const cellScores = await buildCellScores({
       supabaseUrl: SUPABASE_URL,
       headers: hdrs,
@@ -142,30 +141,52 @@ export async function GET(req: Request) {
     });
     const cellsAvgScore = avgScore(cellScores.map(c => c.overall_score));
 
-    // Self-scoped by validated_by=user.id — this head can only ever see
-    // their own turnaround time, never another fellowship's. If
-    // monthly_attendance turns out not to carry a submission timestamp
-    // (created_at) this select simply errors and validationPromptness
-    // stays null — dropped from the composite, never faked.
-    let validationPromptness: number | null = null;
-    try {
-      const valRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/monthly_attendance?validated_by=eq.${user.id}&status=in.(validated,rejected)&validated_at=not.is.null&order=validated_at.desc&limit=40&select=created_at,validated_at`,
-        { headers: hdrs }
-      );
-      const valData = await valRes.json();
-      if (Array.isArray(valData)) {
-        const scores = valData
-          .filter((r: Record<string, unknown>) => r.created_at && r.validated_at)
-          .map((r: Record<string, unknown>) => gradeToScore(computeSlaGrade(r.created_at as string, r.validated_at as string)));
-        validationPromptness = avgScore(scores);
+    // fellowshipAttendanceRate — one direct numerator/denominator across
+    // the whole fellowship's actual member pool, scoped to exactly the
+    // cells buildCellScores just resolved for this fellowship+church (so
+    // this head only ever sees their own fellowship's data):
+    //   numerator: sum of present_count across every attendance_records
+    //     row for this fellowship's cells over the same 56-day window
+    //     buildCellScores uses (for consistency).
+    //   denominator: total count of active members across this
+    //     fellowship's cells (a single snapshot, not summed per-week).
+    // This is deliberately NOT a re-derivation of the per-cell rates
+    // already averaged into cellsAvgScore — it's a second, independently
+    // computed number. Capped at 95% via the same cappedRate convention
+    // computeCellOverallScore uses. If there are no cells, no attendance
+    // records yet, or no active members, this stays null (never a fake
+    // 0%) — a brand-new fellowship with cells but zero attendance history
+    // shows cellsAvgScore alone, or null.
+    const cellIds = cellScores.map(c => c.id);
+    let fellowshipAttendanceRate: number | null = null;
+    if (cellIds.length > 0) {
+      const since = new Date(Date.now() - 56 * 24 * 60 * 60 * 1000).toISOString();
+      const [fellAttRes, fellMembersRes] = await Promise.all([
+        fetch(
+          `${SUPABASE_URL}/rest/v1/attendance_records?cell_id=in.(${cellIds.join(',')})&submitted_at=gte.${since}&select=present_count`,
+          { headers: hdrs }
+        ),
+        fetch(
+          `${SUPABASE_URL}/rest/v1/members?cell_id=in.(${cellIds.join(',')})&membership_status=eq.active&select=id&church_id=eq.${user.church_id}`,
+          { headers: hdrs }
+        ),
+      ]);
+      const fellAttData = await fellAttRes.json();
+      const fellMembersData = await fellMembersRes.json();
+      const totalPresent = Array.isArray(fellAttData)
+        ? fellAttData.reduce((s: number, r: Record<string, unknown>) => s + ((r.present_count as number) || 0), 0)
+        : 0;
+      const totalActiveMembers = Array.isArray(fellMembersData) ? fellMembersData.length : 0;
+      if (totalActiveMembers > 0 && Array.isArray(fellAttData) && fellAttData.length > 0) {
+        const rawRate = Math.round((totalPresent / totalActiveMembers) * 100);
+        fellowshipAttendanceRate = Math.min(rawRate, 95);
       }
-    } catch { /* validationPromptness stays null — dropped from the composite */ }
+    }
 
     const fellowship_head_sla = {
-      score: computeFellowshipHeadScore({ cellsAvgScore, validationPromptness }),
+      score: computeFellowshipHeadScore({ cellsAvgScore, fellowshipAttendanceRate }),
       cells_avg_score: cellsAvgScore,
-      validation_promptness: validationPromptness,
+      fellowship_attendance_rate: fellowshipAttendanceRate,
     };
 
     return NextResponse.json({ data: { cells, fellowship_trend, fellowship_head_sla }, error: null });
