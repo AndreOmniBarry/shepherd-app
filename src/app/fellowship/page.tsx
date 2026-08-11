@@ -159,6 +159,7 @@ export default function FellowshipHeadPage() {
   const [currency, setCurrency] = useState('NGN');
   const [cells, setCells] = useState<Cell[]>([]);
   const [fellowshipTrend, setFellowshipTrend] = useState<{ w: string; v: number }[]>([]);
+  const [fellowshipHeadSla, setFellowshipHeadSla] = useState<{ score: number | null; cells_avg_score: number | null; validation_promptness: number | null } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [givingHistory, setGivingHistory] = useState<GivingEntry[]>([]);
@@ -247,6 +248,7 @@ export default function FellowshipHeadPage() {
       .then(({ data }) => {
         if (data?.cells) setCells(data.cells);
         if (data?.fellowship_trend) setFellowshipTrend(data.fellowship_trend);
+        if (data?.fellowship_head_sla !== undefined) setFellowshipHeadSla(data.fellowship_head_sla);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -481,6 +483,7 @@ export default function FellowshipHeadPage() {
             cells={cells}
             totalMembers={totalMembers}
             avgRate={avgRate}
+            leadershipSla={fellowshipHeadSla}
             submittedCells={submittedCells}
             pendingCells={pendingCells}
             overdueCells={overdueCells}

@@ -47,6 +47,13 @@ type Stats = {
   criticalCount: number;
 };
 
+// Department head's own leadership SLA — a composite distinct from
+// stats.currentSLA (which is just the most recent submission's own
+// grade). Only Department's endpoint returns this today; see
+// computeDepartmentHeadScore in src/lib/leadership-sla.ts for the
+// weighting. Any input can be null when there isn't enough data yet.
+type LeadershipSla = { score: number | null; attendance_rate: number | null; submission_sla_score: number | null; growth_score: number | null };
+
 type Overview = {
   cell?: UnitInfo;
   dept?: UnitInfo;
@@ -58,6 +65,8 @@ type Overview = {
   birthdayToday: MemberProfile[];
   // Only Cell's endpoint returns this today.
   upcomingBirthdays?: MemberProfile[];
+  // Only Department's endpoint returns this today.
+  department_head_sla?: LeadershipSla;
 };
 
 const HEALTH_CFG: Record<string, { bg: string; text: string; label: string; border: string }> = {
@@ -135,7 +144,7 @@ export default function StructureOverview({ dark = false, t, isMobile = false, f
     </div>
   );
 
-  const { stats, trend, memberProfiles, slaHistory, actions, birthdayToday, upcomingBirthdays } = overview;
+  const { stats, trend, memberProfiles, slaHistory, actions, birthdayToday, upcomingBirthdays, department_head_sla } = overview;
   const slaColor = SLA_CFG[stats.currentSLA || ''] || { bg: t.purpleBg, text: t.purple };
   const atRisk = stats.criticalCount + (stats.warningCount ?? 0);
   const atRiskSub = stats.warningCount !== undefined
@@ -185,6 +194,38 @@ export default function StructureOverview({ dark = false, t, isMobile = false, f
           </div>
         ))}
       </div>
+
+      {/* Leadership SLA — your own composite score, distinct from "Current
+          SLA" above (which is just this week's submission grade): blends
+          attendance rate, submission promptness and growth trend into one
+          number. Only rendered when the endpoint reports it (Department
+          today; Cell's endpoint doesn't compute this concept). */}
+      {department_head_sla && (
+        <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px', display: 'flex', flexWrap: 'wrap', gap: 18, alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Your leadership SLA</div>
+            {department_head_sla.score !== null ? (
+              <div style={{ fontSize: 26, fontWeight: 700, color: department_head_sla.score >= 75 ? t.teal : department_head_sla.score >= 50 ? t.amber : t.coral }}>{department_head_sla.score}%</div>
+            ) : (
+              <div style={{ fontSize: 13, color: t.muted }}>Not enough data yet</div>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 10, color: t.muted, marginBottom: 2 }}>Attendance rate</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{department_head_sla.attendance_rate !== null ? `${department_head_sla.attendance_rate}%` : '—'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: t.muted, marginBottom: 2 }}>Submission promptness</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{department_head_sla.submission_sla_score !== null ? `${department_head_sla.submission_sla_score}%` : '—'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: t.muted, marginBottom: 2 }}>Growth trend</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{department_head_sla.growth_score !== null ? `${department_head_sla.growth_score}%` : '—'}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Charts row */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>

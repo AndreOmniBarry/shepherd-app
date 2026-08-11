@@ -33,6 +33,14 @@ type OverviewCell = {
   status: 'submitted' | 'pending' | 'overdue';
 };
 
+// Fellowship head's own leadership SLA — a composite of their fellowship's
+// cells' own overall_score (from cells/all's formula, reused not
+// re-derived — see src/lib/leadership-sla.ts) and this head's own
+// validation-action promptness. Either half can be null if there's no
+// data yet (e.g. a brand-new fellowship, or a head who hasn't validated
+// anything) — see GET /api/fellowship/cells for the full computation.
+type LeadershipSla = { score: number | null; cells_avg_score: number | null; validation_promptness: number | null } | null;
+
 interface FellowshipOverviewProps {
   t: Record<string, string>;
   isMobile?: boolean;
@@ -48,11 +56,13 @@ interface FellowshipOverviewProps {
   formatGiving: (n: number) => string;
   onNudgeSent: (message: string) => void;
   onViewCells: () => void;
+  leadershipSla?: LeadershipSla;
 }
 
 export default function FellowshipOverview({
   t, isMobile = false, leaderName, tier2Label, cells, totalMembers, avgRate,
   submittedCells, pendingCells, overdueCells, ytdGiving, formatGiving, onNudgeSent, onViewCells,
+  leadershipSla,
 }: FellowshipOverviewProps) {
   const todayStr = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -118,6 +128,33 @@ export default function FellowshipOverview({
           </div>
         ))}
       </div>
+
+      {/* Leadership SLA — your own composite score, not just a per-cell
+          submission grade: blends your cells' own overall_score (the same
+          numbers cells/all reports) with how promptly you validate what
+          your cell leaders submit. */}
+      {leadershipSla && (
+        <div style={{ ...card(), marginBottom: 18, display: 'flex', flexWrap: 'wrap', gap: 18, alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Your leadership SLA</div>
+            {leadershipSla.score !== null ? (
+              <div style={{ fontSize: 26, fontWeight: 700, color: leadershipSla.score >= 75 ? t.teal : leadershipSla.score >= 50 ? t.amber : t.coral }}>{leadershipSla.score}%</div>
+            ) : (
+              <div style={{ fontSize: 13, color: t.muted }}>Not enough data yet</div>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 10, color: t.muted, marginBottom: 2 }}>{tier2Label}s avg score</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{leadershipSla.cells_avg_score !== null ? `${leadershipSla.cells_avg_score}%` : '—'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: t.muted, marginBottom: 2 }}>Validation promptness</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{leadershipSla.validation_promptness !== null ? `${leadershipSla.validation_promptness}%` : '—'}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cells needing attention */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
