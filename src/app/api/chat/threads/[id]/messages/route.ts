@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { requireChatAccess } from '@/lib/plan-gate';
 import { notifyUsers } from '@/lib/notify';
+import { extractGroupMentions } from '@/lib/mention-groups';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -111,9 +112,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       .map((p: { users: { id: string; full_name: string } | null }) => p.users).filter(Boolean) as { id: string; full_name: string }[];
 
     const bodyText = (text || '').trim();
-    const mentionedIds = participants
+    const individualMentionIds = participants
       .filter(p => p.id !== user.id && new RegExp(`@${p.full_name.split(' ')[0]}\\b`, 'i').test(bodyText))
       .map(p => p.id);
+
+    // @group-tag mentions (e.g. @cell_leaders, @dept_heads, @choir) are a
+    // separate, distinct lookup from the @FirstName participant-matching
+    // above — they resolve against the church/branch structure, not "must
+    // already be in this thread". A resolved group member who ISN'T a
+    // thread participant can't see the thread at all, so they're excluded
+    // here rather than notified into a dead end — mentioned_user_ids stays
+    // scoped to ids that are both resolved AND actual thread participants,
+    // matching its existing "who got pinged (and can see it)" meaning.
+    const participantIdSet = new Set(participants.map(p => p.id));
+    const { userIds: groupMentionUserIds, matchedTags } = await extractGroupMentions(bodyText, {
+      id: user.id, role: user.role, church_id: user.church_id, branch_id: user.branch_id,
+    });
+    const groupMentionParticipantIds = groupMentionUserIds.filter(id => id !== user.id && participantIdSet.has(id));
+
+    const mentionedIds = [...new Set([...individualMentionIds, ...groupMentionParticipantIds])];
 
     const insertRes = await fetch(`${S}/rest/v1/chat_messages`, {
       method: 'POST', headers: { ...H(), 'Prefer': 'return=representation' },
@@ -132,9 +149,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
 
     if (mentionedIds.length > 0) {
+      const tagSuffix = matchedTags.length > 0 ? ` (@${matchedTags[0].tag})` : '';
       await notifyUsers(mentionedIds, {
         type: 'pastoral',
-        title: `${user.name} mentioned you in chat`,
+        title: `${user.name} mentioned you in chat${tagSuffix}`,
         body: bodyText.slice(0, 120),
         link: `/chat?thread=${threadId}`,
       }, user.church_id);
