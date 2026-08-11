@@ -18,12 +18,13 @@ async function getUser(req: Request) {
   return payloadToAuthUser(payload);
 }
 
-// Pastor/PA/lead_tech/fellowship_head creating a new cell — structural, no approval
-// chain needed (unlike adding a person to the congregation roster).
+// Overseer/PA/lead_tech/fellowship_head/branch_pastor creating a new cell —
+// structural, no approval chain needed (unlike adding a person to the
+// congregation roster).
 export async function POST(req: Request) {
   try {
     const user = await getUser(req);
-    if (!user || !['overseer', 'pa', 'lead_tech', 'fellowship_head'].includes(user.role)) {
+    if (!user || !['overseer', 'pa', 'lead_tech', 'fellowship_head', 'branch_pastor'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Not authorized to create a cell' } }, { status: 403 });
     }
 
@@ -39,6 +40,16 @@ export async function POST(req: Request) {
     if (user.role === 'fellowship_head') {
       fellowship_id = user.fellowship_id;
       if (!fellowship_id) return NextResponse.json({ data: null, error: { message: 'No fellowship assigned to your account' } }, { status: 400 });
+    } else if (fellowship_id) {
+      // Client-supplied fellowship_id — verify it belongs to this admin's
+      // own church before use, same pattern as the branch_id check below
+      // (this had no check at all before; closing it now since adding
+      // branch_pastor to the allowed roles above widens who can reach it).
+      const fellowshipCheck = await fetch(
+        `${SUPABASE_URL}/rest/v1/fellowships?id=eq.${fellowship_id}&church_id=eq.${user.church_id}&select=id&limit=1`,
+        { headers: hdrs() }
+      ).then(r => r.json());
+      if (!fellowshipCheck?.[0]) return NextResponse.json({ data: null, error: { message: 'Fellowship not found' } }, { status: 404 });
     }
 
     // Same shape as fellowship_id above: a mandatorily branch-scoped role
