@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
+import { extractGroupMentions } from '@/lib/mention-groups';
+import { notifyUsers } from '@/lib/notify';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -131,5 +133,26 @@ export async function POST(req: Request) {
   }
   const inserted = await insertRes.json();
   const post = Array.isArray(inserted) ? inserted[0] : inserted;
+
+  // @group-tag mentions (e.g. @cell_leaders, @dept_heads, @choir) — a feed
+  // post is already visible to its whole group, so unlike chat there's no
+  // "not a participant" concern here; every resolved member is notifiable.
+  // Scoping (own-branch vs church-wide) is enforced inside the resolver
+  // itself, from the poster's own role/branch — never from anything
+  // client-supplied.
+  const { userIds: mentionedIds, matchedTags } = await extractGroupMentions(post?.body || '', {
+    id: user.id, role: user.role, church_id: user.church_id, branch_id: user.branch_id,
+  });
+  const notifyIds = mentionedIds.filter(id => id !== user.id);
+  if (notifyIds.length > 0 && post?.id) {
+    const tagSuffix = matchedTags.length > 0 ? ` (@${matchedTags[0].tag})` : '';
+    await notifyUsers(notifyIds, {
+      type: 'pastoral',
+      title: `${user.name || 'Someone'} mentioned you on Church Feed${tagSuffix}`,
+      body: (post.body || '').slice(0, 120),
+      link: `/church-feed?post=${post.id}`,
+    }, user.church_id);
+  }
+
   return NextResponse.json({ data: { ...post, comment_count: 0, ack_count: 0, acknowledged_by_me: false, reactions: [] }, error: null }, { status: 201 });
 }

@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
+import { extractGroupMentions } from '@/lib/mention-groups';
+import { notifyUsers } from '@/lib/notify';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -69,5 +71,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
   if (!insertRes.ok) return NextResponse.json({ data: null, error: { message: 'Failed to comment' } }, { status: 502 });
   const inserted = await insertRes.json();
-  return NextResponse.json({ data: Array.isArray(inserted) ? inserted[0] : inserted, error: null }, { status: 201 });
+  const comment = Array.isArray(inserted) ? inserted[0] : inserted;
+
+  // @group-tag mentions in a comment — same resolver/scoping as posts.
+  const { userIds: mentionedIds, matchedTags } = await extractGroupMentions(comment?.body || '', {
+    id: user.id, role: user.role, church_id: user.church_id, branch_id: user.branch_id,
+  });
+  const notifyIds = mentionedIds.filter(uid => uid !== user.id);
+  if (notifyIds.length > 0) {
+    const tagSuffix = matchedTags.length > 0 ? ` (@${matchedTags[0].tag})` : '';
+    await notifyUsers(notifyIds, {
+      type: 'pastoral',
+      title: `${user.name || 'Someone'} mentioned you in a Church Feed comment${tagSuffix}`,
+      body: (comment.body || '').slice(0, 120),
+      link: `/church-feed?post=${id}`,
+    }, user.church_id);
+  }
+
+  return NextResponse.json({ data: comment, error: null }, { status: 201 });
 }
