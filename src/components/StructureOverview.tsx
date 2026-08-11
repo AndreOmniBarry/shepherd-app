@@ -4,6 +4,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import UpcomingEventsCard from '@/components/UpcomingEventsCard';
 import Icon from '@/components/Icon';
 import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
+import { gradeColors } from '@/lib/sla';
 
 // Shared overview tab for any single attendance-tracking unit (a cell, a
 // department, …) that reports member-level attendance health. Cell and
@@ -79,16 +80,6 @@ const HEALTH_CFG: Record<string, { bg: string; text: string; label: string; bord
   new:      { bg: '#F3F4F6', text: '#6B7280', label: 'New',      border: '#9CA3AF' },
 };
 
-const SLA_CFG: Record<string, { bg: string; text: string }> = {
-  'A+': { bg: '#E1F5EE', text: '#085041' },
-  'A':  { bg: '#E1F5EE', text: '#085041' },
-  'B':  { bg: '#EEEDFE', text: '#3C3489' },
-  'C':  { bg: '#FAEEDA', text: '#633806' },
-  'D':  { bg: '#FAECE7', text: '#993C1D' },
-  'F':  { bg: '#FCEBEB', text: '#A32D2D' },
-  'F-': { bg: '#FCEBEB', text: '#A32D2D' },
-};
-
 const ACTION_CFG = {
   high:   { bg: '#FCEBEB', text: '#A32D2D', border: 'rgba(198,40,40,0.2)', icon: '⚠' },
   medium: { bg: '#FAEEDA', text: '#633806', border: 'rgba(186,117,23,0.2)', icon: '●' },
@@ -145,7 +136,7 @@ export default function StructureOverview({ dark = false, t, isMobile = false, f
   );
 
   const { stats, trend, memberProfiles, slaHistory, actions, birthdayToday, upcomingBirthdays, department_head_sla } = overview;
-  const slaColor = SLA_CFG[stats.currentSLA || ''] || { bg: t.purpleBg, text: t.purple };
+  const slaColor = gradeColors(stats.currentSLA) || { bg: t.purpleBg, text: t.purple };
   const atRisk = stats.criticalCount + (stats.warningCount ?? 0);
   const atRiskSub = stats.warningCount !== undefined
     ? `${stats.criticalCount} critical · ${stats.warningCount} warning`
@@ -271,7 +262,7 @@ export default function StructureOverview({ dark = false, t, isMobile = false, f
               <div style={{ color: t.muted, fontSize: 12, padding: '20px 0', textAlign: 'center' }}>No submissions yet</div>
             ) : (
               slaHistory.slice(0, 6).map((s, i) => {
-                const sc = SLA_CFG[s.grade] || { bg: t.purpleBg, text: t.purple };
+                const sc = gradeColors(s.grade) || { bg: t.purpleBg, text: t.purple };
                 return (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < 5 ? `0.5px solid ${t.border}` : 'none' }}>
                     <div style={{ fontSize: 11, color: t.sub }}>{s.date ? new Date(s.date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}</div>

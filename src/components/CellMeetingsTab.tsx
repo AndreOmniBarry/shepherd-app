@@ -1,14 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
+import { gradeColors } from '@/lib/sla';
 
 type Meeting = { id: string; meeting_date: string; meeting_time: string | null; location: string | null; attendance_count: number; visitor_count: number; topic: string | null; minutes: string | null; sla_grade: string | null; created_at: string };
-
-const SLA_COLORS: Record<string, { bg: string; text: string }> = {
-  'A+': { bg: '#E1F5EE', text: '#085041' }, 'A': { bg: '#E1F5EE', text: '#085041' },
-  'B': { bg: '#EEEDFE', text: '#3C3489' }, 'C': { bg: '#FAEEDA', text: '#633806' },
-  'D': { bg: '#FAECE7', text: '#993C1D' }, 'F': { bg: '#FCEBEB', text: '#A32D2D' }, 'F-': { bg: '#FCEBEB', text: '#A32D2D' },
-};
 
 function todayStr() { return new Date().toISOString().split('T')[0]; }
 
@@ -114,7 +109,7 @@ export default function CellMeetingsTab({ t }: { t: Record<string, string> }) {
         {meetings.length === 0 ? (
           <div style={{ fontSize: 12, color: t.muted }}>No meetings logged yet.</div>
         ) : meetings.map(m => {
-          const sla = SLA_COLORS[m.sla_grade || 'A'] || SLA_COLORS['A'];
+          const sla = gradeColors(m.sla_grade) || gradeColors('A')!;
           return (
             <div key={m.id} style={{ padding: '10px 0', borderBottom: `0.5px solid ${t.border}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

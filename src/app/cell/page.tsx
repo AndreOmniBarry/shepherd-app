@@ -17,6 +17,7 @@ import { getLeafUnitLabel } from '@/lib/church-config';
 import ChatNavButton from '@/components/ChatNavButton';
 import LoadingScreen from '@/components/LoadingScreen';
 import ThemeToggle from '@/components/ThemeToggle';
+import { gradeColors } from '@/lib/sla';
 
 type Member = { id: string; full_name: string; membership_status: string; };
 type HistoryRecord = { id: string; service_date: string; service_number: number; present_count: number; absent_count: number; visitor_count: number; submitted_at: string; sla_grade?: string; };
@@ -54,15 +55,6 @@ const ABSENCE_REASONS = [
   { value: 'unknown', label: 'Unknown / Not informed' },
 ];
 
-const SLA_COLORS: Record<string, { bg: string; text: string }> = {
-  'A+': { bg: '#E1F5EE', text: '#085041' },
-  'A':  { bg: '#E1F5EE', text: '#085041' },
-  'B':  { bg: '#EEEDFE', text: '#3C3489' },
-  'C':  { bg: '#FAEEDA', text: '#633806' },
-  'D':  { bg: '#FAECE7', text: '#993C1D' },
-  'F':  { bg: '#FCEBEB', text: '#A32D2D' },
-  'F-': { bg: '#FCEBEB', text: '#A32D2D' },
-};
 
 function AddMembersTab({t, dark}: {t: Record<string,string>; dark: boolean}) {
   const [form, setForm] = React.useState({ full_name: '', phone: '', email: '', date_of_birth: '', gender: '', join_date: new Date().toISOString().split('T')[0] });
@@ -366,7 +358,7 @@ export default function CellPage() {
 
   // ── Submission success screen ────────────────────────────────
   if (submitted && submittedData) {
-    const slaColor = SLA_COLORS[submittedData.sla_grade] || SLA_COLORS['A'];
+    const slaColor = gradeColors(submittedData.sla_grade) || gradeColors('A')!;
     return (
       <div style={{ minHeight: '100vh', background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter,system-ui,sans-serif', padding: 16 }}>
         <div style={{ background: t.card, borderRadius: 16, border: `0.5px solid ${t.border}`, padding: 32, maxWidth: 380, width: '100%', textAlign: 'center' }}>
@@ -666,7 +658,7 @@ export default function CellPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                 {history.map((r, i) => {
                   const rate = Math.round((r.present_count / Math.max(1, r.present_count + r.absent_count)) * 100);
-                  const slaColor = SLA_COLORS[r.sla_grade || 'A'] || SLA_COLORS['A'];
+                  const slaColor = gradeColors(r.sla_grade) || gradeColors('A')!;
                   return (
                     <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: i < history.length - 1 ? `0.5px solid ${t.border}` : 'none' }}>
                       <div>

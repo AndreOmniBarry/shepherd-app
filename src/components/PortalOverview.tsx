@@ -1,5 +1,6 @@
 'use client';
 import { getRoleLabel } from '@/lib/church-config';
+import { gradeColors } from '@/lib/sla';
 
 interface PortalOverviewProps {
   role: 'cell_leader' | 'fellowship_head' | 'department_head' | 'care_team';
@@ -23,22 +24,19 @@ interface PortalOverviewProps {
   };
 }
 
-const SLA_COLORS: Record<string, { bg: string; text: string }> = {
-  'A+': { bg: '#E1F5EE', text: '#085041' },
-  'A':  { bg: '#E1F5EE', text: '#085041' },
-  'B':  { bg: '#EEEDFE', text: '#3C3489' },
-  'C':  { bg: '#FAEEDA', text: '#633806' },
-  'D':  { bg: '#FAECE7', text: '#993C1D' },
-  'F':  { bg: '#FCEBEB', text: '#A32D2D' },
-  'F-': { bg: '#FCEBEB', text: '#A32D2D' },
-};
-
 const TIER_LABELS: Record<string, string> = {
   'A+': 'Crown of Excellence pace',
   'A':  'Elite Shepherd pace',
+  'A-': 'Elite Shepherd pace',
+  'B+': 'Faithful Steward pace',
   'B':  'Faithful Steward pace',
+  'B-': 'Faithful Steward pace',
+  'C+': 'Needs improvement',
   'C':  'Needs improvement',
+  'C-': 'Needs improvement',
+  'D+': 'Pastoral review threshold',
   'D':  'Pastoral review threshold',
+  'D-': 'Pastoral review threshold',
   'F':  'Alert — no submission',
   'F-': 'Critical — overdue',
 };
@@ -51,7 +49,7 @@ export default function PortalOverview({ role, name, dark = false, t, stats, rol
   const resolvedRoleLabel = roleLabel || getRoleLabel(role);
 
   const sla = stats.slaGrade || '—';
-  const slaColor = SLA_COLORS[sla] || { bg: t.purpleBg, text: t.purple };
+  const slaColor = gradeColors(sla) || { bg: t.purpleBg, text: t.purple };
   const tier = TIER_LABELS[sla] || 'No submission yet this week';
 
   const kpis = role === 'cell_leader' ? [

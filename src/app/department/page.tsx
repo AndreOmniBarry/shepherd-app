@@ -14,6 +14,7 @@ import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 import ChatNavButton from '@/components/ChatNavButton';
 import LoadingScreen from '@/components/LoadingScreen';
 import ThemeToggle from '@/components/ThemeToggle';
+import { gradeColors } from '@/lib/sla';
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
@@ -63,16 +64,6 @@ const ABSENCE_REASONS = [
   { value: 'family', label: 'Family emergency' },
   { value: 'unknown', label: 'Unknown / Not informed' },
 ];
-
-const SLA_COLORS: Record<string, { bg: string; text: string }> = {
-  'A+': { bg: '#E1F5EE', text: '#085041' },
-  'A':  { bg: '#E1F5EE', text: '#085041' },
-  'B':  { bg: '#EEEDFE', text: '#3C3489' },
-  'C':  { bg: '#FAEEDA', text: '#633806' },
-  'D':  { bg: '#FAECE7', text: '#993C1D' },
-  'F':  { bg: '#FCEBEB', text: '#A32D2D' },
-  'F-': { bg: '#FCEBEB', text: '#A32D2D' },
-};
 
 export default function DepartmentHeadPage() {
   const router = useRouter();
@@ -291,7 +282,7 @@ export default function DepartmentHeadPage() {
   if (!pageReady) return <LoadingScreen dark={dark} label="Loading your department…" />;
 
   if (submitted && submittedData) {
-    const sla = SLA_COLORS[submittedData.sla_grade] || SLA_COLORS['A'];
+    const sla = gradeColors(submittedData.sla_grade) || gradeColors('A')!;
     return (
       <div style={{ minHeight: '100vh', background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter,system-ui,sans-serif', padding: 16 }}>
         <div style={{ background: t.card, borderRadius: 16, border: `0.5px solid ${t.border}`, padding: 32, maxWidth: 360, width: '100%', textAlign: 'center' }}>
@@ -534,7 +525,7 @@ export default function DepartmentHeadPage() {
               ) : (
                 history.map((r, i) => {
                   const rate = Math.round((r.present_count / Math.max(1, r.present_count + r.absent_count)) * 100);
-                  const sla = SLA_COLORS[r.sla_grade || 'A'] || SLA_COLORS['A'];
+                  const sla = gradeColors(r.sla_grade) || gradeColors('A')!;
                   return (
                     <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < history.length - 1 ? `0.5px solid ${t.border}` : 'none' }}>
                       <div>
