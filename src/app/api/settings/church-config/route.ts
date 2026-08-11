@@ -131,6 +131,7 @@ async function bootstrapChurch(user: AuthUser, churchName: string, structureType
     member_id: user.member_id,
     branch_id: user.branch_id,
     church_id: church.id,
+    finance_access_granted: user.finance_access_granted,
     name: user.name,
   });
 

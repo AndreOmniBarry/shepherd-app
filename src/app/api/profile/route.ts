@@ -67,7 +67,9 @@ export async function PATCH(req: Request) {
     if (updatedName) {
       const token = await signToken({
         id: user.id, email: user.email, role: user.role,
-        cell_id: user.cell_id, fellowship_id: user.fellowship_id, name: updatedName,
+        cell_id: user.cell_id, fellowship_id: user.fellowship_id,
+        finance_access_granted: user.finance_access_granted,
+        name: updatedName,
       });
       res.cookies.set('shepherd_token', token, {
         httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 7200, path: '/',

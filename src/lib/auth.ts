@@ -21,6 +21,7 @@ export async function signToken(user: {
   member_id?:   string | null;
   branch_id?:   string | null;
   church_id?:   string | null;
+  finance_access_granted?: boolean;
   name:         string;
 }): Promise<string> {
   return new SignJWT({
@@ -32,6 +33,7 @@ export async function signToken(user: {
     member_id:    user.member_id ?? null,
     branch_id:    user.branch_id ?? null,
     church_id:    user.church_id ?? null,
+    finance_access_granted: user.finance_access_granted ?? false,
     name:         user.name,
   })
     .setProtectedHeader({ alg: 'HS256' })
@@ -61,6 +63,10 @@ export function payloadToAuthUser(payload: JWTPayload): AuthUser {
     member_id:    payload.member_id ?? null,
     branch_id:    payload.branch_id ?? null,
     church_id:    (payload as Record<string, unknown>)['church_id'] as string | null ?? null,
+    // Missing on tokens signed before this field existed — treated as
+    // false (no access), never as a silent unlock. See hasFinanceAccess
+    // in src/lib/pa-governance.ts for the read side of this flag.
+    finance_access_granted: (payload as Record<string, unknown>)['finance_access_granted'] as boolean ?? false,
     name:         (payload as Record<string, unknown>)['name'] as string ?? '',
   };
 }

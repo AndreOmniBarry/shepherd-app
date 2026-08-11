@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     // password check — this is what makes the lockout actually throttle a
     // brute-force script instead of just tracking it after the fact.
     const profileRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(normalizedEmail)}&select=id,email,full_name,role,cell_id,fellowship_id,member_id,branch_id,church_id,is_active,failed_login_attempts,locked_until&limit=1`,
+      `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(normalizedEmail)}&select=id,email,full_name,role,cell_id,fellowship_id,member_id,branch_id,church_id,is_active,failed_login_attempts,locked_until,finance_access_granted&limit=1`,
       { headers: hdrs }
     );
     const profiles = await profileRes.json();
@@ -96,6 +96,7 @@ export async function POST(req: Request) {
       member_id:    userProfile.member_id || null,
       branch_id:    userProfile.branch_id || null,
       church_id:    userProfile.church_id || null,
+      finance_access_granted: !!userProfile.finance_access_granted,
       name:         userProfile.full_name,
     });
 

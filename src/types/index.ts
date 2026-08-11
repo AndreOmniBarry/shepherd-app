@@ -160,6 +160,10 @@ export type JWTPayload = {
   member_id?:   string | null;
   branch_id?:   string | null;
   church_id?:   string | null;
+  // Meaningful only for role: 'pa'. Optional so tokens signed before this
+  // field existed still verify — payloadToAuthUser treats a missing value
+  // as false (no access), never as a silent unlock.
+  finance_access_granted?: boolean;
   iat:          number;
   exp:          number;
 };
@@ -173,6 +177,9 @@ export type AuthUser = {
   member_id?:   string | null;
   branch_id?:   string | null;
   church_id?:   string | null;
+  // Meaningful only for role: 'pa'. See JWTPayload above for the
+  // missing-field-means-false fallback rationale.
+  finance_access_granted?: boolean;
   name:         string;
 };
 
