@@ -65,11 +65,37 @@ export function payloadToAuthUser(payload: JWTPayload): AuthUser {
   };
 }
 
-// ── Extract token from request headers ───────────────────────
+// ── Extract token from request ────────────────────────────────
+// Precedence matches the ~85 hand-rolled per-route `getUser(req)`
+// implementations this replaces: the `shepherd_token` cookie set by
+// /api/auth/login is checked first (that's what the browser session
+// flow actually relies on), falling back to an `Authorization: Bearer`
+// header only when no cookie is present. Every real-world variant of
+// the hand-rolled logic uses this same cookie-first precedence — none
+// were found that prefer the header or reject the cookie.
 export function extractToken(req: Request): string | null {
+  const cookie = req.headers.get('cookie') || '';
+  const cookieMatch = cookie.match(/shepherd_token=([^;]+)/);
+  if (cookieMatch?.[1]) return cookieMatch[1];
+
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  return authHeader.slice(7);
+  if (authHeader?.startsWith('Bearer ')) return authHeader.slice(7);
+
+  return null;
+}
+
+// ── Non-throwing auth lookup ──────────────────────────────────
+// Returns AuthUser, or null if there is no valid token. This is the
+// drop-in replacement for the per-route hand-rolled `getUser(req)`
+// functions — it never throws, so every route's own
+// `if (!user) return NextResponse.json(...)` handling (custom
+// messages/status codes) is preserved unchanged at the call site.
+export async function getAuthUser(req: Request): Promise<AuthUser | null> {
+  const token = extractToken(req);
+  if (!token) return null;
+  const payload = await verifyToken(token);
+  if (!payload) return null;
+  return payloadToAuthUser(payload);
 }
 
 // ── Full auth check for API routes ───────────────────────────
