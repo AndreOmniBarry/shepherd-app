@@ -10,13 +10,17 @@ import LoadingScreen from '@/components/LoadingScreen';
 import ChatNavButton from '@/components/ChatNavButton';
 import { rolePortal } from '@/lib/role-portal';
 import ThemeToggle from '@/components/ThemeToggle';
+import PollCard from '@/components/PollCard';
+import PollComposerFields from '@/components/PollComposerFields';
+import PollAnalyticsPanel from '@/components/PollAnalyticsPanel';
+import { emptyPollDraft, type PollDraft, type PollView } from '@/types/poll';
 
 type Group = { id: string; type: 'church' | 'department'; name: string; department_id: string | null; departments?: { name: string } | null };
 type Reaction = { user_id: string; emoji: string; user_name: string };
 type Post = {
   id: string; author_id: string; author_name: string; author_role: string; body: string; urgent: boolean; pinned: boolean; created_at: string;
   deleted_at: string | null; deleted_by: string | null; media_url: string | null; media_type: string | null;
-  comment_count: number; ack_count: number; acknowledged_by_me: boolean; reactions: Reaction[];
+  comment_count: number; ack_count: number; acknowledged_by_me: boolean; reactions: Reaction[]; poll: PollView | null;
 };
 type Comment = { id: string; author_id: string | null; author_name: string; body: string; created_at: string; deleted_at: string | null; parent_comment_id: string | null };
 type MentionGroup = { tag: string; label: string; kind: string };
@@ -96,6 +100,9 @@ export default function ChurchFeedPage() {
   const composerFileRef = useRef<HTMLInputElement>(null);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionGroups, setMentionGroups] = useState<MentionGroup[]>([]);
+  const [pollMode, setPollMode] = useState(false);
+  const [pollDraft, setPollDraft] = useState<PollDraft>(emptyPollDraft());
+  const [analyticsPollId, setAnalyticsPollId] = useState<string | null>(null);
 
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
@@ -191,19 +198,40 @@ export default function ChurchFeedPage() {
     setMentionQuery(null);
   }
 
+  function validPollDraft(): boolean {
+    return !!pollDraft.question.trim() && pollDraft.options.filter(o => o.trim()).length >= 2;
+  }
+
   async function submitPost() {
-    if (!composerBody.trim() && !composerMedia) return;
+    if (pollMode) { if (!validPollDraft()) return; } else if (!composerBody.trim() && !composerMedia) return;
     setPosting(true); setPostError('');
     try {
       const res = await fetch('/api/feed/posts', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ group_id: activeGroupId, body: composerBody.trim(), urgent: composerUrgent, pinned: composerPinned, media_url: composerMedia?.url, media_type: composerMedia?.type }),
+        body: JSON.stringify({
+          group_id: activeGroupId, body: composerBody.trim(), urgent: composerUrgent, pinned: composerPinned, media_url: composerMedia?.url, media_type: composerMedia?.type,
+          poll: pollMode ? {
+            question: pollDraft.question.trim(), poll_type: pollDraft.poll_type, options: pollDraft.options,
+            allow_vote_change: pollDraft.allow_vote_change, closes_at: pollDraft.closes_at ? new Date(pollDraft.closes_at).toISOString() : null,
+          } : undefined,
+        }),
       });
       const json = await res.json();
       if (!res.ok) { setPostError(json.error?.message || 'Failed to post.'); return; }
       setPosts(prev => [json.data, ...prev]);
       setComposerBody(''); setComposerUrgent(false); setComposerPinned(false); setComposerOpen(false); setComposerMedia(null); setMentionQuery(null);
+      setPollMode(false); setPollDraft(emptyPollDraft());
     } finally { setPosting(false); }
+  }
+
+  async function voteOnPoll(postId: string, pollId: string, optionIds: string[]) {
+    const res = await fetch(`/api/feed/polls/${pollId}/vote`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ option_ids: optionIds }),
+    });
+    const json = await res.json();
+    if (res.ok && json.data?.poll) {
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, poll: json.data.poll } : p));
+    }
   }
 
   async function deletePost(postId: string) {
@@ -403,6 +431,7 @@ export default function ChurchFeedPage() {
                         </button>
                       </div>
                     )}
+                    {pollMode && <PollComposerFields draft={pollDraft} onChange={setPollDraft} dark={dark} />}
                     <div style={{ display: 'flex', gap: 14, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' as const }}>
                       <input ref={composerFileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }}
                         onChange={async e => { const f = e.target.files?.[0]; if (f) { const m = await uploadMedia(f); if (m) setComposerMedia(m); } e.target.value = ''; }} />
@@ -410,10 +439,16 @@ export default function ChurchFeedPage() {
                         style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'transparent', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '5px 10px', fontSize: 11, color: t.purple, cursor: uploading ? 'wait' : 'pointer' }}>
                         <Icon name="ti-photo" size={13} />{uploading ? 'Uploading…' : 'Photo'}
                       </button>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.sub, cursor: 'pointer' }}>
-                        <input type="checkbox" checked={composerUrgent} onChange={e => setComposerUrgent(e.target.checked)} /> Mark urgent
-                      </label>
-                      {activeGroup.type === 'church' && isLeader && (
+                      <button onClick={() => { setPollMode(v => !v); if (pollMode) setPollDraft(emptyPollDraft()); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, background: pollMode ? t.purpleBg : 'transparent', border: `0.5px solid ${pollMode ? t.purple : t.border}`, borderRadius: 8, padding: '5px 10px', fontSize: 11, color: t.purple, cursor: 'pointer' }}>
+                        <Icon name="ti-chart-bar" size={13} />{pollMode ? 'Remove poll' : 'Poll'}
+                      </button>
+                      {!pollMode && (
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.sub, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={composerUrgent} onChange={e => setComposerUrgent(e.target.checked)} /> Mark urgent
+                        </label>
+                      )}
+                      {activeGroup.type === 'church' && isLeader && !pollMode && (
                         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.sub, cursor: 'pointer' }}>
                           <input type="checkbox" checked={composerPinned} onChange={e => setComposerPinned(e.target.checked)} /> Pin to top
                         </label>
@@ -421,11 +456,11 @@ export default function ChurchFeedPage() {
                     </div>
                     {postError && <div style={{ color: t.coral, fontSize: 12, marginTop: 8 }}>{postError}</div>}
                     <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                      <button onClick={submitPost} disabled={posting || uploading || (!composerBody.trim() && !composerMedia)}
-                        style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: posting ? 'wait' : 'pointer', opacity: (composerBody.trim() || composerMedia) ? 1 : 0.5 }}>
-                        {posting ? 'Posting…' : 'Post'}
+                      <button onClick={submitPost} disabled={posting || uploading || (pollMode ? !validPollDraft() : (!composerBody.trim() && !composerMedia))}
+                        style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: posting ? 'wait' : 'pointer', opacity: (pollMode ? validPollDraft() : (composerBody.trim() || composerMedia)) ? 1 : 0.5 }}>
+                        {posting ? 'Posting…' : pollMode ? 'Post poll' : 'Post'}
                       </button>
-                      <button onClick={() => { setComposerOpen(false); setComposerBody(''); setComposerMedia(null); setPostError(''); setMentionQuery(null); }}
+                      <button onClick={() => { setComposerOpen(false); setComposerBody(''); setComposerMedia(null); setPostError(''); setMentionQuery(null); setPollMode(false); setPollDraft(emptyPollDraft()); }}
                         style={{ background: 'transparent', color: t.muted, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: 'pointer' }}>
                         Cancel
                       </button>
@@ -476,10 +511,17 @@ export default function ChurchFeedPage() {
                       )}
                     </div>
                   </div>
-                  <div style={{ fontSize: 13, color: isDeleted ? t.muted : t.text, marginTop: 8, lineHeight: 1.5, whiteSpace: 'pre-wrap', fontStyle: isDeleted ? 'italic' : 'normal' }}>{p.body}</div>
+                  {(p.body || isDeleted) && (
+                    <div style={{ fontSize: 13, color: isDeleted ? t.muted : t.text, marginTop: 8, lineHeight: 1.5, whiteSpace: 'pre-wrap', fontStyle: isDeleted ? 'italic' : 'normal' }}>{p.body}</div>
+                  )}
                   {p.media_url && !isDeleted && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={p.media_url} alt="Post attachment" style={{ maxWidth: '100%', maxHeight: 380, borderRadius: 10, marginTop: 10, display: 'block', objectFit: 'cover' }} />
+                  )}
+                  {p.poll && !isDeleted && (
+                    <PollCard poll={p.poll} dark={dark} myId={myId}
+                      onVote={optionIds => voteOnPoll(p.id, p.poll!.id, optionIds)}
+                      onOpenAnalytics={() => setAnalyticsPollId(p.poll!.id)} />
                   )}
                   {!isDeleted && (
                     <div style={{ display: 'flex', gap: 10, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' as const, position: 'relative' }}>
@@ -587,6 +629,9 @@ export default function ChurchFeedPage() {
           </>
         )}
       </div>
+      {analyticsPollId && (
+        <PollAnalyticsPanel pollId={analyticsPollId} kind="feed" dark={dark} onClose={() => setAnalyticsPollId(null)} />
+      )}
     </div>
   );
 }
