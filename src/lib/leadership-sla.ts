@@ -272,38 +272,32 @@ export async function buildCellScores(params: {
 }
 
 // ── Fellowship head ──────────────────────────────────────────────
-// Two real inputs:
+// Two real, coordinate (equally-weighted) inputs:
 //  - cellsAvgScore: the plain average of computeCellOverallScore() (via
 //    buildCellScores above) across every cell in this head's fellowship —
 //    the exact same numbers a cells/all viewer would see for those cells,
 //    never a second independent calculation.
-//  - validationPromptness: gradeToScore(computeSlaGrade(submitted →
-//    validated)) averaged across the monthly_attendance records this head
-//    has actually approved/rejected. This is a new measurement — it did
-//    not exist before this ticket — of the head's own turnaround time on
-//    the one recurring judgment call their role makes.
+//  - fellowshipAttendanceRate: overall attendance for members of this
+//    particular fellowship — one direct ratio computed across the whole
+//    fellowship's member pool in a single query (sum of present_count
+//    across every attendance_records row for this fellowship's cells over
+//    the same 56-day window buildCellScores uses, divided by the total
+//    count of active members across this fellowship's cells), capped at
+//    95% via the same cappedRate convention computeCellOverallScore uses.
+//    This is deliberately NOT an average of the per-cell rates that
+//    already feed cellsAvgScore — it is a second, independently-measured
+//    view of the same fellowship (a genuinely different number, not a
+//    re-derivation), computed by the caller (fellowship/cells/route.ts)
+//    and passed in here.
 //
-// Weighted 60/40 toward cellsAvgScore. Reasoning: cellsAvgScore is the
-// substantive, multi-factor read on how well the fellowship itself is
-// being shepherded (it already folds in attendance, growth, dispute
-// accuracy, and two promptness signals per cell), so it should dominate a
-// leadership score named after the fellowship. validationPromptness is
-// real and role-specific — it is the only personal-action metric this
-// role has today (no equivalent to a cell leader's own "meeting logged"
-// exists for a fellowship head) — so it gets a full 40%, more than any
-// single promptness input carries inside the cell formula itself (20%),
-// on the theory that a head's own responsiveness deserves a heavier
-// single-input weight than one of several signals about a whole cell. But
-// it stays a minority share: a fellowship head who validates instantly
-// but whose cells are genuinely struggling should not outscore one who is
-// slightly slower to validate but is running a healthy fellowship.
+// Weighted 50/50 — two peer inputs, not one dominant/one supplementary.
 export function computeFellowshipHeadScore(input: {
   cellsAvgScore: number | null;
-  validationPromptness: number | null;
+  fellowshipAttendanceRate: number | null;
 }): number | null {
   return weightedAverage([
-    input.cellsAvgScore !== null ? { value: input.cellsAvgScore, weight: 0.60 } : null,
-    input.validationPromptness !== null ? { value: input.validationPromptness, weight: 0.40 } : null,
+    input.cellsAvgScore !== null ? { value: input.cellsAvgScore, weight: 0.50 } : null,
+    input.fellowshipAttendanceRate !== null ? { value: input.fellowshipAttendanceRate, weight: 0.50 } : null,
   ]);
 }
 
