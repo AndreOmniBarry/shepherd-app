@@ -15,6 +15,9 @@ tsconfig.tsbuildinfo
 # OS files
 .DS_Store
 
+# Claude Code local tooling state (isolated-worktree agent scratch dirs)
+.claude/
+
 # Logs
 *.log
 
