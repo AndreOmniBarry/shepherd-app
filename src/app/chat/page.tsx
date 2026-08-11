@@ -10,6 +10,10 @@ import LoadingScreen from '@/components/LoadingScreen';
 import { playNotificationSound, triggerHaptic } from '@/lib/notify-feedback';
 import { rolePortal } from '@/lib/role-portal';
 import ThemeToggle from '@/components/ThemeToggle';
+import PollCard from '@/components/PollCard';
+import PollComposerFields from '@/components/PollComposerFields';
+import PollAnalyticsPanel from '@/components/PollAnalyticsPanel';
+import { emptyPollDraft, type PollDraft, type PollView } from '@/types/poll';
 
 type Thread = {
   id: string; type: 'direct' | 'group'; name: string;
@@ -20,7 +24,7 @@ type Thread = {
 type Reaction = { user_id: string; emoji: string; user_name: string };
 type Message = {
   id: string; sender_id: string; sender_name: string; sender_role: string; body: string; mentioned_user_ids: string[]; created_at: string; reactions: Reaction[];
-  deleted_at: string | null; deleted_by: string | null; media_url: string | null; media_type: string | null;
+  deleted_at: string | null; deleted_by: string | null; media_url: string | null; media_type: string | null; poll: PollView | null;
 };
 type Person = { id: string; full_name: string; role: string };
 type MentionGroup = { tag: string; label: string; kind: string };
@@ -94,6 +98,9 @@ export default function ChatPage() {
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionGroups, setMentionGroups] = useState<MentionGroup[]>([]);
   const composerFileRef = useRef<HTMLInputElement>(null);
+  const [pollMode, setPollMode] = useState(false);
+  const [pollDraft, setPollDraft] = useState<PollDraft>(emptyPollDraft());
+  const [analyticsPollId, setAnalyticsPollId] = useState<string | null>(null);
 
   const [showNewChat, setShowNewChat] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
@@ -181,6 +188,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!activeThreadId) return;
     setMessages([]); lastMessageTimeRef.current = ''; setOldestCursor(null);
+    setPollMode(false); setPollDraft(emptyPollDraft());
     loadMessages(true);
     fetch(`/api/chat/threads/${activeThreadId}/read`, { method: 'POST', credentials: 'include' }).catch(() => {});
     setThreads(prev => prev.map(th => th.id === activeThreadId ? { ...th, unread_count: 0 } : th));
@@ -334,22 +342,44 @@ export default function ChatPage() {
     finally { setUploading(false); }
   }
 
+  function validPollDraft(): boolean {
+    return !!pollDraft.question.trim() && pollDraft.options.filter(o => o.trim()).length >= 2;
+  }
+
   async function sendMessage() {
-    if ((!composerBody.trim() && !composerMedia) || !activeThreadId) return;
+    if (!activeThreadId) return;
+    if (pollMode) { if (!validPollDraft()) return; } else if (!composerBody.trim() && !composerMedia) return;
     setSending(true);
     try {
       const res = await fetch(`/api/chat/threads/${activeThreadId}/messages`, {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: composerBody.trim(), media_url: composerMedia?.url, media_type: composerMedia?.type }),
+        body: JSON.stringify({
+          body: composerBody.trim(), media_url: composerMedia?.url, media_type: composerMedia?.type,
+          poll: pollMode ? {
+            question: pollDraft.question.trim(), poll_type: pollDraft.poll_type, options: pollDraft.options,
+            allow_vote_change: pollDraft.allow_vote_change, closes_at: pollDraft.closes_at ? new Date(pollDraft.closes_at).toISOString() : null,
+          } : undefined,
+        }),
       });
       const json = await res.json();
       if (res.ok && json.data) {
         setMessages(prev => [...prev, json.data]);
         lastMessageTimeRef.current = json.data.created_at;
         setComposerBody(''); setMentionQuery(null); setComposerMedia(null);
+        setPollMode(false); setPollDraft(emptyPollDraft());
         loadThreads();
       }
     } finally { setSending(false); }
+  }
+
+  async function voteOnPoll(messageId: string, pollId: string, optionIds: string[]) {
+    const res = await fetch(`/api/chat/polls/${pollId}/vote`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ option_ids: optionIds }),
+    });
+    const json = await res.json();
+    if (res.ok && json.data?.poll) {
+      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, poll: json.data.poll } : m));
+    }
   }
 
   async function deleteMessage(messageId: string) {
@@ -530,6 +560,13 @@ export default function ChatPage() {
                           </button>
                         )}
                       </div>
+                      {m.poll && !isDeleted && (
+                        <div style={{ maxWidth: '85%', width: 300 }}>
+                          <PollCard poll={m.poll} dark={dark} myId={myId}
+                            onVote={optionIds => voteOnPoll(m.id, m.poll!.id, optionIds)}
+                            onOpenAnalytics={() => setAnalyticsPollId(m.poll!.id)} />
+                        </div>
+                      )}
                       {!isDeleted && (
                         <div style={{ display: 'flex', gap: 4, marginTop: 3, alignItems: 'center' }}>
                           <span style={{ fontSize: 9, color: t.muted }}>{timeAgo(m.created_at)}</span>
@@ -593,19 +630,30 @@ export default function ChatPage() {
                     </button>
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: 8 }}>
+                {pollMode && <PollComposerFields draft={pollDraft} onChange={setPollDraft} dark={dark} />}
+                <div style={{ display: 'flex', gap: 8, marginTop: pollMode ? 8 : 0 }}>
                   <input ref={composerFileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }}
                     onChange={async e => { const f = e.target.files?.[0]; if (f) { const m = await uploadMedia(f); if (m) setComposerMedia(m); } e.target.value = ''; }} />
                   <button onClick={() => composerFileRef.current?.click()} disabled={uploading} title="Attach photo"
                     style={{ background: 'transparent', border: `0.5px solid ${t.border}`, borderRadius: 'var(--radius-sm)', width: 38, flexShrink: 0, cursor: uploading ? 'wait' : 'pointer', color: t.purple, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Icon name="ti-photo" size={15} />
                   </button>
+                  {/* Polls only make sense in a group conversation — hidden
+                      entirely for a 1:1 direct thread, out of scope by design. */}
+                  {activeThread.type === 'group' && (
+                    <button onClick={() => { setPollMode(v => !v); if (pollMode) setPollDraft(emptyPollDraft()); }} title="Create a poll"
+                      style={{ background: pollMode ? t.purpleBg : 'transparent', border: `0.5px solid ${pollMode ? t.purple : t.border}`, borderRadius: 'var(--radius-sm)', width: 38, flexShrink: 0, cursor: 'pointer', color: t.purple, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon name="ti-chart-bar" size={15} />
+                    </button>
+                  )}
                   <input value={composerBody} onChange={e => handleComposerChange(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                    placeholder="Message… use @ to mention someone in this chat"
+                    placeholder={pollMode ? 'Optional note above the poll…' : 'Message… use @ to mention someone in this chat'}
                     style={{ flex: 1, border: `0.5px solid ${t.border}`, borderRadius: 'var(--radius-sm)', padding: '10px 14px', fontSize: 13, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
-                  <button onClick={sendMessage} disabled={sending || (!composerBody.trim() && !composerMedia)}
-                    style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0 18px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: (composerBody.trim() || composerMedia) ? 1 : 0.5 }}>Send</button>
+                  <button onClick={sendMessage} disabled={sending || (pollMode ? !validPollDraft() : (!composerBody.trim() && !composerMedia))}
+                    style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0 18px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: (pollMode ? validPollDraft() : (composerBody.trim() || composerMedia)) ? 1 : 0.5 }}>
+                    {pollMode ? 'Post poll' : 'Send'}
+                  </button>
                 </div>
               </div>
             </>
@@ -644,6 +692,9 @@ export default function ChatPage() {
             )}
           </div>
         </div>
+      )}
+      {analyticsPollId && (
+        <PollAnalyticsPanel pollId={analyticsPollId} kind="chat" dark={dark} onClose={() => setAnalyticsPollId(null)} />
       )}
     </div>
   );
