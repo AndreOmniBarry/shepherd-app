@@ -69,6 +69,7 @@ export default function ChatPage() {
   const {dark, setDark} = useTheme();
   const [homePath, setHomePath] = useState('/dashboard');
   const [myId, setMyId] = useState('');
+  const [myName, setMyName] = useState('');
   const [myRole, setMyRole] = useState('');
   const isLeader = LEADERSHIP.includes(myRole);
   const [loading, setLoading] = useState(true);
@@ -104,6 +105,15 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastMessageTimeRef = useRef<string>('');
 
+  // Typing indicators (chat/DMs only, never feeds) — ephemeral Supabase
+  // Realtime Broadcast on a per-thread channel, layered on top of the
+  // existing polling message delivery, never replacing it. Nothing here
+  // is persisted to any table.
+  const [typingUsers, setTypingUsers] = useState<Record<string, { name: string; at: number }>>({});
+  const typingWsRef = useRef<WebSocket | null>(null);
+  const typingRefCounter = useRef(1);
+  const lastTypingBroadcastRef = useRef(0);
+
   const t = {
     bg: dark ? '#080614' : '#F0EFF8', card: dark ? '#13102A' : '#FFFFFF',
     border: dark ? 'rgba(168,159,255,0.1)' : 'rgba(83,74,183,0.12)',
@@ -118,7 +128,7 @@ export default function ChatPage() {
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' }).then(r => r.json()).then(({ data }) => {
       if (!data) { router.push('/login'); return; }
-      setHomePath(rolePortal(data.role)); setMyId(data.id); setMyRole(data.role);
+      setHomePath(rolePortal(data.role)); setMyId(data.id); setMyRole(data.role); setMyName(data.name || '');
     }).catch(() => router.push('/login'));
   }, [router]);
 
@@ -185,6 +195,100 @@ export default function ChatPage() {
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
+  // Ephemeral typing-indicator channel — one Supabase Realtime Broadcast
+  // websocket per open thread, following the same connection pattern as
+  // NotificationBell's postgres_changes socket (raw phx_join over the
+  // project's realtime websocket endpoint). This is layered on top of the
+  // existing since/before polling for actual message delivery, and never
+  // touches it — closing/reopening this socket can never drop a message.
+  useEffect(() => {
+    setTypingUsers({});
+    typingWsRef.current = null;
+    if (!activeThreadId || !myId) return;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) return;
+
+    const topic = `realtime:chat-thread-${activeThreadId}`;
+    let ws: WebSocket | null = null;
+    let heartbeat: ReturnType<typeof setInterval> | null = null;
+    try {
+      const wsUrl = supabaseUrl.replace('https://', 'wss://') + '/realtime/v1/websocket?apikey=' + supabaseKey + '&vsn=1.0.0';
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        ws?.send(JSON.stringify({
+          topic,
+          event: 'phx_join',
+          payload: { config: { broadcast: { self: false, ack: false }, presence: { key: '' } } },
+          ref: '1',
+        }));
+        // Phoenix channels drop a socket that goes quiet for too long —
+        // keep it alive for the whole time this thread stays open.
+        heartbeat = setInterval(() => {
+          ws?.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: 'hb' }));
+        }, 25000);
+      };
+
+      ws.onmessage = (msg) => {
+        try {
+          const data = JSON.parse(msg.data);
+          if (data.topic === topic && data.event === 'broadcast' && data.payload?.event === 'typing') {
+            const { user_id, name } = data.payload.payload || {};
+            if (!user_id || user_id === myId) return;
+            setTypingUsers(prev => ({ ...prev, [user_id]: { name: name || 'Someone', at: Date.now() } }));
+          }
+        } catch { /* ignore malformed frames */ }
+      };
+
+      ws.onerror = () => {}; // Silent fail — typing indicators are a nice-to-have, never load-bearing
+    } catch { /* Realtime unavailable — composer still works, just no live indicator */ }
+
+    typingWsRef.current = ws;
+    return () => {
+      if (heartbeat) clearInterval(heartbeat);
+      ws?.close();
+      typingWsRef.current = null;
+    };
+  }, [activeThreadId, myId]);
+
+  // Auto-clear a typing entry a few seconds after its last event, so a
+  // participant who closed their tab (or just stopped) doesn't stay
+  // pinned as "typing…" forever.
+  useEffect(() => {
+    if (Object.keys(typingUsers).length === 0) return;
+    const iv = setInterval(() => {
+      setTypingUsers(prev => {
+        const now = Date.now();
+        let changed = false;
+        const next: typeof prev = {};
+        Object.entries(prev).forEach(([id, v]) => {
+          if (now - v.at < 3000) next[id] = v; else changed = true;
+        });
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [typingUsers]);
+
+  // Broadcasts a typing event on this thread's channel, throttled to at
+  // most once every ~1.5s of active typing (debounced away entirely once
+  // the user stops — there's no explicit "stopped typing" event, the
+  // receiver side just lets the indicator expire on its own).
+  function broadcastTyping() {
+    const ws = typingWsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN || !activeThreadId) return;
+    const now = Date.now();
+    if (now - lastTypingBroadcastRef.current < 1500) return;
+    lastTypingBroadcastRef.current = now;
+    ws.send(JSON.stringify({
+      topic: `realtime:chat-thread-${activeThreadId}`,
+      event: 'broadcast',
+      payload: { type: 'broadcast', event: 'typing', payload: { user_id: myId, name: myName || 'Someone' } },
+      ref: String(typingRefCounter.current++),
+    }));
+  }
+
   async function loadOlderMessages() {
     if (!oldestCursor || loadingOlder || !activeThreadId) return;
     setLoadingOlder(true);
@@ -203,6 +307,7 @@ export default function ChatPage() {
     setComposerBody(v);
     const m = v.match(/@(\w*)$/);
     setMentionQuery(m ? m[1] : null);
+    if (v.trim()) broadcastTyping();
   }
 
   function insertMention(name: string) {
@@ -450,6 +555,14 @@ export default function ChatPage() {
                 })}
                 <div ref={messagesEndRef} />
               </div>
+              {Object.keys(typingUsers).length > 0 && (
+                <div style={{ padding: '0 18px 6px', fontSize: 11, color: t.muted, fontStyle: 'italic' }}>
+                  {(() => {
+                    const names = Object.values(typingUsers).map(v => v.name.split(' ')[0]);
+                    return `${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} typing…`;
+                  })()}
+                </div>
+              )}
               <div style={{ padding: 14, borderTop: `0.5px solid ${t.border}`, position: 'relative' }}>
                 {(mentionGroupCandidates.length > 0 || mentionCandidates.length > 0) && (
                   <div style={{ ...glass, position: 'absolute', bottom: '100%', left: 14, marginBottom: 6, borderRadius: 'var(--radius-sm)', overflow: 'hidden', minWidth: 180 }}>
