@@ -795,11 +795,19 @@ function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,s
                 </select>
               )}
               {u.role==='pa' && canManageFinanceAccess && (
-                <label style={{display:'flex',alignItems:'center',gap:6,marginTop:8,fontSize:11,color:t.text,cursor:reassigningFinance===u.id?'wait':'pointer'}}>
-                  <input type="checkbox" checked={!!u.finance_access_granted} disabled={reassigningFinance===u.id}
-                    onChange={e=>doSetFinanceAccess(u, e.target.checked)} />
-                  Finance access
-                </label>
+                <div style={{marginTop:8}}>
+                  <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:t.text,cursor:reassigningFinance===u.id?'wait':'pointer'}}>
+                    <input type="checkbox" checked={!!u.finance_access_granted} disabled={reassigningFinance===u.id}
+                      onChange={e=>doSetFinanceAccess(u, e.target.checked)} />
+                    Finance access
+                  </label>
+                  {/* Grant/revoke is baked into their JWT at login — it doesn't
+                      retroactively affect an already-issued token, which can
+                      live up to 24h. Flag this here so a GO checking right
+                      after flipping the toggle doesn't read the delay as the
+                      toggle being broken. */}
+                  <div style={{fontSize:9.5,color:t.muted,marginTop:2,marginLeft:20}}>Takes effect next time they log in (up to 24h on their current session)</div>
+                </div>
               )}
               <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
                 <button onClick={()=>doLoginAs(u)} disabled={loggingInAs===u.id||!u.id||u.is_active===false}
@@ -859,9 +867,12 @@ function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,s
                   {canManageFinanceAccess && (
                     <td style={{padding:'8px',fontSize:12,color:t.sub}}>
                       {u.role==='pa' && (
-                        <input type="checkbox" checked={!!u.finance_access_granted} disabled={reassigningFinance===u.id}
-                          onChange={e=>doSetFinanceAccess(u, e.target.checked)}
-                          title="Grant this PA access to financial/giving data" />
+                        <div>
+                          <input type="checkbox" checked={!!u.finance_access_granted} disabled={reassigningFinance===u.id}
+                            onChange={e=>doSetFinanceAccess(u, e.target.checked)}
+                            title="Grant this PA access to financial/giving data — takes effect next time they log in (up to 24h on their current session)" />
+                          <div style={{fontSize:9,color:t.muted,marginTop:2,maxWidth:110,lineHeight:1.3}}>Takes effect next login</div>
+                        </div>
                       )}
                     </td>
                   )}
@@ -1835,6 +1846,11 @@ export default function DashboardPage(){
   const [userName,setUserName]=useState('');
   const [userRole,setUserRole]=useState('');
   const [userBranchId,setUserBranchId]=useState('');
+  // Only meaningful for role==='pa' — every other role is unrestricted
+  // (see hasFinanceAccess in src/lib/pa-governance.ts). Sourced from the
+  // same /api/auth/me payload as userRole below, which already carries it
+  // through the JWT (payloadToAuthUser -> finance_access_granted).
+  const [financeAccessGranted,setFinanceAccessGranted]=useState(false);
   const [eventsSubTab,setEventsSubTab]=useState<'planner'|'programs'>('planner');
   const [selectedCell,setSelectedCell]=useState<CellRow|null>(null);
   const [cellFilter,setCellFilter]=useState<string>('all');
@@ -1956,6 +1972,7 @@ export default function DashboardPage(){
       else if(data?.email)setUserName(data.email.split('@')[0]);
       if(data?.role)setUserRole(data.role);
       if(data?.branch_id)setUserBranchId(data.branch_id);
+      setFinanceAccessGranted(!!data?.finance_access_granted);
       setPageReady(true);
     }).catch(()=>setPageReady(true));
     // Reload config fresh - especially after onboarding
@@ -2156,13 +2173,33 @@ export default function DashboardPage(){
       // of Stage 3 — its leaf unit is tier3_label (Cell), not tier2_label
       // (Fellowship), via getLeafUnitLabel().
       ...(churchConfig.structure_type!=='single'?[{id:'cells' as NavPage,icon:'ti-circles',label:`${getLeafUnitLabel(churchConfig)} Ministry`}]:[]),
+      // The flip side of hiding "Cell Ministry" for single-structure
+      // churches above: they still have exactly one (auto-provisioned)
+      // cell that attendance is recorded against, and /cell is the only
+      // page with a submit form — the Attendance tab here (PastorAttendance)
+      // is read-only analytics. Without this there was NO reachable route
+      // to submit attendance at all for a single-structure church. `href`
+      // takes this out of the in-page tab system (see the nav item
+      // onClick below) and routes to /cell directly instead.
+      // Role-gated to exactly the same list attendance/route.ts's
+      // single-structure admin exception accepts (ADMIN_ROLES there) — a
+      // branch_pastor landing on this dashboard would otherwise get a
+      // working-looking nav item that 403s on submit, the same class of
+      // bug this whole pass exists to fix.
+      ...(churchConfig.structure_type==='single'&&['overseer','general_overseer','pa','lead_tech'].includes(userRole)?[{id:'record_attendance' as NavPage,icon:'ti-calendar-check',label:'Record Attendance',href:'/cell'}]:[]),
       {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
     ]},
     {label:'Finance', items:[
-      // Financial visibility is deliberately restricted for PA — they can
-      // approve/query requisitions but not view giving/financial totals.
-      ...(userRole!=='pa'?[{id:'giving' as NavPage,icon:'ti-coin',label:'Giving'}]:[]),
-      {id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'},
+      // Financial visibility is gated for PA behind an explicit grant
+      // (finance_access_granted, toggled by an overseer/GO in Team &
+      // Access) — both Giving and Requisitions hit finance-gated routes
+      // (see requireFinanceAccess in src/lib/pa-governance.ts) that 403 a
+      // pa account without the grant, so both are hidden entirely until
+      // granted rather than shown as a working-looking tab that silently
+      // fails. Same "hide until applicable" pattern as the Cell Ministry
+      // tab's structure_type gating above.
+      ...(userRole!=='pa'||financeAccessGranted?[{id:'giving' as NavPage,icon:'ti-coin',label:'Giving'}]:[]),
+      ...(userRole!=='pa'||financeAccessGranted?[{id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'}]:[]),
     ]},
     {label:'Ministry', items:[
       {id:'recognition' as NavPage,icon:'ti-award',label:'Recognition'},
@@ -2184,7 +2221,11 @@ export default function DashboardPage(){
   const bottomNavItems:{id:NavPage;icon:string;label:string}[]=[
     {id:'dashboard' as NavPage,icon:'ti-layout-dashboard',label:'Home'},
     {id:'members' as NavPage,icon:'ti-users',label:'Members'},
-    ...(userRole!=='pa'?[{id:'giving' as NavPage,icon:'ti-coin',label:'Giving'}]:[{id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requests'}]),
+    // Same finance-gate rule as the desktop sidebar above: a pa without the
+    // grant can't reach Giving or Requisitions (both 403), so neither
+    // belongs in this curated shortlist for them — Attendance (always
+    // reachable) fills the slot instead until they're granted.
+    ...(userRole!=='pa'||financeAccessGranted?[{id:'giving' as NavPage,icon:'ti-coin',label:'Giving'}]:[{id:'attendance' as NavPage,icon:'ti-calendar-stats',label:'Attendance'}]),
     {id:'action_board' as NavPage,icon:'ti-alert-triangle',label:'Alerts'},
   ];
 
@@ -2230,26 +2271,35 @@ export default function DashboardPage(){
           {navGroups.filter(g=>g.items.length>0).map(g=>(
             <div key={g.label} style={{marginBottom:4}}>
               {(!sidebarCollapsed||isMobile)&&<div style={{fontSize:9.5,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase' as const,color:dark?'rgba(232,229,255,0.28)':sidebarStyle==='dark'?'rgba(255,255,255,0.28)':'#B4ACD9',padding:'10px 20px 4px',whiteSpace:'nowrap'}}>{g.label}</div>}
-              {g.items.map(n=>(
-                <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDeptId(null);setPage(n.id);if(isMobile)setSidebarOpen(false);}}
+              {g.items.map(n=>{
+                // 'href' items (currently just single-structure churches'
+                // "Record Attendance") navigate to a whole separate page
+                // rather than switching the in-page tab — same escape
+                // hatch the isMobile "Quick Links" section below already
+                // uses for Church Feed/Calendar.
+                const hasHref = 'href' in n && !!n.href;
+                const active = !hasHref && page===n.id;
+                return (
+                <button key={n.id} onClick={()=>{ if(hasHref){ router.push((n as {href:string}).href); if(isMobile)setSidebarOpen(false); return; } setSelectedCell(null);setSelectedDeptId(null);setPage(n.id);if(isMobile)setSidebarOpen(false);}}
                   className="sh-nav-item"
                   title={sidebarCollapsed&&!isMobile?n.label:undefined}
                   style={{
-                    background: page===n.id ? (dark?'rgba(83,74,183,0.45)':'rgba(83,74,183,0.10)') : 'transparent',
-                    color: page===n.id ? (dark?'#E8E5FF':'#3C3489') : undefined,
-                    fontWeight: page===n.id ? 600 : 400,
-                    borderLeft: `2px solid ${page===n.id?'#534AB7':'transparent'}`,
-                    boxShadow: page===n.id ? (dark?'0 0 20px rgba(83,74,183,0.3), inset 0 0 0 0.5px rgba(168,159,255,0.2)':'0 0 12px rgba(83,74,183,0.10)') : 'none',
+                    background: active ? (dark?'rgba(83,74,183,0.45)':'rgba(83,74,183,0.10)') : 'transparent',
+                    color: active ? (dark?'#E8E5FF':'#3C3489') : undefined,
+                    fontWeight: active ? 600 : 400,
+                    borderLeft: `2px solid ${active?'#534AB7':'transparent'}`,
+                    boxShadow: active ? (dark?'0 0 20px rgba(83,74,183,0.3), inset 0 0 0 0.5px rgba(168,159,255,0.2)':'0 0 12px rgba(83,74,183,0.10)') : 'none',
                     borderRadius: '0 8px 8px 0',
                     margin: '1px 8px 1px 0',
                     width: 'calc(100% - 8px)',
                     justifyContent: sidebarCollapsed&&!isMobile?'center':'flex-start',
                     transition: 'all 0.2s ease',
                   }}>
-                  {n.icon && <Icon name={n.icon} size={15} style={{opacity:page===n.id?1:0.5,flexShrink:0}} />}
+                  {n.icon && <Icon name={n.icon} size={15} style={{opacity:active?1:0.5,flexShrink:0}} />}
                   {(!sidebarCollapsed||isMobile)&&<span style={{whiteSpace:'nowrap',overflow:'hidden'}}>{n.label}</span>}
                 </button>
-              ))}
+                );
+              })}
             </div>
           ))}
           {isMobile&&(

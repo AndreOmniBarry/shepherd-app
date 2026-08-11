@@ -9,6 +9,11 @@ type Requisition = {
   requested_by_name: string; status: string; created_at: string; notes: string | null;
 };
 
+// Matches FINANCE_GATE_MESSAGE in src/lib/pa-governance.ts (not imported
+// directly — that module also pulls in next/server, which has no business
+// in a client bundle).
+const FINANCE_GATE_MESSAGE = 'Financial records aren\'t part of your access yet — ask your General Overseer to grant it from Team & Access.';
+
 const STATUS_CFG: Record<string, { bg: string; text: string; label: string }> = {
   pending:  { bg: '#FAEEDA', text: '#633806', label: 'Pending' },
   approved: { bg: '#E1F5EE', text: '#085041', label: 'Approved' },
@@ -22,13 +27,17 @@ export default function PastorRequisitions({ t, dark, branchId, currency }: Past
   const [requisitions, setRequisitions] = useState<Requisition[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
+  const [financeBlocked, setFinanceBlocked] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     const bq = branchId ? `?branch_id=${branchId}` : '';
     fetch(`/api/accounts/requisitions${bq}`, { credentials: 'include' })
       .then(r => r.json())
-      .then(({ data }) => { if (data?.requisitions) setRequisitions(data.requisitions); })
+      .then(({ data, error }) => {
+        if (data?.requisitions) setRequisitions(data.requisitions);
+        setFinanceBlocked(error?.code === 'FINANCE_ACCESS_REQUIRED');
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [branchId]);
@@ -48,6 +57,13 @@ export default function PastorRequisitions({ t, dark, branchId, currency }: Past
     <SkeletonCard>
       {Array.from({ length: 5 }, (_, i) => <SkeletonRow key={i} />)}
     </SkeletonCard>
+  );
+
+  if (financeBlocked) return (
+    <div style={{ background: '#FAEEDA', borderRadius: 12, border: '0.5px solid rgba(186,117,23,0.2)', padding: '18px 20px' }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: '#633806', marginBottom: 4 }}>Access required</div>
+      <div style={{ fontSize: 12, color: '#633806', lineHeight: 1.6 }}>{FINANCE_GATE_MESSAGE}</div>
+    </div>
   );
 
   return (

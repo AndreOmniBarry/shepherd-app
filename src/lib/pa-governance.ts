@@ -24,7 +24,11 @@ export function hasFinanceAccess(user: AuthUser): boolean {
   return !!user.finance_access_granted;
 }
 
-const FINANCE_GATE_MESSAGE = 'Financial records aren\'t part of your access yet — ask your General Overseer to grant it from Team & Access.';
+// Exported so frontend callers can render the exact same copy when a
+// finance-gated route comes back with FINANCE_ACCESS_REQUIRED, instead of
+// silently rendering an empty list that's indistinguishable from "nothing
+// here yet".
+export const FINANCE_GATE_MESSAGE = 'Financial records aren\'t part of your access yet — ask your General Overseer to grant it from Team & Access.';
 
 // Returns a 403 NextResponse to return immediately if this pa account
 // hasn't been granted finance access, or null if the caller should
