@@ -18,10 +18,33 @@ type Thread = {
   unread_count: number;
 };
 type Reaction = { user_id: string; emoji: string; user_name: string };
-type Message = { id: string; sender_id: string; sender_name: string; sender_role: string; body: string; mentioned_user_ids: string[]; created_at: string; reactions: Reaction[] };
+type Message = {
+  id: string; sender_id: string; sender_name: string; sender_role: string; body: string; mentioned_user_ids: string[]; created_at: string; reactions: Reaction[];
+  deleted_at: string | null; deleted_by: string | null; media_url: string | null; media_type: string | null;
+};
 type Person = { id: string; full_name: string; role: string };
 
+const LEADERSHIP = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
 const REACTION_EMOJI = ['👍', '❤️', '😂', '🙏', '🎉'];
+const AVATAR_HUES = ['#534AB7', '#1D9E75', '#D85A30', '#BA7517', '#2D6FD4', '#B0459E'];
+
+function initials(name: string): string {
+  const parts = (name || '?').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+}
+function avatarColor(name: string): string {
+  let sum = 0;
+  for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i);
+  return AVATAR_HUES[sum % AVATAR_HUES.length];
+}
+function Avatar({ name, size = 26 }: { name: string; size?: number }) {
+  return (
+    <div style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.38, fontWeight: 700, color: '#fff', background: avatarColor(name || 'Someone') }}>
+      {initials(name)}
+    </div>
+  );
+}
 
 function renderBody(body: string, mine: boolean): React.ReactNode {
   const parts = body.split(/(@\w+)/g);
@@ -45,6 +68,8 @@ export default function ChatPage() {
   const {dark, setDark} = useTheme();
   const [homePath, setHomePath] = useState('/dashboard');
   const [myId, setMyId] = useState('');
+  const [myRole, setMyRole] = useState('');
+  const isLeader = LEADERSHIP.includes(myRole);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -57,10 +82,15 @@ export default function ChatPage() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [oldestCursor, setOldestCursor] = useState<string | null>(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
 
   const [composerBody, setComposerBody] = useState('');
+  const [composerMedia, setComposerMedia] = useState<{ url: string; type: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const composerFileRef = useRef<HTMLInputElement>(null);
 
   const [showNewChat, setShowNewChat] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
@@ -86,7 +116,7 @@ export default function ChatPage() {
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' }).then(r => r.json()).then(({ data }) => {
       if (!data) { router.push('/login'); return; }
-      setHomePath(rolePortal(data.role)); setMyId(data.id);
+      setHomePath(rolePortal(data.role)); setMyId(data.id); setMyRole(data.role);
     }).catch(() => router.push('/login'));
   }, [router]);
 
@@ -110,6 +140,7 @@ export default function ChatPage() {
     const since = initial ? '' : (lastMessageTimeRef.current ? `&since=${encodeURIComponent(lastMessageTimeRef.current)}` : '');
     fetch(`/api/chat/threads/${activeThreadId}/messages?x=1${since}`, { credentials: 'include' }).then(r => r.json()).then(({ data }) => {
       const incoming: Message[] = data?.messages || [];
+      if (initial) setOldestCursor(data?.next_cursor || null);
       if (incoming.length === 0) return;
       if (initial) setMessages(incoming);
       else {
@@ -123,11 +154,11 @@ export default function ChatPage() {
       }
       lastMessageTimeRef.current = incoming[incoming.length - 1].created_at;
     });
-  }, [activeThreadId]);
+  }, [activeThreadId, myId]);
 
   useEffect(() => {
     if (!activeThreadId) return;
-    setMessages([]); lastMessageTimeRef.current = '';
+    setMessages([]); lastMessageTimeRef.current = ''; setOldestCursor(null);
     loadMessages(true);
     fetch(`/api/chat/threads/${activeThreadId}/read`, { method: 'POST', credentials: 'include' }).catch(() => {});
     setThreads(prev => prev.map(th => th.id === activeThreadId ? { ...th, unread_count: 0 } : th));
@@ -142,6 +173,18 @@ export default function ChatPage() {
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
+  async function loadOlderMessages() {
+    if (!oldestCursor || loadingOlder || !activeThreadId) return;
+    setLoadingOlder(true);
+    try {
+      const res = await fetch(`/api/chat/threads/${activeThreadId}/messages?before=${encodeURIComponent(oldestCursor)}`, { credentials: 'include' });
+      const json = await res.json();
+      const older: Message[] = json.data?.messages || [];
+      setMessages(prev => [...older, ...prev]);
+      setOldestCursor(json.data?.next_cursor || null);
+    } finally { setLoadingOlder(false); }
+  }
+
   const activeThread = threads.find(th => th.id === activeThreadId);
 
   function handleComposerChange(v: string) {
@@ -155,22 +198,42 @@ export default function ChatPage() {
     setMentionQuery(null);
   }
 
+  async function uploadMedia(file: File): Promise<{ url: string; type: string } | null> {
+    if (file.size > 5 * 1024 * 1024) return null;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file); form.append('context', 'chat');
+      const res = await fetch('/api/media/upload', { method: 'POST', credentials: 'include', body: form });
+      const json = await res.json();
+      if (!res.ok) return null;
+      return { url: json.data.url, type: json.data.media_type };
+    } catch { return null; }
+    finally { setUploading(false); }
+  }
+
   async function sendMessage() {
-    if (!composerBody.trim() || !activeThreadId) return;
+    if ((!composerBody.trim() && !composerMedia) || !activeThreadId) return;
     setSending(true);
     try {
       const res = await fetch(`/api/chat/threads/${activeThreadId}/messages`, {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: composerBody.trim() }),
+        body: JSON.stringify({ body: composerBody.trim(), media_url: composerMedia?.url, media_type: composerMedia?.type }),
       });
       const json = await res.json();
       if (res.ok && json.data) {
         setMessages(prev => [...prev, json.data]);
         lastMessageTimeRef.current = json.data.created_at;
-        setComposerBody(''); setMentionQuery(null);
+        setComposerBody(''); setMentionQuery(null); setComposerMedia(null);
         loadThreads();
       }
     } finally { setSending(false); }
+  }
+
+  async function deleteMessage(messageId: string) {
+    if (!confirm('Delete this message? Everyone in the chat will see it was removed.')) return;
+    const res = await fetch(`/api/chat/messages/${messageId}`, { method: 'DELETE', credentials: 'include' });
+    if (res.ok) setMessages(prev => prev.map(m => m.id === messageId ? { ...m, deleted_at: new Date().toISOString(), body: 'This message was deleted', media_url: null } : m));
   }
 
   async function react(messageId: string, emoji: string) {
@@ -270,18 +333,21 @@ export default function ChatPage() {
               <div key={th.id} onClick={() => setActiveThreadId(th.id)}
                 onMouseEnter={e => { if (activeThreadId !== th.id) e.currentTarget.style.background = dark ? 'rgba(168,159,255,0.06)' : 'rgba(83,74,183,0.04)'; }}
                 onMouseLeave={e => { if (activeThreadId !== th.id) e.currentTarget.style.background = 'transparent'; }}
-                style={{ padding: '10px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: activeThreadId === th.id ? t.purpleBg : 'transparent', transition: 'background var(--motion-fast) var(--ease-out-expo)', marginBottom: 2 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 12, fontWeight: th.unread_count > 0 ? 700 : 500, color: t.text, display: 'flex', alignItems: 'center', gap: 5 }}>
-                    {th.type === 'group' && <Icon name="ti-users" size={12} />}{th.name}
+                style={{ padding: '10px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: activeThreadId === th.id ? t.purpleBg : 'transparent', transition: 'background var(--motion-fast) var(--ease-out-expo)', marginBottom: 2, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <Avatar name={th.type === 'group' ? th.name : (th.participants.find(p => p.id !== myId)?.full_name || th.name)} size={30} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 12, fontWeight: th.unread_count > 0 ? 700 : 500, color: t.text, display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {th.type === 'group' && <Icon name="ti-users" size={12} />}{th.name}
+                    </div>
+                    {th.last_message && <span style={{ fontSize: 10, color: t.muted, flexShrink: 0 }}>{timeAgo(th.last_message.created_at)}</span>}
                   </div>
-                  {th.last_message && <span style={{ fontSize: 10, color: t.muted, flexShrink: 0 }}>{timeAgo(th.last_message.created_at)}</span>}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
-                  <div style={{ fontSize: 11, color: th.unread_count > 0 ? t.sub : t.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
-                    {th.last_message ? `${th.last_message.sender_name.split(' ')[0]}: ${th.last_message.body}` : 'No messages yet'}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: th.unread_count > 0 ? t.sub : t.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 170 }}>
+                      {th.last_message ? `${th.last_message.sender_name.split(' ')[0]}: ${th.last_message.body}` : 'No messages yet'}
+                    </div>
+                    {th.unread_count > 0 && <span style={{ background: t.purple, color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 8, padding: '1px 6px', flexShrink: 0 }}>{th.unread_count}</span>}
                   </div>
-                  {th.unread_count > 0 && <span style={{ background: t.purple, color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 8, padding: '1px 6px', flexShrink: 0 }}>{th.unread_count}</span>}
                 </div>
               </div>
             ))}
@@ -303,32 +369,62 @@ export default function ChatPage() {
                 {activeThread.type === 'group' && <Icon name="ti-users" size={14} />}{activeThread.name}
               </div>
               <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {oldestCursor && (
+                  <button onClick={loadOlderMessages} disabled={loadingOlder}
+                    style={{ alignSelf: 'center', background: 'transparent', border: `0.5px solid ${t.border}`, borderRadius: 20, padding: '5px 14px', fontSize: 11, color: t.purple, cursor: loadingOlder ? 'wait' : 'pointer', fontWeight: 600, marginBottom: 4 }}>
+                    {loadingOlder ? 'Loading…' : 'Load older messages'}
+                  </button>
+                )}
                 {messages.map(m => {
                   const mine = m.sender_id === myId;
+                  const isDeleted = !!m.deleted_at;
+                  const canDelete = !isDeleted && (mine || isLeader);
                   return (
                     <div key={m.id} className="shep-tab-enter" style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
                       {!mine && activeThread.type === 'group' && <div style={{ fontSize: 10, color: t.muted, marginBottom: 2, marginLeft: 4 }}>{m.sender_name}</div>}
-                      <div style={{ ...glass, maxWidth: '70%', padding: '9px 13px', borderRadius: mine ? '14px 14px 3px 14px' : '14px 14px 14px 3px', background: mine ? t.purple : 'var(--glass-bg)', color: mine ? '#fff' : t.text }}>
-                        <div style={{ fontSize: 13, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{renderBody(m.body, mine)}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, maxWidth: '85%' }}>
+                        {canDelete && !mine && (
+                          <button onClick={() => deleteMessage(m.id)} title="Delete message"
+                            style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', padding: 2, display: 'flex', order: 2 }}>
+                            <Icon name="ti-trash" size={12} />
+                          </button>
+                        )}
+                        <div style={{ ...glass, maxWidth: '100%', padding: '9px 13px', borderRadius: mine ? '14px 14px 3px 14px' : '14px 14px 14px 3px', background: mine ? t.purple : 'var(--glass-bg)', color: mine ? '#fff' : t.text, fontStyle: isDeleted ? 'italic' : 'normal', opacity: isDeleted ? 0.75 : 1 }}>
+                          {m.media_url && !isDeleted && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={m.media_url} alt="Attachment" style={{ maxWidth: '100%', maxHeight: 240, borderRadius: 8, display: 'block', marginBottom: m.body?.trim() ? 6 : 0 }} />
+                          )}
+                          {(!m.media_url || m.body?.trim()) && (
+                            <div style={{ fontSize: 13, lineHeight: 1.4, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{isDeleted ? m.body : renderBody(m.body, mine)}</div>
+                          )}
+                        </div>
+                        {canDelete && mine && (
+                          <button onClick={() => deleteMessage(m.id)} title="Delete message"
+                            style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', padding: 2, display: 'flex' }}>
+                            <Icon name="ti-trash" size={12} />
+                          </button>
+                        )}
                       </div>
-                      <div style={{ display: 'flex', gap: 4, marginTop: 3, alignItems: 'center' }}>
-                        <span style={{ fontSize: 9, color: t.muted }}>{timeAgo(m.created_at)}</span>
-                        {m.reactions.length > 0 && (
-                          <div style={{ display: 'flex', gap: 2 }}>
-                            {Object.entries(m.reactions.reduce((acc: Record<string, number>, r) => { acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc; }, {})).map(([emoji, count]) => (
-                              <span key={emoji} onClick={() => react(m.id, emoji)} style={{ fontSize: 11, background: t.purpleBg, borderRadius: 10, padding: '1px 6px', cursor: 'pointer' }}>{emoji}{count > 1 ? ` ${count}` : ''}</span>
+                      {!isDeleted && (
+                        <div style={{ display: 'flex', gap: 4, marginTop: 3, alignItems: 'center' }}>
+                          <span style={{ fontSize: 9, color: t.muted }}>{timeAgo(m.created_at)}</span>
+                          {m.reactions.length > 0 && (
+                            <div style={{ display: 'flex', gap: 2 }}>
+                              {Object.entries(m.reactions.reduce((acc: Record<string, number>, r) => { acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc; }, {})).map(([emoji, count]) => (
+                                <span key={emoji} onClick={() => react(m.id, emoji)} style={{ fontSize: 11, background: t.purpleBg, borderRadius: 10, padding: '1px 6px', cursor: 'pointer' }}>{emoji}{count > 1 ? ` ${count}` : ''}</span>
+                              ))}
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: 1 }}>
+                            {REACTION_EMOJI.map(e => (
+                              <span key={e} onClick={() => react(m.id, e)} title={`React ${e}`}
+                                style={{ fontSize: 12, opacity: 0.35, cursor: 'pointer', transition: 'opacity var(--motion-fast) var(--ease-out-expo), transform var(--motion-fast) var(--ease-spring)' }}
+                                onMouseEnter={ev => { ev.currentTarget.style.opacity = '1'; ev.currentTarget.style.transform = 'scale(1.3)'; }}
+                                onMouseLeave={ev => { ev.currentTarget.style.opacity = '0.35'; ev.currentTarget.style.transform = 'scale(1)'; }}>{e}</span>
                             ))}
                           </div>
-                        )}
-                        <div style={{ display: 'flex', gap: 1 }}>
-                          {REACTION_EMOJI.map(e => (
-                            <span key={e} onClick={() => react(m.id, e)} title={`React ${e}`}
-                              style={{ fontSize: 12, opacity: 0.35, cursor: 'pointer', transition: 'opacity var(--motion-fast) var(--ease-out-expo), transform var(--motion-fast) var(--ease-spring)' }}
-                              onMouseEnter={ev => { ev.currentTarget.style.opacity = '1'; ev.currentTarget.style.transform = 'scale(1.3)'; }}
-                              onMouseLeave={ev => { ev.currentTarget.style.opacity = '0.35'; ev.currentTarget.style.transform = 'scale(1)'; }}>{e}</span>
-                          ))}
                         </div>
-                      </div>
+                      )}
                     </div>
                   );
                 })}
@@ -346,13 +442,29 @@ export default function ChatPage() {
                     ))}
                   </div>
                 )}
+                {composerMedia && (
+                  <div style={{ position: 'relative', marginBottom: 8, display: 'inline-block' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={composerMedia.url} alt="Attached" style={{ maxWidth: 140, maxHeight: 100, borderRadius: 8, display: 'block' }} />
+                    <button onClick={() => setComposerMedia(null)}
+                      style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon name="ti-x" size={10} />
+                    </button>
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 8 }}>
+                  <input ref={composerFileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }}
+                    onChange={async e => { const f = e.target.files?.[0]; if (f) { const m = await uploadMedia(f); if (m) setComposerMedia(m); } e.target.value = ''; }} />
+                  <button onClick={() => composerFileRef.current?.click()} disabled={uploading} title="Attach photo"
+                    style={{ background: 'transparent', border: `0.5px solid ${t.border}`, borderRadius: 'var(--radius-sm)', width: 38, flexShrink: 0, cursor: uploading ? 'wait' : 'pointer', color: t.purple, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name="ti-photo" size={15} />
+                  </button>
                   <input value={composerBody} onChange={e => handleComposerChange(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                     placeholder="Message… use @ to mention someone in this chat"
                     style={{ flex: 1, border: `0.5px solid ${t.border}`, borderRadius: 'var(--radius-sm)', padding: '10px 14px', fontSize: 13, background: t.input, color: t.text, outline: 'none', fontFamily: 'inherit' }} />
-                  <button onClick={sendMessage} disabled={sending || !composerBody.trim()}
-                    style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0 18px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: composerBody.trim() ? 1 : 0.5 }}>Send</button>
+                  <button onClick={sendMessage} disabled={sending || (!composerBody.trim() && !composerMedia)}
+                    style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0 18px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: (composerBody.trim() || composerMedia) ? 1 : 0.5 }}>Send</button>
                 </div>
               </div>
             </>
