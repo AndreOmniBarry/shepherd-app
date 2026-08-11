@@ -19,6 +19,7 @@ type Post = {
   comment_count: number; ack_count: number; acknowledged_by_me: boolean; reactions: Reaction[];
 };
 type Comment = { id: string; author_id: string | null; author_name: string; body: string; created_at: string; deleted_at: string | null; parent_comment_id: string | null };
+type MentionGroup = { tag: string; label: string; kind: string };
 
 const LEADERSHIP = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
 const REACTION_EMOJI = ['👍', '❤️', '😂', '🙏', '🎉'];
@@ -93,6 +94,8 @@ export default function ChurchFeedPage() {
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState('');
   const composerFileRef = useRef<HTMLInputElement>(null);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionGroups, setMentionGroups] = useState<MentionGroup[]>([]);
 
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
@@ -122,6 +125,15 @@ export default function ChurchFeedPage() {
       setHomePath(rolePortal(data.role)); setUserRole(data.role); setMyId(data.id);
     }).catch(() => router.push('/login'));
   }, [router]);
+
+  // @group-tag options for post/comment mention autocomplete (@cell_leaders,
+  // @dept_heads, @choir, …) — resolved from the caller's own role/branch.
+  useEffect(() => {
+    if (!myId) return;
+    fetch('/api/mentions/groups', { credentials: 'include' }).then(r => r.json()).then(({ data }) => {
+      setMentionGroups(data?.groups || []);
+    }).catch(() => {});
+  }, [myId]);
 
   const loadGroups = useCallback(() => {
     setLoading(true); setGroupsError('');
@@ -168,6 +180,17 @@ export default function ChurchFeedPage() {
     finally { setUploading(false); }
   }
 
+  function handleComposerBodyChange(v: string) {
+    setComposerBody(v);
+    const m = v.match(/@(\w*)$/);
+    setMentionQuery(m ? m[1] : null);
+  }
+
+  function insertGroupMention(tag: string) {
+    setComposerBody(prev => prev.replace(/@\w*$/, `@${tag} `));
+    setMentionQuery(null);
+  }
+
   async function submitPost() {
     if (!composerBody.trim() && !composerMedia) return;
     setPosting(true); setPostError('');
@@ -179,7 +202,7 @@ export default function ChurchFeedPage() {
       const json = await res.json();
       if (!res.ok) { setPostError(json.error?.message || 'Failed to post.'); return; }
       setPosts(prev => [json.data, ...prev]);
-      setComposerBody(''); setComposerUrgent(false); setComposerPinned(false); setComposerOpen(false); setComposerMedia(null);
+      setComposerBody(''); setComposerUrgent(false); setComposerPinned(false); setComposerOpen(false); setComposerMedia(null); setMentionQuery(null);
     } finally { setPosting(false); }
   }
 
@@ -254,6 +277,9 @@ export default function ChurchFeedPage() {
 
   const card: React.CSSProperties = { background: 'var(--glass-bg)', WebkitBackdropFilter: 'blur(var(--glass-blur)) saturate(160%)', backdropFilter: 'blur(var(--glass-blur)) saturate(160%)', borderRadius: 'var(--radius-md)', border: '0.5px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)', padding: '14px 16px', transition: 'transform var(--motion-medium) var(--ease-out-expo), box-shadow var(--motion-medium) var(--ease-out-expo)' };
   const activeGroup = groups.find(g => g.id === activeGroupId);
+  const mentionGroupCandidates = mentionQuery !== null
+    ? mentionGroups.filter(g => g.tag.includes(mentionQuery.toLowerCase()) || g.label.toLowerCase().includes(mentionQuery.toLowerCase()))
+    : [];
   const canCreateDeptGroup = userRole === 'department_head' && !groups.some(g => g.type === 'department');
 
   if (loading) return <LoadingScreen dark={dark} label="Loading Church Feed…" />;
@@ -351,8 +377,22 @@ export default function ChurchFeedPage() {
                   </button>
                 ) : (
                   <div className="shep-pop-enter" style={card}>
-                    <textarea value={composerBody} onChange={e => setComposerBody(e.target.value)} rows={3} placeholder="What do you need to say?"
-                      style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 13, background: t.input, color: t.text, outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                    <div style={{ position: 'relative' }}>
+                      <textarea value={composerBody} onChange={e => handleComposerBodyChange(e.target.value)} rows={3} placeholder="What do you need to say? Use @ to mention a group (e.g. @dept_heads)"
+                        style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 13, background: t.input, color: t.text, outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                      {mentionGroupCandidates.length > 0 && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 8, overflow: 'hidden', minWidth: 200, boxShadow: '0 4px 16px rgba(0,0,0,0.18)', zIndex: 10 }}>
+                          {mentionGroupCandidates.map(g => (
+                            <div key={g.tag} onClick={() => insertGroupMention(g.tag)}
+                              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', fontSize: 12, color: t.teal, fontWeight: 600, cursor: 'pointer' }}
+                              onMouseEnter={e => { e.currentTarget.style.background = t.tealBg; }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                              <Icon name="ti-users" size={12} />@{g.tag}
+                              <span style={{ fontSize: 10, color: t.muted, fontWeight: 400 }}>{g.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     {composerMedia && (
                       <div style={{ position: 'relative', marginTop: 8, display: 'inline-block' }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -385,7 +425,7 @@ export default function ChurchFeedPage() {
                         style={{ background: '#534AB7', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: posting ? 'wait' : 'pointer', opacity: (composerBody.trim() || composerMedia) ? 1 : 0.5 }}>
                         {posting ? 'Posting…' : 'Post'}
                       </button>
-                      <button onClick={() => { setComposerOpen(false); setComposerBody(''); setComposerMedia(null); setPostError(''); }}
+                      <button onClick={() => { setComposerOpen(false); setComposerBody(''); setComposerMedia(null); setPostError(''); setMentionQuery(null); }}
                         style={{ background: 'transparent', color: t.muted, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: 'pointer' }}>
                         Cancel
                       </button>

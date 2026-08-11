@@ -23,6 +23,7 @@ type Message = {
   deleted_at: string | null; deleted_by: string | null; media_url: string | null; media_type: string | null;
 };
 type Person = { id: string; full_name: string; role: string };
+type MentionGroup = { tag: string; label: string; kind: string };
 
 const LEADERSHIP = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
 const REACTION_EMOJI = ['👍', '❤️', '😂', '🙏', '🎉'];
@@ -90,6 +91,7 @@ export default function ChatPage() {
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionGroups, setMentionGroups] = useState<MentionGroup[]>([]);
   const composerFileRef = useRef<HTMLInputElement>(null);
 
   const [showNewChat, setShowNewChat] = useState(false);
@@ -126,6 +128,16 @@ export default function ChatPage() {
     }).finally(() => setLoading(false));
   }, []);
   useEffect(() => { loadThreads(); }, [loadThreads]);
+
+  // @group-tag options for mention autocomplete (@cell_leaders, @dept_heads,
+  // @choir, …) — same catalog regardless of which thread is open, since
+  // it's resolved from the caller's own role/branch, not the thread.
+  useEffect(() => {
+    if (!myId) return;
+    fetch('/api/mentions/groups', { credentials: 'include' }).then(r => r.json()).then(({ data }) => {
+      setMentionGroups(data?.groups || []);
+    }).catch(() => {});
+  }, [myId]);
   // Thread list (previews + unread counts) refreshes on a slower cadence
   // than the open conversation itself.
   useEffect(() => { const iv = setInterval(loadThreads, 8000); return () => clearInterval(iv); }, [loadThreads]);
@@ -195,6 +207,11 @@ export default function ChatPage() {
 
   function insertMention(name: string) {
     setComposerBody(prev => prev.replace(/@\w*$/, `@${name.split(' ')[0]} `));
+    setMentionQuery(null);
+  }
+
+  function insertGroupMention(tag: string) {
+    setComposerBody(prev => prev.replace(/@\w*$/, `@${tag} `));
     setMentionQuery(null);
   }
 
@@ -282,6 +299,9 @@ export default function ChatPage() {
   const glass: React.CSSProperties = { background: 'var(--glass-bg)', WebkitBackdropFilter: 'blur(var(--glass-blur)) saturate(160%)', backdropFilter: 'blur(var(--glass-blur)) saturate(160%)', border: '0.5px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)' };
   const totalUnread = threads.reduce((a, th) => a + th.unread_count, 0);
   const mentionCandidates = mentionQuery !== null && activeThread ? activeThread.participants.filter(p => p.id !== myId && p.full_name.toLowerCase().includes(mentionQuery.toLowerCase())) : [];
+  const mentionGroupCandidates = mentionQuery !== null
+    ? mentionGroups.filter(g => g.tag.includes(mentionQuery.toLowerCase()) || g.label.toLowerCase().includes(mentionQuery.toLowerCase()))
+    : [];
 
   if (loading) return <LoadingScreen dark={dark} label="Loading your chats…" />;
 
@@ -431,8 +451,16 @@ export default function ChatPage() {
                 <div ref={messagesEndRef} />
               </div>
               <div style={{ padding: 14, borderTop: `0.5px solid ${t.border}`, position: 'relative' }}>
-                {mentionCandidates.length > 0 && (
-                  <div style={{ ...glass, position: 'absolute', bottom: '100%', left: 14, marginBottom: 6, borderRadius: 'var(--radius-sm)', overflow: 'hidden', minWidth: 160 }}>
+                {(mentionGroupCandidates.length > 0 || mentionCandidates.length > 0) && (
+                  <div style={{ ...glass, position: 'absolute', bottom: '100%', left: 14, marginBottom: 6, borderRadius: 'var(--radius-sm)', overflow: 'hidden', minWidth: 180 }}>
+                    {mentionGroupCandidates.map(g => (
+                      <div key={`g-${g.tag}`} onClick={() => insertGroupMention(g.tag)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', fontSize: 12, color: t.teal, fontWeight: 600, cursor: 'pointer' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = t.tealBg; }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                        <Icon name="ti-users" size={12} />@{g.tag}
+                        <span style={{ fontSize: 10, color: t.muted, fontWeight: 400 }}>{g.label}</span>
+                      </div>
+                    ))}
                     {mentionCandidates.map(p => (
                       <div key={p.id} onClick={() => insertMention(p.full_name)}
                         style={{ padding: '7px 12px', fontSize: 12, color: t.text, cursor: 'pointer' }}
