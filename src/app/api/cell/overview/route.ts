@@ -146,9 +146,9 @@ export async function GET(req: Request) {
     // Check submission window
     const now = new Date();
     const dayOfWeek = now.getDay();
-    if (dayOfWeek === 0) actions.push({ priority: 'high', message: 'Submit your attendance today for an A+ SLA grade — window closes at midnight' });
-    else if (dayOfWeek === 1 && now.getHours() < 6) actions.push({ priority: 'high', message: 'Submit now for an A SLA grade — window closes at 6am' });
-    else if (dayOfWeek === 1) actions.push({ priority: 'medium', message: 'Submit today for a B SLA grade — submitting Tuesday drops you to C' });
+    if (dayOfWeek === 0) actions.push({ priority: 'high', message: 'Submit your attendance today for an A/A+ SLA grade — the earlier today, the higher it lands. Window closes at midnight' });
+    else if (dayOfWeek === 1 && now.getHours() < 6) actions.push({ priority: 'high', message: 'Submit now to still land an A- SLA grade — window closes at 6am' });
+    else if (dayOfWeek === 1) actions.push({ priority: 'medium', message: 'Submit today to stay in B-tier — your SLA grade steps down the longer it goes unsubmitted' });
 
     // ── 9. SLA history ────────────────────────────────────────
     const slaHistory = buildSlaHistory(Array.isArray(records) ? records : []);

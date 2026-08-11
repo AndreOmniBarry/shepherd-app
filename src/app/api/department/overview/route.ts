@@ -121,8 +121,8 @@ export async function GET(req: Request) {
     }
 
     const dayOfWeek = new Date().getDay();
-    if (dayOfWeek === 0) actions.push({ priority: 'high', message: 'Submit department attendance today for A+ SLA grade' });
-    else if (dayOfWeek === 1) actions.push({ priority: 'medium', message: 'Submit today for B SLA — no submission beyond Monday is acceptable without a stated reason' });
+    if (dayOfWeek === 0) actions.push({ priority: 'high', message: 'Submit department attendance today for an A/A+ SLA grade — the earlier today, the higher it lands' });
+    else if (dayOfWeek === 1) actions.push({ priority: 'medium', message: 'Submit today to stay in B-tier — your SLA grade steps down the longer it goes unsubmitted' });
 
     // SLA history
     const slaHistory = buildSlaHistory(Array.isArray(records) ? records : []);
