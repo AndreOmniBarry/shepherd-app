@@ -434,7 +434,12 @@ export default function ChatPage() {
   const glass: React.CSSProperties = { background: 'var(--glass-bg)', WebkitBackdropFilter: 'blur(var(--glass-blur)) saturate(160%)', backdropFilter: 'blur(var(--glass-blur)) saturate(160%)', border: '0.5px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)' };
   const totalUnread = threads.reduce((a, th) => a + th.unread_count, 0);
   const mentionCandidates = mentionQuery !== null && activeThread ? activeThread.participants.filter(p => p.id !== myId && p.full_name.toLowerCase().includes(mentionQuery.toLowerCase())) : [];
-  const mentionGroupCandidates = mentionQuery !== null
+  // @group-tag suggestions (e.g. @dept_heads, @branch_pastors) only make
+  // sense in a group thread — in a 1:1 DM there's no "everyone in this
+  // conversation" for a role/department tag to broaden, so offering them
+  // here is just confusing, not a privacy issue (the backend already
+  // scopes any group tag down to actual thread participants regardless).
+  const mentionGroupCandidates = mentionQuery !== null && activeThread?.type === 'group'
     ? mentionGroups.filter(g => g.tag.includes(mentionQuery.toLowerCase()) || g.label.toLowerCase().includes(mentionQuery.toLowerCase()))
     : [];
 

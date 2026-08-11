@@ -1679,11 +1679,19 @@ function CreateCellModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dar
   const [fellowshipId,setFellowshipId]=React.useState('');
   const [targetSize,setTargetSize]=React.useState('');
   const [fellowships,setFellowships]=React.useState<{id:string;name:string}[]>([]);
+  const [fellowshipsLoading,setFellowshipsLoading]=React.useState(true);
   const [saving,setSaving]=React.useState(false);
   const [error,setError]=React.useState('');
 
   React.useEffect(()=>{
-    fetch('/api/fellowships/all',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.fellowships)setFellowships(data.fellowships);}).catch(()=>{});
+    // Was silently leaving the dropdown empty on any non-2xx (most often a
+    // branch_pastor whose account has no branch_id assigned yet, which the
+    // API fails closed on with a 403) — surface that instead of a bare
+    // "Select a fellowship..." with nothing under it.
+    fetch('/api/fellowships/all',{credentials:'include'}).then(r=>r.json().then(json=>({ok:r.ok,json}))).then(({ok,json})=>{
+      if(!ok){setError(json?.error?.message||'Could not load fellowships.');return;}
+      if(json.data?.fellowships)setFellowships(json.data.fellowships);
+    }).catch(()=>setError('Network error — could not load fellowships.')).finally(()=>setFellowshipsLoading(false));
   },[]);
 
   async function submit(){
@@ -1715,6 +1723,9 @@ function CreateCellModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dar
               <option value="">Select a fellowship...</option>
               {fellowships.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
+            {!fellowshipsLoading && !error && fellowships.length===0 && (
+              <div style={{fontSize:10.5,color:t.muted,marginTop:4}}>No fellowships found for your account yet.</div>
+            )}
           </div>
           <div><label style={labelS}>Target size (optional)</label><input value={targetSize} onChange={e=>setTargetSize(e.target.value.replace(/\D/g,''))} style={inputS}/></div>
           <div style={{display:'flex',gap:8,marginTop:6}}>

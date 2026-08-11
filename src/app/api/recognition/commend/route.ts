@@ -27,9 +27,16 @@ async function resolveRecipients(scope: string, opts: { leader_id?: string; fell
   if (scope === 'individual') return opts.leader_id ? [opts.leader_id] : [];
   const churchFilter = opts.church_id ? `&church_id=eq.${opts.church_id}` : '';
 
+  // is_active=eq.true on every query below: every other role-list resolver
+  // in this app (mention-groups.ts, admin/users, ...) excludes suspended/
+  // deactivated accounts. This one didn't, so a "commend everyone" could
+  // report a real recipient_count and a 201 while some (or, in a church
+  // whose active leaders had all been reassigned/suspended, effectively
+  // all) of those ids belonged to accounts nobody was actually watching —
+  // "it said success but nobody saw it" with no error anywhere to catch it.
   if (scope === 'fellowship' && opts.fellowship_id) {
     const [headRes, cellsRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.fellowship_head&fellowship_id=eq.${opts.fellowship_id}${churchFilter}&select=id`, { headers: hdrs() }),
+      fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.fellowship_head&fellowship_id=eq.${opts.fellowship_id}&is_active=eq.true${churchFilter}&select=id`, { headers: hdrs() }),
       fetch(`${SUPABASE_URL}/rest/v1/cells?fellowship_id=eq.${opts.fellowship_id}${churchFilter}&select=id`, { headers: hdrs() }),
     ]);
     const heads = await headRes.json().catch(() => []);
@@ -37,7 +44,7 @@ async function resolveRecipients(scope: string, opts: { leader_id?: string; fell
     const cellIds = (Array.isArray(cells) ? cells : []).map((c: { id: string }) => c.id);
     let leaderIds: string[] = [];
     if (cellIds.length > 0) {
-      const leadersRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&cell_id=in.(${cellIds.join(',')})${churchFilter}&select=id`, { headers: hdrs() });
+      const leadersRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&cell_id=in.(${cellIds.join(',')})&is_active=eq.true${churchFilter}&select=id`, { headers: hdrs() });
       const leaders = await leadersRes.json().catch(() => []);
       leaderIds = (Array.isArray(leaders) ? leaders : []).map((l: { id: string }) => l.id);
     }
@@ -45,14 +52,14 @@ async function resolveRecipients(scope: string, opts: { leader_id?: string; fell
   }
 
   if (scope === 'department' && opts.department_id) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.department_head&department_id=eq.${opts.department_id}${churchFilter}&select=id`, { headers: hdrs() });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.department_head&department_id=eq.${opts.department_id}&is_active=eq.true${churchFilter}&select=id`, { headers: hdrs() });
     const data = await res.json().catch(() => []);
     return Array.isArray(data) ? data.map((u: { id: string }) => u.id) : [];
   }
 
   if (scope === 'all') {
     const branchFilter = opts.branch_id ? `&branch_id=eq.${opts.branch_id}` : '';
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(cell_leader,fellowship_head,department_head)&select=id${branchFilter}${churchFilter}`, { headers: hdrs() });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(cell_leader,fellowship_head,department_head)&is_active=eq.true&select=id${branchFilter}${churchFilter}`, { headers: hdrs() });
     const data = await res.json().catch(() => []);
     return Array.isArray(data) ? data.map((u: { id: string }) => u.id) : [];
   }

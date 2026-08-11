@@ -98,6 +98,7 @@ export default function ChurchFeedPage() {
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState('');
   const composerFileRef = useRef<HTMLInputElement>(null);
+  const mentionBoxRef = useRef<HTMLDivElement>(null);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionGroups, setMentionGroups] = useState<MentionGroup[]>([]);
   const [pollMode, setPollMode] = useState(false);
@@ -141,6 +142,20 @@ export default function ChurchFeedPage() {
       setMentionGroups(data?.groups || []);
     }).catch(() => {});
   }, [myId]);
+
+  // The @mention suggestion list is position:absolute and was floating over
+  // the post list below it with no way to dismiss it short of typing past
+  // the match — a click anywhere outside the box now closes it, and the
+  // box itself is height-capped with its own scroll (see render below) so
+  // a church with many departments doesn't cover the whole page.
+  useEffect(() => {
+    if (mentionQuery === null) return;
+    function onClickOutside(e: MouseEvent) {
+      if (mentionBoxRef.current && !mentionBoxRef.current.contains(e.target as Node)) setMentionQuery(null);
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [mentionQuery]);
 
   const loadGroups = useCallback(() => {
     setLoading(true); setGroupsError('');
@@ -409,7 +424,7 @@ export default function ChurchFeedPage() {
                       <textarea value={composerBody} onChange={e => handleComposerBodyChange(e.target.value)} rows={3} placeholder="What do you need to say? Use @ to mention a group (e.g. @dept_heads)"
                         style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 13, background: t.input, color: t.text, outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                       {mentionGroupCandidates.length > 0 && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 8, overflow: 'hidden', minWidth: 200, boxShadow: '0 4px 16px rgba(0,0,0,0.18)', zIndex: 10 }}>
+                        <div ref={mentionBoxRef} style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 8, overflow: 'hidden', overflowY: 'auto', maxHeight: 220, minWidth: 200, boxShadow: '0 4px 16px rgba(0,0,0,0.18)', zIndex: 10 }}>
                           {mentionGroupCandidates.map(g => (
                             <div key={g.tag} onClick={() => insertGroupMention(g.tag)}
                               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', fontSize: 12, color: t.teal, fontWeight: 600, cursor: 'pointer' }}
