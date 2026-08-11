@@ -160,12 +160,22 @@ export async function POST(req: Request) {
     });
     const data = await res.json();
 
-    // NOTE (pre-existing, preserved as-is): this comment has said "Notify
-    // pastor and PA" but the recipient has only ever been the submitter
-    // (user.id) themselves — no pastor/PA lookup exists here. Left exactly
-    // as it was to avoid changing who gets notified during a plumbing-only
-    // consolidation; flagged in the notify-consolidation report.
-    await notifyUsers([user.id], {
+    // This comment used to say "Notify pastor and PA" while only ever
+    // notifying the submitter — the lookup was never actually implemented.
+    // Now does both: the submitter gets their own confirmation, and
+    // overseer/general_overseer/pa (this church's "pastor and PA") get
+    // real visibility into the submission, scoped to this church only —
+    // same church_id-scoped admin-lookup pattern already used correctly
+    // in events/checkin.
+    const adminRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,general_overseer,pa)&church_id=eq.${user.church_id}&select=id`,
+      { headers: hdrs() }
+    );
+    const admins = await adminRes.json();
+    const adminIds = Array.isArray(admins) ? admins.map((u: { id: string }) => u.id) : [];
+    const recipients = Array.from(new Set([user.id, ...adminIds]));
+
+    await notifyUsers(recipients, {
       type: 'attendance',
       title: 'CYDF attendance submitted',
       body: `Children: ${children_count || 0} · Teenagers: ${teenagers_count || 0} · SLA: ${sla_grade}`,
