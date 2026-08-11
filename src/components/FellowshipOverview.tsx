@@ -33,13 +33,14 @@ type OverviewCell = {
   status: 'submitted' | 'pending' | 'overdue';
 };
 
-// Fellowship head's own leadership SLA — a composite of their fellowship's
-// cells' own overall_score (from cells/all's formula, reused not
-// re-derived — see src/lib/leadership-sla.ts) and this head's own
-// validation-action promptness. Either half can be null if there's no
-// data yet (e.g. a brand-new fellowship, or a head who hasn't validated
-// anything) — see GET /api/fellowship/cells for the full computation.
-type LeadershipSla = { score: number | null; cells_avg_score: number | null; validation_promptness: number | null } | null;
+// Fellowship head's own leadership SLA — a 50/50 composite of their
+// fellowship's cells' own overall_score (from cells/all's formula, reused
+// not re-derived — see src/lib/leadership-sla.ts) and overall attendance
+// for members of this particular fellowship, computed as one direct
+// fellowship-wide ratio. Either half can be null if there's no data yet
+// (e.g. a brand-new fellowship with cells but no attendance history yet)
+// — see GET /api/fellowship/cells for the full computation.
+type LeadershipSla = { score: number | null; cells_avg_score: number | null; fellowship_attendance_rate: number | null } | null;
 
 interface FellowshipOverviewProps {
   t: Record<string, string>;
@@ -131,8 +132,8 @@ export default function FellowshipOverview({
 
       {/* Leadership SLA — your own composite score, not just a per-cell
           submission grade: blends your cells' own overall_score (the same
-          numbers cells/all reports) with how promptly you validate what
-          your cell leaders submit. */}
+          numbers cells/all reports) with overall attendance across your
+          fellowship's members, weighted equally. */}
       {leadershipSla && (
         <div style={{ ...card(), marginBottom: 18, display: 'flex', flexWrap: 'wrap', gap: 18, alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
@@ -145,12 +146,12 @@ export default function FellowshipOverview({
           </div>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: 10, color: t.muted, marginBottom: 2 }}>{tier2Label}s avg score</div>
+              <div style={{ fontSize: 10, color: t.muted, marginBottom: 2 }}>{tier2Label} health average</div>
               <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{leadershipSla.cells_avg_score !== null ? `${leadershipSla.cells_avg_score}%` : '—'}</div>
             </div>
             <div>
-              <div style={{ fontSize: 10, color: t.muted, marginBottom: 2 }}>Validation promptness</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{leadershipSla.validation_promptness !== null ? `${leadershipSla.validation_promptness}%` : '—'}</div>
+              <div style={{ fontSize: 10, color: t.muted, marginBottom: 2 }}>Fellowship attendance rate</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{leadershipSla.fellowship_attendance_rate !== null ? `${leadershipSla.fellowship_attendance_rate}%` : '—'}</div>
             </div>
           </div>
         </div>

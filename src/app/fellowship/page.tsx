@@ -159,7 +159,7 @@ export default function FellowshipHeadPage() {
   const [currency, setCurrency] = useState('NGN');
   const [cells, setCells] = useState<Cell[]>([]);
   const [fellowshipTrend, setFellowshipTrend] = useState<{ w: string; v: number }[]>([]);
-  const [fellowshipHeadSla, setFellowshipHeadSla] = useState<{ score: number | null; cells_avg_score: number | null; validation_promptness: number | null } | null>(null);
+  const [fellowshipHeadSla, setFellowshipHeadSla] = useState<{ score: number | null; cells_avg_score: number | null; fellowship_attendance_rate: number | null } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [givingHistory, setGivingHistory] = useState<GivingEntry[]>([]);
