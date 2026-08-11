@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { computeSlaGrade, gradeToScore } from '@/lib/sla';
+import { buildCellScores, avgScore, computeFellowshipHeadScore } from '@/lib/leadership-sla';
 
 export async function GET(req: Request) {
   try {
@@ -22,7 +24,7 @@ export async function GET(req: Request) {
     );
     const memberData = await memberRes.json();
     const fellowship_id = user.fellowship_id || memberData?.[0]?.fellowship_id;
-    if (!fellowship_id) return NextResponse.json({ data: { cells: [] }, error: null });
+    if (!fellowship_id) return NextResponse.json({ data: { cells: [], fellowship_head_sla: null }, error: null });
 
     // Get all cells in fellowship
     const cellsRes = await fetch(
@@ -119,7 +121,54 @@ export async function GET(req: Request) {
       fellowship_trend.push({ w: `W${i + 1}`, v: sum });
     }
 
-    return NextResponse.json({ data: { cells, fellowship_trend }, error: null });
+    // ── Fellowship head leadership SLA ───────────────────────────
+    // A composite of two real inputs — see computeFellowshipHeadScore in
+    // src/lib/leadership-sla.ts for the full weighting rationale:
+    //   1. cellsAvgScore — the plain average of this fellowship's own
+    //      cells' overall_score, computed via the exact same
+    //      buildCellScores() cells/all/route.ts uses (church_id- and
+    //      fellowship_id-scoped here so this head only ever sees their
+    //      own fellowship's cells).
+    //   2. validationPromptness — how quickly this head has actually
+    //      acted (validated/rejected) on monthly_attendance records their
+    //      cell leaders submitted, graded with the same computeSlaGrade()
+    //      used everywhere else, just applied to a new pair of timestamps
+    //      (submission → validation) instead of (service → submission).
+    const cellScores = await buildCellScores({
+      supabaseUrl: SUPABASE_URL,
+      headers: hdrs,
+      churchId: user.church_id,
+      extraCellsFilter: `&fellowship_id=eq.${fellowship_id}`,
+    });
+    const cellsAvgScore = avgScore(cellScores.map(c => c.overall_score));
+
+    // Self-scoped by validated_by=user.id — this head can only ever see
+    // their own turnaround time, never another fellowship's. If
+    // monthly_attendance turns out not to carry a submission timestamp
+    // (created_at) this select simply errors and validationPromptness
+    // stays null — dropped from the composite, never faked.
+    let validationPromptness: number | null = null;
+    try {
+      const valRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/monthly_attendance?validated_by=eq.${user.id}&status=in.(validated,rejected)&validated_at=not.is.null&order=validated_at.desc&limit=40&select=created_at,validated_at`,
+        { headers: hdrs }
+      );
+      const valData = await valRes.json();
+      if (Array.isArray(valData)) {
+        const scores = valData
+          .filter((r: Record<string, unknown>) => r.created_at && r.validated_at)
+          .map((r: Record<string, unknown>) => gradeToScore(computeSlaGrade(r.created_at as string, r.validated_at as string)));
+        validationPromptness = avgScore(scores);
+      }
+    } catch { /* validationPromptness stays null — dropped from the composite */ }
+
+    const fellowship_head_sla = {
+      score: computeFellowshipHeadScore({ cellsAvgScore, validationPromptness }),
+      cells_avg_score: cellsAvgScore,
+      validation_promptness: validationPromptness,
+    };
+
+    return NextResponse.json({ data: { cells, fellowship_trend, fellowship_head_sla }, error: null });
   } catch (err) {
     console.error('[GET /api/fellowship/cells]', err);
     return NextResponse.json({ data: null, error: { message: 'Failed to load cells' } }, { status: 500 });
