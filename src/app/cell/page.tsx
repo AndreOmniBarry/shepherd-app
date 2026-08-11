@@ -182,6 +182,7 @@ export default function CellPage() {
   const [flagSubmitting, setFlagSubmitting] = useState(false);
   const [flagResult, setFlagResult] = useState('');
   const [cellName, setCellName] = useState('');
+  const [cellId, setCellId] = useState<string | null>(null);
   const [leaderName, setLeaderName] = useState('');
   const {dark, setDark} = useTheme();
   const [isMobile, setIsMobile] = useState(false);
@@ -220,6 +221,7 @@ export default function CellPage() {
       .then(({ data }) => {
         if (!data) { router.push('/login'); return; }
         setCellName(data.cell_name || 'Your Cell');
+        setCellId(data.cell_id || null);
         setLeaderName(data.name || '');
         setPageReady(true);
         if (data.branch_id) {
@@ -324,6 +326,13 @@ export default function CellPage() {
         body: JSON.stringify({
           service_date: serviceDate,
           service_number: serviceNumber,
+          // Harmless for the normal cell_leader path — the server already
+          // resolves cell_id from the authenticated user for that role
+          // regardless of what's sent here. It's the piece a non-cell_leader
+          // admin (e.g. a single-structure church's overseer using this
+          // page directly) needs: attendance/route.ts falls back to
+          // body.cell_id for any role other than cell_leader.
+          cell_id: cellId,
           entries,
           visitor_count: visitorCount,
           absence_reasons: absenceReasons,
