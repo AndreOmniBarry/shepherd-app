@@ -9,6 +9,33 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
 
+// ------------------------------------------------------------------
+// Real Claude/AI cost accounting for the usage-events command center.
+// Unlike the sms/whatsapp placeholders in src/lib/usage.ts, this is an
+// EXACT figure: Anthropic's own published per-token pricing for the model
+// this route actually calls, applied to the real usage.input_tokens /
+// usage.output_tokens the API returns on every response.
+//
+// claude-sonnet-4-6 published pricing (per Anthropic's Claude API pricing
+// docs, confirmed current as of this change): $3.00 / MTok input,
+// $15.00 / MTok output. Update these two constants if the model this
+// route calls changes, or if Anthropic reprices it.
+const CLAUDE_USD_PER_MTOK_INPUT = 3.0;
+const CLAUDE_USD_PER_MTOK_OUTPUT = 15.0;
+
+// USD→NGN is NOT something this app has a live/authoritative source for.
+// This is a plain, manually-maintained constant — same spirit as usage.ts's
+// COST_NGN placeholder comment — not a claim of real-time FX precision.
+// Update this periodically; there's no false precision implied by having
+// it here versus baking a stale rate into a "real" FX API call.
+const USD_TO_NGN_RATE = 1550;
+
+function claudeCostNgn(inputTokens: number, outputTokens: number): number {
+  const usd = (inputTokens / 1_000_000) * CLAUDE_USD_PER_MTOK_INPUT
+    + (outputTokens / 1_000_000) * CLAUDE_USD_PER_MTOK_OUTPUT;
+  return Math.round(usd * USD_TO_NGN_RATE * 100) / 100;
+}
+
 async function getUser(req: Request) {
   return getAuthUser(req);
 }
@@ -259,13 +286,6 @@ export async function POST(req: Request) {
     const blocked = await requirePremium(user.church_id, user.id);
     if (blocked) return blocked;
 
-    // Fire-and-forget — one query is one usage unit regardless of whether
-    // the model ends up calling query_database. Never gates the request;
-    // just tags this event as pay-as-you-go overage once the church is
-    // past its plan's included monthly quota, for the command center and
-    // future invoicing to pick up.
-    getChurchPlan(user.church_id).then(plan => recordUsage(user.church_id, 'moshe', plan.plan_tier)).catch(() => {});
-
     const body = await req.json() as { query: string; agent?: AgentName; history?: ConversationMessage[] };
     const { query, history = [] } = body;
 
@@ -307,6 +327,13 @@ export async function POST(req: Request) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ meta })}\n\n`));
         }
 
+        // Summed across both anthropic.messages.create() calls below (the
+        // second only happens if the model calls query_database) — one
+        // user query is one usage unit, billed at its real combined token
+        // cost, not per-call.
+        let totalInputTokens = 0;
+        let totalOutputTokens = 0;
+
         try {
           emitMeta({ agent: agentName, status: 'thinking' });
 
@@ -320,6 +347,8 @@ export async function POST(req: Request) {
             tools: [DB_TOOL],
             messages,
           });
+          totalInputTokens += firstResponse.usage.input_tokens;
+          totalOutputTokens += firstResponse.usage.output_tokens;
 
           if (firstResponse.stop_reason === 'tool_use') {
             const toolBlock = firstResponse.content.find(b => b.type === 'tool_use');
@@ -341,6 +370,8 @@ export async function POST(req: Request) {
                 tool_choice: { type: 'none' },
                 messages,
               });
+              totalInputTokens += finalResponse.usage.input_tokens;
+              totalOutputTokens += finalResponse.usage.output_tokens;
 
               for (const block of finalResponse.content) {
                 if (block.type === 'text' && block.text) emit(block.text);
@@ -351,6 +382,21 @@ export async function POST(req: Request) {
               if (block.type === 'text' && block.text) emit(block.text);
             }
           }
+
+          // Fire-and-forget — real token-based cost for this one user query,
+          // computed from what the Anthropic API actually reported using its
+          // published per-token pricing (see the constants above), passed in
+          // as an exact override instead of the flat COST_NGN placeholder.
+          // Still tags pay-as-you-go overage the same way — never gates the
+          // request; just decides whether this event is "included" or past
+          // the church's plan quota for the command center to pick up.
+          getChurchPlan(user.church_id)
+            .then(plan => recordUsage(
+              user.church_id, 'moshe', plan.plan_tier,
+              { input_tokens: totalInputTokens, output_tokens: totalOutputTokens, model: 'claude-sonnet-4-6' },
+              claudeCostNgn(totalInputTokens, totalOutputTokens)
+            ))
+            .catch(() => {});
 
           emitMeta({ agent: agentName, status: 'done' });
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
