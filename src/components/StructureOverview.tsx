@@ -1,13 +1,27 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import UpcomingEventsCard from '@/components/UpcomingEventsCard';
 import Icon from '@/components/Icon';
 import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
+import { gradeColors } from '@/lib/sla';
+
+// Shared overview tab for any single attendance-tracking unit (a cell, a
+// department, …) that reports member-level attendance health. Cell and
+// Department used to be two ~90%-identical copy-pasted components; this is
+// the one implementation, parameterized the same way AttendanceHistoryPanel
+// is — a fetch URL plus a handful of labels, not a type switch inside.
+//
+// Fellowship is NOT wired to this component. Its "overview" is a rollup
+// across many cells (submission status per cell, fellowship-wide giving)
+// rather than member-level health within one unit, and no endpoint today
+// returns fellowship data in this shape — see the note in fellowship's
+// page.tsx above its own overview section.
 
 type MemberProfile = {
   id: string;
   full_name: string;
+  role?: string;
   present: number;
   absent: number;
   total: number;
@@ -20,15 +34,40 @@ type MemberProfile = {
 
 type Action = { priority: 'high' | 'medium' | 'low'; message: string };
 
+type UnitInfo = { id: string; name: string; fellowship?: string; totalMembers: number };
+
+type Stats = {
+  avgRate: number | null;
+  currentSLA: string | null;
+  // Cell's endpoint reports these; Department's does not (its criticalCount
+  // already folds warning-tier members in). Rendered only when present.
+  bestSunday?: { date: string; rate: number } | null;
+  worstSunday?: { date: string; rate: number } | null;
+  warningCount?: number;
+  totalSubmissions: number;
+  criticalCount: number;
+};
+
+// Department head's own leadership SLA — a composite distinct from
+// stats.currentSLA (which is just the most recent submission's own
+// grade). Only Department's endpoint returns this today; see
+// computeDepartmentHeadScore in src/lib/leadership-sla.ts for the
+// weighting. Any input can be null when there isn't enough data yet.
+type LeadershipSla = { score: number | null; attendance_rate: number | null; submission_sla_score: number | null; growth_score: number | null };
+
 type Overview = {
-  cell: { id: string; name: string; fellowship: string; totalMembers: number };
-  stats: { avgRate: number | null; currentSLA: string | null; bestSunday: { date: string; rate: number } | null; worstSunday: { date: string; rate: number } | null; totalSubmissions: number; criticalCount: number; warningCount: number };
+  cell?: UnitInfo;
+  dept?: UnitInfo;
+  stats: Stats;
   trend: { week: string; present: number; absent: number; rate: number; sla: string; date: string }[];
   memberProfiles: MemberProfile[];
   slaHistory: { date: string; grade: string }[];
   actions: Action[];
   birthdayToday: MemberProfile[];
-  upcomingBirthdays: MemberProfile[];
+  // Only Cell's endpoint returns this today.
+  upcomingBirthdays?: MemberProfile[];
+  // Only Department's endpoint returns this today.
+  department_head_sla?: LeadershipSla;
 };
 
 const HEALTH_CFG: Record<string, { bg: string; text: string; label: string; border: string }> = {
@@ -41,40 +80,40 @@ const HEALTH_CFG: Record<string, { bg: string; text: string; label: string; bord
   new:      { bg: '#F3F4F6', text: '#6B7280', label: 'New',      border: '#9CA3AF' },
 };
 
-const SLA_CFG: Record<string, { bg: string; text: string }> = {
-  'A+': { bg: '#E1F5EE', text: '#085041' },
-  'A':  { bg: '#E1F5EE', text: '#085041' },
-  'B':  { bg: '#EEEDFE', text: '#3C3489' },
-  'C':  { bg: '#FAEEDA', text: '#633806' },
-  'D':  { bg: '#FAECE7', text: '#993C1D' },
-  'F':  { bg: '#FCEBEB', text: '#A32D2D' },
-  'F-': { bg: '#FCEBEB', text: '#A32D2D' },
-};
-
 const ACTION_CFG = {
   high:   { bg: '#FCEBEB', text: '#A32D2D', border: 'rgba(198,40,40,0.2)', icon: '⚠' },
   medium: { bg: '#FAEEDA', text: '#633806', border: 'rgba(186,117,23,0.2)', icon: '●' },
   low:    { bg: '#EEEDFE', text: '#3C3489', border: 'rgba(83,74,183,0.2)',  icon: '○' },
 };
 
-interface CellOverviewProps {
+interface StructureOverviewProps {
   dark?: boolean;
   t: Record<string, string>;
   isMobile?: boolean;
+  /** e.g. '/api/cell/overview' or '/api/department/overview' */
+  fetchUrl: string;
+  /** Which key in the response holds the unit's own info block. */
+  structureKey: 'cell' | 'dept';
+  /** e.g. 'Cell' or 'Department' — used for the members KPI label. */
+  unitLabel: string;
+  emptyTitle: string;
+  emptySubtitle?: string;
 }
 
-export default function CellOverview({ dark = false, t, isMobile = false }: CellOverviewProps) {
+export default function StructureOverview({ dark = false, t, isMobile = false, fetchUrl, structureKey, unitLabel, emptyTitle, emptySubtitle }: StructureOverviewProps) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
   const [memberView, setMemberView] = useState<'all' | 'critical' | 'watch' | 'healthy'>('all');
 
   useEffect(() => {
-    fetch('/api/cell/overview', { credentials: 'include' })
+    setOverview(null);
+    setLoading(true);
+    fetch(fetchUrl, { credentials: 'include' })
       .then(r => r.json())
       .then(({ data }) => { if (data) setOverview(data); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [fetchUrl]);
 
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -87,16 +126,22 @@ export default function CellOverview({ dark = false, t, isMobile = false }: Cell
     </div>
   );
 
-  if (!overview) return (
+  const unit = overview ? (structureKey === 'cell' ? overview.cell : overview.dept) : undefined;
+
+  if (!overview || !unit) return (
     <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: 32, textAlign: 'center' }}>
-      <div style={{ fontSize: 13, color: t.sub }}>No cell assigned to your account.</div>
-      <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>Contact your administrator.</div>
+      <div style={{ fontSize: 13, color: t.sub }}>{emptyTitle}</div>
+      {emptySubtitle && <div style={{ fontSize: 11, color: t.muted, marginTop: 4 }}>{emptySubtitle}</div>}
     </div>
   );
 
-  const { cell, stats, trend, memberProfiles, slaHistory, actions, birthdayToday, upcomingBirthdays } = overview;
-  if (!stats || !cell) return (<div style={{ textAlign: "center", padding: 40, color: t.muted, fontSize: 13 }}>Loading cell intelligence...</div>);
-  const slaColor = SLA_CFG[stats.currentSLA || ''] || { bg: t.purpleBg, text: t.purple };
+  const { stats, trend, memberProfiles, slaHistory, actions, birthdayToday, upcomingBirthdays, department_head_sla } = overview;
+  const slaColor = gradeColors(stats.currentSLA) || { bg: t.purpleBg, text: t.purple };
+  const atRisk = stats.criticalCount + (stats.warningCount ?? 0);
+  const atRiskSub = stats.warningCount !== undefined
+    ? `${stats.criticalCount} critical · ${stats.warningCount} warning`
+    : 'Need follow-up';
+  const hasRoleColumn = memberProfiles.some(m => m.role);
 
   const filteredMembers = memberProfiles.filter(m =>
     memberView === 'all' ? true
@@ -128,10 +173,10 @@ export default function CellOverview({ dark = false, t, isMobile = false }: Cell
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
         {[
-          { label: 'Cell members', value: cell.totalMembers, sub: cell.fellowship + ' Fellowship', accent: '#534AB7' },
+          { label: `${unitLabel} members`, value: unit.totalMembers, sub: unit.fellowship ? `${unit.fellowship} Fellowship` : unit.name, accent: '#534AB7' },
           { label: 'Avg attendance', value: stats.avgRate !== null ? `${stats.avgRate}%` : '—', sub: 'Last 8 Sundays', accent: '#1D9E75' },
           { label: 'Current SLA', value: stats.currentSLA || '—', sub: 'This week', accent: slaColor.text, valueBg: slaColor.bg, valueText: slaColor.text },
-          { label: 'Members at risk', value: stats.criticalCount + stats.warningCount, sub: `${stats.criticalCount} critical · ${stats.warningCount} warning`, accent: stats.criticalCount > 0 ? '#D85A30' : '#BA7517' },
+          { label: 'Members at risk', value: atRisk, sub: atRiskSub, accent: atRisk > 0 ? '#D85A30' : '#1D9E75' },
         ].map(k => (
           <div key={k.label} style={{ background: t.card, borderRadius: 11, border: `0.5px solid ${t.border}`, padding: '12px 14px', borderTop: `2.5px solid ${k.accent}` }}>
             <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>{k.label}</div>
@@ -141,6 +186,38 @@ export default function CellOverview({ dark = false, t, isMobile = false }: Cell
         ))}
       </div>
 
+      {/* Leadership SLA — your own composite score, distinct from "Current
+          SLA" above (which is just this week's submission grade): blends
+          attendance rate, submission promptness and growth trend into one
+          number. Only rendered when the endpoint reports it (Department
+          today; Cell's endpoint doesn't compute this concept). */}
+      {department_head_sla && (
+        <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px', display: 'flex', flexWrap: 'wrap', gap: 18, alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Your leadership SLA</div>
+            {department_head_sla.score !== null ? (
+              <div style={{ fontSize: 26, fontWeight: 700, color: department_head_sla.score >= 75 ? t.teal : department_head_sla.score >= 50 ? t.amber : t.coral }}>{department_head_sla.score}%</div>
+            ) : (
+              <div style={{ fontSize: 13, color: t.muted }}>Not enough data yet</div>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 10, color: t.muted, marginBottom: 2 }}>Attendance rate</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{department_head_sla.attendance_rate !== null ? `${department_head_sla.attendance_rate}%` : '—'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: t.muted, marginBottom: 2 }}>Submission promptness</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{department_head_sla.submission_sla_score !== null ? `${department_head_sla.submission_sla_score}%` : '—'}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: t.muted, marginBottom: 2 }}>Growth trend</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{department_head_sla.growth_score !== null ? `${department_head_sla.growth_score}%` : '—'}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Charts row */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
 
@@ -148,13 +225,15 @@ export default function CellOverview({ dark = false, t, isMobile = false }: Cell
         <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 4 }}>Attendance trend</div>
           <div style={{ fontSize: 10, color: t.muted, marginBottom: 12 }}>
-            Best: {stats.bestSunday ? `${stats.bestSunday.rate}%` : '—'} · Worst: {stats.worstSunday ? `${stats.worstSunday.rate}%` : '—'}
+            {stats.bestSunday || stats.worstSunday
+              ? <>Best: {stats.bestSunday ? `${stats.bestSunday.rate}%` : '—'} · Worst: {stats.worstSunday ? `${stats.worstSunday.rate}%` : '—'}</>
+              : 'Last 8 Sundays'}
           </div>
           {trend.length > 0 ? (
             <ResponsiveContainer width="100%" height={130}>
               <AreaChart data={trend} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="aGrad" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="structureOverviewFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#534AB7" stopOpacity={0.3}/>
                     <stop offset="95%" stopColor="#534AB7" stopOpacity={0}/>
                   </linearGradient>
@@ -166,7 +245,7 @@ export default function CellOverview({ dark = false, t, isMobile = false }: Cell
                   contentStyle={{ fontSize: 11, borderRadius: 8, border: `1px solid ${t.border}`, background: t.card, color: t.text }}
                   formatter={(v: number) => [`${v}%`, 'Rate']}
                 />
-                <Area type="monotone" dataKey="rate" stroke="#534AB7" strokeWidth={2} fill="url(#aGrad)" dot={false} />
+                <Area type="monotone" dataKey="rate" stroke="#534AB7" strokeWidth={2} fill="url(#structureOverviewFill)" dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
@@ -183,7 +262,7 @@ export default function CellOverview({ dark = false, t, isMobile = false }: Cell
               <div style={{ color: t.muted, fontSize: 12, padding: '20px 0', textAlign: 'center' }}>No submissions yet</div>
             ) : (
               slaHistory.slice(0, 6).map((s, i) => {
-                const sc = SLA_CFG[s.grade] || { bg: t.purpleBg, text: t.purple };
+                const sc = gradeColors(s.grade) || { bg: t.purpleBg, text: t.purple };
                 return (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < 5 ? `0.5px solid ${t.border}` : 'none' }}>
                     <div style={{ fontSize: 11, color: t.sub }}>{s.date ? new Date(s.date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}</div>
@@ -198,7 +277,7 @@ export default function CellOverview({ dark = false, t, isMobile = false }: Cell
 
       {/* Member health table */}
       <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, overflow: 'hidden' }}>
-        <div style={{ padding: '14px 16px', borderBottom: `0.5px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '14px 16px', borderBottom: `0.5px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Member health</div>
             <div style={{ fontSize: 10, color: t.muted, marginTop: 2 }}>Attendance consistency and risk status for each member</div>
@@ -206,7 +285,7 @@ export default function CellOverview({ dark = false, t, isMobile = false }: Cell
           <div style={{ display: 'flex', gap: 6 }}>
             {[
               { id: 'all', label: 'All' },
-              { id: 'critical', label: `At risk (${stats.criticalCount + stats.warningCount})` },
+              { id: 'critical', label: `At risk (${atRisk})` },
               { id: 'watch', label: 'Watch' },
               { id: 'healthy', label: 'Healthy' },
             ].map(v => (
@@ -220,16 +299,19 @@ export default function CellOverview({ dark = false, t, isMobile = false }: Cell
 
         {filteredMembers.length === 0 ? (
           <div style={{ padding: 24, textAlign: 'center', color: t.muted, fontSize: 12 }}>No members in this category</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        ) : isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8 }}>
             {filteredMembers.map(m => {
               const hcfg = HEALTH_CFG[m.health] || HEALTH_CFG.new;
               return (
-                <div key={m.id} style={{ background: t.input, borderRadius: 10, padding: '10px 12px', borderLeft: `3px solid ${m.health === 'critical' ? '#C62828' : m.health === 'warning' ? '#D85A30' : m.health === 'healthy' ? '#1D9E75' : t.border}` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>
-                      {m.full_name}
-                      {m.birthdayStatus === 'today' && <span style={{ marginLeft: 6, display: 'inline-flex', color: t.amber, verticalAlign: 'middle' }}><Icon name="ti-cake" size={12} /></span>}
+                <div key={m.id} style={{ background: t.input, borderRadius: 10, padding: '10px 12px', borderLeft: `3px solid ${hcfg.border}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>
+                        {m.full_name}
+                        {m.birthdayStatus === 'today' && <span style={{ marginLeft: 6, display: 'inline-flex', color: t.amber, verticalAlign: 'middle' }}><Icon name="ti-cake" size={12} /></span>}
+                      </div>
+                      {m.role && <div style={{ fontSize: 11, color: t.muted }}>{m.role}</div>}
                     </div>
                     <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 8, background: hcfg.bg, color: hcfg.text, fontWeight: 500, flexShrink: 0 }}>{hcfg.label}</span>
                   </div>
@@ -253,23 +335,65 @@ export default function CellOverview({ dark = false, t, isMobile = false }: Cell
               );
             })}
           </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
+                  {['Member', ...(hasRoleColumn ? ['Role'] : []), 'Attendance rate', 'Present', 'Absent', 'Consecutive absences', 'Status'].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px', background: t.card, whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredMembers.map((m, i) => {
+                  const hcfg = HEALTH_CFG[m.health] || HEALTH_CFG.new;
+                  return (
+                    <tr key={m.id} style={{ borderBottom: i < filteredMembers.length - 1 ? `0.5px solid ${t.border}` : 'none' }}>
+                      <td style={{ padding: '10px 12px', fontWeight: 500, color: t.text, whiteSpace: 'nowrap' }}>
+                        {m.full_name}
+                        {m.birthdayStatus === 'today' && <span style={{ marginLeft: 6, display: 'inline-flex', color: t.amber, verticalAlign: 'middle' }}><Icon name="ti-cake" size={12} /></span>}
+                      </td>
+                      {hasRoleColumn && <td style={{ padding: '10px 12px', color: t.muted, fontSize: 11 }}>{m.role || '—'}</td>}
+                      <td style={{ padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ width: 50, height: 4, background: dark ? '#2A2A2A' : '#F0F0F0', borderRadius: 2, overflow: 'hidden' }}>
+                            <div style={{ width: `${m.rate || 0}%`, height: '100%', background: m.rate && m.rate >= 80 ? '#1D9E75' : m.rate && m.rate >= 60 ? '#BA7517' : '#D85A30', borderRadius: 2 }} />
+                          </div>
+                          <span style={{ fontSize: 11, color: t.text, fontWeight: 500 }}>{m.rate !== null ? `${m.rate}%` : '—'}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 12px', color: '#1D9E75', fontWeight: 500 }}>{m.present}</td>
+                      <td style={{ padding: '10px 12px', color: m.absent > 0 ? '#D85A30' : t.muted }}>{m.absent}</td>
+                      <td style={{ padding: '10px 12px', color: m.consecutiveAbsences >= 2 ? '#D85A30' : t.muted, fontWeight: m.consecutiveAbsences >= 2 ? 600 : 400 }}>
+                        {m.consecutiveAbsences > 0 ? `${m.consecutiveAbsences} in a row` : '—'}
+                      </td>
+                      <td style={{ padding: '10px 12px' }}>
+                        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: hcfg.bg, color: hcfg.text, fontWeight: 500 }}>{hcfg.label}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {/* Birthday section */}
-      {(birthdayToday.length > 0 || upcomingBirthdays.length > 0) && (
+      {(birthdayToday.length > 0 || (upcomingBirthdays && upcomingBirthdays.length > 0)) && (
         <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px' }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 12 }}>Birthdays</div>
           {birthdayToday.map(m => (
             <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: '#FAEEDA', borderRadius: 8, marginBottom: 6 }}>
               <span style={{ color: '#BA7517', display: 'inline-flex' }}><Icon name="ti-cake" size={18} /></span>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#633806' }}>{m.full_name} — Birthday today!</div>
-                <div style={{ fontSize: 10, color: '#BA7517' }}>Celebrate them in your next cell meeting or send a message</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#633806' }}>{m.full_name} — Birthday today!{m.role ? ` (${m.role})` : ''}</div>
+                <div style={{ fontSize: 10, color: '#BA7517' }}>Celebrate them in your next meeting or send a message</div>
               </div>
             </div>
           ))}
-          {upcomingBirthdays.map(m => (
+          {upcomingBirthdays?.map(m => (
             <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: `0.5px solid ${t.border}` }}>
               <div style={{ fontSize: 12, color: t.text }}>{m.full_name}</div>
               <div style={{ fontSize: 11, color: t.purple }}>{m.birthdayStatus}</div>
@@ -278,9 +402,9 @@ export default function CellOverview({ dark = false, t, isMobile = false }: Cell
         </div>
       )}
 
-      {/* Cell summary footer */}
+      {/* Summary footer */}
       <div style={{ background: t.purpleBg, borderRadius: 10, padding: '12px 14px', border: `0.5px solid rgba(83,74,183,0.15)`, fontSize: 11, color: t.purple, lineHeight: 1.6 }}>
-        <strong>{cell.name}</strong> · {cell.fellowship} Fellowship · {cell.totalMembers} active members · {stats.totalSubmissions} submissions recorded · Average attendance {stats.avgRate !== null ? `${stats.avgRate}%` : 'not yet calculated'}
+        <strong>{unit.name}</strong>{unit.fellowship ? ` · ${unit.fellowship} Fellowship` : ''} · {unit.totalMembers} active members · {stats.totalSubmissions} submissions recorded · Average attendance {stats.avgRate !== null ? `${stats.avgRate}%` : 'not yet calculated'}
         {stats.currentSLA && ` · Current SLA grade: ${stats.currentSLA}`}
       </div>
     </div>

@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { computeHealth, computeBirthdayStatus, buildTrend, buildSlaHistory, computeAvgRate } from '@/lib/structure-overview';
+import { gradeToScore } from '@/lib/sla';
+import { avgScore, computeGrowthTrend, computeDepartmentHeadScore } from '@/lib/leadership-sla';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -89,38 +92,19 @@ export async function GET(req: Request) {
       const att = memberAttendance[m.id] || { present: 0, absent: 0, consecutiveAbsences: 0 };
       const total = att.present + att.absent;
       const rate = total > 0 ? Math.round((att.present / total) * 100) : null;
-      const health = att.consecutiveAbsences >= 3 ? 'critical'
-        : att.consecutiveAbsences >= 2 ? 'warning'
-        : att.consecutiveAbsences >= 1 ? 'watch'
-        : rate !== null && rate >= 80 ? 'healthy'
-        : rate !== null && rate >= 60 ? 'fair'
-        : rate !== null ? 'low' : 'new';
-
-      // Birthday check
-      let birthdayStatus = null;
-      if (m.date_of_birth) {
-        const today = new Date();
-        const bday = new Date(m.date_of_birth);
-        const thisYearBday = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
-        const daysUntil = Math.ceil((thisYearBday.getTime() - today.getTime()) / 86400000);
-        if (daysUntil === 0) birthdayStatus = 'today';
-        else if (daysUntil > 0 && daysUntil <= 7) birthdayStatus = `in ${daysUntil} day${daysUntil > 1 ? 's' : ''}`;
-      }
+      const health = computeHealth(att.consecutiveAbsences, rate);
+      // Department's endpoint doesn't report the "recently" (within the
+      // last 3 days) birthday status that cell's does — includeRecently
+      // stays false here to match.
+      const birthdayStatus = computeBirthdayStatus(m.date_of_birth);
 
       return { ...m, present: att.present, absent: att.absent, total, rate, consecutiveAbsences: att.consecutiveAbsences, health, birthdayStatus };
     });
 
     // Trend
-    const trend = Array.isArray(records) ? records.slice(0, 8).reverse().map((r: Record<string, unknown>, i: number) => ({
-      week: `W${i + 1}`,
-      present: r.present_count,
-      absent: r.absent_count,
-      rate: Math.round(((r.present_count as number) / Math.max(1, (r.present_count as number) + (r.absent_count as number))) * 100),
-      sla: r.sla_grade,
-      date: (r.services as Record<string, string>)?.service_date,
-    })) : [];
+    const trend = buildTrend(Array.isArray(records) ? records : []);
 
-    const avgRate = trend.length > 0 ? Math.round(trend.reduce((a, t) => a + t.rate, 0) / trend.length) : null;
+    const avgRate = computeAvgRate(trend);
     const lastRecord = Array.isArray(records) && records[0] ? records[0] : null;
     const criticalCount = memberProfiles.filter(m => ['critical', 'warning'].includes(m.health)).length;
 
@@ -137,14 +121,38 @@ export async function GET(req: Request) {
     }
 
     const dayOfWeek = new Date().getDay();
-    if (dayOfWeek === 0) actions.push({ priority: 'high', message: 'Submit department attendance today for A+ SLA grade' });
-    else if (dayOfWeek === 1) actions.push({ priority: 'medium', message: 'Submit today for B SLA — no submission beyond Monday is acceptable without a stated reason' });
+    if (dayOfWeek === 0) actions.push({ priority: 'high', message: 'Submit department attendance today for an A/A+ SLA grade — the earlier today, the higher it lands' });
+    else if (dayOfWeek === 1) actions.push({ priority: 'medium', message: 'Submit today to stay in B-tier — your SLA grade steps down the longer it goes unsubmitted' });
 
     // SLA history
-    const slaHistory = Array.isArray(records) ? records.slice(0, 8).map((r: Record<string, unknown>) => ({
-      date: (r.services as Record<string, string>)?.service_date,
-      grade: r.sla_grade as string,
-    })) : [];
+    const slaHistory = buildSlaHistory(Array.isArray(records) ? records : []);
+
+    // ── Department head leadership SLA ───────────────────────────
+    // Same "real inputs only, drop what's missing" discipline as
+    // cells/all, extended to department level via the shared helpers in
+    // src/lib/leadership-sla.ts. Only 3 inputs exist for a department (no
+    // dispute-accuracy or meeting-compliance equivalent — see
+    // computeDepartmentHeadScore's comment); a 4th candidate,
+    // roster-publishing promptness, was investigated and deliberately
+    // left out — see src/app/api/workforce/rosters/route.ts's comment.
+    const recordsArr = Array.isArray(records) ? records : [];
+    // Chronological (oldest-first) present-count history, same shape
+    // buildCellScores feeds computeGrowthTrend — `records` here is
+    // fetched newest-first, so reverse it.
+    const presentHistory = recordsArr.slice().reverse().map((r: Record<string, unknown>) => (r.present_count as number) ?? 0);
+    // Growth is only reported once there's enough history to mean
+    // anything (same 4-point minimum computeGrowthTrend itself checks) —
+    // dropped, not defaulted to a neutral midpoint, so a brand-new
+    // department never shows a number that looks measured but isn't.
+    const growthScore = presentHistory.length >= 4 ? computeGrowthTrend(presentHistory).growthScore : null;
+    const submissionSla = avgScore(recordsArr.map((r: Record<string, unknown>) => gradeToScore(r.sla_grade as string | null)));
+    const cappedRate = avgRate !== null ? Math.min(avgRate, 95) : null;
+    const department_head_sla = {
+      score: computeDepartmentHeadScore({ cappedRate, submissionSla, growthScore }),
+      attendance_rate: cappedRate,
+      submission_sla_score: submissionSla,
+      growth_score: growthScore,
+    };
 
     return NextResponse.json({
       data: {
@@ -155,6 +163,7 @@ export async function GET(req: Request) {
         slaHistory,
         actions,
         birthdayToday,
+        department_head_sla,
       },
       error: null,
     });

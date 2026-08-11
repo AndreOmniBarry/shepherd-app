@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { notifyUsers } from '@/lib/notify';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -28,13 +29,7 @@ function calcSLA(submittedAt: Date): string {
 }
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const m = cookie.match(/shepherd_token=([^;]+)/);
-  const token = m?.[1];
-  if (!token) return null;
-  const payload = await verifyToken(token);
-  if (!payload) return null;
-  return payloadToAuthUser(payload);
+  return getAuthUser(req);
 }
 
 // No hardcoded fellowship — this feature applies to whichever fellowship a
@@ -159,19 +154,26 @@ export async function POST(req: Request) {
     });
     const data = await res.json();
 
-    // Notify pastor and PA
-    await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-      method: 'POST',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify([{
-        user_id: user.id,
-        type: 'attendance',
-        title: 'CYDF attendance submitted',
-        body: `Children: ${children_count || 0} · Teenagers: ${teenagers_count || 0} · SLA: ${sla_grade}`,
-        read: false,
-        church_id: user.church_id || null,
-      }]),
-    });
+    // This comment used to say "Notify pastor and PA" while only ever
+    // notifying the submitter — the lookup was never actually implemented.
+    // Now does both: the submitter gets their own confirmation, and
+    // overseer/general_overseer/pa (this church's "pastor and PA") get
+    // real visibility into the submission, scoped to this church only —
+    // same church_id-scoped admin-lookup pattern already used correctly
+    // in events/checkin.
+    const adminRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,general_overseer,pa)&church_id=eq.${user.church_id}&select=id`,
+      { headers: hdrs() }
+    );
+    const admins = await adminRes.json();
+    const adminIds = Array.isArray(admins) ? admins.map((u: { id: string }) => u.id) : [];
+    const recipients = Array.from(new Set([user.id, ...adminIds]));
+
+    await notifyUsers(recipients, {
+      type: 'attendance',
+      title: 'CYDF attendance submitted',
+      body: `Children: ${children_count || 0} · Teenagers: ${teenagers_count || 0} · SLA: ${sla_grade}`,
+    }, user.church_id);
 
     return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
   } catch (err) {

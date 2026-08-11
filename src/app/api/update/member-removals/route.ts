@@ -1,29 +1,31 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+import { notifyUsers } from '@/lib/notify';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const hdrs = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const m = cookie.match(/shepherd_token=([^;]+)/);
-  const token = m?.[1];
-  if (!token) return null;
-  const payload = await verifyToken(token);
-  if (!payload) return null;
-  return payloadToAuthUser(payload);
+  return getAuthUser(req);
 }
 
-// NOTE: member_removals has no church_id column of its own (out of scope
-// of the multi-tenant migration) — the admin GET below still lists every
-// church's recommendations. Every fixable touchpoint (members lookups/
-// updates, notifications) is scoped; the listing itself needs a schema
-// change to fix properly.
+// member_removals has no church_id column of its own, but every row's
+// recommended_by is a users.id, and every user belongs to exactly one
+// church — same transitive-scoping technique used for member_additions —
+// so the admin GET below scopes via "recommended_by is one of this
+// church's users" instead of leaking every church's recommendations.
 const ADMIN_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
 const RECOMMEND_ROLES = ['fellowship_head', 'department_head'];
+
+async function churchUserIds(churchId: string | null | undefined): Promise<string[]> {
+  if (!churchId) return [];
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/users?church_id=eq.${churchId}&select=id`, { headers: hdrs() });
+  const data = await res.json();
+  return Array.isArray(data) ? data.map((u: { id: string }) => u.id) : [];
+}
 
 // Recommend a member's removal — fellowship/department heads only. Cell
 // leaders have no route in here at all; they raise it with their fellowship
@@ -70,18 +72,12 @@ export async function POST(req: Request) {
 
     const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
     const adminData = await adminRes.json();
-    if (Array.isArray(adminData) && adminData.length) {
-      await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-        method: 'POST', headers: { ...hdrs(), Prefer: 'return=minimal' },
-        body: JSON.stringify(adminData.map((u: { id: string }) => ({
-          user_id: u.id, type: 'pipeline', read: false,
-          title: 'Member removal recommended',
-          body: `${member.full_name} recommended for removal by ${user.name || user.role} — pending approval`,
-          link: '/dashboard',
-          church_id: user.church_id || null,
-        }))),
-      }).catch(() => {});
-    }
+    await notifyUsers(Array.isArray(adminData) ? adminData.map((u: { id: string }) => u.id) : [], {
+      type: 'pipeline',
+      title: 'Member removal recommended',
+      body: `${member.full_name} recommended for removal by ${user.name || user.role} — pending approval`,
+      link: '/dashboard',
+    }, user.church_id);
 
     return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
   } catch (err) {
@@ -98,7 +94,9 @@ export async function GET(req: Request) {
     const select = 'id,member_id,member_name,reason,recommended_by_name,recommended_by_role,status,approved_at,approval_comment,pastor_revoked,pastor_revoke_reason,created_at';
 
     if (ADMIN_ROLES.includes(user.role)) {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/member_removals?order=created_at.desc&limit=200&select=${select}`, { headers: hdrs() });
+      const userIds = await churchUserIds(user.church_id);
+      const scopeFilter = userIds.length > 0 ? `&recommended_by=in.(${userIds.join(',')})` : '&recommended_by=eq.00000000-0000-0000-0000-000000000000';
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/member_removals?order=created_at.desc&limit=200&select=${select}${scopeFilter}`, { headers: hdrs() });
       const data = await res.json();
       return NextResponse.json({ data: { removals: Array.isArray(data) ? data : [] }, error: null });
     }
@@ -130,6 +128,16 @@ export async function PATCH(req: Request) {
     const recData = await recRes.json();
     const record = recData?.[0];
     if (!record) return NextResponse.json({ data: null, error: { message: 'Recommendation not found' } }, { status: 404 });
+
+    // member_removals has no church_id of its own — verify the original
+    // recommender belongs to this caller's church before allowing any
+    // action on the record (otherwise an admin could act on another
+    // church's pending recommendation by guessing its id).
+    const recommenderRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${record.recommended_by}&select=church_id&limit=1`, { headers: hdrs() });
+    const recommenderData = await recommenderRes.json();
+    if (recommenderData?.[0]?.church_id !== user.church_id) {
+      return NextResponse.json({ data: null, error: { message: 'Recommendation not found' } }, { status: 404 });
+    }
 
     if (action === 'revoke') {
       if (user.role !== 'overseer') {
@@ -179,15 +187,11 @@ export async function PATCH(req: Request) {
         body: JSON.stringify({ status: 'approved', approved_by: user.id, approved_at: new Date().toISOString(), approval_comment: comment || null }),
       });
 
-      await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-        method: 'POST', headers: { ...hdrs(), Prefer: 'return=minimal' },
-        body: JSON.stringify([{
-          user_id: record.recommended_by, type: 'pipeline', read: false,
-          title: 'Removal approved',
-          body: `${record.member_name}'s removal was authorised.`,
-          church_id: user.church_id || null,
-        }]),
-      }).catch(() => {});
+      await notifyUsers([record.recommended_by], {
+        type: 'pipeline',
+        title: 'Removal approved',
+        body: `${record.member_name}'s removal was authorised.`,
+      }, user.church_id);
 
       logAudit({ actor_id: user.id, actor_role: user.role, action: 'member_removal_approved', target_type: 'member_removal', target_id: id, detail: { member_id: record.member_id, member_name: record.member_name } });
 

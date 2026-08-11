@@ -1,16 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser, signToken } from '@/lib/auth';
+import { signToken, getAuthUser } from '@/lib/auth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const hdrs = () => ({ apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
-  if (!m) return null;
-  const p = await verifyToken(m[1]);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 // Every logged-in user editing their own name/password — not an admin editing
@@ -70,7 +67,9 @@ export async function PATCH(req: Request) {
     if (updatedName) {
       const token = await signToken({
         id: user.id, email: user.email, role: user.role,
-        cell_id: user.cell_id, fellowship_id: user.fellowship_id, name: updatedName,
+        cell_id: user.cell_id, fellowship_id: user.fellowship_id,
+        finance_access_granted: user.finance_access_granted,
+        name: updatedName,
       });
       res.cookies.set('shepherd_token', token, {
         httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 7200, path: '/',

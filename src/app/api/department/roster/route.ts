@@ -1,16 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { notifyMany } from '@/lib/notify';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const H = () => ({ 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
-  if (!m) return null;
-  const p = await verifyToken(m[1]);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 async function ownDepartmentId(userId: string): Promise<string | null> {
@@ -87,14 +85,15 @@ export async function POST(req: Request) {
         const userRes = await fetch(`${SURL}/rest/v1/users?id=in.(${memberIds.join(',')})&select=id`, { headers: H() });
         const users = await userRes.json();
         const userIds = new Set(Array.isArray(users) ? users.map((u: Record<string,string>) => u.id) : []);
-        const notifications = (entries as Record<string,unknown>[]).filter(e => e.member_id && userIds.has(e.member_id as string)).map(e => ({
-          user_id: e.member_id, type: 'service', read: false,
-          title: `You are on the ${deptName} rota`,
-          body: `${service_date} · Your role: ${e.role_title}${e.position ? ` — ${e.position}` : ''}. Check My Assignments.`,
+        const notifyRows = (entries as Record<string,unknown>[]).filter(e => e.member_id && userIds.has(e.member_id as string)).map(e => ({
+          userId: e.member_id as string,
+          content: {
+            type: 'service',
+            title: `You are on the ${deptName} rota`,
+            body: `${service_date} · Your role: ${e.role_title}${e.position ? ` — ${e.position}` : ''}. Check My Assignments.`,
+          },
         }));
-        if (notifications.length > 0) {
-          await fetch(`${SURL}/rest/v1/notifications`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(notifications) });
-        }
+        await notifyMany(notifyRows, user.church_id);
       }
 
       // Reliability tracking — this is the one place a member actually

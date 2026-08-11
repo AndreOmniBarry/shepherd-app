@@ -1,16 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { notifyUsers } from '@/lib/notify';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const H = () => ({ 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
-  if (!m) return null;
-  const p = await verifyToken(m[1]);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 export async function POST(req: Request) {
@@ -21,6 +19,16 @@ export async function POST(req: Request) {
     const { requested_of, subject, message, proposed_time } = await req.json();
     if (!requested_of || !subject?.trim()) {
       return NextResponse.json({ data: null, error: { message: 'requested_of and subject are required' } }, { status: 400 });
+    }
+
+    // requested_of is a client-supplied user id — verify it actually
+    // belongs to this caller's own church before creating the request or
+    // notifying them, otherwise anyone could target a user id from another
+    // church entirely (cross-tenant messaging/spam).
+    const targetRes = await fetch(`${SURL}/rest/v1/users?id=eq.${requested_of}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: H() });
+    const targetRows = await targetRes.json().catch(() => []);
+    if (!Array.isArray(targetRows) || targetRows.length === 0) {
+      return NextResponse.json({ data: null, error: { message: 'That person was not found in your church' } }, { status: 404 });
     }
 
     const insertRes = await fetch(`${SURL}/rest/v1/meeting_requests`, {
@@ -43,14 +51,12 @@ export async function POST(req: Request) {
     }
     const inserted = await insertRes.json();
 
-    await fetch(`${SURL}/rest/v1/notifications`, {
-      method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify({
-        user_id: requested_of, church_id: user.church_id || null, type: 'meeting_request', read: false,
-        title: 'New meeting request', body: `${user.name || 'Someone'} requested a meeting: ${subject.trim()}`,
-        link: '/church-center?tab=meetings',
-      }),
-    }).catch(() => {});
+    await notifyUsers([requested_of], {
+      type: 'meeting_request',
+      title: 'New meeting request',
+      body: `${user.name || 'Someone'} requested a meeting: ${subject.trim()}`,
+      link: '/church-center?tab=meetings',
+    }, user.church_id);
 
     return NextResponse.json({ data: Array.isArray(inserted) ? inserted[0] : inserted, error: null }, { status: 201 });
   } catch (err) {

@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 import { assignToLeastLoadedCareTeamMember } from '@/lib/care-assignment';
+import { notifyUsers } from '@/lib/notify';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -9,10 +10,7 @@ const H = () => ({ 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Typ
 const ADMIN_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
 
 async function getUser(req: Request) {
-  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
-  if (!m) return null;
-  const p = await verifyToken(m[1]);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 // Records who actually showed up to a special event (vigil, conference,
@@ -88,21 +86,20 @@ export async function POST(req: Request) {
       firstTimerId = created?.id || null;
 
       if (prayer_point?.trim()) {
-        try {
-          const adminRes = await fetch(`${SURL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&select=id`, { headers: H() });
-          const admins = await adminRes.json();
-          const recipients = Array.isArray(admins) ? admins.map((u: { id: string }) => u.id) : [];
-          if (recipients.length > 0) {
-            await fetch(`${SURL}/rest/v1/notifications`, {
-              method: 'POST', headers: { ...H(), Prefer: 'return=minimal' },
-              body: JSON.stringify(recipients.map((uid: string) => ({
-                user_id: uid, type: 'pastoral', read: false,
-                title: `Prayer point — ${full_name.trim()}`,
-                body: prayer_point.trim(), link: '/care',
-              }))),
-            });
-          }
-        } catch (e) { console.error('Event checkin prayer routing error (non-fatal):', e); }
+        // Scoped to the caller's own church only — this used to have no
+        // church_id filter at all, which meant a prayer point submitted at
+        // one church's event was sent to every church's overseer/pa/
+        // lead_tech on the platform. Matches the equivalent, already-
+        // correct prayer-point routing in care/first-timers.
+        const adminRes = await fetch(`${SURL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: H() });
+        const admins = await adminRes.json();
+        const recipients = Array.isArray(admins) ? admins.map((u: { id: string }) => u.id) : [];
+        await notifyUsers(recipients, {
+          type: 'pastoral',
+          title: `Prayer point — ${full_name.trim()}`,
+          body: prayer_point.trim(),
+          link: '/care',
+        }, user.church_id);
       }
     }
 

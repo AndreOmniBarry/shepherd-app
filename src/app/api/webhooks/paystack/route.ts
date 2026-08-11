@@ -43,13 +43,20 @@ export async function POST(req: Request) {
         case 'charge.success': {
           const reference = data.reference as string | undefined;
           const amountNgn = (Number(data.amount) || 0) / 100;
+          // Paystack's own processing fee for this transaction — data.fees,
+          // same kobo unit as data.amount (confirmed against Paystack's
+          // published charge.success payload shape). Exact, metered cost —
+          // not an estimate. Can be null on some payloads; store null
+          // rather than defaulting to 0 so "not reported" stays visible
+          // as such on the command center rather than reading as "free".
+          const feeNgn = data.fees !== undefined && data.fees !== null ? Number(data.fees) / 100 : null;
           if (reference) {
             await fetch(`${SUPABASE_URL}/rest/v1/billing_transactions`, {
               method: 'POST', headers: { ...hdrs(), Prefer: 'return=minimal' },
               body: JSON.stringify({
                 church_id: churchId, paystack_reference: reference,
                 plan_tier: (metadata.plan_tier as string) || 'growth',
-                amount_ngn: amountNgn, status: 'success', source: 'webhook', raw_event: event,
+                amount_ngn: amountNgn, fee_ngn: feeNgn, status: 'success', source: 'webhook', raw_event: event,
               }),
             }).catch(() => {}); // duplicate reference = already recorded, not an error
           }

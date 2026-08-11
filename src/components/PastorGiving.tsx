@@ -16,11 +16,19 @@ type GivingData = {
 
 const TYPE_COLORS = ['#534AB7','#1D9E75','#BA7517','#D85A30','#9C27B0','#E91E63','#00BCD4','#FF5722'];
 
+// Matches FINANCE_GATE_MESSAGE in src/lib/pa-governance.ts (not imported
+// directly — that module also pulls in next/server, which has no business
+// in a client bundle).
+const FINANCE_GATE_MESSAGE = 'Financial records aren\'t part of your access yet — ask your General Overseer to grant it from Team & Access.';
+
 interface PastorGivingProps { dark: boolean; t: Record<string, string>; branchId?: string; isMobile?: boolean; currency?: string; }
 
 export default function PastorGiving({ dark, t, branchId, isMobile = false, currency }: PastorGivingProps) {
   const [data, setData] = useState<GivingData | null>(null);
   const [loading, setLoading] = useState(true);
+  // FINANCE_ACCESS_REQUIRED (a pa without the grant) reads identically to
+  // "no data yet" if left undistinguished — see FINANCE_GATE_MESSAGE above.
+  const [financeBlocked, setFinanceBlocked] = useState(false);
 
   const fmtNGN = (n: number) => formatMoney(n, currency);
   const fmtDate = (d: string) => { const [y,mo,dy] = d.split('-').map(Number); return `${dy} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo-1]}`; };
@@ -30,14 +38,14 @@ export default function PastorGiving({ dark, t, branchId, isMobile = false, curr
     const bq = branchId ? `?branch_id=${branchId}` : '';
     fetch(`/api/analytics/giving${bq}`, { credentials: 'include' })
       .then(r => r.json())
-      .then(({ data }) => { if (data) setData(data); })
+      .then(({ data, error }) => { if (data) setData(data); setFinanceBlocked(error?.code === 'FINANCE_ACCESS_REQUIRED'); })
       .catch(() => {})
       .finally(() => setLoading(false));
 
     const interval = setInterval(() => {
       fetch(`/api/analytics/giving${bq}`, { credentials: 'include' })
         .then(r => r.json())
-        .then(({ data }) => { if (data) setData(data); })
+        .then(({ data, error }) => { if (data) setData(data); setFinanceBlocked(error?.code === 'FINANCE_ACCESS_REQUIRED'); })
         .catch(() => {});
     }, 30000);
     return () => clearInterval(interval);
@@ -49,6 +57,12 @@ export default function PastorGiving({ dark, t, branchId, isMobile = false, curr
         {[0, 1, 2, 3].map(i => <SkeletonCard key={i} lines={1} />)}
       </div>
       <SkeletonCard lines={5} style={{ minHeight: 220 }} />
+    </div>
+  );
+  if (financeBlocked) return (
+    <div style={{ background: t.amberBg, borderRadius: 12, border: '0.5px solid rgba(186,117,23,0.2)', padding: '18px 20px' }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: t.amber, marginBottom: 4 }}>Access required</div>
+      <div style={{ fontSize: 12, color: t.amber, lineHeight: 1.6 }}>{FINANCE_GATE_MESSAGE}</div>
     </div>
   );
   if (!data) return <div style={{ textAlign: 'center', padding: 60, color: t.muted, fontSize: 13 }}>No giving data available.</div>;

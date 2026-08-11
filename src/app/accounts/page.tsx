@@ -37,6 +37,11 @@ const MONTHS_2026 = [
 
 const INCOME_COLORS = ['#534AB7','#1D9E75','#BA7517','#D85A30','#9C27B0','#00BCD4','#E91E63'];
 
+// Matches FINANCE_GATE_MESSAGE in src/lib/pa-governance.ts (not imported
+// directly — that module also pulls in next/server, which has no business
+// in a client bundle).
+const FINANCE_GATE_MESSAGE = 'Financial records aren\'t part of your access yet — ask your General Overseer to grant it from Team & Access.';
+
 const STATUS_CFG: Record<string, { bg: string; text: string; label: string }> = {
   pending:  { bg: '#FAEEDA', text: '#633806', label: 'Pending approval' },
   approved: { bg: '#E1F5EE', text: '#085041', label: 'Approved' },
@@ -76,6 +81,12 @@ export default function AccountsPage() {
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
   const [requisitions, setRequisitions] = useState<Requisition[]>([]);
   const [loading, setLoading] = useState(true);
+  // Set when a finance-gated route (income/requisitions) comes back
+  // FINANCE_ACCESS_REQUIRED — distinguishes "you can't see this" from a
+  // genuinely empty list, which otherwise render identically. Practically
+  // only reachable by a 'pa' account browsing here directly without the
+  // finance grant — the 'accounts' role itself is never gated.
+  const [financeBlocked, setFinanceBlocked] = useState(false);
 
   // Smart member search
   const [memberSearch, setMemberSearch] = useState('');
@@ -137,6 +148,7 @@ export default function AccountsPage() {
       if (incomeRes.data?.records) setIncomeRecords(incomeRes.data.records);
       if (catRes.data?.categories) setExpenseCategories(catRes.data.categories);
       if (reqRes.data?.requisitions) setRequisitions(reqRes.data.requisitions);
+      setFinanceBlocked(incomeRes.error?.code === 'FINANCE_ACCESS_REQUIRED' || reqRes.error?.code === 'FINANCE_ACCESS_REQUIRED');
       setLoading(false);
     }).catch(() => setLoading(false));
 
@@ -348,6 +360,13 @@ export default function AccountsPage() {
       </div>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px' }}>
+
+        {financeBlocked && (
+          <div style={{ background: t.amberBg, borderRadius: 12, border: '0.5px solid rgba(186,117,23,0.25)', padding: '14px 16px', marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: t.amber, marginBottom: 4 }}>Access required</div>
+            <div style={{ fontSize: 12, color: t.amber, lineHeight: 1.6 }}>{FINANCE_GATE_MESSAGE}</div>
+          </div>
+        )}
 
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && (

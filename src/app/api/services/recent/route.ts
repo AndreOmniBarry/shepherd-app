@@ -1,14 +1,10 @@
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const m = cookie.match(/shepherd_token=([^;]+)/);
-  if (!m) return null;
-  const p = await verifyToken(m[1]);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 // Most recent date (on or before `from`) that falls on `dayIndex` (0=Sun..6=Sat).

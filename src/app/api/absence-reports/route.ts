@@ -1,16 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { notifyUsers } from '@/lib/notify';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const H = () => ({ 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
-  if (!m) return null;
-  const p = await verifyToken(m[1]);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 // absence_reports has no church_id column of its own, and fellowship_id
@@ -64,13 +62,17 @@ export async function POST(req: Request) {
     const data = await res.json();
     const report = Array.isArray(data) ? data[0] : data;
     const notifyRoles = requires_followup ? ['fellowship_head','care_team','pa','overseer'] : ['fellowship_head','pa'];
+    const notifyIds: string[] = [];
     for (const role of notifyRoles) {
       const ur = await fetch(`${SURL}/rest/v1/users?role=eq.${role}&church_id=eq.${user.church_id}&select=id`, { headers: H() });
       const ru = await ur.json();
-      if (Array.isArray(ru) && ru.length > 0) {
-        await fetch(`${SURL}/rest/v1/notifications`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(ru.map((u:Record<string,string>) => ({ user_id: u.id, church_id: user.church_id || null, type: 'absence', read: false, title: requires_followup ? `⚠ Follow-up needed: ${member_name}` : `Absence: ${member_name}`, body: `${user.name} reports ${member_name} absent. ${requires_followup?`Follow-up required: ${followup_scope||'See details'}`:``}` }))) }).catch(() => {});
-      }
+      if (Array.isArray(ru)) notifyIds.push(...ru.map((u: Record<string,string>) => u.id));
     }
+    await notifyUsers(notifyIds, {
+      type: 'absence',
+      title: requires_followup ? `⚠ Follow-up needed: ${member_name}` : `Absence: ${member_name}`,
+      body: `${user.name} reports ${member_name} absent. ${requires_followup?`Follow-up required: ${followup_scope||'See details'}`:``}`,
+    }, user.church_id);
     return NextResponse.json({ data: { report }, error: null }, { status: 201 });
   } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
 }
@@ -86,13 +88,17 @@ export async function PATCH(req: Request) {
       payload.pastor_instruction = pastor_instruction;
       payload.pastor_instruction_visibility = pastor_instruction_visibility || ['all'];
       const visibility: string[] = pastor_instruction_visibility?.includes('all') ? ['cell_leader','fellowship_head','care_team','pa'] : (pastor_instruction_visibility || ['all']);
+      const instructionIds: string[] = [];
       for (const role of visibility) {
         const ur = await fetch(`${SURL}/rest/v1/users?role=eq.${role}&church_id=eq.${user.church_id}&select=id`, { headers: H() });
         const ru = await ur.json();
-        if (Array.isArray(ru) && ru.length > 0) {
-          await fetch(`${SURL}/rest/v1/notifications`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(ru.map((u:Record<string,string>) => ({ user_id: u.id, church_id: user.church_id || null, type: 'pastor_instruction', read: false, title: 'Pastor instruction', body: `Pastor: "${pastor_instruction}"` }))) }).catch(() => {});
-        }
+        if (Array.isArray(ru)) instructionIds.push(...ru.map((u: Record<string,string>) => u.id));
       }
+      await notifyUsers(instructionIds, {
+        type: 'pastor_instruction',
+        title: 'Pastor instruction',
+        body: `Pastor: "${pastor_instruction}"`,
+      }, user.church_id);
     }
     if (followup_status) payload.followup_status = followup_status;
 

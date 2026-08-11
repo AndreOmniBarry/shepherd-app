@@ -1,0 +1,87 @@
+-- ============================================================
+-- TEMPLATE — DO NOT RUN AS-IS. The real-cell id list below is a
+-- placeholder, not a finished list.
+--
+-- History: an earlier version of this script used a 7-id allow-list
+-- (Group 1-6 + Men's Fellowship) built from which cells had nonzero
+-- member counts. The founder reviewed the actual list of cells this
+-- would have deleted and found real cells from the original import
+-- mixed in among the ones flagged for deletion — the "has members"
+-- heuristic wasn't sufficient to identify every real cell (some real
+-- cells may be temporarily empty, mid-reassignment, etc.). Deferred:
+-- the founder is manually profiling every cell and member and will
+-- guide real cell leaders through update/removal directly in the app
+-- before this runs.
+--
+-- TO USE THIS TEMPLATE ONCE THE MANUAL REVIEW IS DONE:
+-- 1. Replace the placeholder array below with the complete, confirmed
+--    list of real cell ids — everything that should survive, in full,
+--    not just the ones that happened to have members at some point.
+-- 2. Run the PRE-FLIGHT block and read the output.
+-- 3. Run the "list the cells that would be deleted" query (see the
+--    conversation this was built in, or ask again — same pattern as
+--    the pre-flight, just SELECT instead of count) and read every
+--    single name before proceeding. This is the step that caught the
+--    problem last time — don't skip it.
+-- 4. Only then run the CLEANUP transaction below.
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- FILL THIS IN — replace with the real, complete, confirmed list.
+-- ------------------------------------------------------------
+-- WITH real_cells AS (
+--   SELECT unnest(ARRAY[
+--     'REPLACE-WITH-REAL-CELL-ID-1',
+--     'REPLACE-WITH-REAL-CELL-ID-2'
+--     -- ... every real cell, confirmed by manual review, not by a
+--     -- heuristic like "has members" alone
+--   ]::uuid[]) AS id
+-- )
+
+
+-- ------------------------------------------------------------
+-- PRE-FLIGHT — run first, alone, once the list above is filled in.
+-- ------------------------------------------------------------
+
+-- WITH real_cells AS ( ... same array as above ... )
+-- SELECT
+--   (SELECT count(*) FROM cells WHERE id NOT IN (SELECT id FROM real_cells)) AS cells_to_delete,
+--   (SELECT count(*) FROM attendance_records WHERE cell_id NOT IN (SELECT id FROM real_cells)) AS attendance_records_to_delete,
+--   (SELECT count(*) FROM cell_meetings WHERE cell_id NOT IN (SELECT id FROM real_cells)) AS meeting_logs_to_delete,
+--   (SELECT count(*) FROM first_timers WHERE cell_id NOT IN (SELECT id FROM real_cells)) AS first_timers_to_unlink,
+--   (SELECT count(*) FROM cells WHERE id IN (SELECT id FROM real_cells)) AS real_cells_confirmed_present;
+
+-- ------------------------------------------------------------
+-- REVIEW — list every cell that would be deleted, by name, and read
+-- all of them yourself before proceeding. This is not optional.
+-- ------------------------------------------------------------
+
+-- WITH real_cells AS ( ... same array as above ... )
+-- SELECT c.id, c.name, c.is_active, c.created_at::date,
+--   (SELECT count(*) FROM attendance_records ar WHERE ar.cell_id = c.id) AS attendance_records
+-- FROM cells c
+-- WHERE c.id NOT IN (SELECT id FROM real_cells)
+-- ORDER BY c.name;
+
+-- ------------------------------------------------------------
+-- CLEANUP — only after the above two steps look right.
+-- ------------------------------------------------------------
+
+-- BEGIN;
+--
+-- WITH real_cells AS ( ... same array as above ... )
+-- DELETE FROM attendance_records WHERE cell_id NOT IN (SELECT id FROM real_cells);
+--
+-- WITH real_cells AS ( ... same array as above ... )
+-- DELETE FROM cell_meetings WHERE cell_id NOT IN (SELECT id FROM real_cells);
+--
+-- WITH real_cells AS ( ... same array as above ... )
+-- UPDATE first_timers SET cell_id = NULL WHERE cell_id NOT IN (SELECT id FROM real_cells);
+--
+-- WITH real_cells AS ( ... same array as above ... )
+-- DELETE FROM cells WHERE id NOT IN (SELECT id FROM real_cells);
+--
+-- COMMIT;
+--
+-- SELECT count(*) AS remaining_cells FROM cells;
+-- SELECT id, name, member_count FROM cells ORDER BY name;

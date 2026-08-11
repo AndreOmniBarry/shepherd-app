@@ -1,18 +1,16 @@
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 import { computeSlaGrade } from '@/lib/sla';
+import { resolveBranchScope } from '@/lib/branch-scope';
+import { dispatchEvent } from '@/lib/notify';
+import { requireFinanceAccess } from '@/lib/pa-governance';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const h = () => ({ 'apikey': K, 'Authorization': `Bearer ${K}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const m = cookie.match(/shepherd_token=([^;]+)/);
-  const token = m?.[1];
-  if (!token) return null;
-  const p = await verifyToken(token);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech', 'accounts'];
@@ -20,11 +18,17 @@ const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_te
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
-  // PA and branch_pastor only ever see their own branch's income — never
-  // other branches', regardless of any query param.
+  const financeBlocked = requireFinanceAccess(user);
+  if (financeBlocked) return financeBlocked;
+  // branch_pastor only ever sees their own branch's income — never other
+  // branches', regardless of any query param. PA is church-wide (not
+  // branch-locked) by founder decision — same free ?branch_id= choice as
+  // overseer/lead_tech, matching the other routes that treat PA this way.
   const { searchParams } = new URL(req.url);
-  const branchId = ['pa', 'branch_pastor'].includes(user.role) ? user.branch_id : searchParams.get('branch_id');
-  const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+  const { branchFilter, forbidden } = resolveBranchScope(user, searchParams, ['branch_pastor']);
+  if (forbidden) {
+    return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
+  }
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - 1);
   const res = await fetch(
@@ -45,6 +49,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const financeBlocked = requireFinanceAccess(user);
+  if (financeBlocked) return financeBlocked;
   const body = await req.json();
   const { income_type_id, member_name, amount, service_date, notes, fellowship_id, is_adjustment, adjustment_note } = body;
 
@@ -81,17 +87,13 @@ export async function POST(req: Request) {
   const data = await res.json();
   // Fire to pastor dashboard and PA
   const entry = Array.isArray(data) ? data[0] : data;
-  fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://shepherd-app-beta.vercel.app'}/api/notify/dispatch`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_SECRET || '' },
-    body: JSON.stringify({
-      event: 'income_logged',
-      actor_name: user.id,
-      actor_role: user.role,
-      church_id: user.church_id,
-      detail: `Income recorded — ${Number(body.amount || 0).toLocaleString()}`,
-      amount: parseFloat(body.amount) || 0,
-    }),
-  }).catch(() => {});
+  await dispatchEvent({
+    event: 'income_logged',
+    actor_name: user.id,
+    actor_role: user.role,
+    church_id: user.church_id,
+    detail: `Income recorded — ${Number(body.amount || 0).toLocaleString()}`,
+    amount: parseFloat(body.amount) || 0,
+  });
   return NextResponse.json({ data: entry, error: null }, { status: 201 });
 }

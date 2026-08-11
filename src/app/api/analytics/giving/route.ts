@@ -1,17 +1,14 @@
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { resolveBranchScope } from '@/lib/branch-scope';
+import { requireFinanceAccess } from '@/lib/pa-governance';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const h = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const m = cookie.match(/shepherd_token=([^;]+)/);
-  const token = m?.[1];
-  if (!token) return null;
-  const p = await verifyToken(token);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 export async function GET(req: Request) {
@@ -20,10 +17,14 @@ export async function GET(req: Request) {
     if (!user || !['overseer','general_overseer','branch_pastor','pa','lead_tech','accounts'].includes(user.role)) {
       return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     }
+    const financeBlocked = requireFinanceAccess(user);
+    if (financeBlocked) return financeBlocked;
 
     const { searchParams } = new URL(req.url);
-    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
-    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+    const { branchFilter, forbidden } = resolveBranchScope(user, searchParams);
+    if (forbidden) {
+      return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
+    }
     const range = searchParams.get('range') || '6m';
     const RANGE_MONTHS: Record<string, number> = { '8w': 2, '3m': 3, '6m': 6, '1y': 12, '2y': 24, '5y': 60 };
     const monthsBack = RANGE_MONTHS[range] ?? 6;

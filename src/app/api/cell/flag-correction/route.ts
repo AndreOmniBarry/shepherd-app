@@ -1,19 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { notifyUsers } from '@/lib/notify';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const hdrs = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const m = cookie.match(/shepherd_token=([^;]+)/);
-  const token = m?.[1];
-  if (!token) return null;
-  const payload = await verifyToken(token);
-  if (!payload) return null;
-  return payloadToAuthUser(payload);
+  return getAuthUser(req);
 }
 
 // Cell leaders can't reassign members themselves (no direct authority over
@@ -43,19 +38,12 @@ export async function POST(req: Request) {
     const adminData = await adminRes.json();
     if (Array.isArray(adminData)) recipients.push(...adminData.map((u: { id: string }) => u.id));
 
-    const uniqueRecipients = [...new Set(recipients)];
-    if (uniqueRecipients.length > 0) {
-      await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-        method: 'POST', headers: { ...hdrs(), Prefer: 'return=minimal' },
-        body: JSON.stringify(uniqueRecipients.map(uid => ({
-          user_id: uid, type: 'pipeline', read: false,
-          title: 'Member placement flagged for review',
-          body: `${user.name || 'A cell leader'} flagged ${member.full_name}: "${note.trim()}"`,
-          link: '/fellowship',
-          church_id: user.church_id || null,
-        }))),
-      }).catch(() => {});
-    }
+    await notifyUsers(recipients, {
+      type: 'pipeline',
+      title: 'Member placement flagged for review',
+      body: `${user.name || 'A cell leader'} flagged ${member.full_name}: "${note.trim()}"`,
+      link: '/fellowship',
+    }, user.church_id);
 
     return NextResponse.json({ data: { flagged: true }, error: null }, { status: 201 });
   } catch (err) {

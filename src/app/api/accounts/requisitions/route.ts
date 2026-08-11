@@ -1,17 +1,14 @@
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { resolveBranchScope } from '@/lib/branch-scope';
+import { requireFinanceAccess } from '@/lib/pa-governance';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const h = () => ({ 'apikey': K, 'Authorization': `Bearer ${K}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const m = cookie.match(/shepherd_token=([^;]+)/);
-  const token = m?.[1];
-  if (!token) return null;
-  const p = await verifyToken(token);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech', 'accounts'];
@@ -19,12 +16,18 @@ const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_te
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const financeBlocked = requireFinanceAccess(user);
+  if (financeBlocked) return financeBlocked;
 
-  // PA and branch_pastor only ever see their own branch's requisitions —
-  // never other branches', regardless of any query param.
+  // branch_pastor only ever sees their own branch's requisitions — never
+  // other branches', regardless of any query param. PA is church-wide (not
+  // branch-locked) by founder decision — same free ?branch_id= choice as
+  // overseer/lead_tech, matching the other routes that treat PA this way.
   const { searchParams } = new URL(req.url);
-  const branchId = ['pa', 'branch_pastor'].includes(user.role) ? user.branch_id : searchParams.get('branch_id');
-  const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+  const { branchFilter, forbidden } = resolveBranchScope(user, searchParams, ['branch_pastor']);
+  if (forbidden) {
+    return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
+  }
 
   const res = await fetch(
     `${S}/rest/v1/expense_requisitions?order=created_at.desc&limit=100&select=id,title,amount_requested,amount_approved,requested_by_name,status,created_at,notes,expense_categories(name)&church_id=eq.${user.church_id}${branchFilter}`,
@@ -41,6 +44,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const financeBlocked = requireFinanceAccess(user);
+  if (financeBlocked) return financeBlocked;
   const body = await req.json();
   const { category_id, title, description, amount_requested, requested_by_name, department_id } = body;
   const res = await fetch(`${S}/rest/v1/expense_requisitions`, {

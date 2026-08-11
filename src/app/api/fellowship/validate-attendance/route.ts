@@ -1,17 +1,12 @@
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const hdrs = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const m = cookie.match(/shepherd_token=([^;]+)/);
-  const token = m?.[1];
-  if (!token) return null;
-  const payload = await verifyToken(token);
-  return payload ? payloadToAuthUser(payload) : null;
+  return getAuthUser(req);
 }
 
 export async function GET(req: Request) {
@@ -65,6 +60,31 @@ export async function PATCH(req: Request) {
 
     const body = await req.json();
     const { id, status } = body;
+    if (!id) return NextResponse.json({ data: null, error: { message: 'id is required' } }, { status: 400 });
+
+    // monthly_attendance has no church_id of its own — verify the record's
+    // cell belongs to this caller's own church (and, unless they're an
+    // admin, their own fellowship) before validating it, otherwise any
+    // authenticated user could validate/reject another fellowship's — or
+    // another church's — record just by guessing its id.
+    const recRes = await fetch(`${SUPABASE_URL}/rest/v1/monthly_attendance?id=eq.${id}&select=cell_id&limit=1`, { headers: hdrs() });
+    const recData = await recRes.json();
+    const cellId = recData?.[0]?.cell_id;
+    if (!cellId) return NextResponse.json({ data: null, error: { message: 'Record not found' } }, { status: 404 });
+
+    const cellRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${cellId}&church_id=eq.${user.church_id}&select=fellowship_id&limit=1`, { headers: hdrs() });
+    const cellData = await cellRes.json();
+    const cell = cellData?.[0];
+    const isAdmin = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role);
+    if (!cell) return NextResponse.json({ data: null, error: { message: 'Record not found' } }, { status: 404 });
+    if (!isAdmin) {
+      const userRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs() });
+      const userData = await userRes.json();
+      const fellowship_id = user.fellowship_id || userData?.[0]?.fellowship_id;
+      if (!fellowship_id || cell.fellowship_id !== fellowship_id) {
+        return NextResponse.json({ data: null, error: { message: 'Record not found' } }, { status: 404 });
+      }
+    }
 
     await fetch(`${SUPABASE_URL}/rest/v1/monthly_attendance?id=eq.${id}`, {
       method: 'PATCH',

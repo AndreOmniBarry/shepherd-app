@@ -140,6 +140,96 @@ export function getHeadLabel(config: ChurchConfig, tier: 1 | 2): string {
   return tier === 1 ? config.tier1_head_label : config.tier2_head_label;
 }
 
+// ── Leaf-unit label (Cell Ministry tab) ──────────────────────────
+// For every preset except campus, the attendance-tracking leaf unit is
+// tier2 (Cell / District / Unit / Home Group). Campus is the one preset
+// with a real third tier — Campus/Branch (tier1) → Fellowship (tier2) →
+// Cell (tier3) — so its leaf unit is tier3, not tier2. Centralised here
+// so every place that renders the Cell Ministry tab's unit name reads
+// through one function instead of repeating a structure_type ternary.
+export type LeafUnitLabelConfig = {
+  structure_type?: string | null;
+  tier2_label?: string | null;
+  tier3_label?: string | null;
+};
+
+export function getLeafUnitLabel(config?: LeafUnitLabelConfig | null): string {
+  const label = config?.structure_type === 'campus' ? config?.tier3_label : config?.tier2_label;
+  return label || 'Cell';
+}
+
+// ── Branch label ──────────────────────────────────────────────────
+// The `branches` table backs the Campus/Branch concept for every preset,
+// but the plain word "Branch" is only actually renamed for campus (whose
+// tier1_label is the Campus/Branch-equivalent, e.g. "Campus"). For every
+// other preset tier1_label means something else entirely (the
+// Fellowship-equivalent), so it must never be used to relabel branch UI —
+// those presets keep showing the literal word "Branch".
+export type BranchLabelConfig = {
+  structure_type?: string | null;
+  tier1_label?: string | null;
+};
+
+export function getBranchLabel(config?: BranchLabelConfig | null): string {
+  return config?.structure_type === 'campus' ? (config?.tier1_label || 'Branch') : 'Branch';
+}
+
+// Minimal English pluraliser for tier-label words used in UI copy (e.g.
+// "Branch" -> "Branches", "Campus" -> "Campuses"). Only needs to cover the
+// small set of words that actually appear as tier labels.
+export function pluralizeLabel(label: string): string {
+  return /[sxz]$|[cs]h$/i.test(label) ? `${label}es` : `${label}s`;
+}
+
+// ── Role display labels ──────────────────────────────────────────
+// Single source of truth for "role value → display label" — this mapping
+// was previously copy-pasted independently into dashboard/page.tsx
+// (CREATABLE_ROLES), MyAccountButton.tsx (PREVIEW_ROLES), register/page.tsx
+// (ROLE_LABELS), and PortalOverview.tsx (inline ternary), and each copy had
+// already drifted to slightly different wording for the same role (see
+// src/lib/role-portal.ts for the earlier, identical incident with portal
+// routing). One function, imported everywhere, so a label only ever needs
+// to change in one place.
+//
+// `config` only needs to carry structure_type + the two head-label fields,
+// so any object with that shape works here — not just a full ChurchConfig.
+export type RoleLabelConfig = {
+  structure_type?: string;
+  tier1_head_label?: string | null;
+  tier2_head_label?: string | null;
+};
+
+const STATIC_ROLE_LABELS: Record<string, string> = {
+  care_team: 'Follow-Up & Care Team',
+  workforce: 'Workforce',
+  accounts: 'Accounts',
+  partnership: 'Partnership',
+  pa: 'PA / Church Admin',
+  overseer: 'Overseer',
+  general_overseer: 'General Overseer',
+  branch_pastor: 'Branch Pastor',
+  lead_tech: 'Lead Tech',
+};
+
+export function getRoleLabel(role: string, config?: RoleLabelConfig): string {
+  switch (role) {
+    case 'cell_leader':
+      return config?.tier2_head_label || 'Cell Leader';
+    case 'fellowship_head':
+      return config?.tier1_head_label || 'Fellowship Head';
+    case 'department_head':
+      // Departments exist as a secondary structure under every preset, so
+      // only pull the customised tier1 head label when the church's actual
+      // structure model is "department" — otherwise tier1_head_label means
+      // something else entirely (e.g. Fellowship Head in cell_church).
+      return config?.structure_type === 'department'
+        ? (config?.tier1_head_label || 'Department Head')
+        : 'Department Head';
+    default:
+      return STATIC_ROLE_LABELS[role] || role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+}
+
 export const SUPPORTED_CURRENCIES = [
   { code: 'NGN', symbol: '₦', name: 'Nigerian Naira' },
   { code: 'GHS', symbol: 'GH₵', name: 'Ghanaian Cedi' },

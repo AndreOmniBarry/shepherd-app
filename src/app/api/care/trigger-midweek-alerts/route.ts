@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { notifyUsers } from '@/lib/notify';
 
 // ── Midweek absence alert engine
 // ── Runs every Thursday after Wednesday service, once per church so one
@@ -138,18 +139,11 @@ async function runForChurch(churchId: string): Promise<ChurchResults> {
         );
         const leaders = await leaderRes.json();
         if (leaders?.[0]) {
-          await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-            method: 'POST',
-            headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-            body: JSON.stringify([{
-              user_id: leaders[0].id,
-              type: 'pipeline',
-              title: 'Midweek absence alert',
-              body: `A member in your cell has missed 2 consecutive Wednesday services. Please follow up with them before this Sunday.`,
-              read: false,
-              church_id: churchId,
-            }]),
-          });
+          await notifyUsers([leaders[0].id], {
+            type: 'pipeline',
+            title: 'Midweek absence alert',
+            body: `A member in your cell has missed 2 consecutive Wednesday services. Please follow up with them before this Sunday.`,
+          }, churchId);
         }
       }
       results.soft_alerts++;
@@ -195,19 +189,11 @@ async function runForChurch(churchId: string): Promise<ChurchResults> {
   }
 
   if (results.care_leads > 0 && careIds.length > 0) {
-    const notifRows = careIds.map(userId => ({
-      user_id: userId,
+    await notifyUsers(careIds, {
       type: 'pipeline',
       title: `${results.care_leads} midweek absence lead${results.care_leads > 1 ? 's' : ''} assigned`,
       body: `${results.care_leads} member${results.care_leads > 1 ? 's have' : ' has'} missed 3+ Wednesday services and been added to your queue.`,
-      read: false,
-      church_id: churchId,
-    }));
-    await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-      method: 'POST',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify(notifRows),
-    });
+    }, churchId);
   }
 
   return results;

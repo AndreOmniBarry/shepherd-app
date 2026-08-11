@@ -20,6 +20,7 @@ import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 import LoadingScreen from '@/components/LoadingScreen';
 import { CURRENCIES, formatMoney } from '@/lib/currency';
 import { COUNTRY_NAMES } from '@/lib/countries';
+import { getRoleLabel, getLeafUnitLabel, getBranchLabel, pluralizeLabel, type RoleLabelConfig } from '@/lib/church-config';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -490,27 +491,35 @@ function WorkforceIntelligencePanel({t, branchId, isMobile=false}: {t: Record<st
   );
 }
 
-const CREATABLE_ROLES: {value:string;label:string;refKind:'cell'|'fellowship'|'department'|null}[] = [
-  {value:'cell_leader',label:'Cell Leader',refKind:'cell'},
-  {value:'fellowship_head',label:'Fellowship Head',refKind:'fellowship'},
-  {value:'department_head',label:'Department Head',refKind:'department'},
-  {value:'care_team',label:'Follow-Up & Care Team',refKind:null},
-  {value:'workforce',label:'Workforce',refKind:null},
-  {value:'accounts',label:'Accounts',refKind:null},
-  {value:'partnership',label:'Partnership',refKind:null},
-  {value:'pa',label:'PA / Church Admin',refKind:null},
-  {value:'overseer',label:'Overseer',refKind:null},
-  {value:'lead_tech',label:'Lead Tech',refKind:null},
+const CREATABLE_ROLES: {value:string;refKind:'cell'|'fellowship'|'department'|null}[] = [
+  {value:'cell_leader',refKind:'cell'},
+  {value:'fellowship_head',refKind:'fellowship'},
+  {value:'department_head',refKind:'department'},
+  {value:'care_team',refKind:null},
+  {value:'workforce',refKind:null},
+  {value:'accounts',refKind:null},
+  {value:'partnership',refKind:null},
+  {value:'pa',refKind:null},
+  {value:'overseer',refKind:null},
+  {value:'lead_tech',refKind:null},
 ];
 
-function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boolean}) {
-  const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string;is_active:boolean}[]>([]);
-  const [invites, setInvites] = React.useState<{id:string;email:string;full_name:string;role:string;unit_name:string;used:boolean;expired:boolean;created_at:string}[]>([]);
+function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,string>; isMobile?: boolean; churchConfig: RoleLabelConfig; userRole?: string}) {
+  // Grant/revoke a PA's access to financial/giving data is GO-only — the
+  // same "overseer and general_overseer are the same effective top tier"
+  // rule as MyAccountButton.tsx, deliberately excluding lead_tech (platform
+  // support, not church leadership) even though lead_tech can otherwise
+  // reach this whole panel.
+  const canManageFinanceAccess = userRole === 'overseer' || userRole === 'general_overseer';
+  const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string;is_active:boolean;branch_id:string|null;branch_name:string|null;finance_access_granted?:boolean}[]>([]);
+  const [invites, setInvites] = React.useState<{id:string;email:string;full_name:string;role:string;unit_name:string;branch_name:string|null;used:boolean;expired:boolean;created_at:string}[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [q, setQ] = React.useState('');
   const [resetting, setResetting] = React.useState<string|null>(null);
   const [loggingInAs, setLoggingInAs] = React.useState<string|null>(null);
   const [suspending, setSuspending] = React.useState<string|null>(null);
+  const [reassigningBranch, setReassigningBranch] = React.useState<string|null>(null);
+  const [reassigningFinance, setReassigningFinance] = React.useState<string|null>(null);
   const [issued, setIssued] = React.useState<{full_name:string;email:string;password:string}|null>(null);
 
   function loadUsers() {
@@ -556,10 +565,12 @@ function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boo
   const [cellList, setCellList] = React.useState<{id:string;name:string}[]>([]);
   const [fellowshipList, setFellowshipList] = React.useState<{id:string;name:string}[]>([]);
   const [deptList, setDeptList] = React.useState<{id:string;name:string}[]>([]);
+  const [branchList, setBranchList] = React.useState<{id:string;name:string}[]>([]);
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
   const [newRole, setNewRole] = React.useState('cell_leader');
   const [newRefId, setNewRefId] = React.useState('');
+  const [newBranchId, setNewBranchId] = React.useState('');
   const [creating, setCreating] = React.useState(false);
   const [createError, setCreateError] = React.useState('');
   const [newLink, setNewLink] = React.useState('');
@@ -575,6 +586,10 @@ function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boo
     fetch('/api/cells/all', { credentials: 'include' }).then(r=>r.json()).then(({data})=>setCellList((data?.cells||[]).map((c:{id:string;cell:string})=>({id:c.id,name:c.cell})))).catch(()=>{});
     fetch('/api/fellowships/all', { credentials: 'include' }).then(r=>r.json()).then(({data})=>setFellowshipList(data?.fellowships||[])).catch(()=>{});
     fetch('/api/departments/all', { credentials: 'include' }).then(r=>r.json()).then(({data})=>setDeptList(data?.departments||[])).catch(()=>{});
+    // Church-scoped per #29a/prior audit work — only ever returns branches
+    // belonging to the caller's own church_id, same as every other
+    // reference-picker on this panel.
+    fetch('/api/branches', { credentials: 'include' }).then(r=>r.json()).then(({data})=>setBranchList(data?.branches||[])).catch(()=>{});
   }, []);
 
   async function doReset(u: {id:string;full_name:string;email:string}) {
@@ -619,12 +634,13 @@ function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boo
           cell_id: selectedRoleDef?.refKind==='cell' ? newRefId : null,
           fellowship_id: selectedRoleDef?.refKind==='fellowship' ? newRefId : null,
           department_id: selectedRoleDef?.refKind==='department' ? newRefId : null,
+          branch_id: newBranchId || null,
         }),
       });
       const json = await res.json();
       if (res.ok && json.data) {
         setNewLink(json.data.invite_link);
-        setNewName(''); setNewEmail(''); setNewRefId('');
+        setNewName(''); setNewEmail(''); setNewRefId(''); setNewBranchId('');
         loadInvites();
       } else setCreateError(json.error?.message || 'Failed to create invite');
     } catch { setCreateError('Network error — invite was not created.'); }
@@ -636,6 +652,34 @@ function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boo
       await fetch(`/api/invites?id=${id}`, { method: 'DELETE', credentials: 'include' });
       loadInvites();
     } catch {}
+  }
+
+  async function doSetBranch(u: {id:string;full_name:string}, branchId: string) {
+    setReassigningBranch(u.id);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ userId: u.id, action: 'set_branch', branch_id: branchId || null }),
+      });
+      const json = await res.json();
+      if (res.ok) loadUsers();
+      else alert(json.error?.message || `Failed to update ${getBranchLabel(churchConfig).toLowerCase()}`);
+    } catch { alert('Network error — assignment was not saved.'); }
+    setReassigningBranch(null);
+  }
+
+  async function doSetFinanceAccess(u: {id:string;full_name:string}, granted: boolean) {
+    setReassigningFinance(u.id);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ userId: u.id, action: 'set_finance_access', finance_access_granted: granted }),
+      });
+      const json = await res.json();
+      if (res.ok) loadUsers();
+      else alert(json.error?.message || 'Failed to update financial access');
+    } catch { alert('Network error — financial access was not changed.'); }
+    setReassigningFinance(null);
   }
 
   function copyLink() {
@@ -673,7 +717,7 @@ function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boo
           <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':(selectedRoleDef?.refKind?'1fr 1fr':'1fr'),gap:10}}>
             <select value={newRole} onChange={e=>{setNewRole(e.target.value);setNewRefId('');}}
               style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
-              {CREATABLE_ROLES.map(r=>(<option key={r.value} value={r.value}>{r.label}</option>))}
+              {CREATABLE_ROLES.map(r=>(<option key={r.value} value={r.value}>{getRoleLabel(r.value, churchConfig)}</option>))}
             </select>
             {selectedRoleDef?.refKind && (
               <select value={newRefId} onChange={e=>setNewRefId(e.target.value)}
@@ -683,6 +727,15 @@ function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boo
               </select>
             )}
           </div>
+          {branchList.length > 0 && (
+            <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:10}}>
+              <select value={newBranchId} onChange={e=>setNewBranchId(e.target.value)}
+                style={{border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:12,background:t.input,color:t.text,outline:'none'}}>
+                <option value="">{`${getBranchLabel(churchConfig)} (optional)...`}</option>
+                {branchList.map(b=>(<option key={b.id} value={b.id}>{b.name}</option>))}
+              </select>
+            </div>
+          )}
           {createError && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12}}>{createError}</div>}
           {newLink && (
             <div style={{background:'rgba(45,212,170,0.1)',border:'0.5px solid rgba(45,212,170,0.3)',borderRadius:9,padding:'10px 12px',display:'flex',alignItems:'center',gap:10}}>
@@ -702,7 +755,7 @@ function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boo
           <div style={{fontSize:11,color:t.muted,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Pending invites ({pendingInvites.length})</div>
           {pendingInvites.map(inv => (
             <div key={inv.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0',borderBottom:`0.5px solid ${t.border}`,fontSize:12}}>
-              <span style={{color:t.text}}>{inv.full_name} <span style={{color:t.muted}}>— {inv.role.replace('_',' ')}{inv.unit_name!=='—'?` · ${inv.unit_name}`:''}</span></span>
+              <span style={{color:t.text}}>{inv.full_name} <span style={{color:t.muted}}>— {inv.role.replace('_',' ')}{inv.unit_name!=='—'?` · ${inv.unit_name}`:''}{inv.branch_name?` · ${inv.branch_name}`:''}</span></span>
               <span style={{display:'flex',alignItems:'center',gap:8}}>
                 {inv.expired && <span style={{color:t.coral,fontSize:10}}>Expired</span>}
                 <button onClick={()=>revokeInvite(inv.id)} style={{background:'transparent',border:`0.5px solid ${t.border}`,borderRadius:6,padding:'3px 9px',fontSize:10,color:t.sub,cursor:'pointer'}}>Revoke</button>
@@ -734,6 +787,28 @@ function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boo
               </div>
               <div style={{fontSize:11,color:t.sub,marginTop:2}}>{u.email}</div>
               <div style={{fontSize:11,color:t.muted,marginTop:1}}>{u.role}</div>
+              {branchList.length > 0 && (
+                <select value={u.branch_id || ''} onChange={e=>doSetBranch(u, e.target.value)} disabled={reassigningBranch===u.id}
+                  style={{marginTop:6,width:'100%',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'6px 9px',fontSize:11,background:t.input,color:t.text,outline:'none',fontFamily:'inherit'}}>
+                  <option value="">{`No ${getBranchLabel(churchConfig).toLowerCase()} assigned`}</option>
+                  {branchList.map(b=>(<option key={b.id} value={b.id}>{b.name}</option>))}
+                </select>
+              )}
+              {u.role==='pa' && canManageFinanceAccess && (
+                <div style={{marginTop:8}}>
+                  <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:t.text,cursor:reassigningFinance===u.id?'wait':'pointer'}}>
+                    <input type="checkbox" checked={!!u.finance_access_granted} disabled={reassigningFinance===u.id}
+                      onChange={e=>doSetFinanceAccess(u, e.target.checked)} />
+                    Finance access
+                  </label>
+                  {/* Grant/revoke is baked into their JWT at login — it doesn't
+                      retroactively affect an already-issued token, which can
+                      live up to 24h. Flag this here so a GO checking right
+                      after flipping the toggle doesn't read the delay as the
+                      toggle being broken. */}
+                  <div style={{fontSize:9.5,color:t.muted,marginTop:2,marginLeft:20}}>Takes effect next time they log in (up to 24h on their current session)</div>
+                </div>
+              )}
               <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
                 <button onClick={()=>doLoginAs(u)} disabled={loggingInAs===u.id||!u.id||u.is_active===false}
                   style={{flex:1,background:t.purple,border:'none',borderRadius:7,padding:'6px 11px',fontSize:11,color:'#fff',cursor:loggingInAs===u.id?'wait':'pointer',fontFamily:'inherit',opacity:u.is_active===false?0.5:1}}>
@@ -766,6 +841,8 @@ function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boo
                 <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Name</th>
                 <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Email</th>
                 <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Role</th>
+                {branchList.length > 0 && <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>{getBranchLabel(churchConfig)}</th>}
+                {canManageFinanceAccess && <th style={{textAlign:'left',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Finance</th>}
                 <th style={{textAlign:'right',padding:'6px 8px',fontSize:10,color:t.sub,textTransform:'uppercase'}}>Action</th>
               </tr>
             </thead>
@@ -778,6 +855,27 @@ function TeamAccessPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boo
                   </td>
                   <td style={{padding:'8px',fontSize:12,color:t.sub}}>{u.email}</td>
                   <td style={{padding:'8px',fontSize:12,color:t.sub}}>{u.role}</td>
+                  {branchList.length > 0 && (
+                    <td style={{padding:'8px',fontSize:12,color:t.sub}}>
+                      <select value={u.branch_id || ''} onChange={e=>doSetBranch(u, e.target.value)} disabled={reassigningBranch===u.id}
+                        style={{border:`0.5px solid ${t.border}`,borderRadius:7,padding:'4px 8px',fontSize:11,background:t.input,color:t.text,outline:'none',fontFamily:'inherit'}}>
+                        <option value="">{`Unassigned`}</option>
+                        {branchList.map(b=>(<option key={b.id} value={b.id}>{b.name}</option>))}
+                      </select>
+                    </td>
+                  )}
+                  {canManageFinanceAccess && (
+                    <td style={{padding:'8px',fontSize:12,color:t.sub}}>
+                      {u.role==='pa' && (
+                        <div>
+                          <input type="checkbox" checked={!!u.finance_access_granted} disabled={reassigningFinance===u.id}
+                            onChange={e=>doSetFinanceAccess(u, e.target.checked)}
+                            title="Grant this PA access to financial/giving data — takes effect next time they log in (up to 24h on their current session)" />
+                          <div style={{fontSize:9,color:t.muted,marginTop:2,maxWidth:110,lineHeight:1.3}}>Takes effect next login</div>
+                        </div>
+                      )}
+                    </td>
+                  )}
                   <td style={{padding:'8px',textAlign:'right',whiteSpace:'nowrap'}}>
                     <button onClick={()=>doLoginAs(u)} disabled={loggingInAs===u.id||!u.id||u.is_active===false}
                       style={{background:t.purple,border:'none',borderRadius:7,padding:'5px 11px',fontSize:11,color:'#fff',cursor:loggingInAs===u.id?'wait':'pointer',fontFamily:'inherit',marginRight:6,opacity:u.is_active===false?0.5:1}}>
@@ -888,7 +986,7 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
 
   const STRUCTURES = [
     { value: 'cell_church', label: 'Cell Church', sub: 'Fellowship → Cell → Member' },
-    { value: 'zonal', label: 'Zonal Church', sub: 'Zone → District → Cell → Member' },
+    { value: 'zonal', label: 'Zonal Church', sub: 'Zone → District → Member' },
     { value: 'campus', label: 'Multi-Campus', sub: 'Campus → Fellowship → Cell → Member' },
     { value: 'department', label: 'Department Church', sub: 'Department → Unit → Member' },
     { value: 'house_network', label: 'House Church Network', sub: 'Network → Home Group → Member' },
@@ -896,6 +994,9 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
   ];
 
   const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  // "Branch" is only ever relabelled for campus (tier1_label there is the
+  // Campus/Branch-equivalent) — every other preset keeps the plain word.
+  const branchLabel = getBranchLabel({ structure_type: structureType, tier1_label: tier1Label });
   const cardS = (e?: React.CSSProperties): React.CSSProperties => ({
     background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '18px 20px', ...e,
   });
@@ -1032,12 +1133,12 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
             Active: {serviceDays.join(', ') || 'None selected'}
           </div>
           <div style={{marginTop:6,fontSize:11,color:t.muted}}>
-            This is the church-wide default. Branches can run their own schedule below — different days, or more than one service in a day.
+            This is the church-wide default. {pluralizeLabel(branchLabel)} can run their own schedule below — different days, or more than one service in a day.
           </div>
         </div>
       )}
       {activeTab === 'services' && ['overseer','general_overseer','branch_pastor','lead_tech'].includes(userRole||'') && (
-        <BranchScheduleEditor t={t} userRole={userRole||''} allDays={DAYS} />
+        <BranchScheduleEditor t={t} userRole={userRole||''} allDays={DAYS} branchLabel={branchLabel} />
       )}
     </div>
   );
@@ -1045,7 +1146,8 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
 
 type BranchRow = {id:string;name:string;service_days:string[];day_service_counts:Record<string,number>};
 
-function BranchScheduleEditor({t, userRole, allDays}: {t: Record<string,string>; userRole: string; allDays: string[]}) {
+function BranchScheduleEditor({t, userRole, allDays, branchLabel}: {t: Record<string,string>; userRole: string; allDays: string[]; branchLabel: string}) {
+  const branchLower = branchLabel.toLowerCase();
   const [branches, setBranches] = React.useState<BranchRow[]>([]);
   const [selectedId, setSelectedId] = React.useState('');
   const [days, setDays] = React.useState<string[]>(['Sunday']);
@@ -1104,17 +1206,17 @@ function BranchScheduleEditor({t, userRole, allDays}: {t: Record<string,string>;
   return (
     <div style={{background:t.card,border:`0.5px solid ${t.border}`,borderRadius:12,padding:'18px 20px'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:2}}>
-        <div style={{fontSize:13,fontWeight:600,color:t.text}}>Branch Schedule</div>
+        <div style={{fontSize:13,fontWeight:600,color:t.text}}>{branchLabel} Schedule</div>
         {userRole !== 'branch_pastor' && (
-          <button onClick={()=>setShowCreate(true)} style={{background:t.purpleBg,color:t.purple,border:'none',borderRadius:8,padding:'6px 12px',fontSize:12,fontWeight:600,cursor:'pointer'}}>+ Create Branch</button>
+          <button onClick={()=>setShowCreate(true)} style={{background:t.purpleBg,color:t.purple,border:'none',borderRadius:8,padding:'6px 12px',fontSize:12,fontWeight:600,cursor:'pointer'}}>+ Create {branchLabel}</button>
         )}
       </div>
-      <div style={{fontSize:12,color:t.muted,marginBottom:14}}>Each branch can run its own service days, and its own number of services on each of those days (e.g. 3 Sunday services but only 1 midweek service) — a branch pastor only ever edits their own branch.</div>
+      <div style={{fontSize:12,color:t.muted,marginBottom:14}}>Each {branchLower} can run its own service days, and its own number of services on each of those days (e.g. 3 Sunday services but only 1 midweek service) — a branch pastor only ever edits their own {branchLower}.</div>
 
-      {showCreate && <CreateBranchModal t={t} allDays={allDays} onClose={()=>setShowCreate(false)} onCreated={()=>{setShowCreate(false);load();}} />}
+      {showCreate && <CreateBranchModal t={t} allDays={allDays} branchLabel={branchLabel} onClose={()=>setShowCreate(false)} onCreated={()=>{setShowCreate(false);load();}} />}
 
       {branches.length === 0 ? (
-        <div style={{fontSize:12,color:t.muted}}>No branches yet — create one to configure its schedule.</div>
+        <div style={{fontSize:12,color:t.muted}}>No {pluralizeLabel(branchLower)} yet — create one to configure its schedule.</div>
       ) : (
         <>
           {userRole !== 'branch_pastor' && branches.length > 1 && (
@@ -1154,7 +1256,7 @@ function BranchScheduleEditor({t, userRole, allDays}: {t: Record<string,string>;
 
           <button onClick={save} disabled={saving || days.length===0}
             style={{marginTop:10,background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'9px 18px',fontSize:13,fontWeight:600,cursor:saving?'wait':'pointer',opacity:days.length===0?0.5:1}}>
-            {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save branch schedule'}
+            {saving ? 'Saving…' : saved ? '✓ Saved' : `Save ${branchLower} schedule`}
           </button>
         </>
       )}
@@ -1162,7 +1264,8 @@ function BranchScheduleEditor({t, userRole, allDays}: {t: Record<string,string>;
   );
 }
 
-function CreateBranchModal({t, allDays, onClose, onCreated}: {t: Record<string,string>; allDays: string[]; onClose: ()=>void; onCreated: ()=>void}) {
+function CreateBranchModal({t, allDays, branchLabel, onClose, onCreated}: {t: Record<string,string>; allDays: string[]; branchLabel: string; onClose: ()=>void; onCreated: ()=>void}) {
+  const branchLower = branchLabel.toLowerCase();
   const [name, setName] = React.useState('');
   const [days, setDays] = React.useState<string[]>(['Sunday']);
   const [counts, setCounts] = React.useState<Record<string,number>>({Sunday:1});
@@ -1178,7 +1281,7 @@ function CreateBranchModal({t, allDays, onClose, onCreated}: {t: Record<string,s
   }
 
   async function create() {
-    if (!name.trim()) { setError('Branch name is required.'); return; }
+    if (!name.trim()) { setError(`${branchLabel} name is required.`); return; }
     if (days.length === 0) { setError('Select at least one service day.'); return; }
     setCreating(true); setError('');
     try {
@@ -1188,16 +1291,16 @@ function CreateBranchModal({t, allDays, onClose, onCreated}: {t: Record<string,s
       });
       const json = await res.json();
       if (res.ok && (json.data?.branches?.length ?? 0) > 0) onCreated();
-      else setError(json.error?.message || 'A branch with that name may already exist.');
-    } catch { setError('Network error — branch was not created.'); }
+      else setError(json.error?.message || `A ${branchLower} with that name may already exist.`);
+    } catch { setError(`Network error — ${branchLower} was not created.`); }
     setCreating(false);
   }
 
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={()=>!creating&&onClose()}>
       <div onClick={e=>e.stopPropagation()} style={{background:t.card,borderRadius:16,padding:22,maxWidth:420,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,0.4)'}}>
-        <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:14}}>Create a new branch</div>
-        <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:6}}>Branch name</div>
+        <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:14}}>Create a new {branchLower}</div>
+        <div style={{fontSize:10,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',marginBottom:6}}>{branchLabel} name</div>
         <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Redemption Camp"
           style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:13,background:t.input,color:t.text,outline:'none',marginBottom:14,boxSizing:'border-box'}} />
 
@@ -1232,7 +1335,7 @@ function CreateBranchModal({t, allDays, onClose, onCreated}: {t: Record<string,s
         <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
           <button onClick={onClose} disabled={creating} style={{background:t.input,color:t.text,border:'none',borderRadius:8,padding:'9px 16px',fontSize:13,cursor:'pointer'}}>Cancel</button>
           <button onClick={create} disabled={creating} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'9px 16px',fontSize:13,fontWeight:600,cursor:creating?'wait':'pointer'}}>
-            {creating ? 'Creating…' : 'Create & activate branch'}
+            {creating ? 'Creating…' : `Create & activate ${branchLower}`}
           </button>
         </div>
       </div>
@@ -1743,6 +1846,11 @@ export default function DashboardPage(){
   const [userName,setUserName]=useState('');
   const [userRole,setUserRole]=useState('');
   const [userBranchId,setUserBranchId]=useState('');
+  // Only meaningful for role==='pa' — every other role is unrestricted
+  // (see hasFinanceAccess in src/lib/pa-governance.ts). Sourced from the
+  // same /api/auth/me payload as userRole below, which already carries it
+  // through the JWT (payloadToAuthUser -> finance_access_granted).
+  const [financeAccessGranted,setFinanceAccessGranted]=useState(false);
   const [eventsSubTab,setEventsSubTab]=useState<'planner'|'programs'>('planner');
   const [selectedCell,setSelectedCell]=useState<CellRow|null>(null);
   const [cellFilter,setCellFilter]=useState<string>('all');
@@ -1771,7 +1879,7 @@ export default function DashboardPage(){
   const [moving,setMoving]=useState(false);
   const [moveError,setMoveError]=useState('');
   const [attDrill,setAttDrill]=useState<string|null>(null);
-  type DeptRow = {id:string;name:string;leader:string;count:number;absent:number;present:number;rate:number|null;status:string;submitted:boolean};
+  type DeptRow = {id:string;name:string;leader:string;count:number;absent:number;present:number;rate:number|null;status:string;submitted:boolean;department_head_sla?:number|null};
   type DeptDetail = {department:{id:string;name:string};members:{id:string;name:string;phone:string|null;role:string;status:string|null}[];last_submission:string|null};
   const [deptsList,setDeptsList]=useState<DeptRow[]>([]);
   const [deptsLoading,setDeptsLoading]=useState(true);
@@ -1864,6 +1972,7 @@ export default function DashboardPage(){
       else if(data?.email)setUserName(data.email.split('@')[0]);
       if(data?.role)setUserRole(data.role);
       if(data?.branch_id)setUserBranchId(data.branch_id);
+      setFinanceAccessGranted(!!data?.finance_access_granted);
       setPageReady(true);
     }).catch(()=>setPageReady(true));
     // Reload config fresh - especially after onboarding
@@ -1976,8 +2085,11 @@ export default function DashboardPage(){
 
   // Structure changed (or loaded) while viewing the Cell Ministry tab, which no
   // longer applies — bounce to the dashboard rather than showing a dead tab.
+  // Excluded for single (auto-provisioned single-congregation handling —
+  // Stage 2); every other preset, including campus as of Stage 3 (tier3_label
+  // wired up as the leaf unit via getLeafUnitLabel), sees it.
   useEffect(()=>{
-    if(churchConfig.structure_type!=='cell_church' && page==='cells'){
+    if(churchConfig.structure_type==='single' && page==='cells'){
       setPage('dashboard');
     }
   },[churchConfig.structure_type,page]);
@@ -2056,16 +2168,38 @@ export default function DashboardPage(){
       {id:'members' as NavPage,icon:'ti-users',label:'Members'},
       {id:'departments' as NavPage,icon:'ti-building',label:'Departments'},
       {id:'attendance' as NavPage,icon:'ti-calendar-stats',label:'Attendance'},
-      // The Cell Ministry tab only applies to the two-tier fellowship→cell structure —
-      // hidden entirely for zonal/campus/department/house_network/single churches.
-      ...(churchConfig.structure_type==='cell_church'?[{id:'cells' as NavPage,icon:'ti-circles',label:`${churchConfig.tier2_label||'Cell'} Ministry`}]:[]),
+      // Hidden only for single (Stage 2 — single-congregation
+      // auto-provisioning); every other preset sees it, including campus as
+      // of Stage 3 — its leaf unit is tier3_label (Cell), not tier2_label
+      // (Fellowship), via getLeafUnitLabel().
+      ...(churchConfig.structure_type!=='single'?[{id:'cells' as NavPage,icon:'ti-circles',label:`${getLeafUnitLabel(churchConfig)} Ministry`}]:[]),
+      // The flip side of hiding "Cell Ministry" for single-structure
+      // churches above: they still have exactly one (auto-provisioned)
+      // cell that attendance is recorded against, and /cell is the only
+      // page with a submit form — the Attendance tab here (PastorAttendance)
+      // is read-only analytics. Without this there was NO reachable route
+      // to submit attendance at all for a single-structure church. `href`
+      // takes this out of the in-page tab system (see the nav item
+      // onClick below) and routes to /cell directly instead.
+      // Role-gated to exactly the same list attendance/route.ts's
+      // single-structure admin exception accepts (ADMIN_ROLES there) — a
+      // branch_pastor landing on this dashboard would otherwise get a
+      // working-looking nav item that 403s on submit, the same class of
+      // bug this whole pass exists to fix.
+      ...(churchConfig.structure_type==='single'&&['overseer','general_overseer','pa','lead_tech'].includes(userRole)?[{id:'record_attendance' as NavPage,icon:'ti-calendar-check',label:'Record Attendance',href:'/cell'}]:[]),
       {id:'validation' as NavPage,icon:'ti-checkbox',label:'Validate Records'},
     ]},
     {label:'Finance', items:[
-      // Financial visibility is deliberately restricted for PA — they can
-      // approve/query requisitions but not view giving/financial totals.
-      ...(userRole!=='pa'?[{id:'giving' as NavPage,icon:'ti-coin',label:'Giving'}]:[]),
-      {id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'},
+      // Financial visibility is gated for PA behind an explicit grant
+      // (finance_access_granted, toggled by an overseer/GO in Team &
+      // Access) — both Giving and Requisitions hit finance-gated routes
+      // (see requireFinanceAccess in src/lib/pa-governance.ts) that 403 a
+      // pa account without the grant, so both are hidden entirely until
+      // granted rather than shown as a working-looking tab that silently
+      // fails. Same "hide until applicable" pattern as the Cell Ministry
+      // tab's structure_type gating above.
+      ...(userRole!=='pa'||financeAccessGranted?[{id:'giving' as NavPage,icon:'ti-coin',label:'Giving'}]:[]),
+      ...(userRole!=='pa'||financeAccessGranted?[{id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requisitions'}]:[]),
     ]},
     {label:'Ministry', items:[
       {id:'recognition' as NavPage,icon:'ti-award',label:'Recognition'},
@@ -2087,7 +2221,11 @@ export default function DashboardPage(){
   const bottomNavItems:{id:NavPage;icon:string;label:string}[]=[
     {id:'dashboard' as NavPage,icon:'ti-layout-dashboard',label:'Home'},
     {id:'members' as NavPage,icon:'ti-users',label:'Members'},
-    ...(userRole!=='pa'?[{id:'giving' as NavPage,icon:'ti-coin',label:'Giving'}]:[{id:'requisitions' as NavPage,icon:'ti-receipt',label:'Requests'}]),
+    // Same finance-gate rule as the desktop sidebar above: a pa without the
+    // grant can't reach Giving or Requisitions (both 403), so neither
+    // belongs in this curated shortlist for them — Attendance (always
+    // reachable) fills the slot instead until they're granted.
+    ...(userRole!=='pa'||financeAccessGranted?[{id:'giving' as NavPage,icon:'ti-coin',label:'Giving'}]:[{id:'attendance' as NavPage,icon:'ti-calendar-stats',label:'Attendance'}]),
     {id:'action_board' as NavPage,icon:'ti-alert-triangle',label:'Alerts'},
   ];
 
@@ -2133,26 +2271,35 @@ export default function DashboardPage(){
           {navGroups.filter(g=>g.items.length>0).map(g=>(
             <div key={g.label} style={{marginBottom:4}}>
               {(!sidebarCollapsed||isMobile)&&<div style={{fontSize:9.5,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase' as const,color:dark?'rgba(232,229,255,0.28)':sidebarStyle==='dark'?'rgba(255,255,255,0.28)':'#B4ACD9',padding:'10px 20px 4px',whiteSpace:'nowrap'}}>{g.label}</div>}
-              {g.items.map(n=>(
-                <button key={n.id} onClick={()=>{setSelectedCell(null);setSelectedDeptId(null);setPage(n.id);if(isMobile)setSidebarOpen(false);}}
+              {g.items.map(n=>{
+                // 'href' items (currently just single-structure churches'
+                // "Record Attendance") navigate to a whole separate page
+                // rather than switching the in-page tab — same escape
+                // hatch the isMobile "Quick Links" section below already
+                // uses for Church Feed/Calendar.
+                const hasHref = 'href' in n && !!n.href;
+                const active = !hasHref && page===n.id;
+                return (
+                <button key={n.id} onClick={()=>{ if(hasHref){ router.push((n as {href:string}).href); if(isMobile)setSidebarOpen(false); return; } setSelectedCell(null);setSelectedDeptId(null);setPage(n.id);if(isMobile)setSidebarOpen(false);}}
                   className="sh-nav-item"
                   title={sidebarCollapsed&&!isMobile?n.label:undefined}
                   style={{
-                    background: page===n.id ? (dark?'rgba(83,74,183,0.45)':'rgba(83,74,183,0.10)') : 'transparent',
-                    color: page===n.id ? (dark?'#E8E5FF':'#3C3489') : undefined,
-                    fontWeight: page===n.id ? 600 : 400,
-                    borderLeft: `2px solid ${page===n.id?'#534AB7':'transparent'}`,
-                    boxShadow: page===n.id ? (dark?'0 0 20px rgba(83,74,183,0.3), inset 0 0 0 0.5px rgba(168,159,255,0.2)':'0 0 12px rgba(83,74,183,0.10)') : 'none',
+                    background: active ? (dark?'rgba(83,74,183,0.45)':'rgba(83,74,183,0.10)') : 'transparent',
+                    color: active ? (dark?'#E8E5FF':'#3C3489') : undefined,
+                    fontWeight: active ? 600 : 400,
+                    borderLeft: `2px solid ${active?'#534AB7':'transparent'}`,
+                    boxShadow: active ? (dark?'0 0 20px rgba(83,74,183,0.3), inset 0 0 0 0.5px rgba(168,159,255,0.2)':'0 0 12px rgba(83,74,183,0.10)') : 'none',
                     borderRadius: '0 8px 8px 0',
                     margin: '1px 8px 1px 0',
                     width: 'calc(100% - 8px)',
                     justifyContent: sidebarCollapsed&&!isMobile?'center':'flex-start',
                     transition: 'all 0.2s ease',
                   }}>
-                  {n.icon && <Icon name={n.icon} size={15} style={{opacity:page===n.id?1:0.5,flexShrink:0}} />}
+                  {n.icon && <Icon name={n.icon} size={15} style={{opacity:active?1:0.5,flexShrink:0}} />}
                   {(!sidebarCollapsed||isMobile)&&<span style={{whiteSpace:'nowrap',overflow:'hidden'}}>{n.label}</span>}
                 </button>
-              ))}
+                );
+              })}
             </div>
           ))}
           {isMobile&&(
@@ -2218,10 +2365,10 @@ export default function DashboardPage(){
           </div>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:12,flexShrink:0}}>
             {userRole==='branch_pastor' ? (
-              <div title="You are scoped to your own branch — every figure and action here applies only to it"
+              <div title={`You are scoped to your own ${getBranchLabel(churchConfig).toLowerCase()} — every figure and action here applies only to it`}
                 style={{display:'flex',alignItems:'center',gap:isMobile?5:7,padding:isMobile?'4px 8px':'6px 12px',borderRadius:20,border:'0.5px solid rgba(29,158,117,0.3)',background:dark?'rgba(29,158,117,0.12)':'#E1F5EE'}}>
                 <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',flexShrink:0,boxShadow:'0 0 0 3px rgba(29,158,117,0.2)'}}/>
-                {!isMobile&&<span style={{fontSize:11,fontWeight:700,color:'#085041'}}>Viewing: {branchesList.find(b=>b.id===userBranchId)?.name || 'Your Branch'}</span>}
+                {!isMobile&&<span style={{fontSize:11,fontWeight:700,color:'#085041'}}>Viewing: {branchesList.find(b=>b.id===userBranchId)?.name || `Your ${getBranchLabel(churchConfig)}`}</span>}
               </div>
             ) : (
               // Always rendered for overseer/general_overseer/pa/lead_tech
@@ -2240,7 +2387,7 @@ export default function DashboardPage(){
                 <select value={selectedBranch} onChange={e=>setSelectedBranch(e.target.value)}
                   title="Viewing scope — every figure and action on this page applies to whatever is selected here"
                   style={{border:`1px solid ${selectedBranch?'rgba(186,117,23,0.35)':'rgba(83,74,183,0.35)'}`,borderRadius:20,padding:isMobile?'5px 8px 5px 18px':'6px 12px 6px 22px',fontSize:isMobile?10:11,fontWeight:700,maxWidth:isMobile?110:isCompact?120:170,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flexShrink:0,background:selectedBranch?(dark?'rgba(186,117,23,0.12)':'#FAEEDA'):(dark?'rgba(83,74,183,0.12)':t.purpleBg),color:selectedBranch?'#633806':'#3C3489',outline:'none',fontFamily:'inherit',cursor:'pointer',appearance:'none' as const}}>
-                  <option value="">{isMobile||isCompact?'All Branches':'Viewing: All Branches (Consolidated)'}</option>
+                  <option value="">{isMobile||isCompact?`All ${pluralizeLabel(getBranchLabel(churchConfig))}`:`Viewing: All ${pluralizeLabel(getBranchLabel(churchConfig))} (Consolidated)`}</option>
                   {branchesList.map(b=>(<option key={b.id} value={b.id}>{isMobile||isCompact?b.name:`Viewing: ${b.name}`}</option>))}
                 </select>
               </div>
@@ -2547,7 +2694,7 @@ export default function DashboardPage(){
                 </div>
                 <div style={{overflowX:'auto'}}>
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
-                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Phone','Date Joined','Cell','Fellowship','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Name','Phone','Date Joined',churchConfig.tier2_label||'Cell',churchConfig.tier1_label||'Fellowship','Status'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
                       {membersList.length===0 ? (
                         <tr><td colSpan={6} style={{padding:'16px 8px',color:t.muted,textAlign:'center'}}>No members yet.</td></tr>
@@ -2576,7 +2723,7 @@ export default function DashboardPage(){
                   {membersExpanded&&(
                     <div style={{display:'flex',gap:8}}>
                       <button onClick={()=>setShowCreateMember(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Create Member</button>
-                      <button onClick={()=>exportCSV(membersList.map(m=>({Name:m.full_name,Phone:m.phone,Cell:m.cell_name||'—',Fellowship:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),'full_member_database')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}><Icon name="ti-download" size={12}/>Export</button>
+                      <button onClick={()=>exportCSV(membersList.map(m=>({Name:m.full_name,Phone:m.phone,[churchConfig.tier2_label||'Cell']:m.cell_name||'—',[churchConfig.tier1_label||'Fellowship']:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),'full_member_database')} style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}><Icon name="ti-download" size={12}/>Export</button>
                     </div>
                   )}
                 </div>
@@ -2614,8 +2761,8 @@ export default function DashboardPage(){
                           </div>
                           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,fontSize:11,color:t.sub,marginBottom:canManage?8:0}}>
                             <div><span style={{color:t.muted}}>Phone: </span>{m.phone||'—'}</div>
-                            <div><span style={{color:t.muted}}>Cell: </span>{m.cell_name||'—'}</div>
-                            <div><span style={{color:t.muted}}>Fellowship: </span>{m.fellowship_name||'—'}</div>
+                            <div><span style={{color:t.muted}}>{churchConfig.tier2_label||'Cell'}: </span>{m.cell_name||'—'}</div>
+                            <div><span style={{color:t.muted}}>{churchConfig.tier1_label||'Fellowship'}: </span>{m.fellowship_name||'—'}</div>
                             <div><span style={{color:t.muted}}>Joined: </span>{m.join_date?new Date(m.join_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</div>
                           </div>
                           {canManage&&(
@@ -2646,7 +2793,7 @@ export default function DashboardPage(){
                     <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
                       <thead style={{position:'sticky',top:0,background:t.card}}>
                         <tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>
-                          {[...['Name','Phone','Cell','Fellowship','Joined','Status'],...(canManage?['']:[])].map((h,hi)=>(
+                          {[...['Name','Phone',churchConfig.tier2_label||'Cell',churchConfig.tier1_label||'Fellowship','Joined','Status'],...(canManage?['']:[])].map((h,hi)=>(
                             <th key={h||`action-${hi}`} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.05em',whiteSpace:'nowrap',background:t.card}}>{h}</th>
                           ))}
                         </tr>
@@ -2923,17 +3070,17 @@ export default function DashboardPage(){
           {page==='cells'&&!selectedCell&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
-                {[{label:'Total Active Cells',value:String((dbCells||[]).length)},{label:'Rising',value:String((dbCells||[]).filter(c=>c.status==='rising').length)},{label:'Need Attention',value:String((dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length)},{label:'Avg Attendance Rate',value:(()=>{const cells=(dbCells||[]);const withRate=cells.filter(c=>c.members>0);return withRate.length>0?`${Math.round(withRate.reduce((s,c)=>s+(c.avg/c.members*100),0)/withRate.length)}%`:'—';})()}].map(s=>(
+                {[{label:`Total Active ${churchConfig.tier2_label||'Cell'}s`,value:String((dbCells||[]).length)},{label:'Rising',value:String((dbCells||[]).filter(c=>c.status==='rising').length)},{label:'Need Attention',value:String((dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length)},{label:'Avg Attendance Rate',value:(()=>{const cells=(dbCells||[]);const withRate=cells.filter(c=>c.members>0);return withRate.length>0?`${Math.round(withRate.reduce((s,c)=>s+(c.avg/c.members*100),0)/withRate.length)}%`:'—';})()}].map(s=>(
                   <div key={s.label} style={card({padding:'10px 12px'})}><div style={{fontSize:11,color:t.sub,marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500,color:t.text}}>{s.value}</div></div>
                 ))}
               </div>
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:isMobile?'stretch':'center',marginBottom:10,flexDirection:isMobile?'column':'row',gap:isMobile?10:0}}>
-                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>All {(dbCells||[]).length} Cells - click any cell to drill down</div>
+                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>All {(dbCells||[]).length} {churchConfig.tier2_label||'Cell'}s - click any {(churchConfig.tier2_label||'Cell').toLowerCase()} to drill down</div>
                   <div style={{display:'flex',gap:8,flexWrap:isMobile?'wrap':undefined}}>
-                    <button onClick={()=>setShowCreateCell(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined,whiteSpace:'nowrap'}}>+ Create Cell</button>
-                    <button onClick={()=>setShowMergeCells(true)} style={{background:'transparent',color:t.coral,border:`0.5px solid ${t.coral}`,borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined,whiteSpace:'nowrap'}}>Merge Cells</button>
-                    <button onClick={()=>exportCSV((dbCells||[]).map(c=>({Cell:c.cell,Fellowship:c.fel,Leader:c.leader,Members:c.members,AvgAttendance:c.avg,Rate:`${c.rate}%`,Trend:c.trend,Status:c.status})),'cells_export')}
+                    <button onClick={()=>setShowCreateCell(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined,whiteSpace:'nowrap'}}>+ Create {churchConfig.tier2_label||'Cell'}</button>
+                    <button onClick={()=>setShowMergeCells(true)} style={{background:'transparent',color:t.coral,border:`0.5px solid ${t.coral}`,borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined,whiteSpace:'nowrap'}}>Merge {churchConfig.tier2_label||'Cell'}s</button>
+                    <button onClick={()=>exportCSV((dbCells||[]).map(c=>({[churchConfig.tier2_label||'Cell']:c.cell,[churchConfig.tier1_label||'Fellowship']:c.fel,Leader:c.leader,Members:c.members,AvgAttendance:c.avg,Rate:`${c.rate}%`,Trend:c.trend,Status:c.status})),'cells_export')}
                       style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:5,flex:isMobile?1:undefined,whiteSpace:'nowrap'}}><Icon name="ti-download" size={12}/>Export CSV</button>
                   </div>
                 </div>
@@ -2972,7 +3119,7 @@ export default function DashboardPage(){
                 ) : (
                 <div className="table-wrap">
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse',minWidth:600}}>
-                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{['Cell','Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status','Weekly Meeting'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{[churchConfig.tier2_label||'Cell',churchConfig.tier1_label||'Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status','Weekly Meeting'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
                       {(dbCells||[]).filter(row=>cellFilter==='all'||(row.status===cellFilter)||(row.fel===cellFilter)).map((row,i)=>{const s=ss(row.status);return(
                         <tr key={i} onClick={()=>setSelectedCell(row)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
@@ -2998,7 +3145,7 @@ export default function DashboardPage(){
           )}
           {page==='cells'&&selectedCell&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <button onClick={()=>setSelectedCell(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to Cells</button>
+              <button onClick={()=>setSelectedCell(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to {churchConfig.tier2_label||'Cell'}s</button>
               <div style={card()}>
                 <input defaultValue={selectedCell.cell}
                   onBlur={async e=>{
@@ -3011,7 +3158,7 @@ export default function DashboardPage(){
                     else window.alert('Failed to rename cell.');
                   }}
                   style={{fontSize:15,fontWeight:600,color:t.text,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'4px 8px',background:t.input,outline:'none',fontFamily:'inherit',marginBottom:6,width:'100%',boxSizing:'border-box'}} />
-                <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} Fellowship · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
+                <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} {churchConfig.tier1_label||'Fellowship'} · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
                 <AttendanceHistoryPanel t={t} color={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'}
                   fetchUrl={(g,o)=>`/api/cells/history?cell_id=${(selectedCell as unknown as {id?:string})?.id}&granularity=${g}&offset=${o}`} />
               </div>
@@ -3022,13 +3169,13 @@ export default function DashboardPage(){
           {page==='reports'&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{background:t.tealBg,border:dark?'0.5px solid #1D9E75':'0.5px solid #9FE1CB',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#085041'}}>
-                <strong>Monthly Summary — {new Date().toLocaleDateString('en-GB',{month:'long',year:'numeric'})}:</strong> Membership at {fmt(kpi?.total_members)} ({kpi?.new_members_month?`+${kpi.new_members_month}`:'no'} this month). YTD giving {kpi?formatMoney(kpi.ytd_giving_ngn,churchConfig.currency):'—'}. {(dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length} cell{(dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length===1?'':'s'} flagged for attention.
+                <strong>Monthly Summary — {new Date().toLocaleDateString('en-GB',{month:'long',year:'numeric'})}:</strong> Membership at {fmt(kpi?.total_members)} ({kpi?.new_members_month?`+${kpi.new_members_month}`:'no'} this month). YTD giving {kpi?formatMoney(kpi.ytd_giving_ngn,churchConfig.currency):'—'}. {(dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length} {(churchConfig.tier2_label||'Cell').toLowerCase()}{(dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length===1?'':'s'} flagged for attention.
               </div>
               <div style={card()}>
                 <div style={{fontSize:13,fontWeight:500,marginBottom:4}}>AI-Powered Reports</div>
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Select a prompt to generate a narrative report via Moshe. Add credits at console.anthropic.com if needed.</div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-                  {[...['Monthly attendance report for June 2026'],...(userRole==='pa'?[]:['YTD giving analysis and projections']),...['Cell performance review with intervention recommendations','Membership growth analysis and conversion trends','Plan a realistic membership budget for all 35 cells based on current trends','Which 3 cells need immediate pastoral intervention and why?']].map(q=>(
+                  {[...['Monthly attendance report for June 2026'],...(userRole==='pa'?[]:['YTD giving analysis and projections']),...[`${churchConfig.tier2_label||'Cell'} performance review with intervention recommendations`,'Membership growth analysis and conversion trends',`Plan a realistic membership budget for all 35 ${(churchConfig.tier2_label||'Cell').toLowerCase()}s based on current trends`,`Which 3 ${(churchConfig.tier2_label||'Cell').toLowerCase()}s need immediate pastoral intervention and why?`]].map(q=>(
                     <button key={q} onClick={()=>{setChatOpen(true);setChatInput(q);}}
                       style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,cursor:'pointer',fontWeight:500,textAlign:'left'}}>
                       {q}
@@ -3037,7 +3184,7 @@ export default function DashboardPage(){
                 </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(2,1fr)',gap:10}}>
-                {[{label:'Export All Attendance',data:(dbCells||[]).map(c=>({Cell:c.cell,Fellowship:c.fel,Avg:c.avg,Rate:`${c.rate}%`,Trend:c.trend})),file:'full_attendance'},{label:'Export Member List',data:membersList.map(m=>({Name:m.full_name,Phone:m.phone,Cell:m.cell_name||'—',Fellowship:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),file:'member_list'}].map(e=>(
+                {[{label:'Export All Attendance',data:(dbCells||[]).map(c=>({[churchConfig.tier2_label||'Cell']:c.cell,[churchConfig.tier1_label||'Fellowship']:c.fel,Avg:c.avg,Rate:`${c.rate}%`,Trend:c.trend})),file:'full_attendance'},{label:'Export Member List',data:membersList.map(m=>({Name:m.full_name,Phone:m.phone,[churchConfig.tier2_label||'Cell']:m.cell_name||'—',[churchConfig.tier1_label||'Fellowship']:m.fellowship_name||'—',Joined:m.join_date||'—',Status:m.membership_status})),file:'member_list'}].map(e=>(
                   <button key={e.label} onClick={()=>exportCSV(e.data,e.file)}
                     style={{...card(),border:'0.5px solid #534AB7',cursor:'pointer',textAlign:'left'}}>
                     <div style={{fontSize:13,fontWeight:500,color:'#3C3489',marginBottom:2,display:'flex',alignItems:'center',gap:6}}><Icon name="ti-download" size={13}/>{e.label}</div>
@@ -3084,7 +3231,7 @@ export default function DashboardPage(){
 
               {/* Top Cell Leaders */}
               <div style={card()}>
-                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Top Cell Leaders</div>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Top {churchConfig.tier2_head_label||'Cell Leader'}s</div>
                 {isMobile ? (
                   <div style={{display:'flex',flexDirection:'column',gap:8}}>
                     {(showAlertOnly
@@ -3109,7 +3256,7 @@ export default function DashboardPage(){
                               <div style={{fontWeight:700,fontSize:14,color:overall>=75?t.teal:t.coral}}>{overall}%</div>
                               <div style={{display:'flex',gap:3,justifyContent:'flex-end'}}>
                                 {slaScore!=null&&slaScore>=90&&<span title="Unbroken — 12 consecutive on-time" style={{color:t.purple}}><Icon name="ti-trophy" size={12}/></span>}
-                                {c.rate>=85&&<span title="Fellowship Excellence" style={{color:t.amber}}><Icon name="ti-star" size={12}/></span>}
+                                {c.rate>=85&&<span title={`${churchConfig.tier1_label||'Fellowship'} Excellence`} style={{color:t.amber}}><Icon name="ti-star" size={12}/></span>}
                                 {c.trend.startsWith('+')&&parseInt(c.trend)>=10&&<span title="Soul Winner" style={{color:t.teal}}><Icon name="ti-sprout" size={12}/></span>}
                               </div>
                             </div>
@@ -3124,7 +3271,7 @@ export default function DashboardPage(){
                   <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
                     <thead>
                       <tr style={{borderBottom:`0.5px solid ${t.border}`}}>
-                        {['Rank','Leader','Cell','Fellowship','SLA Score','Attendance','Growth','Accuracy','Overall','Tier','Badges'].map(h=>(
+                        {['Rank','Leader',churchConfig.tier2_label||'Cell',churchConfig.tier1_label||'Fellowship','SLA Score','Attendance','Growth','Accuracy','Overall','Tier','Badges'].map(h=>(
                           <th key={h} style={{textAlign:'left',padding:'8px 10px',fontSize:10,color:t.muted,fontWeight:500,textTransform:'uppercase',letterSpacing:'0.4px',whiteSpace:'nowrap'}}>{h}</th>
                         ))}
                       </tr>
@@ -3153,7 +3300,7 @@ export default function DashboardPage(){
                             <td style={{padding:'10px 10px'}}>
                               <div style={{display:'flex',gap:4}}>
                                 {slaScore!=null&&slaScore>=90&&<span title="Unbroken — 12 consecutive on-time" style={{color:t.purple}}><Icon name="ti-trophy" size={14}/></span>}
-                                {c.rate>=85&&<span title="Fellowship Excellence" style={{color:t.amber}}><Icon name="ti-star" size={14}/></span>}
+                                {c.rate>=85&&<span title={`${churchConfig.tier1_label||'Fellowship'} Excellence`} style={{color:t.amber}}><Icon name="ti-star" size={14}/></span>}
                                 {c.trend.startsWith('+')&&parseInt(c.trend)>=10&&<span title="Soul Winner" style={{color:t.teal}}><Icon name="ti-sprout" size={14}/></span>}
                               </div>
                             </td>
@@ -3168,7 +3315,7 @@ export default function DashboardPage(){
 
               {/* Top Fellowship Heads */}
               <div style={card()}>
-                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Fellowship Heads</div>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>{churchConfig.tier1_head_label||'Fellowship Head'}s</div>
                 <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:12}}>
                   {Object.entries((dbCells||[]).reduce((acc:Record<string,NonNullable<typeof dbCells>>,c)=>{(acc[c.fel]=acc[c.fel]||[]).push(c);return acc;},{}))
                     .map(([name,group])=>{
@@ -3196,6 +3343,34 @@ export default function DashboardPage(){
                       );
                   })}
                 </div>
+              </div>
+
+              {/* Top Department Heads */}
+              <div style={card()}>
+                <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:14}}>Department Heads</div>
+                {(deptsList||[]).filter(d=>d.department_head_sla!=null).length===0 ? (
+                  <div style={{padding:'16px 0',textAlign:'center',color:t.muted,fontSize:12}}>No department SLA data yet</div>
+                ) : (
+                <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:12}}>
+                  {[...(deptsList||[])].filter(d=>d.department_head_sla!=null)
+                    .sort((a,b)=>(b.department_head_sla??0)-(a.department_head_sla??0))
+                    .map(d=>{
+                      const score=d.department_head_sla??0;
+                      const tier=score>=90?'Elite Shepherd':score>=75?'Faithful Steward':score>=60?'Consistent Servant':'Needs Improvement';
+                      const tierColor=score>=90?{bg:'#EEEDFE',c:'#3C3489'}:score>=75?{bg:'#E1F5EE',c:'#085041'}:{bg:'#F3F4F6',c:'#374151'};
+                      return(
+                        <div key={d.id} style={{background:t.cardInner,borderRadius:10,padding:'14px 16px',border:`0.5px solid ${t.border}`}}>
+                          <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:2}}>{d.name}</div>
+                          <div style={{fontSize:11,color:t.muted,marginBottom:8}}>{d.leader}</div>
+                          <div style={{fontSize:26,fontWeight:700,color:score>=80?t.teal:t.amber,marginBottom:8}}>{score}%</div>
+                          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                            <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,background:tierColor.bg,color:tierColor.c,fontWeight:500}}>{tier}</span>
+                          </div>
+                        </div>
+                      );
+                  })}
+                </div>
+                )}
               </div>
 
               {/* Badge showcase */}
@@ -3383,13 +3558,13 @@ export default function DashboardPage(){
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <MemberApprovalPanel t={t} dark={dark} />
               <RemovalApprovalPanel t={t} dark={dark} userRole={userRole} />
-              <FellowshipValidation t={t} dark={dark} isMobile={isMobile} />
+              <FellowshipValidation t={t} dark={dark} isMobile={isMobile} tier2Label={churchConfig.tier2_label} />
             </div>
           )}
           {page==='settings'&&(
             <div>
               <ChurchSettingsPanel t={t} dark={dark} userRole={userRole} onConfigSaved={(cfg)=>setChurchConfig(cfg)} />
-              {['overseer','general_overseer','lead_tech'].includes(userRole) && <TeamAccessPanel t={t} isMobile={isMobile} />}
+              {['overseer','general_overseer','lead_tech'].includes(userRole) && <TeamAccessPanel t={t} isMobile={isMobile} churchConfig={churchConfig} userRole={userRole} />}
             </div>
           )}
           {page==='admin'&&(

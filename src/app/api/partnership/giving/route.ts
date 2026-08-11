@@ -1,19 +1,16 @@
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 import { computeSlaGrade } from '@/lib/sla';
 import { requirePremium } from '@/lib/plan-gate';
+import { dispatchEvent } from '@/lib/notify';
+import { requireFinanceAccess } from '@/lib/pa-governance';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const h = () => ({ 'apikey': K, 'Authorization': `Bearer ${K}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const m = cookie.match(/shepherd_token=([^;]+)/);
-  const token = m?.[1];
-  if (!token) return null;
-  const p = await verifyToken(token);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech', 'partnership'];
@@ -24,6 +21,8 @@ const ALLOWED = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_te
 export async function GET(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const financeBlocked = requireFinanceAccess(user);
+  if (financeBlocked) return financeBlocked;
   const blocked = await requirePremium(user.church_id, user.id);
   if (blocked) return blocked;
   const cutoff = new Date();
@@ -44,10 +43,21 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getUser(req);
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const financeBlocked = requireFinanceAccess(user);
+  if (financeBlocked) return financeBlocked;
   const blocked = await requirePremium(user.church_id, user.id);
   if (blocked) return blocked;
   const body = await req.json();
   const { partner_id, amount, month, status, notes } = body;
+
+  // partner_id is client-supplied — verify it belongs to this caller's own
+  // church before attaching a giving record to it.
+  const partnerCheckRes = await fetch(`${S}/rest/v1/partners?id=eq.${partner_id}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: h() });
+  const partnerCheck = await partnerCheckRes.json().catch(() => []);
+  if (!Array.isArray(partnerCheck) || partnerCheck.length === 0) {
+    return NextResponse.json({ data: null, error: { message: 'Partner not found' } }, { status: 404 });
+  }
+
   const res = await fetch(`${S}/rest/v1/partnership_giving`, {
     method: 'POST',
     headers: { ...h(), 'Prefer': 'return=representation' },
@@ -60,17 +70,13 @@ export async function POST(req: Request) {
   });
   const data = await res.json();
   const giving = Array.isArray(data) ? data[0] : data;
-  fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://shepherd-app-beta.vercel.app'}/api/notify/dispatch`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_SECRET || '' },
-    body: JSON.stringify({
-      event: 'partnership_giving_logged',
-      actor_name: user.id,
-      actor_role: user.role,
-      church_id: user.church_id,
-      detail: `Partnership giving logged — ${Number(body.amount || 0).toLocaleString()}`,
-      amount: parseFloat(body.amount) || 0,
-    }),
-  }).catch(() => {});
+  await dispatchEvent({
+    event: 'partnership_giving_logged',
+    actor_name: user.id,
+    actor_role: user.role,
+    church_id: user.church_id,
+    detail: `Partnership giving logged — ${Number(body.amount || 0).toLocaleString()}`,
+    amount: parseFloat(body.amount) || 0,
+  });
   return NextResponse.json({ data: giving, error: null }, { status: 201 });
 }

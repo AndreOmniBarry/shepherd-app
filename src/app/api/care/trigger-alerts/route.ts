@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { assignToLeastLoadedCareTeamMember } from '@/lib/care-assignment';
+import { notifyUsers } from '@/lib/notify';
 
 // ── This endpoint scans last Sunday's attendance and creates care leads
 // ── for any member absent 1+ Sunday with no open lead already.
@@ -137,20 +138,11 @@ async function runForChurch(churchId: string, lastSunday: string): Promise<Churc
 
   // 5. Send notification to this church's care team members
   if (results.leads_created > 0 && careIds.length > 0) {
-    const notifRows = careIds.map(userId => ({
-      user_id: userId,
+    await notifyUsers(careIds, {
       type: 'pipeline',
       title: `${results.leads_created} new absence lead${results.leads_created > 1 ? 's' : ''} assigned`,
       body: `${results.leads_created} member${results.leads_created > 1 ? 's were' : ' was'} absent last Sunday and assigned to your queue. Please follow up by Wednesday.`,
-      read: false,
-      church_id: churchId,
-    }));
-
-    await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-      method: 'POST',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify(notifRows),
-    });
+    }, churchId);
   }
 
   return results;

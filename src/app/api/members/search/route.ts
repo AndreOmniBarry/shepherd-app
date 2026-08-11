@@ -37,6 +37,14 @@ export async function GET(req: Request) {
 
     if (payload.role === 'branch_pastor') {
       branchId = payload.branch_id ?? null;
+      // A branch_pastor with no branch_id assigned yet must see nothing,
+      // not fall through to a church-wide search — see resolveBranchScope
+      // in @/lib/branch-scope for the shared rationale (this route derives
+      // branchId manually rather than via that helper because of its
+      // richer per-role scoping below, but applies the identical rule).
+      if (!branchId) {
+        return NextResponse.json({ data: { members: [] }, error: null });
+      }
     } else if (payload.role === 'cell_leader') {
       cellFilter = payload.cell_id ? `&cell_id=eq.${payload.cell_id}` : '&cell_id=eq.00000000-0000-0000-0000-000000000000';
     } else if (payload.role === 'fellowship_head') {

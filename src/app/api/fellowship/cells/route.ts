@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { buildCellScores, avgScore, computeFellowshipHeadScore } from '@/lib/leadership-sla';
 
 export async function GET(req: Request) {
   try {
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
     );
     const memberData = await memberRes.json();
     const fellowship_id = user.fellowship_id || memberData?.[0]?.fellowship_id;
-    if (!fellowship_id) return NextResponse.json({ data: { cells: [] }, error: null });
+    if (!fellowship_id) return NextResponse.json({ data: { cells: [], fellowship_head_sla: null }, error: null });
 
     // Get all cells in fellowship
     const cellsRes = await fetch(
@@ -119,7 +120,76 @@ export async function GET(req: Request) {
       fellowship_trend.push({ w: `W${i + 1}`, v: sum });
     }
 
-    return NextResponse.json({ data: { cells, fellowship_trend }, error: null });
+    // ── Fellowship head leadership SLA ───────────────────────────
+    // A composite of two real, coordinate (50/50) inputs — see
+    // computeFellowshipHeadScore in src/lib/leadership-sla.ts for the full
+    // weighting rationale:
+    //   1. cellsAvgScore — the plain average of this fellowship's own
+    //      cells' overall_score, computed via the exact same
+    //      buildCellScores() cells/all/route.ts uses (church_id- and
+    //      fellowship_id-scoped here so this head only ever sees their
+    //      own fellowship's cells).
+    //   2. fellowshipAttendanceRate — overall attendance for members of
+    //      this particular fellowship, computed below as one direct
+    //      fellowship-wide ratio (NOT an average of the per-cell rates
+    //      cellsAvgScore already folds in).
+    const cellScores = await buildCellScores({
+      supabaseUrl: SUPABASE_URL,
+      headers: hdrs,
+      churchId: user.church_id,
+      extraCellsFilter: `&fellowship_id=eq.${fellowship_id}`,
+    });
+    const cellsAvgScore = avgScore(cellScores.map(c => c.overall_score));
+
+    // fellowshipAttendanceRate — one direct numerator/denominator across
+    // the whole fellowship's actual member pool, scoped to exactly the
+    // cells buildCellScores just resolved for this fellowship+church (so
+    // this head only ever sees their own fellowship's data):
+    //   numerator: sum of present_count across every attendance_records
+    //     row for this fellowship's cells over the same 56-day window
+    //     buildCellScores uses (for consistency).
+    //   denominator: total count of active members across this
+    //     fellowship's cells (a single snapshot, not summed per-week).
+    // This is deliberately NOT a re-derivation of the per-cell rates
+    // already averaged into cellsAvgScore — it's a second, independently
+    // computed number. Capped at 95% via the same cappedRate convention
+    // computeCellOverallScore uses. If there are no cells, no attendance
+    // records yet, or no active members, this stays null (never a fake
+    // 0%) — a brand-new fellowship with cells but zero attendance history
+    // shows cellsAvgScore alone, or null.
+    const cellIds = cellScores.map(c => c.id);
+    let fellowshipAttendanceRate: number | null = null;
+    if (cellIds.length > 0) {
+      const since = new Date(Date.now() - 56 * 24 * 60 * 60 * 1000).toISOString();
+      const [fellAttRes, fellMembersRes] = await Promise.all([
+        fetch(
+          `${SUPABASE_URL}/rest/v1/attendance_records?cell_id=in.(${cellIds.join(',')})&submitted_at=gte.${since}&select=present_count`,
+          { headers: hdrs }
+        ),
+        fetch(
+          `${SUPABASE_URL}/rest/v1/members?cell_id=in.(${cellIds.join(',')})&membership_status=eq.active&select=id&church_id=eq.${user.church_id}`,
+          { headers: hdrs }
+        ),
+      ]);
+      const fellAttData = await fellAttRes.json();
+      const fellMembersData = await fellMembersRes.json();
+      const totalPresent = Array.isArray(fellAttData)
+        ? fellAttData.reduce((s: number, r: Record<string, unknown>) => s + ((r.present_count as number) || 0), 0)
+        : 0;
+      const totalActiveMembers = Array.isArray(fellMembersData) ? fellMembersData.length : 0;
+      if (totalActiveMembers > 0 && Array.isArray(fellAttData) && fellAttData.length > 0) {
+        const rawRate = Math.round((totalPresent / totalActiveMembers) * 100);
+        fellowshipAttendanceRate = Math.min(rawRate, 95);
+      }
+    }
+
+    const fellowship_head_sla = {
+      score: computeFellowshipHeadScore({ cellsAvgScore, fellowshipAttendanceRate }),
+      cells_avg_score: cellsAvgScore,
+      fellowship_attendance_rate: fellowshipAttendanceRate,
+    };
+
+    return NextResponse.json({ data: { cells, fellowship_trend, fellowship_head_sla }, error: null });
   } catch (err) {
     console.error('[GET /api/fellowship/cells]', err);
     return NextResponse.json({ data: null, error: { message: 'Failed to load cells' } }, { status: 500 });

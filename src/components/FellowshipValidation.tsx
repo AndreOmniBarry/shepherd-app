@@ -14,9 +14,10 @@ const MONTHS: Record<string, string> = {
   '2026-05-01': 'May 2026', '2026-06-01': 'June 2026',
 };
 
-interface FellowshipValidationProps { t: Record<string, string>; dark: boolean; isMobile?: boolean; }
+interface FellowshipValidationProps { t: Record<string, string>; dark: boolean; isMobile?: boolean; tier2Label?: string | null; }
 
-export default function FellowshipValidation({ t, dark, isMobile = false }: FellowshipValidationProps) {
+export default function FellowshipValidation({ t, dark, isMobile = false, tier2Label }: FellowshipValidationProps) {
+  const cellLabel = tier2Label || 'Cell';
   const [records, setRecords] = useState<MonthlyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [validating, setValidating] = useState<Record<string, boolean>>({});
@@ -105,7 +106,7 @@ export default function FellowshipValidation({ t, dark, isMobile = false }: Fell
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
-                  {['Member', 'Cell', 'Present', 'Total services', 'Rate', 'Exit', 'Action'].map(h => (
+                  {['Member', cellLabel, 'Present', 'Total services', 'Rate', 'Exit', 'Action'].map(h => (
                     <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px', background: t.card }}>{h}</th>
                   ))}
                 </tr>

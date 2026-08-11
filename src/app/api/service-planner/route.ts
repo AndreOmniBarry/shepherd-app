@@ -1,16 +1,15 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { resolveBranchScope } from '@/lib/branch-scope';
+import { notifyMany } from '@/lib/notify';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const H = () => ({ 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
-  if (!m) return null;
-  const p = await verifyToken(m[1]);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 export async function GET(req: Request) {
@@ -20,8 +19,10 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const upcoming = searchParams.get('upcoming') === 'true';
     const today = new Date().toISOString().split('T')[0];
-    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
-    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+    const { branchFilter, forbidden } = resolveBranchScope(user, searchParams);
+    if (forbidden) {
+      return NextResponse.json({ data: { plans: [] }, error: null });
+    }
     const churchFilter = `&church_id=eq.${user.church_id}`;
     let url = `${SUPABASE_URL}/rest/v1/service_plans?order=service_date.desc&limit=20&select=id,service_date,service_type,title,theme,status,created_by,published_at,created_at${branchFilter}${churchFilter}`;
     if (upcoming) url = `${SUPABASE_URL}/rest/v1/service_plans?service_date=gte.${today}&order=service_date.asc&limit=5&select=id,service_date,service_type,title,theme,status,published_at${branchFilter}${churchFilter}`;
@@ -74,19 +75,20 @@ export async function PATCH(req: Request) {
     }
     if (status === 'published') {
       // Notify all assigned users
-      try {
-        const itemsRes = await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items?plan_id=eq.${id}&assigned_to=not.is.null&select=assigned_to,title`, { headers: H() });
-        const assignedItems = await itemsRes.json();
-        if (Array.isArray(assignedItems) && assignedItems.length > 0) {
-          const notifications = assignedItems.map((i: Record<string,unknown>) => ({
-            user_id: i.assigned_to, type: 'service', read: false,
+      const itemsRes = await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items?plan_id=eq.${id}&assigned_to=not.is.null&select=assigned_to,title`, { headers: H() });
+      const assignedItems = await itemsRes.json();
+      if (Array.isArray(assignedItems)) {
+        const notifyRows = assignedItems.map((i: Record<string,unknown>) => ({
+          userId: i.assigned_to as string,
+          content: {
+            type: 'service',
             title: 'You have a role in Sunday\'s service',
             body: `You are assigned to: ${i.title}. Check My Assignments for the full programme.`,
             link: '/church-center?tab=assignments',
-          }));
-          await fetch(`${SUPABASE_URL}/rest/v1/notifications`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(notifications) });
-        }
-      } catch {}
+          },
+        }));
+        await notifyMany(notifyRows, user.church_id);
+      }
     }
     return NextResponse.json({ data: { updated: true }, error: null });
   } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
@@ -100,8 +102,10 @@ export async function DELETE(req: Request) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ data: null, error: { message: 'id is required' } }, { status: 400 });
-    const branchId = user.role === 'branch_pastor' ? user.branch_id : null;
-    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+    const { branchFilter, forbidden } = resolveBranchScope(user, null);
+    if (forbidden) {
+      return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
+    }
     await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items?plan_id=eq.${id}`, { method: 'DELETE', headers: H() });
     await fetch(`${SUPABASE_URL}/rest/v1/service_plans?id=eq.${id}&church_id=eq.${user.church_id}${branchFilter}`, { method: 'DELETE', headers: H() });
     return NextResponse.json({ data: { deleted: true }, error: null });

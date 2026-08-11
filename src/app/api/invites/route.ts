@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -7,13 +7,7 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const hdrs = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const m = cookie.match(/shepherd_token=([^;]+)/);
-  const token = m?.[1];
-  if (!token) return null;
-  const payload = await verifyToken(token);
-  if (!payload) return null;
-  return payloadToAuthUser(payload);
+  return getAuthUser(req);
 }
 
 // GET — list all invites (lead_tech and pa only)
@@ -26,7 +20,7 @@ export async function GET(req: Request) {
     }
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/invites?church_id=eq.${user.church_id}&order=created_at.desc&limit=100&select=id,email,full_name,role,used,expires_at,created_at,cell_id,fellowship_id,department_id,cells(name),fellowships(name),departments(name)`,
+      `${SUPABASE_URL}/rest/v1/invites?church_id=eq.${user.church_id}&order=created_at.desc&limit=100&select=id,email,full_name,role,used,expires_at,created_at,cell_id,fellowship_id,department_id,branch_id,cells(name),fellowships(name),departments(name),branches(name)`,
       { headers: hdrs() }
     );
     const data = await res.json();
@@ -41,6 +35,7 @@ export async function GET(req: Request) {
       unit_name: (inv.cells as Record<string, string>|null)?.name ||
                  (inv.fellowships as Record<string, string>|null)?.name ||
                  (inv.departments as Record<string, string>|null)?.name || '—',
+      branch_name: (inv.branches as Record<string, string>|null)?.name || null,
       expired: new Date(inv.expires_at as string) < new Date(),
     }));
 
@@ -60,10 +55,24 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { email, full_name, role, cell_id, fellowship_id, department_id } = body;
+    const { email, full_name, role, cell_id, fellowship_id, department_id, branch_id } = body;
 
     if (!email || !full_name || !role) {
       return NextResponse.json({ data: null, error: { message: 'Email, name and role are required' } }, { status: 400 });
+    }
+
+    // branch_id is client-supplied — verify it belongs to this admin's own
+    // church before use, same pattern as cell_id/fellowship_id/department_id
+    // ownership checks elsewhere (see members/create), otherwise a leaked/
+    // guessed id from another church could tag this invite with it.
+    if (branch_id) {
+      const branchCheck = await fetch(
+        `${SUPABASE_URL}/rest/v1/branches?id=eq.${branch_id}&church_id=eq.${user.church_id}&select=id&limit=1`,
+        { headers: hdrs() }
+      ).then(r => r.json());
+      if (!branchCheck?.[0]) {
+        return NextResponse.json({ data: null, error: { message: 'Branch not found' } }, { status: 404 });
+      }
     }
 
     // Rate limit: generous on purpose — legitimate bulk-inviting happens
@@ -100,6 +109,7 @@ export async function POST(req: Request) {
         cell_id: cell_id || null,
         fellowship_id: fellowship_id || null,
         department_id: department_id || null,
+        branch_id: branch_id || null,
         created_by: user.id,
         church_id: user.church_id,
         expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),

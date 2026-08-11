@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { requireWithinPlanLimit } from '@/lib/plan-gate';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -9,10 +10,7 @@ const H = () => ({ 'apikey': K, 'Authorization': `Bearer ${K}` });
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 async function getUser(req: Request) {
-  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
-  if (!m) return null;
-  const p = await verifyToken(m[1]);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 function cleanDayServiceCounts(input: unknown): Record<string, number> {
@@ -94,6 +92,11 @@ export async function POST(req: Request) {
   }
   if (entries.length === 0) return NextResponse.json({ data: null, error: { message: 'At least one branch name is required' } }, { status: 400 });
 
+  // Bulk-create aware: pass how many new branches this request would add,
+  // not just 1, so a single call can't jump straight past the cap.
+  const limitBlocked = await requireWithinPlanLimit(user.church_id, 'branches', user.id, entries.length);
+  if (limitBlocked) return limitBlocked;
+
   const existingRes = await fetch(`${S}/rest/v1/branches?select=id,name,is_headquarters&church_id=eq.${user.church_id}`, { headers: H() });
   const existing = await existingRes.json();
   const existingRows = Array.isArray(existing) ? existing : [];
@@ -107,13 +110,11 @@ export async function POST(req: Request) {
     church_id: user.church_id || null,
   }));
 
-  // KNOWN SCHEMA GAP: on_conflict=name assumes branch names are globally
-  // unique, which was true single-tenant but isn't guaranteed across
-  // churches (two churches both naming a branch "Main Campus" would
-  // collide). Fixing this properly needs a composite unique constraint on
-  // (church_id, name) in the database — flagged rather than guessed at
-  // here since it's a schema change, not an API one.
-  const res = await fetch(`${S}/rest/v1/branches?on_conflict=name`, {
+  // Uniqueness is scoped per church (see scripts/52_branches_church_scoped_unique_name.sql —
+  // the constraint used to be global on `name` alone, which meant two
+  // churches both naming a branch "Main Campus" would silently collide;
+  // it's now a composite (church_id, name) constraint).
+  const res = await fetch(`${S}/rest/v1/branches?on_conflict=church_id,name`, {
     method: 'POST',
     headers: { ...H(), 'Content-Type': 'application/json', 'Prefer': 'return=representation,resolution=ignore-duplicates' },
     body: JSON.stringify(rows),

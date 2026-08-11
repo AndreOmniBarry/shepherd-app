@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { getRoleLabel } from '@/lib/church-config';
 
 type InviteInfo = {
   full_name: string;
@@ -9,16 +10,11 @@ type InviteInfo = {
   unit_name: string;
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  cell_leader: 'Cell Leader',
-  fellowship_head: 'Fellowship Head',
-  department_head: 'Department Head',
-  care_team: 'Follow-Up & Care Team',
-  pa: 'Church Admin / Pastor\'s Assistant',
-  accounts: 'Accounts',
-  partnership: 'Partnership Admin',
-  lead_tech: 'Lead Tech',
-};
+// This page is pre-auth (invite acceptance flow) — it can't call
+// useChurchConfig/useChurchConfigStandalone to fetch the inviting church's
+// custom labels. getRoleLabel() falls back to sensible static labels when
+// no config is passed, which is fine here: a brand-new user accepting an
+// invite hasn't seen their church's custom labels yet regardless.
 
 function RegisterForm() {
   const router = useRouter();
@@ -121,7 +117,7 @@ function RegisterForm() {
             <div style={{ background: 'rgba(83,74,183,0.12)', border: '0.5px solid rgba(168,159,255,0.15)', borderRadius: 10, padding: '14px 16px', marginBottom: 24 }}>
               <div style={{ fontSize: 11, color: 'rgba(168,159,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>You have been invited as</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: '#E8E5FF', marginBottom: 3 }}>{invite.full_name}</div>
-              <div style={{ fontSize: 12, color: 'rgba(168,159,255,0.7)' }}>{ROLE_LABELS[invite.role] || invite.role}{invite.unit_name !== '—' ? ` · ${invite.unit_name}` : ''}</div>
+              <div style={{ fontSize: 12, color: 'rgba(168,159,255,0.7)' }}>{getRoleLabel(invite.role)}{invite.unit_name !== '—' ? ` · ${invite.unit_name}` : ''}</div>
               <div style={{ fontSize: 11, color: 'rgba(232,229,255,0.35)', marginTop: 4 }}>{invite.email}</div>
             </div>
 

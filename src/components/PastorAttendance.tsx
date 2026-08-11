@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
 import { SkeletonCard } from '@/components/Skeleton';
+import { gradeColors } from '@/lib/sla';
 
 type CellStatus = {
   cell_id: string; cell_name: string; fellowship_name: string;
@@ -26,16 +27,6 @@ type AttendanceData = {
   total_cells: number;
   cells_submitted_sunday: number;
   cells_submitted_midweek: number;
-};
-
-const SLA_CFG: Record<string, { bg: string; text: string }> = {
-  'A+': { bg: '#E1F5EE', text: '#085041' },
-  'A':  { bg: '#E1F5EE', text: '#085041' },
-  'B':  { bg: '#EEEDFE', text: '#3C3489' },
-  'C':  { bg: '#FAEEDA', text: '#633806' },
-  'D':  { bg: '#FAECE7', text: '#993C1D' },
-  'F':  { bg: '#FCEBEB', text: '#A32D2D' },
-  'F-': { bg: '#FCEBEB', text: '#A32D2D' },
 };
 
 interface PastorAttendanceProps {
@@ -184,7 +175,7 @@ export default function PastorAttendance({ dark, t, branchId, isMobile = false }
           {isMobile ? (
             <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {data.dept_status.map(d => {
-                const slaC = d.sla ? SLA_CFG[d.sla] : null;
+                const slaC = gradeColors(d.sla);
                 return (
                   <div key={d.dept_id} style={{ background: t.input, borderRadius: 10, padding: '10px 12px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
@@ -214,7 +205,7 @@ export default function PastorAttendance({ dark, t, branchId, isMobile = false }
             </thead>
             <tbody>
               {data.dept_status.map((d, i) => {
-                const slaC = d.sla ? SLA_CFG[d.sla] : null;
+                const slaC = gradeColors(d.sla);
                 return (
                   <tr key={d.dept_id} style={{ borderBottom: i < data.dept_status.length - 1 ? `0.5px solid ${t.border}` : 'none' }}>
                     <td style={{ padding: '9px 12px', fontWeight: 500, color: t.text }}>{d.dept_name}</td>
@@ -261,7 +252,7 @@ export default function PastorAttendance({ dark, t, branchId, isMobile = false }
               const present = view === 'sunday' ? c.sunday_present : c.midweek_present;
               const absent = view === 'sunday' ? c.sunday_absent : 0;
               const sla = view === 'sunday' ? c.sunday_sla : c.midweek_sla;
-              const slaC = sla ? SLA_CFG[sla] : null;
+              const slaC = gradeColors(sla);
               return (
                 <div key={c.cell_id} style={{ background: t.input, borderRadius: 10, padding: '10px 12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
@@ -301,7 +292,7 @@ export default function PastorAttendance({ dark, t, branchId, isMobile = false }
                 const present = view === 'sunday' ? c.sunday_present : c.midweek_present;
                 const absent = view === 'sunday' ? c.sunday_absent : 0;
                 const sla = view === 'sunday' ? c.sunday_sla : c.midweek_sla;
-                const slaC = sla ? SLA_CFG[sla] : null;
+                const slaC = gradeColors(sla);
                 return (
                   <tr key={c.cell_id} style={{ borderBottom: i < filteredCells.length - 1 ? `0.5px solid ${t.border}` : 'none' }}>
                     <td style={{ padding: '9px 12px', fontWeight: 500, color: t.text }}>{c.cell_name}</td>

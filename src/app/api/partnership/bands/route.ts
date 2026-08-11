@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { requirePremium } from '@/lib/plan-gate';
+import { requireFinanceAccess } from '@/lib/pa-governance';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -16,6 +17,8 @@ export async function GET(req: Request) {
   const p = await verifyToken(token);
   const user = p ? payloadToAuthUser(p) : null;
   if (!user || !ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+  const financeBlocked = requireFinanceAccess(user);
+  if (financeBlocked) return financeBlocked;
   const blocked = await requirePremium(user.church_id, user.id);
   if (blocked) return blocked;
 

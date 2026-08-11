@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     // Check cell exists and is active
     const { data: cell, error: cellError } = await sb
       .from('cells')
-      .select('id, name, fellowship_id, is_active')
+      .select('id, name, fellowship_id, is_active, church_id')
       .eq('id', cell_id)
       .single();
 
@@ -70,7 +70,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create users table profile (is_active = false — pending admin approval)
+    // Create users table profile (is_active = false — pending admin approval).
+    // church_id is derived from the selected cell's own church_id — never
+    // left unset — so the account is correctly tenant-scoped the moment it's
+    // approved, instead of silently landing with no church at all.
     const { error: profileError } = await sb.from('users').insert({
       id:        authUser.user.id,
       email:     email.toLowerCase().trim(),
@@ -78,6 +81,7 @@ export async function POST(req: Request) {
       phone:     phone?.trim() || null,
       role:      'cell_leader',
       cell_id,
+      church_id: cell.church_id || null,
       is_active: false,
     });
 

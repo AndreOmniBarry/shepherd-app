@@ -24,6 +24,20 @@ type SystemAlert = {
   created_at: string;
 };
 
+type PlatformAllocation = { id: string; name: string; footprint_share: number; allocated_ngn: number | null };
+
+type ChurchFootprintView = {
+  members: number;
+  attendance_records: number;
+  chat_messages_total: number;
+  chat_messages_this_month: number;
+  feed_posts: number;
+  feed_comments: number;
+  feed_reactions: number;
+  storage_bytes: number;
+  share: number;
+};
+
 type ChurchUsage = {
   church_id: string;
   church_name: string;
@@ -35,7 +49,33 @@ type ChurchUsage = {
   this_month_by_type: Record<string, number>;
   overage_events_this_month: number;
   projected_month_end_ngn: number;
+  cost_breakdown: {
+    exact_ngn: number;
+    estimated_ngn: number;
+    claude_ngn: number;
+    paystack_fee_ngn: number;
+    sms_whatsapp_ngn: number;
+    platform_allocations: PlatformAllocation[];
+  };
+  footprint: ChurchFootprintView | null;
+  revenue_ngn: number | null; // null = Enterprise custom pricing
+  margin_ngn: number | null;
 };
+
+type PlatformCostLineItem = {
+  id: string;
+  name: string;
+  monthly_bill_ngn: number | null;
+  footprint_measure: string;
+  allocations: { church_id: string; church_name: string; footprint_share: number; allocated_ngn: number | null }[];
+};
+
+function fmtBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${bytes} B`;
+}
 
 type Church = {
   id: string;
@@ -75,7 +115,12 @@ export default function AdminPortal() {
   const [sidebarTab, setSidebarTab] = useState<'churches' | 'billing' | 'usage' | 'alerts' | 'settings'>('churches');
   const [usage, setUsage] = useState<ChurchUsage[]>([]);
   const [usageLoading, setUsageLoading] = useState(true);
-  const [usageSort, setUsageSort] = useState<'this_month_ngn' | 'this_week_ngn' | 'projected_month_end_ngn'>('this_month_ngn');
+  const [usageSort, setUsageSort] = useState<'this_month_ngn' | 'this_week_ngn' | 'projected_month_end_ngn' | 'margin_ngn'>('this_month_ngn');
+  const [expandedChurchId, setExpandedChurchId] = useState<string | null>(null);
+  const [lineItems, setLineItems] = useState<PlatformCostLineItem[]>([]);
+  const [lineItemsLoading, setLineItemsLoading] = useState(true);
+  const [newLineItemName, setNewLineItemName] = useState('');
+  const [billDrafts, setBillDrafts] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [stats, setStats] = useState({ total: 0, trial: 0, active: 0, expired: 0, growth: 0, starter: 0 });
@@ -122,7 +167,52 @@ export default function AdminPortal() {
       .then(d => { if (d?.data?.churches) setUsage(d.data.churches); })
       .catch(() => {})
       .finally(() => setUsageLoading(false));
+
+    loadLineItems();
   }, []);
+
+  function loadLineItems() {
+    setLineItemsLoading(true);
+    fetch('/api/admin/platform-costs', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d?.data?.line_items) setLineItems(d.data.line_items); })
+      .catch(() => {})
+      .finally(() => setLineItemsLoading(false));
+  }
+
+  async function addLineItem() {
+    const name = newLineItemName.trim();
+    if (!name) return;
+    setNewLineItemName('');
+    await fetch('/api/admin/platform-costs', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ name }),
+    }).catch(() => {});
+    loadLineItems();
+  }
+
+  async function saveLineItemBill(id: string) {
+    const raw = billDrafts[id];
+    const monthly_bill_ngn = raw === undefined || raw.trim() === '' ? null : Number(raw);
+    if (monthly_bill_ngn !== null && !Number.isFinite(monthly_bill_ngn)) return;
+    await fetch('/api/admin/platform-costs', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ id, monthly_bill_ngn }),
+    }).catch(() => {});
+    loadLineItems();
+    fetch('/api/admin/usage', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d?.data?.churches) setUsage(d.data.churches); })
+      .catch(() => {});
+  }
+
+  async function deleteLineItem(id: string) {
+    await fetch('/api/admin/platform-costs', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+      body: JSON.stringify({ id }),
+    }).catch(() => {});
+    loadLineItems();
+  }
 
   async function updateAlertStatus(id: string, status: 'acknowledged' | 'resolved') {
     setSysAlerts(prev => prev.map(a => a.id === id ? { ...a, status } : a));
@@ -227,10 +317,11 @@ export default function AdminPortal() {
         )}
 
         {sidebarTab === 'usage' && (<>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
             {[
-              { label: 'Total spend this month', value: usage.reduce((s, c) => s + c.this_month_ngn, 0), color: C.purple },
-              { label: 'Total spend this week', value: usage.reduce((s, c) => s + c.this_week_ngn, 0), color: C.teal },
+              { label: 'Exact cost this month (Claude + Paystack)', value: usage.reduce((s, c) => s + (c.cost_breakdown?.exact_ngn || 0), 0), color: C.teal },
+              { label: 'Estimated cost this month (SMS/WhatsApp + allocated bills)', value: usage.reduce((s, c) => s + (c.cost_breakdown?.estimated_ngn || 0), 0), color: C.amber },
+              { label: 'Total revenue this month (known plans)', value: usage.reduce((s, c) => s + (c.revenue_ngn || 0), 0), color: C.purple },
               { label: 'Churches over their quota this month', value: usage.filter(c => c.overage_events_this_month > 0).length, color: C.coral, isCount: true },
             ].map((s, i) => (
               <div key={i} style={{ ...card({ padding: '14px 16px' }) }}>
@@ -240,11 +331,14 @@ export default function AdminPortal() {
             ))}
           </div>
 
-          <div style={{ ...card({ padding: 0, overflow: 'hidden' }) }}>
-            <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Every church — live spend rate, not just outliers</div>
+          <div style={{ ...card({ padding: 0, overflow: 'hidden' }), marginBottom: 20 }}>
+            <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Every church — cost vs. revenue, exact vs. estimated</div>
+                <div style={{ fontSize: 10.5, color: C.muted, marginTop: 2 }}>Exact = real Claude token cost + real Paystack fees. Estimated = SMS/WhatsApp placeholders + allocated share of platform bills below. Click a row for the full breakdown.</div>
+              </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                {([{ id: 'this_week_ngn' as const, label: 'This week' }, { id: 'this_month_ngn' as const, label: 'This month' }, { id: 'projected_month_end_ngn' as const, label: 'Projected' }]).map(s => (
+                {([{ id: 'this_week_ngn' as const, label: 'This week' }, { id: 'this_month_ngn' as const, label: 'This month' }, { id: 'projected_month_end_ngn' as const, label: 'Projected' }, { id: 'margin_ngn' as const, label: 'Margin' }]).map(s => (
                   <button key={s.id} onClick={() => setUsageSort(s.id)}
                     style={{ fontSize: 10.5, fontWeight: 600, padding: '4px 10px', borderRadius: 20, border: 'none', cursor: 'pointer', background: usageSort === s.id ? C.purple : C.purpleBg, color: usageSort === s.id ? C.white : C.purple }}>
                     Sort: {s.label}
@@ -258,25 +352,119 @@ export default function AdminPortal() {
               <div style={{ padding: 40, textAlign: 'center', color: C.muted, fontSize: 13 }}>No usage logged yet — nothing has hit Moshe or sent an SMS.</div>
             ) : (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr 1fr', gap: 8, padding: '9px 18px', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.3px', borderBottom: `0.5px solid ${C.border}` }}>
-                  <div>Church</div><div>Plan</div><div>Last week</div><div>This week</div><div>This month</div><div>Projected EOM</div><div>Overage</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 0.8fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr', gap: 8, padding: '9px 18px', fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.3px', borderBottom: `0.5px solid ${C.border}` }}>
+                  <div>Church</div><div>Plan</div><div>Exact cost</div><div>Est. cost</div><div>Revenue</div><div>Margin</div><div>Overage</div>
                 </div>
-                {[...usage].sort((a, b) => b[usageSort] - a[usageSort]).map((c, i, arr) => {
+                {[...usage].sort((a, b) => (b[usageSort] ?? -Infinity) - (a[usageSort] ?? -Infinity)).map((c, i, arr) => {
                   const planC = PLAN_COLORS[c.plan_tier] || PLAN_COLORS.trial;
+                  const isExpanded = expandedChurchId === c.church_id;
+                  const cb = c.cost_breakdown;
+                  const fp = c.footprint;
                   return (
-                    <div key={c.church_id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr 1fr', gap: 8, padding: '12px 18px', alignItems: 'center', borderBottom: i < arr.length - 1 ? `0.5px solid ${C.border}` : 'none' }}>
-                      <div style={{ fontSize: 12.5, color: C.text, fontWeight: 500 }}>{c.church_name}</div>
-                      <div><span style={{ fontSize: 9.5, padding: '2px 7px', borderRadius: 10, fontWeight: 600, background: planC.bg, color: planC.color }}>{(c.plan_tier || 'trial').toUpperCase()}</span></div>
-                      <div style={{ fontSize: 12, color: C.muted }}>₦{Math.round(c.last_week_ngn).toLocaleString()}</div>
-                      <div style={{ fontSize: 12, color: C.text, fontWeight: 600 }}>₦{Math.round(c.this_week_ngn).toLocaleString()}</div>
-                      <div style={{ fontSize: 12, color: C.text, fontWeight: 600 }}>₦{Math.round(c.this_month_ngn).toLocaleString()}</div>
-                      <div style={{ fontSize: 12, color: c.projected_month_end_ngn > c.this_month_ngn * 1.5 ? C.coral : C.muted }}>₦{Math.round(c.projected_month_end_ngn).toLocaleString()}</div>
-                      <div>{c.overage_events_this_month > 0 ? (
-                        <span style={{ fontSize: 10, fontWeight: 700, color: C.coral, background: C.coralBg, borderRadius: 10, padding: '2px 8px' }}>{c.overage_events_this_month} over</span>
-                      ) : <span style={{ fontSize: 11, color: C.muted }}>—</span>}</div>
+                    <div key={c.church_id} style={{ borderBottom: i < arr.length - 1 ? `0.5px solid ${C.border}` : 'none' }}>
+                      <div onClick={() => setExpandedChurchId(isExpanded ? null : c.church_id)}
+                        style={{ display: 'grid', gridTemplateColumns: '1.6fr 0.8fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr', gap: 8, padding: '12px 18px', alignItems: 'center', cursor: 'pointer', background: isExpanded ? C.purpleBg : 'transparent' }}>
+                        <div style={{ fontSize: 12.5, color: C.text, fontWeight: 500 }}>{c.church_name}</div>
+                        <div><span style={{ fontSize: 9.5, padding: '2px 7px', borderRadius: 10, fontWeight: 600, background: planC.bg, color: planC.color }}>{(c.plan_tier || 'trial').toUpperCase()}</span></div>
+                        <div style={{ fontSize: 12, color: C.teal, fontWeight: 600 }}>₦{Math.round(cb?.exact_ngn || 0).toLocaleString()}</div>
+                        <div style={{ fontSize: 12, color: C.amber, fontWeight: 600 }}>₦{Math.round(cb?.estimated_ngn || 0).toLocaleString()}</div>
+                        <div style={{ fontSize: 12, color: C.text }}>{c.revenue_ngn === null ? 'Custom' : `₦${Math.round(c.revenue_ngn).toLocaleString()}`}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: c.margin_ngn === null ? C.muted : c.margin_ngn < 0 ? C.coral : C.teal }}>
+                          {c.margin_ngn === null ? '—' : `₦${Math.round(c.margin_ngn).toLocaleString()}`}
+                        </div>
+                        <div>{c.overage_events_this_month > 0 ? (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: C.coral, background: C.coralBg, borderRadius: 10, padding: '2px 8px' }}>{c.overage_events_this_month} over</span>
+                        ) : <span style={{ fontSize: 11, color: C.muted }}>—</span>}</div>
+                      </div>
+                      {isExpanded && (
+                        <div style={{ padding: '14px 18px 18px', background: C.purpleBg, borderTop: `0.5px solid ${C.border}`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Cost — this month</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5 }}><span style={{ color: C.muted }}>Claude tokens <em style={{ color: C.teal, fontStyle: 'normal' }}>(exact)</em></span><span style={{ color: C.text }}>₦{Math.round(cb?.claude_ngn || 0).toLocaleString()}</span></div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5 }}><span style={{ color: C.muted }}>Paystack fees <em style={{ color: C.teal, fontStyle: 'normal' }}>(exact)</em></span><span style={{ color: C.text }}>₦{Math.round(cb?.paystack_fee_ngn || 0).toLocaleString()}</span></div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5 }}><span style={{ color: C.muted }}>SMS/WhatsApp <em style={{ color: C.amber, fontStyle: 'normal' }}>(placeholder estimate)</em></span><span style={{ color: C.text }}>₦{Math.round(cb?.sms_whatsapp_ngn || 0).toLocaleString()}</span></div>
+                              {(cb?.platform_allocations || []).map(a => (
+                                <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5 }}>
+                                  <span style={{ color: C.muted }}>{a.name} allocation <em style={{ color: C.amber, fontStyle: 'normal' }}>({(a.footprint_share * 100).toFixed(1)}% footprint, estimate)</em></span>
+                                  <span style={{ color: C.text }}>{a.allocated_ngn === null ? 'bill not set' : `₦${Math.round(a.allocated_ngn).toLocaleString()}`}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Footprint — exact counts</div>
+                            {fp ? (
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 14px', fontSize: 11.5 }}>
+                                <div style={{ color: C.muted }}>Members</div><div style={{ color: C.text, textAlign: 'right' }}>{fp.members.toLocaleString()}</div>
+                                <div style={{ color: C.muted }}>Attendance records</div><div style={{ color: C.text, textAlign: 'right' }}>{fp.attendance_records.toLocaleString()}</div>
+                                <div style={{ color: C.muted }}>Chat messages (all-time)</div><div style={{ color: C.text, textAlign: 'right' }}>{fp.chat_messages_total.toLocaleString()}</div>
+                                <div style={{ color: C.muted }}>Chat messages (this month)</div><div style={{ color: C.text, textAlign: 'right' }}>{fp.chat_messages_this_month.toLocaleString()}</div>
+                                <div style={{ color: C.muted }}>Feed posts</div><div style={{ color: C.text, textAlign: 'right' }}>{fp.feed_posts.toLocaleString()}</div>
+                                <div style={{ color: C.muted }}>Feed comments</div><div style={{ color: C.text, textAlign: 'right' }}>{fp.feed_comments.toLocaleString()}</div>
+                                <div style={{ color: C.muted }}>Feed reactions</div><div style={{ color: C.text, textAlign: 'right' }}>{fp.feed_reactions.toLocaleString()}</div>
+                                <div style={{ color: C.muted }}>Storage uploaded</div><div style={{ color: C.text, textAlign: 'right' }}>{fmtBytes(fp.storage_bytes)}</div>
+                                <div style={{ color: C.muted, fontWeight: 600 }}>Footprint share</div><div style={{ color: C.purple, textAlign: 'right', fontWeight: 700 }}>{(fp.share * 100).toFixed(1)}%</div>
+                              </div>
+                            ) : <div style={{ fontSize: 11.5, color: C.muted }}>No footprint data yet.</div>}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
+              </>
+            )}
+          </div>
+
+          <div style={{ ...card({ padding: 0, overflow: 'hidden' }) }}>
+            <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${C.border}` }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Platform cost line items</div>
+              <div style={{ fontSize: 10.5, color: C.muted, marginTop: 2 }}>
+                Recurring bills with no per-request metering (Supabase, Vercel, …). Each is allocated across churches by their footprint share above — always labeled as an allocated ESTIMATE, never an exact metered cost (Supabase bills one shared project, it doesn&apos;t itemize per church).
+              </div>
+            </div>
+            {lineItemsLoading ? (
+              <div style={{ padding: 24, textAlign: 'center', color: C.muted, fontSize: 13 }}>Loading…</div>
+            ) : (
+              <>
+                {lineItems.map((li, i) => (
+                  <div key={li.id} style={{ padding: '12px 18px', borderBottom: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ flex: 1, fontSize: 12.5, color: C.text, fontWeight: 500 }}>{li.name}</div>
+                    <div style={{ fontSize: 11, color: C.muted }}>
+                      {li.monthly_bill_ngn === null ? 'Bill not set — allocated ₦ shown as "not set" until entered' : `Total allocated this month: ₦${Math.round(li.allocations.reduce((s, a) => s + (a.allocated_ngn || 0), 0)).toLocaleString()}`}
+                    </div>
+                    <span style={{ fontSize: 12, color: C.muted }}>₦</span>
+                    <input
+                      type="number"
+                      placeholder="not set"
+                      defaultValue={li.monthly_bill_ngn ?? ''}
+                      onChange={e => setBillDrafts(prev => ({ ...prev, [li.id]: e.target.value }))}
+                      style={{ width: 120, border: `1px solid ${C.border}`, borderRadius: 6, padding: '5px 8px', fontSize: 12, color: C.text, outline: 'none' }}
+                    />
+                    <button onClick={() => saveLineItemBill(li.id)}
+                      style={{ fontSize: 11, fontWeight: 600, color: C.white, background: C.purple, border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}>
+                      Save
+                    </button>
+                    <button onClick={() => deleteLineItem(li.id)}
+                      style={{ fontSize: 11, fontWeight: 600, color: C.coral, background: 'none', border: 'none', cursor: 'pointer' }}>
+                      Remove
+                    </button>
+                  </div>
+                ))}
+                <div style={{ padding: '12px 18px', display: 'flex', gap: 8 }}>
+                  <input
+                    type="text"
+                    placeholder="New line item name (e.g. Vercel)"
+                    value={newLineItemName}
+                    onChange={e => setNewLineItemName(e.target.value)}
+                    style={{ flex: 1, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: C.text, outline: 'none' }}
+                  />
+                  <button onClick={addLineItem}
+                    style={{ fontSize: 11.5, fontWeight: 600, color: C.purple, background: C.purpleBg, border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer' }}>
+                    + Add line item
+                  </button>
+                </div>
               </>
             )}
           </div>

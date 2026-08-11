@@ -1,19 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { notifyUsersChecked } from '@/lib/notify';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const hdrs = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const m = cookie.match(/shepherd_token=([^;]+)/);
-  const token = m?.[1];
-  if (!token) return null;
-  const payload = await verifyToken(token);
-  if (!payload) return null;
-  return payloadToAuthUser(payload);
+  return getAuthUser(req);
 }
 
 const CATEGORY_CFG: Record<string, { title: string }> = {
@@ -78,6 +73,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'A message is required' } }, { status: 400 });
     }
 
+    // scope === 'all' resolves to "every leader in the caller's branch"
+    // via opts.branch_id below — for a branch_pastor with no branch_id
+    // assigned yet, that must mean "no recipients", not silently fall
+    // through to every leader in the whole church.
+    if ((scope || 'individual') === 'all' && user.role === 'branch_pastor' && !user.branch_id) {
+      return NextResponse.json({ data: null, error: { message: 'No recipients found for that selection' } }, { status: 400 });
+    }
+
     const recipients = await resolveRecipients(scope || 'individual', { leader_id, fellowship_id, department_id, branch_id: user.branch_id, church_id: user.church_id });
     if (recipients.length === 0) {
       return NextResponse.json({ data: null, error: { message: 'No recipients found for that selection' } }, { status: 400 });
@@ -101,26 +104,15 @@ export async function POST(req: Request) {
     }
 
     const cfg = CATEGORY_CFG[category] || CATEGORY_CFG.commendation;
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-      method: 'POST',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify(recipients.map(uid => ({
-        user_id: uid,
-        church_id: user.church_id || null,
-        type: category === 'commendation' ? 'commendation' : category === 'meeting' ? 'meeting_request' : 'pastoral',
-        read: false,
-        title: cfg.title,
-        body: commendation.trim(),
-        link: category === 'meeting' ? '/church-center?tab=meetings' : category === 'commendation' ? '/church-center?tab=recognition' : '/church-center',
-      }))),
-    });
+    const result = await notifyUsersChecked(recipients, {
+      type: category === 'commendation' ? 'commendation' : category === 'meeting' ? 'meeting_request' : 'pastoral',
+      title: cfg.title,
+      body: commendation.trim(),
+      link: category === 'meeting' ? '/church-center?tab=meetings' : category === 'commendation' ? '/church-center?tab=recognition' : '/church-center',
+    }, user.church_id);
 
-    if (!res.ok) {
-      const err = await res.text();
-      console.error('[POST /api/recognition/commend] Supabase error:', res.status, err);
-      let detail = '';
-      try { detail = JSON.parse(err)?.message || ''; } catch {}
-      return NextResponse.json({ data: null, error: { message: detail ? `Failed to send: ${detail}` : 'Failed to send' } }, { status: 502 });
+    if (!result.ok) {
+      return NextResponse.json({ data: null, error: { message: result.error ? `Failed to send: ${result.error}` : 'Failed to send' } }, { status: 502 });
     }
 
     return NextResponse.json({ data: { sent: true, recipient_count: recipients.length, category: category || null }, error: null }, { status: 201 });

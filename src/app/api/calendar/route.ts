@@ -1,16 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { resolveBranchScope } from '@/lib/branch-scope';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const H = () => ({ 'apikey': KEY, 'Authorization': `Bearer ${KEY}` });
 
 async function getUser(req: Request) {
-  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
-  if (!m) return null;
-  const p = await verifyToken(m[1]);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 // Church-wide calendar — every role can see it. Deliberately shows only
@@ -29,8 +27,10 @@ export async function GET(req: Request) {
     const to = searchParams.get('to') || new Date(Date.now() + 180 * 86400000).toISOString().split('T')[0];
     // A branch_pastor only ever sees their own branch's calendar; anyone
     // else can optionally drill into one branch via ?branch_id=.
-    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
-    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+    const { branchFilter, forbidden } = resolveBranchScope(user, searchParams);
+    if (forbidden) {
+      return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
+    }
 
     const churchFilter = `&church_id=eq.${user.church_id}`;
     const [eventsRes, specialRes, plansRes] = await Promise.all([

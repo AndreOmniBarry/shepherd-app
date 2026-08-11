@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -8,10 +8,7 @@ const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const H = () => ({ 'apikey': KEY, 'Authorization': `Bearer ${KEY}` });
 
 async function getUser(req: Request) {
-  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
-  if (!m) return null;
-  const p = await verifyToken(m[1]);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 // Who a person can request a meeting with — every other active account in
@@ -22,6 +19,15 @@ export async function GET(req: Request) {
   try {
     const user = await getUser(req);
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+
+    // A branch_pastor with no branch_id assigned yet must see nobody, not
+    // fall through to the whole church's directory (the branchFilter below
+    // would otherwise evaluate to '' for them, same as the intentional
+    // "no branch_id" case for general_overseer/lead_tech). Every other
+    // role's behavior below is unchanged.
+    if (user.role === 'branch_pastor' && !user.branch_id) {
+      return NextResponse.json({ data: { people: [] }, error: null });
+    }
 
     const branchFilter = user.branch_id && !['general_overseer', 'lead_tech'].includes(user.role) ? `&branch_id=eq.${user.branch_id}` : '';
     const churchFilter = user.church_id ? `&church_id=eq.${user.church_id}` : '';

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { signToken } from '@/lib/auth';
+import { notifyUsers } from '@/lib/notify';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
 
     // Fetch and validate invite
     const inviteRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/invites?token=eq.${token}&select=id,email,full_name,role,used,expires_at,cell_id,fellowship_id,department_id,member_id,church_id&limit=1`,
+      `${SUPABASE_URL}/rest/v1/invites?token=eq.${token}&select=id,email,full_name,role,used,expires_at,cell_id,fellowship_id,department_id,member_id,church_id,branch_id&limit=1`,
       { headers: hdrs() }
     );
     const inviteData = await inviteRes.json();
@@ -63,6 +64,7 @@ export async function POST(req: Request) {
         department_id: invite.department_id || null,
         member_id: invite.member_id || null,
         church_id: invite.church_id || null,
+        branch_id: invite.branch_id || null,
         is_active: true,
       }),
     });
@@ -75,18 +77,11 @@ export async function POST(req: Request) {
     });
 
     // Send welcome notification
-    await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
-      method: 'POST',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify([{
-        user_id: userId,
-        type: 'system',
-        title: `Welcome to SHEP.HERD, ${invite.full_name.split(' ')[0]}`,
-        body: `Your account has been activated as ${invite.role.replace('_', ' ')}. Log in to get started.`,
-        read: false,
-        church_id: invite.church_id || null,
-      }]),
-    });
+    await notifyUsers([userId], {
+      type: 'system',
+      title: `Welcome to SHEP.HERD, ${invite.full_name.split(' ')[0]}`,
+      body: `Your account has been activated as ${invite.role.replace('_', ' ')}. Log in to get started.`,
+    }, invite.church_id);
 
     return NextResponse.json({ data: { success: true, email: invite.email }, error: null });
   } catch (err) {

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -9,10 +9,7 @@ const hdrs = () => ({ apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}
 const ADMIN_ROLES = ['overseer', 'general_overseer', 'lead_tech'];
 
 async function getUser(req: Request) {
-  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
-  if (!m) return null;
-  const p = await verifyToken(m[1]);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 // Full staff directory for the Team & Access settings panel — admin-only,
@@ -25,9 +22,19 @@ export async function GET(req: Request) {
   if (!user || !ADMIN_ROLES.includes(user.role)) {
     return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 403 });
   }
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/users?select=id,full_name,email,role,is_active&church_id=eq.${user.church_id}&order=role.asc,full_name.asc${EXCLUDE_DEMO_IDS}`, { headers: hdrs() });
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/users?select=id,full_name,email,role,is_active,branch_id,branches(name),finance_access_granted&church_id=eq.${user.church_id}&order=role.asc,full_name.asc${EXCLUDE_DEMO_IDS}`, { headers: hdrs() });
   const data = await res.json();
-  return NextResponse.json({ data: { users: Array.isArray(data) ? data : [] }, error: null });
+  const users = (Array.isArray(data) ? data : []).map((u: Record<string, unknown>) => ({
+    id: u.id,
+    full_name: u.full_name,
+    email: u.email,
+    role: u.role,
+    is_active: u.is_active,
+    branch_id: u.branch_id ?? null,
+    branch_name: (u.branches as Record<string, string> | null)?.name || null,
+    finance_access_granted: !!u.finance_access_granted,
+  }));
+  return NextResponse.json({ data: { users }, error: null });
 }
 
 // Suspend or reinstate a user — the "I retain the right to permanently
@@ -44,20 +51,60 @@ export async function PATCH(req: Request) {
     if (!admin || !ADMIN_ROLES.includes(admin.role)) {
       return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 403 });
     }
-    const { userId, action, reason } = await req.json();
-    if (!userId || !['suspend', 'reinstate'].includes(action)) {
+    const { userId, action, reason, branch_id, finance_access_granted } = await req.json();
+    if (!userId || !['suspend', 'reinstate', 'set_branch', 'set_finance_access'].includes(action)) {
       return NextResponse.json({ data: null, error: { message: 'userId and a valid action are required' } }, { status: 400 });
     }
     if (action === 'suspend' && !reason?.trim()) {
       return NextResponse.json({ data: null, error: { message: 'A reason is required to suspend an account' } }, { status: 400 });
     }
-    if (userId === admin.id) {
+    if (!['set_branch', 'set_finance_access'].includes(action) && userId === admin.id) {
       return NextResponse.json({ data: null, error: { message: 'You cannot suspend your own account' } }, { status: 400 });
     }
 
-    const targetRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&church_id=eq.${admin.church_id}&select=id&limit=1`, { headers: hdrs() });
+    const targetRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&church_id=eq.${admin.church_id}&select=id,role&limit=1`, { headers: hdrs() });
     const targetData = await targetRes.json();
     if (!targetData?.[0]) return NextResponse.json({ data: null, error: { message: 'User not found' } }, { status: 404 });
+
+    // Reassign (or clear) which branch this user belongs to — the
+    // "existing user" counterpart to setting branch_id at invite time.
+    // branch_id is client-supplied — verify it belongs to this admin's own
+    // church before use (or allow null to unassign), same ownership-check
+    // pattern used at invite creation.
+    if (action === 'set_branch') {
+      if (branch_id) {
+        const branchCheck = await fetch(
+          `${SUPABASE_URL}/rest/v1/branches?id=eq.${branch_id}&church_id=eq.${admin.church_id}&select=id&limit=1`,
+          { headers: hdrs() }
+        ).then(r => r.json());
+        if (!branchCheck?.[0]) return NextResponse.json({ data: null, error: { message: 'Branch not found' } }, { status: 404 });
+      }
+      await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {
+        method: 'PATCH', headers: { ...hdrs(), Prefer: 'return=minimal' },
+        body: JSON.stringify({ branch_id: branch_id || null }),
+      });
+      return NextResponse.json({ data: { userId, branch_id: branch_id || null }, error: null });
+    }
+
+    // Grant/revoke a PA's access to financial/giving routes. Deliberately
+    // stricter than the other actions here: only overseer/general_overseer
+    // (the GO tier) can flip this, not lead_tech — lead_tech is platform
+    // support, not church leadership, and shouldn't be the one deciding who
+    // in a church sees its money. Only meaningful for a pa-role account,
+    // same as the finance_access_granted column itself.
+    if (action === 'set_finance_access') {
+      if (!['overseer', 'general_overseer'].includes(admin.role)) {
+        return NextResponse.json({ data: null, error: { message: 'Only the overseer or general overseer can change financial access' } }, { status: 403 });
+      }
+      if (targetData[0].role !== 'pa') {
+        return NextResponse.json({ data: null, error: { message: 'Financial access only applies to PA accounts' } }, { status: 400 });
+      }
+      await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {
+        method: 'PATCH', headers: { ...hdrs(), Prefer: 'return=minimal' },
+        body: JSON.stringify({ finance_access_granted: !!finance_access_granted }),
+      });
+      return NextResponse.json({ data: { userId, finance_access_granted: !!finance_access_granted }, error: null });
+    }
 
     const isActive = action === 'reinstate';
     await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {

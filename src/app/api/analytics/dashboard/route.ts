@@ -1,14 +1,9 @@
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { resolveBranchScope } from '@/lib/branch-scope';
 
 async function getUser(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const m = cookie.match(/shepherd_token=([^;]+)/);
-  const token = m?.[1] || req.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!token) return null;
-  const payload = await verifyToken(token);
-  if (!payload) return null;
-  return payloadToAuthUser(payload);
+  return getAuthUser(req);
 }
 
 export async function GET(req: Request) {
@@ -26,8 +21,10 @@ export async function GET(req: Request) {
     // general_overseer/overseer/pa/lead_tech can pass ?branch_id= to drill
     // into one branch, or omit it for the consolidated all-branches view.
     const { searchParams } = new URL(req.url);
-    const branchId = user.role === 'branch_pastor' ? user.branch_id : searchParams.get('branch_id');
-    const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
+    const { branchFilter, forbidden } = resolveBranchScope(user, searchParams);
+    if (forbidden) {
+      return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
+    }
     const churchFilter = `&church_id=eq.${user.church_id}`;
 
     const [members, activeCells, ytdGiving, newMembers] = await Promise.all([

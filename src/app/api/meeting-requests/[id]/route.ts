@@ -1,16 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
+import { notifyUsers } from '@/lib/notify';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const H = () => ({ 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' });
 
 async function getUser(req: Request) {
-  const m = req.headers.get('cookie')?.match(/shepherd_token=([^;]+)/);
-  if (!m) return null;
-  const p = await verifyToken(m[1]);
-  return p ? payloadToAuthUser(p) : null;
+  return getAuthUser(req);
 }
 
 // Accept/decline (by the recipient) or cancel (by the requester). Whoever
@@ -48,14 +46,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const notifyUserId = status === 'cancelled' ? row.requested_of : row.requested_by;
     const statusLabel = status === 'accepted' ? 'accepted' : status === 'declined' ? 'declined' : 'cancelled';
-    await fetch(`${SURL}/rest/v1/notifications`, {
-      method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify({
-        user_id: notifyUserId, church_id: user.church_id || null, type: 'meeting_request', read: false,
-        title: `Meeting request ${statusLabel}`, body: `"${row.subject}" was ${statusLabel} by ${user.name || 'the other party'}.`,
-        link: '/church-center?tab=meetings',
-      }),
-    }).catch(() => {});
+    await notifyUsers([notifyUserId], {
+      type: 'meeting_request',
+      title: `Meeting request ${statusLabel}`,
+      body: `"${row.subject}" was ${statusLabel} by ${user.name || 'the other party'}.`,
+      link: '/church-center?tab=meetings',
+    }, user.church_id);
 
     return NextResponse.json({ data: { updated: true }, error: null });
   } catch (err) {
