@@ -198,7 +198,18 @@
 }
 
 .shep-page-enter {
-  animation: shep-fade-up var(--motion-slow) var(--ease-out-expo) both;
+  /* fill-mode 'backwards', not 'both' — same reasoning as .shep-route-enter
+     below: shep-fade-up's final keyframe is translateY(0), which is
+     visually identity but still a non-'none' transform value. With 'both'
+     that value outlives the animation and silently gives the page wrapper
+     a new containing block, which breaks position:sticky/fixed for every
+     descendant inside it (the topbar, in every page still using this
+     class) — the sticky nav ends up stuck to the top of the transformed
+     wrapper's own box instead of the real viewport, and can render as
+     missing entirely once the page has scrolled past that box's height.
+     Confirmed as the cause of the "topbar vanishes" report on Church Feed,
+     Chat, Church Center, and Calendar — the four pages using this class. */
+  animation: shep-fade-up var(--motion-slow) var(--ease-out-expo) backwards;
 }
 @keyframes shep-route-in {
   from { opacity: 0; transform: translateY(10px) scale(0.985); }

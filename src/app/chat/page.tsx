@@ -97,9 +97,12 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionGroups, setMentionGroups] = useState<MentionGroup[]>([]);
+  const mentionBoxRef = useRef<HTMLDivElement>(null);
   const composerFileRef = useRef<HTMLInputElement>(null);
   const [pollMode, setPollMode] = useState(false);
   const [pollDraft, setPollDraft] = useState<PollDraft>(emptyPollDraft());
+  // Same fix as Church Feed: native confirm() replaced with an in-app dialog.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [analyticsPollId, setAnalyticsPollId] = useState<string | null>(null);
 
   const [showNewChat, setShowNewChat] = useState(false);
@@ -158,6 +161,20 @@ export default function ChatPage() {
   // Thread list (previews + unread counts) refreshes on a slower cadence
   // than the open conversation itself.
   useEffect(() => { const iv = setInterval(loadThreads, 8000); return () => clearInterval(iv); }, [loadThreads]);
+
+  // Same fix as Church Feed's composer: the @mention suggestion box had no
+  // click-outside dismissal, so it just sat open over the message list
+  // until you typed past the match. Height-capped with its own scroll in
+  // the render below for the same reason (a group chat with many
+  // participants/departments could otherwise grow past the header).
+  useEffect(() => {
+    if (mentionQuery === null) return;
+    function onClickOutside(e: MouseEvent) {
+      if (mentionBoxRef.current && !mentionBoxRef.current.contains(e.target as Node)) setMentionQuery(null);
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [mentionQuery]);
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get('thread');
@@ -383,7 +400,6 @@ export default function ChatPage() {
   }
 
   async function deleteMessage(messageId: string) {
-    if (!confirm('Delete this message? Everyone in the chat will see it was removed.')) return;
     const res = await fetch(`/api/chat/messages/${messageId}`, { method: 'DELETE', credentials: 'include' });
     if (res.ok) setMessages(prev => prev.map(m => m.id === messageId ? { ...m, deleted_at: new Date().toISOString(), body: 'This message was deleted', media_url: null } : m));
   }
@@ -434,7 +450,12 @@ export default function ChatPage() {
   const glass: React.CSSProperties = { background: 'var(--glass-bg)', WebkitBackdropFilter: 'blur(var(--glass-blur)) saturate(160%)', backdropFilter: 'blur(var(--glass-blur)) saturate(160%)', border: '0.5px solid var(--glass-border)', boxShadow: 'var(--glass-shadow)' };
   const totalUnread = threads.reduce((a, th) => a + th.unread_count, 0);
   const mentionCandidates = mentionQuery !== null && activeThread ? activeThread.participants.filter(p => p.id !== myId && p.full_name.toLowerCase().includes(mentionQuery.toLowerCase())) : [];
-  const mentionGroupCandidates = mentionQuery !== null
+  // @group-tag suggestions (e.g. @dept_heads, @branch_pastors) only make
+  // sense in a group thread — in a 1:1 DM there's no "everyone in this
+  // conversation" for a role/department tag to broaden, so offering them
+  // here is just confusing, not a privacy issue (the backend already
+  // scopes any group tag down to actual thread participants regardless).
+  const mentionGroupCandidates = mentionQuery !== null && activeThread?.type === 'group'
     ? mentionGroups.filter(g => g.tag.includes(mentionQuery.toLowerCase()) || g.label.toLowerCase().includes(mentionQuery.toLowerCase()))
     : [];
 
@@ -539,7 +560,7 @@ export default function ChatPage() {
                       {!mine && activeThread.type === 'group' && <div style={{ fontSize: 10, color: t.muted, marginBottom: 2, marginLeft: 4 }}>{m.sender_name}</div>}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, maxWidth: '85%' }}>
                         {canDelete && !mine && (
-                          <button onClick={() => deleteMessage(m.id)} title="Delete message"
+                          <button onClick={() => setConfirmDeleteId(m.id)} title="Delete message"
                             style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', padding: 2, display: 'flex', order: 2 }}>
                             <Icon name="ti-trash" size={12} />
                           </button>
@@ -554,7 +575,7 @@ export default function ChatPage() {
                           )}
                         </div>
                         {canDelete && mine && (
-                          <button onClick={() => deleteMessage(m.id)} title="Delete message"
+                          <button onClick={() => setConfirmDeleteId(m.id)} title="Delete message"
                             style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', padding: 2, display: 'flex' }}>
                             <Icon name="ti-trash" size={12} />
                           </button>
@@ -602,7 +623,7 @@ export default function ChatPage() {
               )}
               <div style={{ padding: 14, borderTop: `0.5px solid ${t.border}`, position: 'relative' }}>
                 {(mentionGroupCandidates.length > 0 || mentionCandidates.length > 0) && (
-                  <div style={{ ...glass, position: 'absolute', bottom: '100%', left: 14, marginBottom: 6, borderRadius: 'var(--radius-sm)', overflow: 'hidden', minWidth: 180 }}>
+                  <div ref={mentionBoxRef} style={{ ...glass, position: 'absolute', bottom: '100%', left: 14, marginBottom: 6, borderRadius: 'var(--radius-sm)', overflow: 'hidden', overflowY: 'auto', maxHeight: 220, minWidth: 180 }}>
                     {mentionGroupCandidates.map(g => (
                       <div key={`g-${g.tag}`} onClick={() => insertGroupMention(g.tag)}
                         style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', fontSize: 12, color: t.teal, fontWeight: 600, cursor: 'pointer' }}
@@ -695,6 +716,19 @@ export default function ChatPage() {
       )}
       {analyticsPollId && (
         <PollAnalyticsPanel pollId={analyticsPollId} kind="chat" dark={dark} onClose={() => setAnalyticsPollId(null)} />
+      )}
+      {confirmDeleteId && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setConfirmDeleteId(null)}>
+          <div style={{ background: dark ? '#151030' : '#fff', borderRadius: 16, padding: 24, maxWidth: 360, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 6 }}>Delete this message?</div>
+            <div style={{ fontSize: 12.5, color: t.sub, lineHeight: 1.5, marginBottom: 18 }}>Everyone in the chat will see it was removed. This can’t be undone.</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setConfirmDeleteId(null)} style={{ flex: 1, background: 'transparent', color: t.muted, border: `0.5px solid ${t.border}`, borderRadius: 9, padding: '10px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={() => { const id = confirmDeleteId; setConfirmDeleteId(null); deleteMessage(id); }}
+                style={{ flex: 1, background: t.coral, color: '#fff', border: 'none', borderRadius: 9, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Delete</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

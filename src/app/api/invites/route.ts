@@ -125,7 +125,7 @@ export async function POST(req: Request) {
     }
 
     // Build invite link
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://shepherd-app-beta.vercel.app';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://justshephrd.com';
     const inviteLink = `${baseUrl}/register?token=${invite.token}`;
 
     logAudit({ actor_id: user.id, actor_role: user.role, action: 'invite_created', target_type: 'invite', target_id: invite.id, detail: { email: invite.email, role } });

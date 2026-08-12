@@ -24,6 +24,7 @@ import { getRoleLabel, getLeafUnitLabel, getBranchLabel, pluralizeLabel, type Ro
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useHeaderVisibility } from '@/hooks/useHeaderVisibility';
 import {
   LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell
@@ -503,6 +504,145 @@ const CREATABLE_ROLES: {value:string;refKind:'cell'|'fellowship'|'department'|nu
   {value:'overseer',refKind:null},
   {value:'lead_tech',refKind:null},
 ];
+
+// Manual data-cleanup tool for the batch of leaders imported without a real
+// email on file — the import script fell back to slugifying their whole
+// name (title included) into "<slug>@shepherd.app", and some source rows
+// only had a single word for a name to begin with. general_overseer/
+// lead_tech only (see the matching gate on the API side): this can touch
+// any user in the church across every branch, and a login email is
+// sensitive enough that it needs the same "super-admin only" bar as
+// suspend/reinstate, not the wider set that can do things like branch
+// reassignment.
+function DataCleanupPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boolean}) {
+  const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string;is_active:boolean}[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [q, setQ] = React.useState('');
+  const [onlyFlagged, setOnlyFlagged] = React.useState(true);
+  const [editing, setEditing] = React.useState<string|null>(null);
+  const [draftName, setDraftName] = React.useState('');
+  const [draftEmail, setDraftEmail] = React.useState('');
+  const [saving, setSaving] = React.useState<string|null>(null);
+  const [rowError, setRowError] = React.useState<Record<string,string>>({});
+
+  function loadUsers() {
+    setLoading(true);
+    fetch('/api/admin/users', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => setUsers(data?.users || []))
+      .finally(() => setLoading(false));
+  }
+  React.useEffect(() => { loadUsers(); }, []);
+
+  // A row is "flagged" if it still carries the auto-generated placeholder
+  // domain, or if the name is a single word — the two patterns actually
+  // seen in the imported data, not a guess.
+  function isFlagged(u: {full_name:string;email:string}) {
+    return u.email.toLowerCase().endsWith('@shepherd.app') || u.full_name.trim().split(/\s+/).length < 2;
+  }
+
+  function startEdit(u: {id:string;full_name:string;email:string}) {
+    setEditing(u.id); setDraftName(u.full_name); setDraftEmail(u.email);
+    setRowError(prev => { const next = { ...prev }; delete next[u.id]; return next; });
+  }
+
+  async function saveEdit(u: {id:string;full_name:string;email:string}) {
+    const name = draftName.trim();
+    const email = draftEmail.trim().toLowerCase();
+    if (!name) { setRowError(prev => ({ ...prev, [u.id]: 'Name cannot be blank.' })); return; }
+    setSaving(u.id);
+    try {
+      const body: Record<string,string> = { userId: u.id, action: 'edit_profile' };
+      if (name !== u.full_name) body.full_name = name;
+      if (email !== u.email) body.email = email;
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (res.ok) { setEditing(null); loadUsers(); }
+      else setRowError(prev => ({ ...prev, [u.id]: json.error?.message || 'Failed to save.' }));
+    } catch { setRowError(prev => ({ ...prev, [u.id]: 'Network error — nothing was saved.' })); }
+    setSaving(null);
+  }
+
+  const filtered = users.filter(u => {
+    if (onlyFlagged && !isFlagged(u)) return false;
+    if (!q) return true;
+    const s = q.toLowerCase();
+    return u.full_name.toLowerCase().includes(s) || u.email.toLowerCase().includes(s);
+  });
+  const flaggedCount = users.filter(isFlagged).length;
+
+  return (
+    <div style={{background:t.card,borderRadius:12,border:`0.5px solid ${t.border}`,padding:'18px 20px',marginTop:14}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap',gap:8}}>
+        <div>
+          <div style={{fontSize:16,fontWeight:700,color:t.text}}>Data Cleanup</div>
+          <div style={{fontSize:12,color:t.sub,marginTop:2}}>Fix a member&apos;s name or login email — mainly for leaders imported without a real email on file, where an auto-generated placeholder was used instead. Changing email updates their actual login, not just the display name.</div>
+        </div>
+        <div style={{display:'flex',gap:8,width:isMobile?'100%':undefined,flexWrap:isMobile?'wrap':undefined}}>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search name or email"
+            style={{width:isMobile?'100%':200,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',fontSize:12,background:t.input,color:t.text,outline:'none',fontFamily:'inherit'}} />
+        </div>
+      </div>
+
+      <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11.5,color:t.sub,marginBottom:12,cursor:'pointer',width:'fit-content'}}>
+        <input type="checkbox" checked={onlyFlagged} onChange={e=>setOnlyFlagged(e.target.checked)} />
+        Only show flagged accounts ({flaggedCount} of {users.length} — placeholder email or single-word name)
+      </label>
+
+      {loading ? (
+        <div style={{fontSize:12,color:t.sub}}>Loading team…</div>
+      ) : filtered.length === 0 ? (
+        <div style={{fontSize:12,color:t.muted,padding:'12px 0'}}>{onlyFlagged ? 'Nothing flagged — everyone has a real-looking name and email.' : 'No matches.'}</div>
+      ) : (
+        <div style={{maxHeight:480,overflowY:'auto',display:'flex',flexDirection:'column',gap:8}}>
+          {filtered.map(u => {
+            const flagged = isFlagged(u);
+            const isEditing = editing === u.id;
+            return (
+              <div key={u.id} style={{background:t.cardInner||t.input,borderRadius:10,border:`0.5px solid ${flagged&&!isEditing?'rgba(186,117,23,0.35)':t.border}`,padding:'11px 13px'}}>
+                {isEditing ? (
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:8}}>
+                      <div>
+                        <label style={{fontSize:9.5,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',display:'block',marginBottom:3}}>Full name</label>
+                        <input value={draftName} onChange={e=>setDraftName(e.target.value)} style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'7px 9px',fontSize:12,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box'}} />
+                      </div>
+                      <div>
+                        <label style={{fontSize:9.5,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',display:'block',marginBottom:3}}>Login email</label>
+                        <input value={draftEmail} onChange={e=>setDraftEmail(e.target.value)} type="email" style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'7px 9px',fontSize:12,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box'}} />
+                      </div>
+                    </div>
+                    {rowError[u.id] && <div style={{fontSize:11,color:t.coral}}>{rowError[u.id]}</div>}
+                    <div style={{display:'flex',gap:6}}>
+                      <button onClick={()=>saveEdit(u)} disabled={saving===u.id} style={{background:'#1D9E75',color:'#fff',border:'none',borderRadius:7,padding:'6px 14px',fontSize:11,fontWeight:600,cursor:saving===u.id?'wait':'pointer',fontFamily:'inherit'}}>{saving===u.id?'Saving…':'Save'}</button>
+                      <button onClick={()=>setEditing(null)} disabled={saving===u.id} style={{background:'transparent',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'6px 14px',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:isMobile?'wrap':undefined}}>
+                    <div style={{minWidth:0}}>
+                      <div style={{display:'flex',alignItems:'center',gap:6}}>
+                        <div style={{fontSize:13,fontWeight:600,color:t.text}}>{u.full_name}</div>
+                        {flagged && <span style={{fontSize:9,fontWeight:700,color:'#BA7517',background:'#FAEEDA',borderRadius:8,padding:'2px 7px',flexShrink:0}}>NEEDS REVIEW</span>}
+                        {!u.is_active && <span style={{fontSize:9,fontWeight:700,color:t.coral,background:t.coralBg,borderRadius:8,padding:'2px 7px',flexShrink:0}}>SUSPENDED</span>}
+                      </div>
+                      <div style={{fontSize:11,color:t.sub,marginTop:2,wordBreak:'break-all'}}>{u.email}</div>
+                      <div style={{fontSize:10.5,color:t.muted,marginTop:1}}>{u.role.replace(/_/g,' ')}</div>
+                    </div>
+                    <button onClick={()=>startEdit(u)} style={{background:t.purpleBg,border:'none',borderRadius:7,padding:'6px 13px',fontSize:11,color:t.purple,cursor:'pointer',fontFamily:'inherit',fontWeight:600,flexShrink:0}}>Edit</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,string>; isMobile?: boolean; churchConfig: RoleLabelConfig; userRole?: string}) {
   // Grant/revoke a PA's access to financial/giving data is GO-only — the
@@ -1023,7 +1163,7 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
             </div>
             <div style={{display:'flex',flexDirection:'column',gap:8}}>
               <button onClick={()=>{setShowStructureConfirm(false);doSave();}} style={{background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'10px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Yes, proceed with the change</button>
-              <button onClick={()=>{setShowStructureConfirm(false);window.open('mailto:support@shepherd.app?subject=Church%20structure%20change','_blank');}} style={{background:t.purpleBg||'#EEEDFE',color:t.purple,border:'none',borderRadius:9,padding:'10px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Contact support first</button>
+              <button onClick={()=>{setShowStructureConfirm(false);window.open('mailto:support@justshephrd.com?subject=Church%20structure%20change','_blank');}} style={{background:t.purpleBg||'#EEEDFE',color:t.purple,border:'none',borderRadius:9,padding:'10px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Contact support first</button>
               <button onClick={()=>{setShowStructureConfirm(false);setStructureType(originalStructureType);}} style={{background:'transparent',color:t.muted,border:`0.5px solid ${t.border}`,borderRadius:9,padding:'10px',fontSize:13,cursor:'pointer'}}>Cancel</button>
             </div>
           </div>
@@ -1679,11 +1819,19 @@ function CreateCellModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dar
   const [fellowshipId,setFellowshipId]=React.useState('');
   const [targetSize,setTargetSize]=React.useState('');
   const [fellowships,setFellowships]=React.useState<{id:string;name:string}[]>([]);
+  const [fellowshipsLoading,setFellowshipsLoading]=React.useState(true);
   const [saving,setSaving]=React.useState(false);
   const [error,setError]=React.useState('');
 
   React.useEffect(()=>{
-    fetch('/api/fellowships/all',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data?.fellowships)setFellowships(data.fellowships);}).catch(()=>{});
+    // Was silently leaving the dropdown empty on any non-2xx (most often a
+    // branch_pastor whose account has no branch_id assigned yet, which the
+    // API fails closed on with a 403) — surface that instead of a bare
+    // "Select a fellowship..." with nothing under it.
+    fetch('/api/fellowships/all',{credentials:'include'}).then(r=>r.json().then(json=>({ok:r.ok,json}))).then(({ok,json})=>{
+      if(!ok){setError(json?.error?.message||'Could not load fellowships.');return;}
+      if(json.data?.fellowships)setFellowships(json.data.fellowships);
+    }).catch(()=>setError('Network error — could not load fellowships.')).finally(()=>setFellowshipsLoading(false));
   },[]);
 
   async function submit(){
@@ -1715,6 +1863,9 @@ function CreateCellModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dar
               <option value="">Select a fellowship...</option>
               {fellowships.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
+            {!fellowshipsLoading && !error && fellowships.length===0 && (
+              <div style={{fontSize:10.5,color:t.muted,marginTop:4}}>No fellowships found for your account yet.</div>
+            )}
           </div>
           <div><label style={labelS}>Target size (optional)</label><input value={targetSize} onChange={e=>setTargetSize(e.target.value.replace(/\D/g,''))} style={inputS}/></div>
           <div style={{display:'flex',gap:8,marginTop:6}}>
@@ -1902,6 +2053,7 @@ export default function DashboardPage(){
     return {q3:1250,dec:1400};
   });
   const {dark, setDark} = useTheme();
+  const headerHidden = useHeaderVisibility();
   const [pageReady,setPageReady]=useState(false);
   const [sidebarStyle,setSidebarStyle]=useState<'light'|'dark'>('light');
   const [sidebarOpen,setSidebarOpen]=useState(false);
@@ -2351,7 +2503,7 @@ export default function DashboardPage(){
       {/* Main */}
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,background:dark?`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}`:`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`}}>
         {/* Topbar */}
-        <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,boxShadow:dark?'0 2px 10px rgba(0,0,0,0.35)':'0 2px 10px rgba(31,25,71,0.10)',padding:isMobile?'calc(10px + env(safe-area-inset-top)) 14px 10px':'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,position:'sticky',top:0,zIndex:30}}>
+        <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,boxShadow:dark?'0 2px 10px rgba(0,0,0,0.35)':'0 2px 10px rgba(31,25,71,0.10)',padding:isMobile?'calc(10px + env(safe-area-inset-top)) 14px 10px':'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,position:'sticky',top:0,zIndex:30,transform:headerHidden?'translateY(-100%)':'translateY(0)',transition:'transform 0.25s ease'}}>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:10,minWidth:0}}>
             <div style={{minWidth:0,display:'flex',alignItems:'center',gap:10}}>
               <span style={{fontSize:isMobile?12:14,fontWeight:600,color:t.text,whiteSpace:'nowrap',flexShrink:0}}>{navItems.find(n=>n.id===page)?.label}</span>
@@ -2365,10 +2517,15 @@ export default function DashboardPage(){
           </div>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:12,flexShrink:0}}>
             {userRole==='branch_pastor' ? (
-              <div title={`You are scoped to your own ${getBranchLabel(churchConfig).toLowerCase()} — every figure and action here applies only to it`}
-                style={{display:'flex',alignItems:'center',gap:isMobile?5:7,padding:isMobile?'4px 8px':'6px 12px',borderRadius:20,border:'0.5px solid rgba(29,158,117,0.3)',background:dark?'rgba(29,158,117,0.12)':'#E1F5EE'}}>
-                <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',flexShrink:0,boxShadow:'0 0 0 3px rgba(29,158,117,0.2)'}}/>
-                {!isMobile&&<span style={{fontSize:11,fontWeight:700,color:'#085041'}}>Viewing: {branchesList.find(b=>b.id===userBranchId)?.name || `Your ${getBranchLabel(churchConfig)}`}</span>}
+              // Was falling back to a generic "Your Branch" label whenever
+              // userBranchId was empty — indistinguishable from the normal,
+              // healthy "Viewing: <real name>" state, so the one badge meant
+              // to show branch scope actively hid the fact that scope was
+              // broken. Now tells the truth instead.
+              <div title={userBranchId?`You are scoped to your own ${getBranchLabel(churchConfig).toLowerCase()} — every figure and action here applies only to it`:`No ${getBranchLabel(churchConfig).toLowerCase()} is assigned to your account yet — ask a General Overseer to assign one from Team & Access`}
+                style={{display:'flex',alignItems:'center',gap:isMobile?5:7,padding:isMobile?'4px 8px':'6px 12px',borderRadius:20,border:`0.5px solid ${userBranchId?'rgba(29,158,117,0.3)':'rgba(216,90,48,0.35)'}`,background:userBranchId?(dark?'rgba(29,158,117,0.12)':'#E1F5EE'):(dark?'rgba(216,90,48,0.12)':'#FAECE7')}}>
+                <span style={{width:7,height:7,borderRadius:'50%',background:userBranchId?'#1D9E75':'#D85A30',flexShrink:0,boxShadow:`0 0 0 3px ${userBranchId?'rgba(29,158,117,0.2)':'rgba(216,90,48,0.2)'}`}}/>
+                {!isMobile&&<span style={{fontSize:11,fontWeight:700,color:userBranchId?'#085041':'#8A3216'}}>{userBranchId?`Viewing: ${branchesList.find(b=>b.id===userBranchId)?.name || `Your ${getBranchLabel(churchConfig)}`}`:`No ${getBranchLabel(churchConfig).toLowerCase()} assigned`}</span>}
               </div>
             ) : (
               // Always rendered for overseer/general_overseer/pa/lead_tech
@@ -2429,6 +2586,25 @@ export default function DashboardPage(){
             {!isMobile&&<div style={{width:32,height:32,borderRadius:'50%',background:'#CECBF6',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:500,color:'#3C3489'}}>{userName?userName.slice(0,2).toUpperCase():'GO'}</div>}
           </div>
         </div>
+
+        {/* branch_pastor is mandatorily branch-scoped everywhere in the API
+            (resolveBranchScope, ~20 routes) — with no branch_id assigned,
+            every one of those routes fails closed (403/empty), so cells,
+            fellowships, departments, members, analytics, care, and calendar
+            all render as if this branch simply has nothing in it, with no
+            indication that the account itself is the problem. The "Viewing:
+            <branch>" badge above even falls back to a generic "Your Branch"
+            label in this state, so nothing on the page reads as broken.
+            One loud, unmissable banner beats a silent empty state on every
+            single tab. */}
+        {userRole==='branch_pastor'&&pageReady&&!userBranchId&&(
+          <div style={{margin:isMobile?'0 12px':'0 20px',marginTop:12,background:dark?'rgba(216,90,48,0.12)':'#FAECE7',border:`0.5px solid ${dark?'rgba(216,90,48,0.35)':'rgba(216,90,48,0.3)'}`,borderRadius:10,padding:'12px 16px',display:'flex',alignItems:'flex-start',gap:10}}>
+            <span style={{color:'#D85A30',flexShrink:0,marginTop:1}}><Icon name="ti-alert-triangle" size={16}/></span>
+            <div style={{fontSize:12.5,color:t.text,lineHeight:1.5}}>
+              <strong>No {getBranchLabel(churchConfig).toLowerCase()} assigned to your account.</strong> Cells, fellowships, departments, members, and reports will look empty everywhere until a General Overseer assigns one — Team &amp; Access → find your account → pick a {getBranchLabel(churchConfig).toLowerCase()} from the dropdown.
+            </div>
+          </div>
+        )}
 
         <div key={page} className="shep-tab-enter" style={{flex:1,padding:isMobile?'12px 12px calc(76px + env(safe-area-inset-bottom))':'20px',overflowY:'auto',background:'transparent',maxWidth:'100%'}}>
 
@@ -3565,6 +3741,7 @@ export default function DashboardPage(){
             <div>
               <ChurchSettingsPanel t={t} dark={dark} userRole={userRole} onConfigSaved={(cfg)=>setChurchConfig(cfg)} />
               {['overseer','general_overseer','lead_tech'].includes(userRole) && <TeamAccessPanel t={t} isMobile={isMobile} churchConfig={churchConfig} userRole={userRole} />}
+              {['general_overseer','lead_tech'].includes(userRole) && <DataCleanupPanel t={t} isMobile={isMobile} />}
             </div>
           )}
           {page==='admin'&&(

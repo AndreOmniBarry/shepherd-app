@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     const invite = Array.isArray(data) ? data[0] : data;
     if (!invite?.id) return NextResponse.json({ data: null, error: { message: 'Failed to create invite' } }, { status: 500 });
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://shepherd-app-beta.vercel.app';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://justshephrd.com';
     return NextResponse.json({ data: { invite_link: `${baseUrl}/register?token=${invite.token}` }, error: null }, { status: 201 });
   } catch (err) {
     console.error('[POST /api/department/roster/invite]', err);
