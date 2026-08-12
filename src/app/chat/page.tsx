@@ -101,6 +101,8 @@ export default function ChatPage() {
   const composerFileRef = useRef<HTMLInputElement>(null);
   const [pollMode, setPollMode] = useState(false);
   const [pollDraft, setPollDraft] = useState<PollDraft>(emptyPollDraft());
+  // Same fix as Church Feed: native confirm() replaced with an in-app dialog.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [analyticsPollId, setAnalyticsPollId] = useState<string | null>(null);
 
   const [showNewChat, setShowNewChat] = useState(false);
@@ -398,7 +400,6 @@ export default function ChatPage() {
   }
 
   async function deleteMessage(messageId: string) {
-    if (!confirm('Delete this message? Everyone in the chat will see it was removed.')) return;
     const res = await fetch(`/api/chat/messages/${messageId}`, { method: 'DELETE', credentials: 'include' });
     if (res.ok) setMessages(prev => prev.map(m => m.id === messageId ? { ...m, deleted_at: new Date().toISOString(), body: 'This message was deleted', media_url: null } : m));
   }
@@ -559,7 +560,7 @@ export default function ChatPage() {
                       {!mine && activeThread.type === 'group' && <div style={{ fontSize: 10, color: t.muted, marginBottom: 2, marginLeft: 4 }}>{m.sender_name}</div>}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, maxWidth: '85%' }}>
                         {canDelete && !mine && (
-                          <button onClick={() => deleteMessage(m.id)} title="Delete message"
+                          <button onClick={() => setConfirmDeleteId(m.id)} title="Delete message"
                             style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', padding: 2, display: 'flex', order: 2 }}>
                             <Icon name="ti-trash" size={12} />
                           </button>
@@ -574,7 +575,7 @@ export default function ChatPage() {
                           )}
                         </div>
                         {canDelete && mine && (
-                          <button onClick={() => deleteMessage(m.id)} title="Delete message"
+                          <button onClick={() => setConfirmDeleteId(m.id)} title="Delete message"
                             style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', padding: 2, display: 'flex' }}>
                             <Icon name="ti-trash" size={12} />
                           </button>
@@ -715,6 +716,19 @@ export default function ChatPage() {
       )}
       {analyticsPollId && (
         <PollAnalyticsPanel pollId={analyticsPollId} kind="chat" dark={dark} onClose={() => setAnalyticsPollId(null)} />
+      )}
+      {confirmDeleteId && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setConfirmDeleteId(null)}>
+          <div style={{ background: dark ? '#151030' : '#fff', borderRadius: 16, padding: 24, maxWidth: 360, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 6 }}>Delete this message?</div>
+            <div style={{ fontSize: 12.5, color: t.sub, lineHeight: 1.5, marginBottom: 18 }}>Everyone in the chat will see it was removed. This can’t be undone.</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setConfirmDeleteId(null)} style={{ flex: 1, background: 'transparent', color: t.muted, border: `0.5px solid ${t.border}`, borderRadius: 9, padding: '10px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={() => { const id = confirmDeleteId; setConfirmDeleteId(null); deleteMessage(id); }}
+                style={{ flex: 1, background: t.coral, color: '#fff', border: 'none', borderRadius: 9, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Delete</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

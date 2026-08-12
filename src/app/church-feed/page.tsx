@@ -14,6 +14,7 @@ import PollCard from '@/components/PollCard';
 import PollComposerFields from '@/components/PollComposerFields';
 import PollAnalyticsPanel from '@/components/PollAnalyticsPanel';
 import { emptyPollDraft, type PollDraft, type PollView } from '@/types/poll';
+import { useHeaderVisibility } from '@/hooks/useHeaderVisibility';
 
 type Group = { id: string; type: 'church' | 'department'; name: string; department_id: string | null; departments?: { name: string } | null };
 type Reaction = { user_id: string; emoji: string; user_name: string };
@@ -69,6 +70,7 @@ export default function ChurchFeedPage() {
   const router = useRouter();
   const {dark, setDark} = useTheme();
   const [isMobile, setIsMobile] = useState(false);
+  const headerHidden = useHeaderVisibility();
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -114,6 +116,13 @@ export default function ChurchFeedPage() {
 
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [groupNameDraft, setGroupNameDraft] = useState('');
+  // In-app confirm dialog for deletes — was a native browser confirm(),
+  // which looks and reads like an OS security prompt (nothing about it
+  // matches the rest of the app), sits outside any of our styling/theming,
+  // and years of "just click OK" muscle memory from cookie banners and
+  // permission prompts means most people don't actually read it before
+  // dismissing it.
+  const [confirmTarget, setConfirmTarget] = useState<{ kind: 'post' | 'comment'; postId: string; commentId?: string } | null>(null);
 
   const t = {
     bg: dark ? '#080614' : '#F0EFF8', card: dark ? '#13102A' : '#FFFFFF',
@@ -250,7 +259,6 @@ export default function ChurchFeedPage() {
   }
 
   async function deletePost(postId: string) {
-    if (!confirm('Delete this post? Everyone will see it was removed.')) return;
     const res = await fetch(`/api/feed/posts/${postId}`, { method: 'DELETE', credentials: 'include' });
     if (res.ok) setPosts(prev => prev.map(p => p.id === postId ? { ...p, deleted_at: new Date().toISOString(), body: 'This post was deleted', media_url: null } : p));
   }
@@ -300,7 +308,6 @@ export default function ChurchFeedPage() {
   }
 
   async function deleteComment(postId: string, commentId: string) {
-    if (!confirm('Delete this comment?')) return;
     const res = await fetch(`/api/feed/posts/${postId}/comments/${commentId}`, { method: 'DELETE', credentials: 'include' });
     if (res.ok) {
       setComments(prev => ({ ...prev, [postId]: (prev[postId] || []).map(c => c.id === commentId ? { ...c, deleted_at: new Date().toISOString(), body: 'This comment was deleted' } : c) }));
@@ -329,7 +336,7 @@ export default function ChurchFeedPage() {
 
   return (
     <div data-theme={dark ? 'dark' : 'light'} className="shep-page-enter" style={{ minHeight: '100vh', background: dark ? `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}` : `radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`, fontFamily: 'Inter,system-ui,sans-serif' }}>
-      <div style={{ background: t.navBg, WebkitBackdropFilter: 'blur(18px) saturate(160%)', backdropFilter: 'blur(18px) saturate(160%)', borderBottom: `0.5px solid ${t.navBorder}`, boxShadow: dark ? '0 2px 10px rgba(0,0,0,0.35)' : '0 2px 10px rgba(31,25,71,0.10)', padding: isMobile ? 'calc(10px + env(safe-area-inset-top)) 14px 10px' : '0 20px', height: isMobile ? undefined : 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, position: 'sticky', top: 0, zIndex: 30 }}>
+      <div style={{ background: t.navBg, WebkitBackdropFilter: 'blur(18px) saturate(160%)', backdropFilter: 'blur(18px) saturate(160%)', borderBottom: `0.5px solid ${t.navBorder}`, boxShadow: dark ? '0 2px 10px rgba(0,0,0,0.35)' : '0 2px 10px rgba(31,25,71,0.10)', padding: isMobile ? 'calc(10px + env(safe-area-inset-top)) 14px 10px' : '0 20px', height: isMobile ? undefined : 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, position: 'sticky', top: 0, zIndex: 30, transform: headerHidden ? 'translateY(-100%)' : 'translateY(0)', transition: 'transform 0.25s ease' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10, minWidth: 0 }}>
           <button onClick={() => router.push(homePath)} title="Back to dashboard"
             onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; }}
@@ -518,7 +525,7 @@ export default function ChurchFeedPage() {
                       {p.pinned && !isDeleted && <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, background: t.purpleBg, color: t.purple, fontWeight: 600 }}>Pinned</span>}
                       {p.urgent && !isDeleted && <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, background: t.coralBg, color: t.coral, fontWeight: 600 }}>Urgent</span>}
                       {canDelete && (
-                        <button onClick={() => deletePost(p.id)} title="Delete post"
+                        <button onClick={() => setConfirmTarget({ kind: 'post', postId: p.id })} title="Delete post"
                           style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', padding: 2, display: 'flex' }}
                           onMouseEnter={e => { e.currentTarget.style.color = t.coral; }} onMouseLeave={e => { e.currentTarget.style.color = t.muted; }}>
                           <Icon name="ti-trash" size={13} />
@@ -581,7 +588,7 @@ export default function ChurchFeedPage() {
                               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
                                 <div style={{ fontSize: 11, fontWeight: 600, color: t.text }}>{c.author_name}</div>
                                 {cCanDelete && (
-                                  <button onClick={() => deleteComment(p.id, c.id)} title="Delete comment"
+                                  <button onClick={() => setConfirmTarget({ kind: 'comment', postId: p.id, commentId: c.id })} title="Delete comment"
                                     style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', padding: 0, display: 'flex' }}>
                                     <Icon name="ti-trash" size={11} />
                                   </button>
@@ -600,7 +607,7 @@ export default function ChurchFeedPage() {
                                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
                                       <div style={{ fontSize: 10, fontWeight: 600, color: t.text }}>{r.author_name}</div>
                                       {!r.deleted_at && (r.author_id === myId || isLeader) && (
-                                        <button onClick={() => deleteComment(p.id, r.id)} title="Delete reply"
+                                        <button onClick={() => setConfirmTarget({ kind: 'comment', postId: p.id, commentId: r.id })} title="Delete reply"
                                           style={{ background: 'transparent', border: 'none', color: t.muted, cursor: 'pointer', padding: 0, display: 'flex' }}>
                                           <Icon name="ti-trash" size={10} />
                                         </button>
@@ -646,6 +653,23 @@ export default function ChurchFeedPage() {
       </div>
       {analyticsPollId && (
         <PollAnalyticsPanel pollId={analyticsPollId} kind="feed" dark={dark} onClose={() => setAnalyticsPollId(null)} />
+      )}
+      {confirmTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setConfirmTarget(null)}>
+          <div style={{ background: dark ? '#151030' : '#fff', borderRadius: 16, padding: 24, maxWidth: 360, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 6 }}>{confirmTarget.kind === 'post' ? 'Delete this post?' : 'Delete this comment?'}</div>
+            <div style={{ fontSize: 12.5, color: t.sub, lineHeight: 1.5, marginBottom: 18 }}>
+              {confirmTarget.kind === 'post'
+                ? 'Everyone will see it was removed. This can’t be undone.'
+                : 'This can’t be undone.'}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setConfirmTarget(null)} style={{ flex: 1, background: 'transparent', color: t.muted, border: `0.5px solid ${t.border}`, borderRadius: 9, padding: '10px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={() => { const target = confirmTarget; setConfirmTarget(null); if (target.kind === 'post') deletePost(target.postId); else if (target.commentId) deleteComment(target.postId, target.commentId); }}
+                style={{ flex: 1, background: t.coral, color: '#fff', border: 'none', borderRadius: 9, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Delete</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

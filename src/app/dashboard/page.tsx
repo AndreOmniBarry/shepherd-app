@@ -24,6 +24,7 @@ import { getRoleLabel, getLeafUnitLabel, getBranchLabel, pluralizeLabel, type Ro
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useHeaderVisibility } from '@/hooks/useHeaderVisibility';
 import {
   LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell
@@ -1913,6 +1914,7 @@ export default function DashboardPage(){
     return {q3:1250,dec:1400};
   });
   const {dark, setDark} = useTheme();
+  const headerHidden = useHeaderVisibility();
   const [pageReady,setPageReady]=useState(false);
   const [sidebarStyle,setSidebarStyle]=useState<'light'|'dark'>('light');
   const [sidebarOpen,setSidebarOpen]=useState(false);
@@ -2362,7 +2364,7 @@ export default function DashboardPage(){
       {/* Main */}
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,background:dark?`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.12), transparent 45%), ${t.bg}`:`radial-gradient(circle at 15% 0%, rgba(83,74,183,0.06), transparent 45%), ${t.bg}`}}>
         {/* Topbar */}
-        <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,boxShadow:dark?'0 2px 10px rgba(0,0,0,0.35)':'0 2px 10px rgba(31,25,71,0.10)',padding:isMobile?'calc(10px + env(safe-area-inset-top)) 14px 10px':'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,position:'sticky',top:0,zIndex:30}}>
+        <div style={{background:t.nav,backdropFilter:'blur(18px) saturate(160%)',WebkitBackdropFilter:'blur(18px) saturate(160%)',borderBottom:`0.5px solid ${t.navBorder}`,boxShadow:dark?'0 2px 10px rgba(0,0,0,0.35)':'0 2px 10px rgba(31,25,71,0.10)',padding:isMobile?'calc(10px + env(safe-area-inset-top)) 14px 10px':'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,position:'sticky',top:0,zIndex:30,transform:headerHidden?'translateY(-100%)':'translateY(0)',transition:'transform 0.25s ease'}}>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:10,minWidth:0}}>
             <div style={{minWidth:0,display:'flex',alignItems:'center',gap:10}}>
               <span style={{fontSize:isMobile?12:14,fontWeight:600,color:t.text,whiteSpace:'nowrap',flexShrink:0}}>{navItems.find(n=>n.id===page)?.label}</span>
