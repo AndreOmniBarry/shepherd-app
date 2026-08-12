@@ -661,6 +661,7 @@ function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,s
   const [reassigningBranch, setReassigningBranch] = React.useState<string|null>(null);
   const [reassigningFinance, setReassigningFinance] = React.useState<string|null>(null);
   const [issued, setIssued] = React.useState<{full_name:string;email:string;password:string}|null>(null);
+  const [reinstateTarget, setReinstateTarget] = React.useState<{id:string;full_name:string}|null>(null);
 
   function loadUsers() {
     fetch('/api/admin/users', { credentials: 'include' })
@@ -687,7 +688,7 @@ function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,s
   }
 
   async function doReinstate(u: {id:string;full_name:string}) {
-    if (!window.confirm(`Reinstate ${u.full_name}? They'll be able to log in again immediately.`)) return;
+    setReinstateTarget(null);
     setSuspending(u.id);
     try {
       const res = await fetch('/api/admin/users', {
@@ -959,7 +960,7 @@ function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,s
                   {resetting===u.id?'Resetting…':'Reset password'}
                 </button>
                 {u.is_active===false ? (
-                  <button onClick={()=>doReinstate(u)} disabled={suspending===u.id}
+                  <button onClick={()=>setReinstateTarget(u)} disabled={suspending===u.id}
                     style={{flex:1,background:t.tealBg,border:'none',borderRadius:7,padding:'6px 11px',fontSize:11,color:t.teal,cursor:suspending===u.id?'wait':'pointer',fontFamily:'inherit',fontWeight:600}}>
                     {suspending===u.id?'…':'Reinstate'}
                   </button>
@@ -1026,7 +1027,7 @@ function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,s
                       {resetting===u.id?'Resetting…':'Reset password'}
                     </button>
                     {u.is_active===false ? (
-                      <button onClick={()=>doReinstate(u)} disabled={suspending===u.id}
+                      <button onClick={()=>setReinstateTarget(u)} disabled={suspending===u.id}
                         style={{background:t.tealBg,border:'none',borderRadius:7,padding:'5px 11px',fontSize:11,color:t.teal,cursor:suspending===u.id?'wait':'pointer',fontFamily:'inherit',fontWeight:600}}>
                         {suspending===u.id?'…':'Reinstate'}
                       </button>
@@ -1041,6 +1042,21 @@ function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,s
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {reinstateTarget && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',backdropFilter:'blur(2px)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={()=>suspending!==reinstateTarget.id&&setReinstateTarget(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:t.card,borderRadius:16,padding:24,maxWidth:360,width:'100%',border:`0.5px solid ${t.border}`}}>
+            <div style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:8}}>Reinstate {reinstateTarget.full_name}?</div>
+            <div style={{fontSize:12.5,color:t.sub,lineHeight:1.5,marginBottom:18}}>They&apos;ll be able to log in again immediately.</div>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>setReinstateTarget(null)} disabled={suspending===reinstateTarget.id} style={{flex:1,background:'transparent',color:t.muted,border:`0.5px solid ${t.border}`,borderRadius:9,padding:'10px',fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>Cancel</button>
+              <button onClick={()=>doReinstate(reinstateTarget)} disabled={suspending===reinstateTarget.id} style={{flex:1,background:t.teal,color:'#fff',border:'none',borderRadius:9,padding:'10px',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'inherit',opacity:suspending===reinstateTarget.id?0.6:1}}>
+                {suspending===reinstateTarget.id?'Reinstating…':'Reinstate'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -2037,6 +2053,8 @@ export default function DashboardPage(){
   const [selectedDeptId,setSelectedDeptId]=useState<string|null>(null);
   const [deptDetail,setDeptDetail]=useState<DeptDetail|null>(null);
   const [deptDetailLoading,setDeptDetailLoading]=useState(false);
+  const [removeMemberTarget,setRemoveMemberTarget]=useState<{id:string;name:string}|null>(null);
+  const [removingMember,setRemovingMember]=useState(false);
   const [chatOpen,setChatOpen]=useState(false);
   const [chatInput,setChatInput]=useState('');
   const [selectedAgent,setSelectedAgent]=useState<AgentName>('moshe');
@@ -2217,6 +2235,17 @@ export default function DashboardPage(){
       else{const json=await res.json().catch(()=>({}));setMoveError(json?.error?.message||'Failed to move member.');}
     }catch{setMoveError('Network error — member was not moved.');}
     setMoving(false);
+  }
+
+  async function confirmRemoveMember(){
+    if(!removeMemberTarget||!selectedDeptId)return;
+    setRemovingMember(true);
+    try{
+      await fetch(`/api/admin/departments/members?department_id=${selectedDeptId}&member_id=${removeMemberTarget.id}`,{method:'DELETE',credentials:'include'});
+      reloadDeptDetail();reloadDeptsList();
+    }catch{}
+    setRemovingMember(false);
+    setRemoveMemberTarget(null);
   }
 
   function reloadCells(){
@@ -3069,6 +3098,21 @@ export default function DashboardPage(){
             </div>
           )}
 
+          {removeMemberTarget && (
+            <div style={{position:'fixed',inset:0,background:'rgba(15,10,30,0.6)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}} onClick={()=>!removingMember&&setRemoveMemberTarget(null)}>
+              <div onClick={e=>e.stopPropagation()} style={{background:t.card,borderRadius:16,padding:24,maxWidth:360,width:'90%',border:`0.5px solid ${t.border}`}}>
+                <div style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:8}}>Remove {removeMemberTarget.name} from {deptDetail?.department.name}?</div>
+                <div style={{fontSize:12,color:t.sub,lineHeight:1.5,marginBottom:18}}>They&apos;ll come off this department&apos;s roster. This doesn&apos;t delete their member record.</div>
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={()=>setRemoveMemberTarget(null)} disabled={removingMember} style={{flex:1,background:'transparent',border:`0.5px solid ${t.border}`,color:t.sub,borderRadius:8,padding:'9px',fontSize:12,fontWeight:600,cursor:'pointer'}}>Cancel</button>
+                  <button onClick={confirmRemoveMember} disabled={removingMember} style={{flex:1,background:t.coral,color:'#fff',border:'none',borderRadius:8,padding:'9px',fontSize:12,fontWeight:600,cursor:'pointer',opacity:removingMember?0.6:1}}>
+                    {removingMember?'Removing…':'Remove'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ══ DEPARTMENTS ══ */}
           {page==='departments'&&!selectedDeptId&&(
             <div style={card()}>
@@ -3139,11 +3183,7 @@ export default function DashboardPage(){
                           {m.status?<span style={{fontSize:10,padding:'2px 8px',borderRadius:10,flexShrink:0,background:m.status==='present'?'#E1F5EE':'#FAECE7',color:m.status==='present'?'#085041':'#993C1D',textTransform:'capitalize' as const}}>{m.status}</span>:<span style={{fontSize:10,color:t.muted,flexShrink:0}}>No data</span>}
                         </div>
                         <div style={{fontSize:11,color:t.sub,marginBottom:8}}>{m.role} · {m.phone||'—'}</div>
-                        <button onClick={async()=>{
-                          if(!confirm(`Remove ${m.name} from ${deptDetail.department.name}?`))return;
-                          await fetch(`/api/admin/departments/members?department_id=${selectedDeptId}&member_id=${m.id}`,{method:'DELETE',credentials:'include'});
-                          reloadDeptDetail();reloadDeptsList();
-                        }} style={{width:'100%',background:'transparent',border:`0.5px solid rgba(216,90,48,0.3)`,borderRadius:6,color:t.coral,fontSize:11,fontWeight:600,padding:'6px 9px',cursor:'pointer'}}>Remove</button>
+                        <button onClick={()=>setRemoveMemberTarget({id:m.id,name:m.name})} style={{width:'100%',background:'transparent',border:`0.5px solid rgba(216,90,48,0.3)`,borderRadius:6,color:t.coral,fontSize:11,fontWeight:600,padding:'6px 9px',cursor:'pointer'}}>Remove</button>
                       </div>
                     ))}
                   </div>
@@ -3161,11 +3201,7 @@ export default function DashboardPage(){
                         <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone||'—'}</td>
                         <td style={{padding:'7px 8px'}}>{m.status?<span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.status==='present'?'#E1F5EE':'#FAECE7',color:m.status==='present'?'#085041':'#993C1D',textTransform:'capitalize'}}>{m.status}</span>:<span style={{fontSize:11,color:t.muted}}>No data</span>}</td>
                         <td style={{padding:'7px 8px'}}>
-                          <button onClick={async()=>{
-                            if(!confirm(`Remove ${m.name} from ${deptDetail.department.name}?`))return;
-                            await fetch(`/api/admin/departments/members?department_id=${selectedDeptId}&member_id=${m.id}`,{method:'DELETE',credentials:'include'});
-                            reloadDeptDetail();reloadDeptsList();
-                          }} style={{background:'transparent',border:'none',color:t.coral,fontSize:11,cursor:'pointer'}}>Remove</button>
+                          <button onClick={()=>setRemoveMemberTarget({id:m.id,name:m.name})} style={{background:'transparent',border:'none',color:t.coral,fontSize:11,cursor:'pointer'}}>Remove</button>
                         </td>
                       </tr>
                     ))}
