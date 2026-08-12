@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { TERMS_SECTIONS } from '@/lib/terms-content';
+import { getTermsSections } from '@/lib/terms-content';
 
 // Same "don't bother pre-auth flows" list AppLockGate uses — there's no
 // signed-in user to prompt on the landing page, login, register, setup
@@ -14,6 +14,7 @@ function isPublicRoute(path: string): boolean {
 export default function TermsGate() {
   const pathname = usePathname();
   const [show, setShow] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [checkedOnce, setCheckedOnce] = useState(false);
@@ -23,9 +24,11 @@ export default function TermsGate() {
     setCheckedOnce(true);
     fetch('/api/auth/terms-status', { credentials: 'include' })
       .then(r => r.json())
-      .then(({ data }) => { if (data?.authenticated && data?.mustAccept) setShow(true); })
+      .then(({ data }) => { if (data?.authenticated && data?.mustAccept) { setRole(data.role || null); setShow(true); } })
       .catch(() => {}); // network hiccup — don't block the app over a status check
   }, [pathname, checkedOnce]);
+
+  const sections = getTermsSections(role);
 
   async function accept() {
     if (!checked) return;
@@ -47,7 +50,7 @@ export default function TermsGate() {
           <div style={{ fontSize: 12, color: 'rgba(232,229,255,0.5)', marginTop: 3 }}>Please review before continuing.</div>
         </div>
         <div style={{ padding: '18px 26px', overflowY: 'auto', flex: 1 }}>
-          {TERMS_SECTIONS.map(s => (
+          {sections.map(s => (
             <div key={s.heading} style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12.5, fontWeight: 700, color: '#A89FFF', marginBottom: 4 }}>{s.heading}</div>
               <div style={{ fontSize: 12.5, color: 'rgba(232,229,255,0.7)', lineHeight: 1.6 }}>{s.body}</div>

@@ -682,13 +682,17 @@ function ImportTemplatePanel({t}: {t: Record<string,string>}) {
       <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:2}}>Church Data Import Template</div>
       <div style={{fontSize:12,color:t.sub,marginBottom:14,lineHeight:1.5}}>
         A blank spreadsheet covering every structure type — branches, fellowships/zones/campuses, cells/districts,
-        departments, and members. Share it with a church that needs help importing their existing records.
+        departments, and members. Download it here and send it on to a church that needs help importing their
+        existing records. There is no upload page for this on purpose — once they fill it in and sign the
+        &quot;Consent &amp; Accuracy&quot; sheet inside, they email the completed file back to
+        support@justshephrd.com and it gets imported for them from there.
       </div>
       <label style={{display:'flex',alignItems:'flex-start',gap:8,cursor:'pointer',marginBottom:12,background:t.cardInner||t.input,borderRadius:9,padding:'11px 13px'}}>
         <input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} style={{marginTop:2,flexShrink:0}} />
         <span style={{fontSize:12,color:t.sub,lineHeight:1.5}}>
-          I confirm this template has been reviewed and that the data eventually provided using it is accurate to
-          the best of the church&apos;s knowledge. SHEP.HERD is not liable for inaccuracies in data the church supplies.
+          I&apos;m sending this template to a church for legitimate import purposes. (The church&apos;s own accuracy
+          attestation is the &quot;Consent &amp; Accuracy&quot; sheet inside the workbook, which they fill in and
+          return — this checkbox only logs that the template was handed out from here.)
         </span>
       </label>
       {error && <div style={{background:t.coralBg,color:t.coral,borderRadius:8,padding:'8px 12px',fontSize:12,marginBottom:12}}>{error}</div>}

@@ -87,13 +87,14 @@ lines = [
     'groups above, since a member can belong to both a cell/fellowship AND a department.',
     '  5. Fill "Members" last — one row per person. Use the exact names you typed into the sheets above so '
     'members link up correctly to their group/branch/department.',
+    '  6. Fill in the "Consent & Accuracy" sheet — this is required before we can import your data.',
     '',
     'Do not rename the column headers or reorder the sheets — the import script matches by header name and '
     'sheet name.',
     '',
-    'When you are done, send the completed file back the same way you received it. Whoever reviews and submits '
-    'this file on your church’s behalf will be asked to confirm it has been reviewed for accuracy before it '
-    'is imported — see the note on that screen for what that confirms.',
+    'When you are done, email the completed file to support@justshephrd.com. Do not upload it anywhere — there '
+    'is no upload page for this; a SHEP.HERD team member imports it on your behalf once it arrives and the '
+    'Consent & Accuracy sheet is filled in.',
 ]
 for i, line in enumerate(lines, start=2):
     c = ins.cell(row=i, column=1, value=line)
@@ -167,6 +168,44 @@ add_sheet(
         'Cell 3B', 'Media, Choir', 'Active',
     ],
 )
+
+
+# ── Consent & Accuracy ───────────────────────────────────────
+# This is the actual liability handoff point — the church is the one
+# attesting the data is accurate, not SHEP.HERD. The in-app download
+# checkbox only logs that a SHEP.HERD admin handed the blank template out;
+# THIS is what matters, since it travels with the filled file back over
+# email and is what a church rep actually fills in and signs off on.
+cs = wb.create_sheet('Consent & Accuracy')
+cs.sheet_view.showGridLines = False
+cs.column_dimensions['A'].width = 100
+cs['A1'] = 'Consent & Data Accuracy'
+cs['A1'].font = TITLE_FONT
+consent_lines = [
+    '',
+    'By completing and returning this file to SHEP.HERD, the person named below confirms, on behalf of the '
+    'church, that:',
+    '  • The information in this file has been reviewed for accuracy by someone with authority to do so.',
+    '  • SHEP.HERD is not responsible for errors, omissions, or outdated information contained in the data '
+    'provided in this file — the church remains responsible for the accuracy of its own records.',
+    '  • SHEP.HERD will import this data as provided, and the church can correct any entry afterward from '
+    'within the app.',
+    '',
+    'Please fill in and return with the completed sheets:',
+]
+for i, line in enumerate(consent_lines, start=2):
+    c = cs.cell(row=i, column=1, value=line)
+    c.alignment = Alignment(wrap_text=True, vertical='top')
+    cs.row_dimensions[i].height = 34 if len(line) > 90 else 18
+
+sign_start = 2 + len(consent_lines) + 1
+sign_fields = ['Full Name', 'Title / Role at Church', 'Church Name', 'Date']
+cs.column_dimensions['B'].width = 40
+for i, f in enumerate(sign_fields, start=sign_start):
+    lbl = cs.cell(row=i, column=1, value=f)
+    lbl.font = Font(bold=True, size=11, color=PURPLE_DARK)
+    val = cs.cell(row=i, column=2, value='')
+    val.border = Border(bottom=Side(style='thin', color=PURPLE))
 
 os.makedirs(OUT_DIR, exist_ok=True)
 wb.save(OUT_PATH)
