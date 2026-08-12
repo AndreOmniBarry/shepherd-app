@@ -394,8 +394,8 @@ function PlanScreen({ answers, onSelect }: { answers: Record<string, Answer>; on
   const churchName = (answers.church_name as string) || 'Your Church';
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'var(--font-inter, -apple-system, Inter, sans-serif)', background: C.bg }}>
-      <div style={{ flex: 1, padding: '48px', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+    <div className="shep-plan-shell" style={{ display: 'flex', minHeight: '100vh', fontFamily: 'var(--font-inter, -apple-system, Inter, sans-serif)', background: C.bg }}>
+      <div className="shep-plan-main" style={{ flex: 1, padding: '48px', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 48 }}>
           <div style={{ width: 32, height: 32, background: C.purple, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ width: 16, height: 16, background: C.white, borderRadius: 3 }} />
@@ -450,7 +450,7 @@ function PlanScreen({ answers, onSelect }: { answers: Record<string, Answer>; on
         </div>
       </div>
 
-      <div style={{ width: '380px', background: C.purpleDark, minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '48px 36px', boxSizing: 'border-box' }}>
+      <div className="shep-plan-sidebar" style={{ width: '380px', background: C.purpleDark, minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '48px 36px', boxSizing: 'border-box' }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.white, marginBottom: 20 }}>What you get on {PLANS.find(p => p.id === selected)?.name}</div>
         {PLANS.find(p => p.id === selected)?.features.map((f, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
@@ -479,6 +479,13 @@ function PlanScreen({ answers, onSelect }: { answers: Record<string, Answer>; on
           </div>
         )}
       </div>
+      <style>{`
+        @media (max-width: 860px) {
+          .shep-plan-shell { flex-direction: column !important; }
+          .shep-plan-main { padding: 28px 20px !important; }
+          .shep-plan-sidebar { width: 100% !important; min-height: auto !important; padding: 28px 20px 36px !important; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -518,16 +525,16 @@ function TeamScreen({ invites, onAdd, onRemove, onContinue, onSkip, busy, error 
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.bg, fontFamily: 'var(--font-inter, -apple-system, Inter, sans-serif)', padding: 24 }}>
-      <div style={{ width: '100%', maxWidth: 620, background: C.white, borderRadius: 18, border: `0.5px solid ${C.border}`, padding: '40px 44px', boxShadow: '0 8px 32px rgba(83,74,183,0.1)' }}>
+      <div className="shep-team-card" style={{ width: '100%', maxWidth: 620, background: C.white, borderRadius: 18, border: `0.5px solid ${C.border}`, padding: '40px 44px', boxShadow: '0 8px 32px rgba(83,74,183,0.1)' }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: C.purple, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 8 }}>Almost there</div>
         <div style={{ fontSize: 24, fontWeight: 700, color: C.text, letterSpacing: '-0.4px', marginBottom: 10 }}>Build your team</div>
         <div style={{ fontSize: 13.5, color: C.sub, marginBottom: 28, lineHeight: 1.6 }}>
           Invite the people who'll run each portal. Each gets a signup link to set their own password — assign them to a specific cell, fellowship, or department any time from Settings once it's created. You can skip this and invite people later.
         </div>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Full name" style={{ flex: 1, padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.border}`, fontSize: 13.5, outline: 'none' }} />
-          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" type="email" style={{ flex: 1, padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.border}`, fontSize: 13.5, outline: 'none' }} />
+        <div className="shep-team-row" style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Full name" style={{ flex: 1, padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.border}`, fontSize: 13.5, outline: 'none', minWidth: 0, boxSizing: 'border-box' }} />
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" type="email" style={{ flex: 1, padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.border}`, fontSize: 13.5, outline: 'none', minWidth: 0, boxSizing: 'border-box' }} />
         </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
           <select value={role} onChange={e => setRole(e.target.value)} style={{ flex: 1, padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.border}`, fontSize: 13.5, outline: 'none', background: C.white, color: C.text }}>
@@ -566,6 +573,12 @@ function TeamScreen({ invites, onAdd, onRemove, onContinue, onSkip, busy, error 
           </button>
         </div>
       </div>
+      <style>{`
+        @media (max-width: 640px) {
+          .shep-team-card { padding: 28px 20px !important; }
+          .shep-team-row { flex-direction: column !important; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -794,10 +807,10 @@ export default function SetupWizard() {
   const filteredCountries = countrySearch ? ALL_COUNTRIES.filter(c => c.label.toLowerCase().includes(countrySearch.toLowerCase())) : ALL_COUNTRIES;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: 'var(--font-inter, -apple-system, Inter, sans-serif)', background: C.bg }}>
+    <div className="shep-setup-shell" style={{ minHeight: '100vh', display: 'flex', fontFamily: 'var(--font-inter, -apple-system, Inter, sans-serif)', background: C.bg }}>
 
       {/* ── LEFT ── */}
-      <div style={{ width: '55%', minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '40px 52px', boxSizing: 'border-box', overflowY: 'auto' }}>
+      <div className="shep-setup-left" style={{ width: '55%', minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '40px 52px', boxSizing: 'border-box', overflowY: 'auto' }}>
 
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 44 }}>
@@ -976,7 +989,7 @@ export default function SetupWizard() {
       </div>
 
       {/* ── RIGHT ── */}
-      <div style={{ width: '45%', background: C.purpleDark, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 40px', boxSizing: 'border-box', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
+      <div className="shep-setup-right" style={{ width: '45%', background: C.purpleDark, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 40px', boxSizing: 'border-box', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
 
         {/* Section tracker */}
         <div style={{ width: '100%', maxWidth: 340, marginBottom: 28 }}>
@@ -1002,13 +1015,26 @@ export default function SetupWizard() {
           </div>
         </div>
 
-        {/* Live preview */}
-        <div style={{ width: '100%', maxWidth: 340 }}>
+        {/* Live preview — decorative mockup, dropped on narrow phones so the
+            progress tracker (the part that actually matters on mobile)
+            isn't fighting a second full-width block for space. */}
+        <div className="shep-setup-preview" style={{ width: '100%', maxWidth: 340 }}>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 10 }}>Live preview</div>
           <PreviewPanel answers={answers} />
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', textAlign: 'center', marginTop: 8 }}>Updates as you answer</div>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 860px) {
+          .shep-setup-shell { flex-direction: column !important; }
+          .shep-setup-left { width: 100% !important; min-height: auto !important; padding: 28px 20px !important; }
+          .shep-setup-right { width: 100% !important; position: static !important; height: auto !important; min-height: auto !important; padding: 24px 20px 32px !important; }
+        }
+        @media (max-width: 640px) {
+          .shep-setup-preview { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }
