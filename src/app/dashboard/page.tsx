@@ -2376,10 +2376,15 @@ export default function DashboardPage(){
           </div>
           <div style={{display:'flex',alignItems:'center',gap:isMobile?6:12,flexShrink:0}}>
             {userRole==='branch_pastor' ? (
-              <div title={`You are scoped to your own ${getBranchLabel(churchConfig).toLowerCase()} — every figure and action here applies only to it`}
-                style={{display:'flex',alignItems:'center',gap:isMobile?5:7,padding:isMobile?'4px 8px':'6px 12px',borderRadius:20,border:'0.5px solid rgba(29,158,117,0.3)',background:dark?'rgba(29,158,117,0.12)':'#E1F5EE'}}>
-                <span style={{width:7,height:7,borderRadius:'50%',background:'#1D9E75',flexShrink:0,boxShadow:'0 0 0 3px rgba(29,158,117,0.2)'}}/>
-                {!isMobile&&<span style={{fontSize:11,fontWeight:700,color:'#085041'}}>Viewing: {branchesList.find(b=>b.id===userBranchId)?.name || `Your ${getBranchLabel(churchConfig)}`}</span>}
+              // Was falling back to a generic "Your Branch" label whenever
+              // userBranchId was empty — indistinguishable from the normal,
+              // healthy "Viewing: <real name>" state, so the one badge meant
+              // to show branch scope actively hid the fact that scope was
+              // broken. Now tells the truth instead.
+              <div title={userBranchId?`You are scoped to your own ${getBranchLabel(churchConfig).toLowerCase()} — every figure and action here applies only to it`:`No ${getBranchLabel(churchConfig).toLowerCase()} is assigned to your account yet — ask a General Overseer to assign one from Team & Access`}
+                style={{display:'flex',alignItems:'center',gap:isMobile?5:7,padding:isMobile?'4px 8px':'6px 12px',borderRadius:20,border:`0.5px solid ${userBranchId?'rgba(29,158,117,0.3)':'rgba(216,90,48,0.35)'}`,background:userBranchId?(dark?'rgba(29,158,117,0.12)':'#E1F5EE'):(dark?'rgba(216,90,48,0.12)':'#FAECE7')}}>
+                <span style={{width:7,height:7,borderRadius:'50%',background:userBranchId?'#1D9E75':'#D85A30',flexShrink:0,boxShadow:`0 0 0 3px ${userBranchId?'rgba(29,158,117,0.2)':'rgba(216,90,48,0.2)'}`}}/>
+                {!isMobile&&<span style={{fontSize:11,fontWeight:700,color:userBranchId?'#085041':'#8A3216'}}>{userBranchId?`Viewing: ${branchesList.find(b=>b.id===userBranchId)?.name || `Your ${getBranchLabel(churchConfig)}`}`:`No ${getBranchLabel(churchConfig).toLowerCase()} assigned`}</span>}
               </div>
             ) : (
               // Always rendered for overseer/general_overseer/pa/lead_tech
@@ -2440,6 +2445,25 @@ export default function DashboardPage(){
             {!isMobile&&<div style={{width:32,height:32,borderRadius:'50%',background:'#CECBF6',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:500,color:'#3C3489'}}>{userName?userName.slice(0,2).toUpperCase():'GO'}</div>}
           </div>
         </div>
+
+        {/* branch_pastor is mandatorily branch-scoped everywhere in the API
+            (resolveBranchScope, ~20 routes) — with no branch_id assigned,
+            every one of those routes fails closed (403/empty), so cells,
+            fellowships, departments, members, analytics, care, and calendar
+            all render as if this branch simply has nothing in it, with no
+            indication that the account itself is the problem. The "Viewing:
+            <branch>" badge above even falls back to a generic "Your Branch"
+            label in this state, so nothing on the page reads as broken.
+            One loud, unmissable banner beats a silent empty state on every
+            single tab. */}
+        {userRole==='branch_pastor'&&pageReady&&!userBranchId&&(
+          <div style={{margin:isMobile?'0 12px':'0 20px',marginTop:12,background:dark?'rgba(216,90,48,0.12)':'#FAECE7',border:`0.5px solid ${dark?'rgba(216,90,48,0.35)':'rgba(216,90,48,0.3)'}`,borderRadius:10,padding:'12px 16px',display:'flex',alignItems:'flex-start',gap:10}}>
+            <span style={{color:'#D85A30',flexShrink:0,marginTop:1}}><Icon name="ti-alert-triangle" size={16}/></span>
+            <div style={{fontSize:12.5,color:t.text,lineHeight:1.5}}>
+              <strong>No {getBranchLabel(churchConfig).toLowerCase()} assigned to your account.</strong> Cells, fellowships, departments, members, and reports will look empty everywhere until a General Overseer assigns one — Team &amp; Access → find your account → pick a {getBranchLabel(churchConfig).toLowerCase()} from the dropdown.
+            </div>
+          </div>
+        )}
 
         <div key={page} className="shep-tab-enter" style={{flex:1,padding:isMobile?'12px 12px calc(76px + env(safe-area-inset-bottom))':'20px',overflowY:'auto',background:'transparent',maxWidth:'100%'}}>
 

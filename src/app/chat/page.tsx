@@ -97,6 +97,7 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionGroups, setMentionGroups] = useState<MentionGroup[]>([]);
+  const mentionBoxRef = useRef<HTMLDivElement>(null);
   const composerFileRef = useRef<HTMLInputElement>(null);
   const [pollMode, setPollMode] = useState(false);
   const [pollDraft, setPollDraft] = useState<PollDraft>(emptyPollDraft());
@@ -158,6 +159,20 @@ export default function ChatPage() {
   // Thread list (previews + unread counts) refreshes on a slower cadence
   // than the open conversation itself.
   useEffect(() => { const iv = setInterval(loadThreads, 8000); return () => clearInterval(iv); }, [loadThreads]);
+
+  // Same fix as Church Feed's composer: the @mention suggestion box had no
+  // click-outside dismissal, so it just sat open over the message list
+  // until you typed past the match. Height-capped with its own scroll in
+  // the render below for the same reason (a group chat with many
+  // participants/departments could otherwise grow past the header).
+  useEffect(() => {
+    if (mentionQuery === null) return;
+    function onClickOutside(e: MouseEvent) {
+      if (mentionBoxRef.current && !mentionBoxRef.current.contains(e.target as Node)) setMentionQuery(null);
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [mentionQuery]);
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get('thread');
@@ -607,7 +622,7 @@ export default function ChatPage() {
               )}
               <div style={{ padding: 14, borderTop: `0.5px solid ${t.border}`, position: 'relative' }}>
                 {(mentionGroupCandidates.length > 0 || mentionCandidates.length > 0) && (
-                  <div style={{ ...glass, position: 'absolute', bottom: '100%', left: 14, marginBottom: 6, borderRadius: 'var(--radius-sm)', overflow: 'hidden', minWidth: 180 }}>
+                  <div ref={mentionBoxRef} style={{ ...glass, position: 'absolute', bottom: '100%', left: 14, marginBottom: 6, borderRadius: 'var(--radius-sm)', overflow: 'hidden', overflowY: 'auto', maxHeight: 220, minWidth: 180 }}>
                     {mentionGroupCandidates.map(g => (
                       <div key={`g-${g.tag}`} onClick={() => insertGroupMention(g.tag)}
                         style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', fontSize: 12, color: t.teal, fontWeight: 600, cursor: 'pointer' }}
