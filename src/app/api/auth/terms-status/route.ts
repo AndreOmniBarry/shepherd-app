@@ -20,5 +20,7 @@ export async function GET(req: Request) {
   const row = Array.isArray(rows) ? rows[0] : null;
 
   const mustAccept = !row?.terms_accepted_at || row?.terms_version !== TERMS_VERSION;
-  return NextResponse.json({ data: { authenticated: true, mustAccept, currentVersion: TERMS_VERSION }, error: null });
+  // role travels with this response so TermsGate can render the right
+  // portal-specific clauses (see getTermsSections) without a second call.
+  return NextResponse.json({ data: { authenticated: true, mustAccept, currentVersion: TERMS_VERSION, role: user.role }, error: null });
 }
