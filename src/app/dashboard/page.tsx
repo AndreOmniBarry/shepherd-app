@@ -644,6 +644,62 @@ function DataCleanupPanel({t,isMobile}: {t: Record<string,string>; isMobile?: bo
   );
 }
 
+// Blank, structure-agnostic Excel template for a church that wants help
+// importing existing records — shared with them if they need it. Gated
+// behind an explicit consent checkbox: downloading it is the "handoff"
+// moment, so it's the point where the church attests they've reviewed it
+// and that whatever they send back is on them, not SHEP.HERD, for accuracy.
+function ImportTemplatePanel({t}: {t: Record<string,string>}) {
+  const [consent, setConsent] = React.useState(false);
+  const [downloading, setDownloading] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  async function download() {
+    if (!consent) return;
+    setDownloading(true); setError('');
+    try {
+      const res = await fetch('/api/admin/import-template', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ consent: true }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json?.error?.message || 'Could not download the template.');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'shepherd-church-data-import-template.xlsx';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch { setError('Network error — nothing was downloaded.'); }
+    setDownloading(false);
+  }
+
+  return (
+    <div style={{background:t.card,borderRadius:12,border:`0.5px solid ${t.border}`,padding:'18px 20px',marginTop:14}}>
+      <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:2}}>Church Data Import Template</div>
+      <div style={{fontSize:12,color:t.sub,marginBottom:14,lineHeight:1.5}}>
+        A blank spreadsheet covering every structure type — branches, fellowships/zones/campuses, cells/districts,
+        departments, and members. Share it with a church that needs help importing their existing records.
+      </div>
+      <label style={{display:'flex',alignItems:'flex-start',gap:8,cursor:'pointer',marginBottom:12,background:t.cardInner||t.input,borderRadius:9,padding:'11px 13px'}}>
+        <input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} style={{marginTop:2,flexShrink:0}} />
+        <span style={{fontSize:12,color:t.sub,lineHeight:1.5}}>
+          I confirm this template has been reviewed and that the data eventually provided using it is accurate to
+          the best of the church&apos;s knowledge. SHEP.HERD is not liable for inaccuracies in data the church supplies.
+        </span>
+      </label>
+      {error && <div style={{background:t.coralBg,color:t.coral,borderRadius:8,padding:'8px 12px',fontSize:12,marginBottom:12}}>{error}</div>}
+      <button onClick={download} disabled={!consent||downloading}
+        style={{background:consent?t.purple:t.border,color:'#fff',border:'none',borderRadius:9,padding:'10px 18px',fontSize:13,fontWeight:700,cursor:consent&&!downloading?'pointer':'default',fontFamily:'inherit',opacity:downloading?0.7:1}}>
+        {downloading?'Downloading…':'Download template (.xlsx)'}
+      </button>
+    </div>
+  );
+}
+
 function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,string>; isMobile?: boolean; churchConfig: RoleLabelConfig; userRole?: string}) {
   // Grant/revoke a PA's access to financial/giving data is GO-only — the
   // same "overseer and general_overseer are the same effective top tier"
@@ -3778,6 +3834,7 @@ export default function DashboardPage(){
               <ChurchSettingsPanel t={t} dark={dark} userRole={userRole} onConfigSaved={(cfg)=>setChurchConfig(cfg)} />
               {['overseer','general_overseer','lead_tech'].includes(userRole) && <TeamAccessPanel t={t} isMobile={isMobile} churchConfig={churchConfig} userRole={userRole} />}
               {['general_overseer','lead_tech'].includes(userRole) && <DataCleanupPanel t={t} isMobile={isMobile} />}
+              {['general_overseer','lead_tech'].includes(userRole) && <ImportTemplatePanel t={t} />}
             </div>
           )}
           {page==='admin'&&(
