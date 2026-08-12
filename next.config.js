@@ -62,7 +62,7 @@ const nextConfig = {
               "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js needs unsafe-eval in dev
               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
               `connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL} https://api.anthropic.com wss://*.supabase.co`,
-              "img-src 'self' data: blob:",
+              `img-src 'self' data: blob: ${process.env.NEXT_PUBLIC_SUPABASE_URL}`,
               "font-src 'self' https://cdn.jsdelivr.net data:",
             ].join('; '),
           },
