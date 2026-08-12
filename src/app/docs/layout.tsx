@@ -93,6 +93,12 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
       </div>
 
+      <div style={{ borderTop: `0.5px solid ${C.border}`, padding: '20px 24px 40px' }}>
+        <div style={{ maxWidth: 1160, margin: '0 auto', textAlign: 'center', fontSize: 12.5, color: C.muted }}>
+          Can&apos;t find what you need? <a href="mailto:support@justshephrd.com" style={{ color: C.purple, fontWeight: 600, textDecoration: 'none' }}>support@justshephrd.com</a>
+        </div>
+      </div>
+
       <style>{`
         @media (max-width: 800px) {
           .shep-docs-shell { flex-direction: column; padding-top: 0 !important; }

@@ -316,6 +316,7 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1160, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div style={{ fontSize: 12.5, color: C.muted }}>© {new Date().getFullYear()} SHEP.HERD</div>
           <div style={{ display: 'flex', gap: 20 }}>
+            <a href="mailto:support@justshephrd.com" style={{ ...navLinkStyle, fontSize: 12.5, textDecoration: 'none' }}>Support</a>
             <button onClick={() => router.push('/docs')} style={{ ...navLinkStyle, fontSize: 12.5 }}>Docs</button>
             <button onClick={() => router.push('/login')} style={{ ...navLinkStyle, fontSize: 12.5 }}>Log in</button>
           </div>

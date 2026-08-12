@@ -328,7 +328,11 @@ function LoginForm() {
             ))}
           </div>
 
-          <div style={{ textAlign: 'center', marginTop: 32, fontSize: 10, color: 'rgba(255,255,255,0.12)', lineHeight: 1.6 }}>
+          <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11.5, color: 'rgba(232,229,255,0.35)' }}>
+            Trouble signing in? <a href="mailto:support@justshephrd.com" style={{ color: 'rgba(168,159,255,0.7)', fontWeight: 600, textDecoration: 'none' }}>support@justshephrd.com</a>
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: 16, fontSize: 10, color: 'rgba(255,255,255,0.12)', lineHeight: 1.6 }}>
             SHEP.HERD is proprietary software by Andre Courage Aganmwonyi-Barry.<br />
             Unauthorised access is prohibited.
           </div>
