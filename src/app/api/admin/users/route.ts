@@ -51,14 +51,14 @@ export async function PATCH(req: Request) {
     if (!admin || !ADMIN_ROLES.includes(admin.role)) {
       return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 403 });
     }
-    const { userId, action, reason, branch_id, finance_access_granted } = await req.json();
-    if (!userId || !['suspend', 'reinstate', 'set_branch', 'set_finance_access'].includes(action)) {
+    const { userId, action, reason, branch_id, finance_access_granted, full_name, email } = await req.json();
+    if (!userId || !['suspend', 'reinstate', 'set_branch', 'set_finance_access', 'edit_profile'].includes(action)) {
       return NextResponse.json({ data: null, error: { message: 'userId and a valid action are required' } }, { status: 400 });
     }
     if (action === 'suspend' && !reason?.trim()) {
       return NextResponse.json({ data: null, error: { message: 'A reason is required to suspend an account' } }, { status: 400 });
     }
-    if (!['set_branch', 'set_finance_access'].includes(action) && userId === admin.id) {
+    if (!['set_branch', 'set_finance_access', 'edit_profile'].includes(action) && userId === admin.id) {
       return NextResponse.json({ data: null, error: { message: 'You cannot suspend your own account' } }, { status: 400 });
     }
 
@@ -104,6 +104,66 @@ export async function PATCH(req: Request) {
         body: JSON.stringify({ finance_access_granted: !!finance_access_granted }),
       });
       return NextResponse.json({ data: { userId, finance_access_granted: !!finance_access_granted }, error: null });
+    }
+
+    // Data-cleanup tool: fix a user's display name and/or login email —
+    // mainly for the batch of leaders imported without a real email on file
+    // (scripts/generate_import.py fell back to slugifying their whole name,
+    // title included, into "<slug>@shepherd.app"), and for single-word or
+    // otherwise ambiguous names. Deliberately restricted tighter than every
+    // other action on this route: general_overseer/lead_tech only, not plain
+    // overseer or branch_pastor — this can touch any user in the church
+    // regardless of branch, and a login email is sensitive enough (it IS
+    // the account) that "super-admin only" is the right bar.
+    if (action === 'edit_profile') {
+      if (!['general_overseer', 'lead_tech'].includes(admin.role)) {
+        return NextResponse.json({ data: null, error: { message: 'Only a general overseer or tech admin can edit member profiles' } }, { status: 403 });
+      }
+      const trimmedName = typeof full_name === 'string' ? full_name.trim() : undefined;
+      const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : undefined;
+      if (trimmedName === undefined && normalizedEmail === undefined) {
+        return NextResponse.json({ data: null, error: { message: 'Provide a full_name or email to update' } }, { status: 400 });
+      }
+      if (trimmedName !== undefined && !trimmedName) {
+        return NextResponse.json({ data: null, error: { message: 'Name cannot be blank' } }, { status: 400 });
+      }
+      if (normalizedEmail !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        return NextResponse.json({ data: null, error: { message: 'Enter a valid email address' } }, { status: 400 });
+      }
+
+      const patch: Record<string, unknown> = {};
+      if (trimmedName !== undefined) patch.full_name = trimmedName;
+
+      if (normalizedEmail !== undefined) {
+        const dupeCheck = await fetch(
+          `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(normalizedEmail)}&id=neq.${userId}&select=id&limit=1`,
+          { headers: hdrs() }
+        ).then(r => r.json());
+        if (dupeCheck?.[0]) {
+          return NextResponse.json({ data: null, error: { message: 'Another account already uses that email' } }, { status: 409 });
+        }
+        // Login checks two places for a match (see /api/auth/login): the
+        // public.users profile row, AND Supabase Auth's own auth.users via
+        // the password grant. They must be updated together — changing only
+        // the profile row would leave the person able to be found by their
+        // new email but unable to ever authenticate with it, since Auth
+        // still only recognizes the old one.
+        const authUpdateRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+          method: 'PUT', headers: hdrs(), body: JSON.stringify({ email: normalizedEmail, email_confirm: true }),
+        });
+        if (!authUpdateRes.ok) {
+          const errText = await authUpdateRes.text().catch(() => '');
+          console.error('[PATCH /api/admin/users edit_profile] auth email update failed', authUpdateRes.status, errText);
+          return NextResponse.json({ data: null, error: { message: 'Could not update the login email — the profile was left unchanged so the two never go out of sync.' } }, { status: 502 });
+        }
+        patch.email = normalizedEmail;
+      }
+
+      await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {
+        method: 'PATCH', headers: { ...hdrs(), Prefer: 'return=minimal' },
+        body: JSON.stringify(patch),
+      });
+      return NextResponse.json({ data: { userId, ...patch }, error: null });
     }
 
     const isActive = action === 'reinstate';

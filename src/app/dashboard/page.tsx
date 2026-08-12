@@ -505,6 +505,145 @@ const CREATABLE_ROLES: {value:string;refKind:'cell'|'fellowship'|'department'|nu
   {value:'lead_tech',refKind:null},
 ];
 
+// Manual data-cleanup tool for the batch of leaders imported without a real
+// email on file — the import script fell back to slugifying their whole
+// name (title included) into "<slug>@shepherd.app", and some source rows
+// only had a single word for a name to begin with. general_overseer/
+// lead_tech only (see the matching gate on the API side): this can touch
+// any user in the church across every branch, and a login email is
+// sensitive enough that it needs the same "super-admin only" bar as
+// suspend/reinstate, not the wider set that can do things like branch
+// reassignment.
+function DataCleanupPanel({t,isMobile}: {t: Record<string,string>; isMobile?: boolean}) {
+  const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string;is_active:boolean}[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [q, setQ] = React.useState('');
+  const [onlyFlagged, setOnlyFlagged] = React.useState(true);
+  const [editing, setEditing] = React.useState<string|null>(null);
+  const [draftName, setDraftName] = React.useState('');
+  const [draftEmail, setDraftEmail] = React.useState('');
+  const [saving, setSaving] = React.useState<string|null>(null);
+  const [rowError, setRowError] = React.useState<Record<string,string>>({});
+
+  function loadUsers() {
+    setLoading(true);
+    fetch('/api/admin/users', { credentials: 'include' })
+      .then(r => r.json())
+      .then(({ data }) => setUsers(data?.users || []))
+      .finally(() => setLoading(false));
+  }
+  React.useEffect(() => { loadUsers(); }, []);
+
+  // A row is "flagged" if it still carries the auto-generated placeholder
+  // domain, or if the name is a single word — the two patterns actually
+  // seen in the imported data, not a guess.
+  function isFlagged(u: {full_name:string;email:string}) {
+    return u.email.toLowerCase().endsWith('@shepherd.app') || u.full_name.trim().split(/\s+/).length < 2;
+  }
+
+  function startEdit(u: {id:string;full_name:string;email:string}) {
+    setEditing(u.id); setDraftName(u.full_name); setDraftEmail(u.email);
+    setRowError(prev => { const next = { ...prev }; delete next[u.id]; return next; });
+  }
+
+  async function saveEdit(u: {id:string;full_name:string;email:string}) {
+    const name = draftName.trim();
+    const email = draftEmail.trim().toLowerCase();
+    if (!name) { setRowError(prev => ({ ...prev, [u.id]: 'Name cannot be blank.' })); return; }
+    setSaving(u.id);
+    try {
+      const body: Record<string,string> = { userId: u.id, action: 'edit_profile' };
+      if (name !== u.full_name) body.full_name = name;
+      if (email !== u.email) body.email = email;
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (res.ok) { setEditing(null); loadUsers(); }
+      else setRowError(prev => ({ ...prev, [u.id]: json.error?.message || 'Failed to save.' }));
+    } catch { setRowError(prev => ({ ...prev, [u.id]: 'Network error — nothing was saved.' })); }
+    setSaving(null);
+  }
+
+  const filtered = users.filter(u => {
+    if (onlyFlagged && !isFlagged(u)) return false;
+    if (!q) return true;
+    const s = q.toLowerCase();
+    return u.full_name.toLowerCase().includes(s) || u.email.toLowerCase().includes(s);
+  });
+  const flaggedCount = users.filter(isFlagged).length;
+
+  return (
+    <div style={{background:t.card,borderRadius:12,border:`0.5px solid ${t.border}`,padding:'18px 20px',marginTop:14}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,flexWrap:'wrap',gap:8}}>
+        <div>
+          <div style={{fontSize:16,fontWeight:700,color:t.text}}>Data Cleanup</div>
+          <div style={{fontSize:12,color:t.sub,marginTop:2}}>Fix a member&apos;s name or login email — mainly for leaders imported without a real email on file, where an auto-generated placeholder was used instead. Changing email updates their actual login, not just the display name.</div>
+        </div>
+        <div style={{display:'flex',gap:8,width:isMobile?'100%':undefined,flexWrap:isMobile?'wrap':undefined}}>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search name or email"
+            style={{width:isMobile?'100%':200,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',fontSize:12,background:t.input,color:t.text,outline:'none',fontFamily:'inherit'}} />
+        </div>
+      </div>
+
+      <label style={{display:'flex',alignItems:'center',gap:6,fontSize:11.5,color:t.sub,marginBottom:12,cursor:'pointer',width:'fit-content'}}>
+        <input type="checkbox" checked={onlyFlagged} onChange={e=>setOnlyFlagged(e.target.checked)} />
+        Only show flagged accounts ({flaggedCount} of {users.length} — placeholder email or single-word name)
+      </label>
+
+      {loading ? (
+        <div style={{fontSize:12,color:t.sub}}>Loading team…</div>
+      ) : filtered.length === 0 ? (
+        <div style={{fontSize:12,color:t.muted,padding:'12px 0'}}>{onlyFlagged ? 'Nothing flagged — everyone has a real-looking name and email.' : 'No matches.'}</div>
+      ) : (
+        <div style={{maxHeight:480,overflowY:'auto',display:'flex',flexDirection:'column',gap:8}}>
+          {filtered.map(u => {
+            const flagged = isFlagged(u);
+            const isEditing = editing === u.id;
+            return (
+              <div key={u.id} style={{background:t.cardInner||t.input,borderRadius:10,border:`0.5px solid ${flagged&&!isEditing?'rgba(186,117,23,0.35)':t.border}`,padding:'11px 13px'}}>
+                {isEditing ? (
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:8}}>
+                      <div>
+                        <label style={{fontSize:9.5,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',display:'block',marginBottom:3}}>Full name</label>
+                        <input value={draftName} onChange={e=>setDraftName(e.target.value)} style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'7px 9px',fontSize:12,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box'}} />
+                      </div>
+                      <div>
+                        <label style={{fontSize:9.5,color:t.muted,textTransform:'uppercase',letterSpacing:'0.4px',display:'block',marginBottom:3}}>Login email</label>
+                        <input value={draftEmail} onChange={e=>setDraftEmail(e.target.value)} type="email" style={{width:'100%',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'7px 9px',fontSize:12,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box'}} />
+                      </div>
+                    </div>
+                    {rowError[u.id] && <div style={{fontSize:11,color:t.coral}}>{rowError[u.id]}</div>}
+                    <div style={{display:'flex',gap:6}}>
+                      <button onClick={()=>saveEdit(u)} disabled={saving===u.id} style={{background:'#1D9E75',color:'#fff',border:'none',borderRadius:7,padding:'6px 14px',fontSize:11,fontWeight:600,cursor:saving===u.id?'wait':'pointer',fontFamily:'inherit'}}>{saving===u.id?'Saving…':'Save'}</button>
+                      <button onClick={()=>setEditing(null)} disabled={saving===u.id} style={{background:'transparent',border:`0.5px solid ${t.border}`,borderRadius:7,padding:'6px 14px',fontSize:11,color:t.sub,cursor:'pointer',fontFamily:'inherit'}}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:isMobile?'wrap':undefined}}>
+                    <div style={{minWidth:0}}>
+                      <div style={{display:'flex',alignItems:'center',gap:6}}>
+                        <div style={{fontSize:13,fontWeight:600,color:t.text}}>{u.full_name}</div>
+                        {flagged && <span style={{fontSize:9,fontWeight:700,color:'#BA7517',background:'#FAEEDA',borderRadius:8,padding:'2px 7px',flexShrink:0}}>NEEDS REVIEW</span>}
+                        {!u.is_active && <span style={{fontSize:9,fontWeight:700,color:t.coral,background:t.coralBg,borderRadius:8,padding:'2px 7px',flexShrink:0}}>SUSPENDED</span>}
+                      </div>
+                      <div style={{fontSize:11,color:t.sub,marginTop:2,wordBreak:'break-all'}}>{u.email}</div>
+                      <div style={{fontSize:10.5,color:t.muted,marginTop:1}}>{u.role.replace(/_/g,' ')}</div>
+                    </div>
+                    <button onClick={()=>startEdit(u)} style={{background:t.purpleBg,border:'none',borderRadius:7,padding:'6px 13px',fontSize:11,color:t.purple,cursor:'pointer',fontFamily:'inherit',fontWeight:600,flexShrink:0}}>Edit</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,string>; isMobile?: boolean; churchConfig: RoleLabelConfig; userRole?: string}) {
   // Grant/revoke a PA's access to financial/giving data is GO-only — the
   // same "overseer and general_overseer are the same effective top tier"
@@ -3602,6 +3741,7 @@ export default function DashboardPage(){
             <div>
               <ChurchSettingsPanel t={t} dark={dark} userRole={userRole} onConfigSaved={(cfg)=>setChurchConfig(cfg)} />
               {['overseer','general_overseer','lead_tech'].includes(userRole) && <TeamAccessPanel t={t} isMobile={isMobile} churchConfig={churchConfig} userRole={userRole} />}
+              {['general_overseer','lead_tech'].includes(userRole) && <DataCleanupPanel t={t} isMobile={isMobile} />}
             </div>
           )}
           {page==='admin'&&(
