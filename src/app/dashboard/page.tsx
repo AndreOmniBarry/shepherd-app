@@ -1024,7 +1024,7 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
             </div>
             <div style={{display:'flex',flexDirection:'column',gap:8}}>
               <button onClick={()=>{setShowStructureConfirm(false);doSave();}} style={{background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'10px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Yes, proceed with the change</button>
-              <button onClick={()=>{setShowStructureConfirm(false);window.open('mailto:support@shepherd.app?subject=Church%20structure%20change','_blank');}} style={{background:t.purpleBg||'#EEEDFE',color:t.purple,border:'none',borderRadius:9,padding:'10px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Contact support first</button>
+              <button onClick={()=>{setShowStructureConfirm(false);window.open('mailto:support@justshephrd.com?subject=Church%20structure%20change','_blank');}} style={{background:t.purpleBg||'#EEEDFE',color:t.purple,border:'none',borderRadius:9,padding:'10px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Contact support first</button>
               <button onClick={()=>{setShowStructureConfirm(false);setStructureType(originalStructureType);}} style={{background:'transparent',color:t.muted,border:`0.5px solid ${t.border}`,borderRadius:9,padding:'10px',fontSize:13,cursor:'pointer'}}>Cancel</button>
             </div>
           </div>

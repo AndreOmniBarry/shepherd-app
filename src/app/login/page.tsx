@@ -37,6 +37,20 @@ function LoginForm() {
         setLoading(false);
         return;
       }
+      // AppLockGate's soft-lock (idle >90s) is tracked entirely in
+      // localStorage, independent of the JWT — if that flag was already
+      // set from before the session expired, it survives a full sign-in
+      // right here and the very next page load re-shows AppLockGate's own
+      // "Welcome back, enter your password" screen on top of the real
+      // login just completed. A real credentials check right here is a
+      // strictly stronger proof of identity than AppLockGate's own
+      // password re-entry, so clear its flag now instead of demanding it
+      // again a second time.
+      try {
+        localStorage.removeItem('shepherd-locked');
+        localStorage.setItem('shepherd-last-active', String(Date.now()));
+      } catch { /* storage unavailable — AppLockGate just won't have this fixed */ }
+
       const role = json.data?.user?.role || 'cell_leader';
       const next = searchParams.get('next');
       const portal = rolePortal(role);
