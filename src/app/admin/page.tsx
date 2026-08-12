@@ -77,6 +77,65 @@ function fmtBytes(bytes: number): string {
   return `${bytes} B`;
 }
 
+// ── Small chart primitives for the Analytics tab ─────────────
+// Deliberately plain CSS bars, matching the rest of this hand-rolled
+// inline-style codebase rather than pulling in a charting library for a
+// handful of magnitude/trend views. Single hue per chart (the category
+// name is already the label, so color isn't carrying identity) — never a
+// rainbow-per-bar.
+function StatTile({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+  return (
+    <div style={{ background: C.card, border: `0.5px solid ${C.border}`, borderRadius: 12, padding: '16px 18px' }}>
+      <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 800, color: C.text, letterSpacing: '-0.5px' }}>{value}</div>
+      {sub && <div style={{ fontSize: 11.5, color: C.muted, marginTop: 3 }}>{sub}</div>}
+    </div>
+  );
+}
+
+// Ranked horizontal bars — magnitude by named category, one hue.
+function BreakdownBars({ data, color, bg, formatLabel }: { data: Record<string, number>; color: string; bg: string; formatLabel?: (k: string) => string }) {
+  const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
+  const max = Math.max(1, ...entries.map(e => e[1]));
+  if (entries.length === 0) return <div style={{ fontSize: 12, color: C.muted, padding: '8px 0' }}>No data yet.</div>;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+      {entries.map(([key, count]) => (
+        <div key={key}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 3 }}>
+            <span style={{ color: C.text, fontWeight: 500, textTransform: 'capitalize' }}>{formatLabel ? formatLabel(key) : key.replace(/_/g, ' ')}</span>
+            <span style={{ color: C.muted }}>{count}</span>
+          </div>
+          <div style={{ height: 7, borderRadius: 4, background: bg, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${(count / max) * 100}%`, borderRadius: 4, background: color, transition: 'width 0.3s ease' }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Vertical column trend — evenly spaced buckets (month or day), one hue,
+// rounded top edge, baseline-anchored. Hover shows the exact count so a
+// bar that rounds visually to zero-height is still legible.
+function TrendColumns({ data, color, labelKey, valueKey, formatLabel }: { data: Record<string, unknown>[]; color: string; labelKey: string; valueKey: string; formatLabel?: (k: string) => string }) {
+  const max = Math.max(1, ...data.map(d => Number(d[valueKey]) || 0));
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 90 }}>
+      {data.map((d, i) => {
+        const val = Number(d[valueKey]) || 0;
+        const label = String(d[labelKey]);
+        return (
+          <div key={i} title={`${formatLabel ? formatLabel(label) : label}: ${val}`}
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%', cursor: 'default' }}>
+            <div style={{ width: '100%', maxWidth: 22, height: `${Math.max(2, (val / max) * 100)}%`, background: color, borderRadius: '4px 4px 1px 1px', transition: 'height 0.3s ease' }} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 type Church = {
   id: string;
   church_name: string;
@@ -90,6 +149,17 @@ type Church = {
   is_configured: boolean;
   church_profile: Record<string, unknown>;
   created_at: string;
+};
+
+type AnalyticsData = {
+  totalChurches: number; totalUsers: number; activeUsers: number;
+  byPlan: Record<string, number>; byStatus: Record<string, number>;
+  byStructure: Record<string, number>; byCountry: Record<string, number>; byRole: Record<string, number>;
+  churchSignupTrend: { month: string; count: number }[];
+  userSignupTrend: { month: string; count: number }[];
+  usageTrend: { day: string; total: number }[];
+  usageByType: Record<string, number>;
+  mostEngagedChurches: { church_id: string; church_name: string; event_count: number }[];
 };
 
 const PLAN_COLORS: Record<string, { bg: string; color: string }> = {
@@ -112,7 +182,7 @@ export default function AdminPortal() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Church | null>(null);
   const [tab, setTab] = useState<'overview' | 'profile' | 'goals' | 'notes'>('overview');
-  const [sidebarTab, setSidebarTab] = useState<'churches' | 'billing' | 'usage' | 'alerts' | 'settings'>('churches');
+  const [sidebarTab, setSidebarTab] = useState<'churches' | 'billing' | 'usage' | 'analytics' | 'alerts' | 'settings'>('churches');
   const [usage, setUsage] = useState<ChurchUsage[]>([]);
   const [usageLoading, setUsageLoading] = useState(true);
   const [usageSort, setUsageSort] = useState<'this_month_ngn' | 'this_week_ngn' | 'projected_month_end_ngn' | 'margin_ngn'>('this_month_ngn');
@@ -124,6 +194,8 @@ export default function AdminPortal() {
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [stats, setStats] = useState({ total: 0, trial: 0, active: 0, expired: 0, growth: 0, starter: 0 });
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [sysAlerts, setSysAlerts] = useState<SystemAlert[]>([]);
   const [alertCounts, setAlertCounts] = useState({ critical: 0, medium: 0, low: 0 });
   const [alertsLoading, setAlertsLoading] = useState(true);
@@ -169,6 +241,12 @@ export default function AdminPortal() {
       .finally(() => setUsageLoading(false));
 
     loadLineItems();
+
+    fetch('/api/admin/analytics', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d?.data) setAnalytics(d.data); })
+      .catch(() => {})
+      .finally(() => setAnalyticsLoading(false));
   }, []);
 
   function loadLineItems() {
@@ -260,7 +338,7 @@ export default function AdminPortal() {
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>Lead Tech Admin</div>
         </div>
         <div style={{ padding: '16px 10px', flex: 1 }}>
-          {([{ id: 'churches' as const, label: 'Churches' }, { id: 'billing' as const, label: 'Plans & Billing' }, { id: 'usage' as const, label: 'Usage & Spend' }, { id: 'alerts' as const, label: 'Health & Alerts' }, { id: 'settings' as const, label: 'Settings' }]).map((item) => (
+          {([{ id: 'churches' as const, label: 'Churches' }, { id: 'billing' as const, label: 'Plans & Billing' }, { id: 'usage' as const, label: 'Usage & Spend' }, { id: 'analytics' as const, label: 'Analytics' }, { id: 'alerts' as const, label: 'Health & Alerts' }, { id: 'settings' as const, label: 'Settings' }]).map((item) => (
             <div key={item.id} onClick={() => setSidebarTab(item.id)}
               style={{ padding: '9px 10px', borderRadius: 7, marginBottom: 2, background: sidebarTab === item.id ? 'rgba(255,255,255,0.1)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ fontSize: 12, fontWeight: sidebarTab === item.id ? 600 : 400, color: sidebarTab === item.id ? C.white : 'rgba(255,255,255,0.45)' }}>{item.label}</div>
@@ -284,12 +362,13 @@ export default function AdminPortal() {
         {/* Header */}
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 4 }}>
-            {sidebarTab === 'churches' ? 'Church Management' : sidebarTab === 'billing' ? 'Plans & Billing' : sidebarTab === 'usage' ? 'Usage & Spend' : sidebarTab === 'alerts' ? 'Health & Alerts' : 'Settings'}
+            {sidebarTab === 'churches' ? 'Church Management' : sidebarTab === 'billing' ? 'Plans & Billing' : sidebarTab === 'usage' ? 'Usage & Spend' : sidebarTab === 'analytics' ? 'Analytics' : sidebarTab === 'alerts' ? 'Health & Alerts' : 'Settings'}
           </div>
           <div style={{ fontSize: 13, color: C.muted }}>
             {sidebarTab === 'churches' ? 'All onboarded churches, their structures, plans, and trial status'
               : sidebarTab === 'billing' ? 'Plan tier and subscription status per church'
               : sidebarTab === 'usage' ? 'Live Moshe AI and SMS/WhatsApp spend rate, per church — who\'s burning fastest and who\'s already past their included quota'
+              : sidebarTab === 'analytics' ? 'Platform growth and adoption — signups, structure/plan mix, and usage volume trend'
               : sidebarTab === 'alerts' ? 'Technical triage, checked automatically — critical issues first'
               : 'Platform-level configuration'}
           </div>
@@ -468,6 +547,81 @@ export default function AdminPortal() {
               </>
             )}
           </div>
+        </>)}
+
+        {sidebarTab === 'analytics' && (<>
+          {analyticsLoading ? (
+            <div style={{ fontSize: 13, color: C.muted, padding: '40px 0', textAlign: 'center' }}>Loading analytics…</div>
+          ) : !analytics ? (
+            <div style={{ fontSize: 13, color: C.muted, padding: '40px 0', textAlign: 'center' }}>Could not load analytics.</div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 20 }}>
+                <StatTile label="Total churches" value={analytics.totalChurches} />
+                <StatTile label="Total users" value={analytics.totalUsers} sub={`${analytics.activeUsers} active`} />
+                <StatTile label="Active rate" value={analytics.totalUsers > 0 ? `${Math.round((analytics.activeUsers / analytics.totalUsers) * 100)}%` : '—'} />
+                <StatTile label="Usage events (30d)" value={Object.values(analytics.usageByType).reduce((a, b) => a + b, 0)} sub="Moshe · SMS · WhatsApp · storage" />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14, marginBottom: 14 }}>
+                <div style={card({ padding: 18 })}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>Church signups</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>Last 6 months</div>
+                  <TrendColumns data={analytics.churchSignupTrend} color={C.purple} labelKey="month" valueKey="count" />
+                </div>
+                <div style={card({ padding: 18 })}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>User signups</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>Last 6 months, across all churches</div>
+                  <TrendColumns data={analytics.userSignupTrend} color={C.teal} labelKey="month" valueKey="count" />
+                </div>
+              </div>
+
+              <div style={{ ...card({ padding: 18 }), marginBottom: 14 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>Usage volume</div>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>usage_events per day, last 30 days — activity volume, not cost (see Usage &amp; Spend for ₦)</div>
+                <TrendColumns data={analytics.usageTrend} color={C.amber} labelKey="day" valueKey="total" formatLabel={d => new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, marginBottom: 14 }}>
+                <div style={card({ padding: 18 })}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 12 }}>Plan tier mix</div>
+                  <BreakdownBars data={analytics.byPlan} color={C.purple} bg={C.purpleBg} />
+                </div>
+                <div style={card({ padding: 18 })}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 12 }}>Subscription status</div>
+                  <BreakdownBars data={analytics.byStatus} color={C.teal} bg={C.tealBg} />
+                </div>
+                <div style={card({ padding: 18 })}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 12 }}>Structure type</div>
+                  <BreakdownBars data={analytics.byStructure} color={C.amber} bg={C.amberBg} formatLabel={k => k.replace(/_/g, ' ')} />
+                </div>
+                <div style={card({ padding: 18 })}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 12 }}>Top countries</div>
+                  <BreakdownBars data={analytics.byCountry} color={C.coral} bg={C.coralBg} />
+                </div>
+                <div style={card({ padding: 18 })}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 12 }}>Users by role</div>
+                  <BreakdownBars data={analytics.byRole} color={C.purple} bg={C.purpleBg} formatLabel={k => k.replace(/_/g, ' ')} />
+                </div>
+                <div style={card({ padding: 18 })}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>Most engaged churches</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>By usage_events volume, last 30 days</div>
+                  {analytics.mostEngagedChurches.length === 0 ? (
+                    <div style={{ fontSize: 12, color: C.muted }}>No activity yet.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      {analytics.mostEngagedChurches.map((c, i) => (
+                        <div key={c.church_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                          <span style={{ color: C.text }}><span style={{ color: C.muted, marginRight: 6 }}>{i + 1}.</span>{c.church_name}</span>
+                          <span style={{ color: C.muted, fontWeight: 600 }}>{c.event_count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </>)}
 
         {sidebarTab === 'alerts' && (<>
