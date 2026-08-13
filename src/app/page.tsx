@@ -275,7 +275,11 @@ export default function LandingPage() {
             const a = AccentColor(plan.accent);
             const featured = plan.badge !== '';
             return (
-              <div key={plan.id} className="shep-pricing-card" style={{ background: C.white, border: featured ? `1.5px solid ${a.c}` : `0.5px solid ${C.border}`, borderRadius: 16, padding: 28, position: 'relative', boxShadow: featured ? '0 16px 40px rgba(83,74,183,0.14)' : 'none' }}>
+              <div
+                key={plan.id}
+                className={`shep-pricing-card${featured ? ' shep-pricing-card--featured' : ''}`}
+                style={{ '--accent': a.c, background: C.white, border: featured ? `1.5px solid ${a.c}` : `0.5px solid ${C.border}`, borderRadius: 16, padding: 28, position: 'relative' } as any}
+              >
                 {plan.badge && <div style={{ position: 'absolute', top: -12, left: 28, background: a.c, color: C.white, fontSize: 11, fontWeight: 700, borderRadius: 20, padding: '3px 12px' }}>{plan.badge}</div>}
                 <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{plan.name}</div>
                 <div style={{ fontSize: 12.5, color: C.sub, marginBottom: 16 }}>{plan.description}</div>
@@ -291,7 +295,11 @@ export default function LandingPage() {
                     </div>
                   ))}
                 </div>
-                <button onClick={() => router.push('/setup')} style={{ width: '100%', background: featured ? a.c : C.purpleFaint, color: featured ? C.white : C.purple, border: 'none', borderRadius: 10, padding: '12px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
+                <button
+                  onClick={() => router.push('/setup')}
+                  className={`shep-plan-cta${featured ? ' shep-plan-cta--featured' : ''}`}
+                  style={{ width: '100%', border: 'none', borderRadius: 10, padding: '12px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}
+                >
                   Start free trial
                 </button>
               </div>
@@ -332,11 +340,33 @@ export default function LandingPage() {
           .shep-landing-hero-mock { width: 100%; }
         }
         .shep-pricing-card {
-          transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease;
+          box-shadow: 0 1px 2px rgba(83,74,183,0.05);
+          transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .shep-pricing-card:hover {
-          transform: translateY(-6px);
-          box-shadow: 0 20px 44px rgba(83,74,183,0.18);
+        .shep-pricing-card--featured {
+          box-shadow: 0 16px 40px rgba(83,74,183,0.14);
+        }
+        .shep-pricing-card:hover, .shep-pricing-card:active {
+          transform: translateY(-12px) scale(1.02);
+          box-shadow: 0 34px 64px rgba(83,74,183,0.28), 0 10px 22px rgba(83,74,183,0.14);
+        }
+        .shep-plan-cta {
+          background: ${C.purpleFaint};
+          color: ${C.purple};
+          transition: background 0.22s ease, color 0.22s ease, transform 0.15s ease;
+        }
+        .shep-plan-cta--featured {
+          background: var(--accent);
+          color: ${C.white};
+        }
+        .shep-pricing-card:hover .shep-plan-cta,
+        .shep-pricing-card:active .shep-plan-cta {
+          background: var(--accent);
+          color: ${C.white};
+        }
+        .shep-pricing-card:hover .shep-plan-cta--featured,
+        .shep-pricing-card:active .shep-plan-cta--featured {
+          transform: scale(1.03);
         }
       `}</style>
     </div>
