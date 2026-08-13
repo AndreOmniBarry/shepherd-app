@@ -13,7 +13,7 @@ const inter = Inter({
 });
 
 const SITE_URL = 'https://justshephrd.com';
-const SITE_TITLE = 'SHEP.HERD | The Comforters House Global';
+const SITE_TITLE = 'SHEP.HERD';
 const SITE_DESCRIPTION = 'Church management and growth intelligence platform';
 
 export const metadata: Metadata = {
