@@ -187,10 +187,10 @@ export default function LandingPage() {
             Attendance, follow-up, giving, workforce, partnership, and an AI agent that actually knows your data — one platform, scoped to your structure, from a single congregation to a multi-branch denomination.
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 22 }}>
-            <button onClick={() => router.push('/setup')} style={{ background: C.purple, color: C.white, border: 'none', borderRadius: 11, padding: '14px 26px', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 8px 24px rgba(83,74,183,0.3)' }}>
+            <button onClick={() => router.push('/setup')} className="shep-hero-cta-primary" style={{ background: C.purple, color: C.white, border: 'none', borderRadius: 11, padding: '14px 26px', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 8px 24px rgba(83,74,183,0.3)' }}>
               Start your 30-day free trial →
             </button>
-            <button onClick={() => router.push('/docs')} style={{ background: C.white, color: C.text, border: `1px solid ${C.border}`, borderRadius: 11, padding: '14px 26px', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+            <button onClick={() => router.push('/docs')} className="shep-hero-cta-secondary" style={{ background: C.white, color: C.text, border: `1px solid ${C.border}`, borderRadius: 11, padding: '14px 26px', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
               See it in action
             </button>
           </div>
@@ -338,6 +338,29 @@ export default function LandingPage() {
           .shep-landing-hero { flex-direction: column; }
           .shep-landing-hero h1 { font-size: 34px !important; }
           .shep-landing-hero-mock { width: 100%; }
+        }
+        /* Both buttons set background/color/border/box-shadow inline for
+           their resting state, which — same as the pricing cards above —
+           outranks a plain CSS :hover rule on those same properties.
+           !important is the least invasive fix here since the buttons'
+           base look is otherwise plain, one-off inline styling that isn't
+           worth hoisting into a class of its own. */
+        .shep-hero-cta-primary {
+          transition: background 0.22s ease, box-shadow 0.22s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .shep-hero-cta-primary:hover, .shep-hero-cta-primary:active {
+          background: ${C.purpleDark} !important;
+          box-shadow: 0 14px 34px rgba(83,74,183,0.42) !important;
+          transform: translateY(-3px);
+        }
+        .shep-hero-cta-secondary {
+          transition: background 0.22s ease, border-color 0.22s ease, color 0.22s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .shep-hero-cta-secondary:hover, .shep-hero-cta-secondary:active {
+          background: ${C.purpleFaint} !important;
+          border-color: ${C.purple} !important;
+          color: ${C.purple} !important;
+          transform: translateY(-3px);
         }
         .shep-pricing-card {
           box-shadow: 0 1px 2px rgba(83,74,183,0.05);
