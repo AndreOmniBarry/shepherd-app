@@ -130,13 +130,13 @@ export default function LandingPage() {
       {/* Nav */}
       <div style={{ position: 'sticky', top: 0, zIndex: 100, background: scrolled ? 'rgba(244,243,251,0.85)' : 'transparent', backdropFilter: scrolled ? 'blur(10px)' : 'none', borderBottom: scrolled ? `0.5px solid ${C.border}` : '0.5px solid transparent', transition: 'all 0.2s ease' }}>
         <div style={{ maxWidth: 1160, margin: '0 auto', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <button onClick={() => router.push('/')} style={{ display: 'flex', alignItems: 'center', gap: 9, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}>
             <div style={{ width: 30, height: 30, background: C.purple, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
               <div style={{ position: 'absolute', width: 4, height: 16, background: C.white, borderRadius: 2 }} />
               <div style={{ position: 'absolute', width: 16, height: 4, background: C.white, borderRadius: 2 }} />
             </div>
             <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.2px' }}>SHEP.HERD</span>
-          </div>
+          </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 32 }} className="shep-landing-nav-links">
             <button onClick={() => scrollTo('features')} style={navLinkStyle}>Features</button>
@@ -275,7 +275,7 @@ export default function LandingPage() {
             const a = AccentColor(plan.accent);
             const featured = plan.badge !== '';
             return (
-              <div key={plan.id} style={{ background: C.white, border: featured ? `1.5px solid ${a.c}` : `0.5px solid ${C.border}`, borderRadius: 16, padding: 28, position: 'relative', boxShadow: featured ? '0 16px 40px rgba(83,74,183,0.14)' : 'none' }}>
+              <div key={plan.id} className="shep-pricing-card" style={{ background: C.white, border: featured ? `1.5px solid ${a.c}` : `0.5px solid ${C.border}`, borderRadius: 16, padding: 28, position: 'relative', boxShadow: featured ? '0 16px 40px rgba(83,74,183,0.14)' : 'none' }}>
                 {plan.badge && <div style={{ position: 'absolute', top: -12, left: 28, background: a.c, color: C.white, fontSize: 11, fontWeight: 700, borderRadius: 20, padding: '3px 12px' }}>{plan.badge}</div>}
                 <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{plan.name}</div>
                 <div style={{ fontSize: 12.5, color: C.sub, marginBottom: 16 }}>{plan.description}</div>
@@ -330,6 +330,13 @@ export default function LandingPage() {
           .shep-landing-hero { flex-direction: column; }
           .shep-landing-hero h1 { font-size: 34px !important; }
           .shep-landing-hero-mock { width: 100%; }
+        }
+        .shep-pricing-card {
+          transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease;
+        }
+        .shep-pricing-card:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 20px 44px rgba(83,74,183,0.18);
         }
       `}</style>
     </div>

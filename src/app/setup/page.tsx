@@ -390,18 +390,20 @@ function PreviewPanel({ answers }: { answers: Record<string, Answer> }) {
 
 // ── Plan selection screen ────────────────────────────────────
 function PlanScreen({ answers, onSelect }: { answers: Record<string, Answer>; onSelect: (plan: string) => void }) {
+  const router = useRouter();
   const [selected, setSelected] = useState('growth');
   const churchName = (answers.church_name as string) || 'Your Church';
 
   return (
     <div className="shep-plan-shell" style={{ display: 'flex', minHeight: '100vh', fontFamily: 'var(--font-inter, -apple-system, Inter, sans-serif)', background: C.bg }}>
       <div className="shep-plan-main" style={{ flex: 1, padding: '48px', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 48 }}>
-          <div style={{ width: 32, height: 32, background: C.purple, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: 16, height: 16, background: C.white, borderRadius: 3 }} />
+        <button onClick={() => router.push('/')} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 48, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}>
+          <div style={{ width: 32, height: 32, background: C.purple, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
+            <div style={{ position: 'absolute', width: 4, height: 17, background: C.white, borderRadius: 2 }} />
+            <div style={{ position: 'absolute', width: 17, height: 4, background: C.white, borderRadius: 2 }} />
           </div>
           <span style={{ fontSize: 16, fontWeight: 800, color: C.purpleDark }}>SHEP.HERD</span>
-        </div>
+        </button>
 
         <div style={{ maxWidth: 560 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: C.purple, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 8 }}>One last step</div>
@@ -813,12 +815,13 @@ export default function SetupWizard() {
       <div className="shep-setup-left" style={{ width: '55%', minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '40px 52px', boxSizing: 'border-box', overflowY: 'auto' }}>
 
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 44 }}>
-          <div style={{ width: 30, height: 30, background: C.purple, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: 14, height: 14, background: C.white, borderRadius: 3 }} />
+        <button onClick={() => router.push('/')} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 44, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}>
+          <div style={{ width: 30, height: 30, background: C.purple, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
+            <div style={{ position: 'absolute', width: 4, height: 16, background: C.white, borderRadius: 2 }} />
+            <div style={{ position: 'absolute', width: 16, height: 4, background: C.white, borderRadius: 2 }} />
           </div>
           <span style={{ fontSize: 15, fontWeight: 800, color: C.purpleDark, letterSpacing: '-0.3px' }}>SHEP.HERD</span>
-        </div>
+        </button>
 
         {/* Section + progress */}
         <div style={{ marginBottom: 28 }}>
