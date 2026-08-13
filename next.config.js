@@ -55,6 +55,15 @@ const nextConfig = {
           { key: 'X-Frame-Options',         value: 'DENY' },
           { key: 'X-Content-Type-Options',  value: 'nosniff' },
           { key: 'Referrer-Policy',         value: 'strict-origin-when-cross-origin' },
+          // Tells the browser to only ever contact this host over HTTPS —
+          // including on the very first visit for anyone who types
+          // "justshephrd.com" without a scheme — for the next 2 years, and
+          // to apply that to every subdomain too. This is separate from the
+          // TLS certificate itself (see chat): that's issued and terminated
+          // by the hosting platform (Vercel), not by app code. This header
+          // only closes the plain-HTTP downgrade window that sits in front
+          // of a cert that's otherwise already working.
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
           {
             key: 'Content-Security-Policy',
             value: [
