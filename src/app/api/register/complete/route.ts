@@ -27,6 +27,41 @@ export async function POST(req: Request) {
     if (invite.used) return NextResponse.json({ data: null, error: { message: 'Invite already used' } }, { status: 410 });
     if (new Date(invite.expires_at) < new Date()) return NextResponse.json({ data: null, error: { message: 'Invite has expired' } }, { status: 410 });
 
+    // A `single`-structure church has exactly one fellowship + one cell,
+    // auto-provisioned for the founding user at bootstrap time (see
+    // bootstrapChurch in /api/settings/church-config) — but nothing sets
+    // cell_id/fellowship_id on anyone invited afterward, because the
+    // invite-creation UI never shows a cell/fellowship picker for
+    // non-cell_leader roles. Attendance submission for this structure
+    // type reads cell_id straight off the user's own row (see /cell
+    // page's fetch of /api/auth/me), so a second admin invited into a
+    // single-structure church would land with cell_id: null and be
+    // unable to record attendance at all despite being an allowed role
+    // (/api/attendance's ADMIN_ROLES check). Backfill both ids here from
+    // the church's one cell/fellowship whenever the invite didn't
+    // already carry them and the church is actually single-structure.
+    let resolvedCellId = invite.cell_id || null;
+    let resolvedFellowshipId = invite.fellowship_id || null;
+    if (!resolvedCellId && invite.church_id) {
+      const cfgRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/church_config?church_id=eq.${invite.church_id}&select=structure_type&limit=1`,
+        { headers: hdrs() }
+      );
+      const cfgData = await cfgRes.json();
+      if (cfgData?.[0]?.structure_type === 'single') {
+        const cellRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/cells?church_id=eq.${invite.church_id}&select=id,fellowship_id&limit=1`,
+          { headers: hdrs() }
+        );
+        const cellData = await cellRes.json();
+        const cell = cellData?.[0];
+        if (cell?.id) {
+          resolvedCellId = cell.id;
+          resolvedFellowshipId = resolvedFellowshipId || cell.fellowship_id || null;
+        }
+      }
+    }
+
     // Create auth user in Supabase
     const authRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
       method: 'POST',
@@ -59,8 +94,8 @@ export async function POST(req: Request) {
         email: invite.email,
         full_name: invite.full_name,
         role: invite.role,
-        cell_id: invite.cell_id || null,
-        fellowship_id: invite.fellowship_id || null,
+        cell_id: resolvedCellId,
+        fellowship_id: resolvedFellowshipId,
         department_id: invite.department_id || null,
         member_id: invite.member_id || null,
         church_id: invite.church_id || null,
