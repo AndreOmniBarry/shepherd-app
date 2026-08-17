@@ -21,6 +21,7 @@ import LoadingScreen from '@/components/LoadingScreen';
 import { CURRENCIES, formatMoney } from '@/lib/currency';
 import { COUNTRY_NAMES } from '@/lib/countries';
 import { getRoleLabel, getLeafUnitLabel, getBranchLabel, pluralizeLabel, type RoleLabelConfig } from '@/lib/church-config';
+import { useAppDialog } from '@/components/AppDialog';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -711,6 +712,7 @@ function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,s
   // support, not church leadership) even though lead_tech can otherwise
   // reach this whole panel.
   const canManageFinanceAccess = userRole === 'overseer' || userRole === 'general_overseer';
+  const { alertUser, promptUser } = useAppDialog();
   const [users, setUsers] = React.useState<{id:string;full_name:string;email:string;role:string;is_active:boolean;branch_id:string|null;branch_name:string|null;finance_access_granted?:boolean}[]>([]);
   const [invites, setInvites] = React.useState<{id:string;email:string;full_name:string;role:string;unit_name:string;branch_name:string|null;used:boolean;expired:boolean;created_at:string}[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -731,19 +733,20 @@ function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,s
   }
 
   async function doSuspend(u: {id:string;full_name:string}) {
-    const reason = window.prompt(`Reason for suspending ${u.full_name}? (required — kept as a permanent record)`);
+    const reason = await promptUser(`Reason for suspending ${u.full_name}? This is required and kept as a permanent record.`, {
+      title: 'Suspend account', placeholder: 'e.g. Demo data, policy violation…', confirmLabel: 'Suspend', required: true,
+    });
     if (reason === null) return; // cancelled
-    if (!reason.trim()) { alert('A reason is required to suspend an account.'); return; }
     setSuspending(u.id);
     try {
       const res = await fetch('/api/admin/users', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ userId: u.id, action: 'suspend', reason: reason.trim() }),
+        body: JSON.stringify({ userId: u.id, action: 'suspend', reason }),
       });
       const json = await res.json();
       if (res.ok) loadUsers();
-      else alert(json.error?.message || 'Failed to suspend account');
-    } catch { alert('Network error — account was not suspended.'); }
+      else await alertUser(json.error?.message || 'Failed to suspend account', { title: 'Suspend failed' });
+    } catch { await alertUser('Network error — account was not suspended.', { title: 'Suspend failed' }); }
     setSuspending(null);
   }
 
@@ -757,8 +760,8 @@ function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,s
       });
       const json = await res.json();
       if (res.ok) loadUsers();
-      else alert(json.error?.message || 'Failed to reinstate account');
-    } catch { alert('Network error — account was not reinstated.'); }
+      else await alertUser(json.error?.message || 'Failed to reinstate account', { title: 'Reinstate failed' });
+    } catch { await alertUser('Network error — account was not reinstated.', { title: 'Reinstate failed' }); }
     setSuspending(null);
   }
 
@@ -802,8 +805,8 @@ function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,s
       });
       const json = await res.json();
       if (res.ok && json.data) setIssued(json.data);
-      else alert(json.error?.message || 'Failed to reset password');
-    } catch { alert('Network error — password was not reset.'); }
+      else await alertUser(json.error?.message || 'Failed to reset password', { title: 'Reset failed' });
+    } catch { await alertUser('Network error — password was not reset.', { title: 'Reset failed' }); }
     setResetting(null);
   }
 
@@ -816,8 +819,8 @@ function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,s
       });
       const json = await res.json();
       if (res.ok && json.data) window.location.href = json.data.path;
-      else { alert(json.error?.message || 'Failed to log in as this user'); setLoggingInAs(null); }
-    } catch { alert('Network error — could not log in as this user.'); setLoggingInAs(null); }
+      else { await alertUser(json.error?.message || 'Failed to log in as this user', { title: 'Login as failed' }); setLoggingInAs(null); }
+    } catch { await alertUser('Network error — could not log in as this user.', { title: 'Login as failed' }); setLoggingInAs(null); }
   }
 
   const selectedRoleDef = CREATABLE_ROLES.find(r=>r.value===newRole);
@@ -864,8 +867,8 @@ function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,s
       });
       const json = await res.json();
       if (res.ok) loadUsers();
-      else alert(json.error?.message || `Failed to update ${getBranchLabel(churchConfig).toLowerCase()}`);
-    } catch { alert('Network error — assignment was not saved.'); }
+      else await alertUser(json.error?.message || `Failed to update ${getBranchLabel(churchConfig).toLowerCase()}`, { title: 'Update failed' });
+    } catch { await alertUser('Network error — assignment was not saved.', { title: 'Update failed' }); }
     setReassigningBranch(null);
   }
 
@@ -878,8 +881,8 @@ function TeamAccessPanel({t,isMobile,churchConfig,userRole}: {t: Record<string,s
       });
       const json = await res.json();
       if (res.ok) loadUsers();
-      else alert(json.error?.message || 'Failed to update financial access');
-    } catch { alert('Network error — financial access was not changed.'); }
+      else await alertUser(json.error?.message || 'Failed to update financial access', { title: 'Update failed' });
+    } catch { await alertUser('Network error — financial access was not changed.', { title: 'Update failed' }); }
     setReassigningFinance(null);
   }
 
@@ -1298,7 +1301,20 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
                     <div><label style={labelS}>Tier 2 leader title</label><input value={tier2HeadLabel} onChange={e=>setTier2HeadLabel(e.target.value)} placeholder="e.g. Cell Leader" style={inputS}/></div>
                   </div>
                 )}
-                {(structureType==='zonal'||structureType==='campus') && (
+                {/* campus only — its tier3 (the real attendance leaf under Campus →
+                    Fellowship) is the one case getLeafUnitLabel()/getBranchLabel()
+                    in church-config.ts actually read a third tier for. zonal used
+                    to show this field too, but nothing downstream ever checks
+                    structure_type==='zonal' for a third tier — District is zonal's
+                    real, working leaf unit (via tier2, same generic mechanism as
+                    cell_church/house_network) — so a zonal admin renaming "Tier 3"
+                    here silently changed a value nothing ever reads. Removed rather
+                    than wired up: a Zone commonly spans several physical locations,
+                    unlike Campus (one address, one branch), so reusing campus's
+                    branches-table trick for it would be a real semantic mismatch,
+                    not just a missing label — building zonal a genuine third tier
+                    is a separate, larger design decision. */}
+                {structureType==='campus' && (
                   <div><label style={labelS}>Tier 3 name</label><input value={tier3Label} onChange={e=>setTier3Label(e.target.value)} placeholder="e.g. Cell" style={inputS}/></div>
                 )}
                 <div style={{background:t.purpleBg,borderRadius:8,padding:'10px 14px',fontSize:12,color:t.purple}}>
@@ -2042,6 +2058,7 @@ function MergeCellsModal({t,dark,cells,onClose,onMerged}:{t:Record<string,string
 
 export default function DashboardPage(){
   const router=useRouter();
+  const { alertUser } = useAppDialog();
   const [page,setPage]=useState<NavPage>('dashboard');
   React.useEffect(()=>{ if(page==='admin') router.push('/admin'); },[page,router]);
   // Deep-link support (e.g. /dashboard?page=validation from the /update
@@ -3427,7 +3444,7 @@ export default function DashboardPage(){
                     if(!cellId)return;
                     const res=await fetch('/api/fellowship/cells',{method:'PATCH',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({cell_id:cellId,name:newName})});
                     if(res.ok){reloadCells();setSelectedCell(sc=>sc?{...sc,cell:newName}:sc);}
-                    else window.alert('Failed to rename cell.');
+                    else await alertUser('Failed to rename cell.', { title: 'Rename failed' });
                   }}
                   style={{fontSize:15,fontWeight:600,color:t.text,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'4px 8px',background:t.input,outline:'none',fontFamily:'inherit',marginBottom:6,width:'100%',boxSizing:'border-box'}} />
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} {churchConfig.tier1_label||'Fellowship'} · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>

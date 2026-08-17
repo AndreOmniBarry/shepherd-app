@@ -58,12 +58,18 @@ export const STRUCTURE_PRESETS: Record<StructureType, {
   },
   zonal: {
     label: 'Zonal Church',
-    description: 'Zones → Districts → Cells. Classical Pentecostal hierarchy for large denominations.',
+    // "Zones → Districts → Cells" is the real-world shape these
+    // denominations describe themselves with, but only two levels are
+    // actually wired up today (Zone/District, via the same generic
+    // tier1/tier2 mechanism as cell_church) — see the Tier 3 field removal
+    // in dashboard.tsx's ChurchSettingsPanel for why a third tier isn't
+    // just a missing label here.
+    description: 'Zones → Districts. Classical Pentecostal hierarchy for large denominations.',
     icon: '🗺',
     usedBy: "Winners Chapel, CAC, Deeper Life",
     tier1_label: 'Zone',
     tier2_label: 'District',
-    tier3_label: 'Cell',
+    tier3_label: null,
     tier1_head_label: 'Zonal Pastor',
     tier2_head_label: 'District Leader',
   },

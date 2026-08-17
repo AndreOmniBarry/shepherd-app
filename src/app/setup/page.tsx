@@ -138,7 +138,7 @@ const QUESTIONS: Question[] = [
   // STRUCTURE
   { id: 'structure_type', section: 'Church Structure', type: 'single', required: true, question: 'How is your church organised internally?', sub: 'Determines which portals, roles, and hierarchy appear in SHEPHERD.', options: [
     { value: 'cell_church', label: 'Fellowship → Cell → Member', sub: 'RCCG, Comforters House, city churches' },
-    { value: 'zonal', label: 'Zone → District → Cell → Member', sub: 'Winners Chapel, CAC, classical Pentecostal' },
+    { value: 'zonal', label: 'Zone → District → Member', sub: 'Winners Chapel, CAC, classical Pentecostal' },
     { value: 'campus', label: 'Campus → Fellowship → Cell → Member', sub: 'Multi-site churches' },
     { value: 'department', label: 'Department → Unit → Member', sub: 'Cathedral-style, liturgical' },
     { value: 'house_network', label: 'Network → Home Group → Member', sub: 'Organic, new-generation churches' },

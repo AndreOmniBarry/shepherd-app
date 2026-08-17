@@ -177,6 +177,14 @@ export default function CellPage() {
   const [cellName, setCellName] = useState('');
   const [cellId, setCellId] = useState<string | null>(null);
   const [leaderName, setLeaderName] = useState('');
+  // Only admin roles (overseer, general_overseer, pa, lead_tech) ever land
+  // here as a *detour* — a single-structure church's "Record Attendance"
+  // dashboard shortcut routes straight to /cell (see dashboard.tsx nav),
+  // since that structure type has no cell_leader at all. For an actual
+  // cell_leader this page already is their home base, so a "Dashboard"
+  // link back to a portal they don't have would be dead weight — only
+  // show it for the roles that actually arrived here from one.
+  const [userRole, setUserRole] = useState<string | null>(null);
   const {dark, setDark} = useTheme();
   const [isMobile, setIsMobile] = useState(false);
   const [pageReady, setPageReady] = useState(false);
@@ -217,6 +225,7 @@ export default function CellPage() {
         setCellName(data.cell_name || 'Your Cell');
         setCellId(data.cell_id || null);
         setLeaderName(data.name || '');
+        setUserRole(data.role || null);
         setPageReady(true);
         if (data.branch_id) {
           fetch('/api/branches', { credentials: 'include' }).then(r => r.json()).then(({ data: bd }) => {
@@ -402,6 +411,11 @@ export default function CellPage() {
       {/* Nav */}
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, boxShadow: dark ? '0 2px 10px rgba(0,0,0,0.35)' : '0 2px 10px rgba(31,25,71,0.10)', padding: isMobile ? 'calc(10px + env(safe-area-inset-top)) 14px 10px' : '0 20px', height: isMobile ? undefined : 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, position: 'sticky', top: 0, zIndex: 30, transform: headerHidden ? 'translateY(-100%)' : 'translateY(0)', transition: 'transform 0.25s ease' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10, minWidth: 0 }}>
+          {userRole && ['overseer', 'general_overseer', 'pa', 'lead_tech'].includes(userRole) && (
+            <button onClick={() => router.push('/dashboard')} title="Back to Dashboard" style={{ background: 'transparent', border: 'none', color: t.sub, cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 4, marginRight: isMobile ? -2 : 2, flexShrink: 0 }}>
+              <Icon name="ti-arrow-left" size={17} strokeWidth={2.2} />
+            </button>
+          )}
           {!isMobile && (
             <div style={{ width: 24, height: 24, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ position: 'absolute', width: 3, height: 17, background: '#A89FFF', borderRadius: 2 }} />

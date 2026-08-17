@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/Icon';
 import { SkeletonRow } from '@/components/Skeleton';
+import { useAppDialog } from '@/components/AppDialog';
 
 type ChurchEvent = {
   id: string; title: string; event_type: string; event_date: string; end_date: string | null; start_time: string | null;
@@ -22,6 +23,7 @@ type EventStats = ChurchEvent & { registrations: number; attended: number; expec
 const EVENT_TYPES = ['programme','conference','vigil','concert','outreach','training','thanksgiving','dedication','other'];
 
 export default function EventsPanel({ t, isMobile = false }: { t: Record<string, string>; isMobile?: boolean }) {
+  const { alertUser, confirmUser } = useAppDialog();
   const [events, setEvents] = useState<ChurchEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
@@ -93,7 +95,10 @@ export default function EventsPanel({ t, isMobile = false }: { t: Record<string,
   // event and its registrants are still there if you ever need them for
   // history — just toggle "Show cancelled" to see them again.
   async function deleteEvent(ev: ChurchEvent) {
-    if (!window.confirm(`Delete "${ev.title}"? It will disappear from every calendar and the events list immediately. Past registrant and attendance data is kept for your records — this isn't a full erase.`)) return;
+    const ok = await confirmUser(`It will disappear from every calendar and the events list immediately. Past registrant and attendance data is kept for your records — this isn't a full erase.`, {
+      title: `Delete "${ev.title}"?`, confirmLabel: 'Delete', tone: 'danger',
+    });
+    if (!ok) return;
     setDeletingId(ev.id);
     try {
       const res = await fetch('/api/events', {
@@ -103,8 +108,8 @@ export default function EventsPanel({ t, isMobile = false }: { t: Record<string,
       if (res.ok) {
         loadEvents();
         if (selected?.id === ev.id) setSelected(null);
-      } else alert('Failed to delete event');
-    } catch { alert('Network error — event was not deleted.'); }
+      } else await alertUser('Failed to delete event', { title: 'Delete failed' });
+    } catch { await alertUser('Network error — event was not deleted.', { title: 'Delete failed' }); }
     setDeletingId(null);
   }
 

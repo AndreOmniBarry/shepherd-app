@@ -15,6 +15,7 @@ import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 import ChatNavButton from '@/components/ChatNavButton';
 import LoadingScreen from '@/components/LoadingScreen';
 import ThemeToggle from '@/components/ThemeToggle';
+import { useAppDialog } from '@/components/AppDialog';
 import { gradeColors } from '@/lib/sla';
 
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -68,6 +69,7 @@ const ABSENCE_REASONS = [
 
 export default function DepartmentHeadPage() {
   const router = useRouter();
+  const { alertUser, promptUser } = useAppDialog();
   const { config: churchConfig } = useChurchConfigStandalone();
   const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'roster' | 'serving' | 'birthdays' | 'events'>('overview');
   const {dark, setDark} = useTheme();
@@ -164,19 +166,21 @@ export default function DepartmentHeadPage() {
       body: JSON.stringify({ member_id: memberId }),
     });
     if (res.ok) { loadMembers(); setAddSearch(''); setAddResults([]); }
-    else window.alert('Failed to add member.');
+    else await alertUser('Failed to add member.', { title: 'Add failed' });
     setAddingId(null);
   }
 
   async function recommendRemoval(memberId: string, memberName: string) {
-    const reason = window.prompt(`Reason for recommending ${memberName}'s removal (sent to the PA for approval):`);
-    if (!reason?.trim()) return;
+    const reason = await promptUser(`Reason for recommending ${memberName}'s removal — sent to the PA for approval.`, {
+      title: 'Recommend removal', placeholder: 'Reason for removal…', confirmLabel: 'Send for approval', required: true,
+    });
+    if (!reason) return;
     const res = await fetch('/api/update/member-removals', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-      body: JSON.stringify({ member_id: memberId, reason: reason.trim() }),
+      body: JSON.stringify({ member_id: memberId, reason }),
     });
-    if (res.ok) window.alert(`Removal recommendation for ${memberName} sent for approval.`);
-    else { const e = await res.json().catch(() => ({})); window.alert(e?.error?.message || 'Failed to submit.'); }
+    if (res.ok) await alertUser(`Removal recommendation for ${memberName} sent for approval.`, { title: 'Sent' });
+    else { const e = await res.json().catch(() => ({})); await alertUser(e?.error?.message || 'Failed to submit.', { title: 'Submit failed' }); }
   }
 
   useEffect(() => {

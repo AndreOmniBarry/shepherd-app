@@ -7,6 +7,7 @@ import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import ThemeToggle from '@/components/ThemeToggle';
 import Icon from '@/components/Icon';
+import { useAppDialog } from '@/components/AppDialog';
 
 type Member = {
   id: string;
@@ -54,6 +55,7 @@ type FellowshipCell = { id: string; name: string; leader_name: string; member_co
 
 export default function UpdatePage() {
   const router = useRouter();
+  const { alertUser } = useAppDialog();
   const {dark, setDark} = useTheme();
   const headerHidden = useHeaderVisibility();
   const [isMobile, setIsMobile] = useState(false);
@@ -774,7 +776,7 @@ export default function UpdatePage() {
                         if (!newName || newName === c.name) return;
                         const res = await fetch('/api/fellowship/cells', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ cell_id: c.id, name: newName }) });
                         if (res.ok) reloadFellowshipCells();
-                        else window.alert('Failed to rename cell.');
+                        else await alertUser('Failed to rename cell.', { title: 'Rename failed' });
                       }}
                       style={{ fontSize: 12, fontWeight: 500, color: t.text, border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '4px 8px', background: t.input, outline: 'none', fontFamily: 'inherit' }} />
                   ) : (
@@ -852,8 +854,8 @@ export default function UpdatePage() {
                         const res = await fetch('/api/admin/cells/merge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ source_cell_ids: Array.from(collapseSources), target_cell_id: collapseTarget }) });
                         const json = await res.json();
                         if (res.ok) { setCollapseResult(json.data); reloadFellowshipCells(); reloadMembers(); }
-                        else window.alert(json.error?.message || 'Failed to collapse cells.');
-                      } catch { window.alert('Network error.'); }
+                        else await alertUser(json.error?.message || 'Failed to collapse cells.', { title: 'Collapse failed' });
+                      } catch { await alertUser('Network error.', { title: 'Collapse failed' }); }
                       setCollapsing(false);
                     }}
                     disabled={collapsing || !collapseTarget || collapseSources.size === 0}
