@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import ChatNavButton from '@/components/ChatNavButton';
 import LoadingScreen from '@/components/LoadingScreen';
 import ThemeToggle from '@/components/ThemeToggle';
+import { useAppDialog } from '@/components/AppDialog';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar
@@ -135,6 +136,7 @@ function FellowshipApprovalPanel({t, dark}: {t: Record<string,string>; dark: boo
 export default function FellowshipHeadPage() {
   const { config: churchConfig } = useChurchConfigStandalone();
   const router = useRouter();
+  const { alertUser, promptUser } = useAppDialog();
   const [tab, setTab] = useState<NavTab>('overview');
   const {dark, setDark} = useTheme();
   const headerHidden = useHeaderVisibility();
@@ -272,14 +274,16 @@ export default function FellowshipHeadPage() {
   }
 
   async function recommendRemoval(memberId: string, memberName: string) {
-    const reason = window.prompt(`Reason for recommending ${memberName}'s removal (sent to the PA for approval):`);
-    if (!reason?.trim()) return;
+    const reason = await promptUser(`Reason for recommending ${memberName}'s removal — sent to the PA for approval.`, {
+      title: 'Recommend removal', placeholder: 'Reason for removal…', confirmLabel: 'Send for approval', required: true,
+    });
+    if (!reason) return;
     const res = await fetch('/api/update/member-removals', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-      body: JSON.stringify({ member_id: memberId, reason: reason.trim() }),
+      body: JSON.stringify({ member_id: memberId, reason }),
     });
-    if (res.ok) window.alert(`Removal recommendation for ${memberName} sent for approval.`);
-    else { const e = await res.json().catch(() => ({})); window.alert(e?.error?.message || 'Failed to submit.'); }
+    if (res.ok) await alertUser(`Removal recommendation for ${memberName} sent for approval.`, { title: 'Sent' });
+    else { const e = await res.json().catch(() => ({})); await alertUser(e?.error?.message || 'Failed to submit.', { title: 'Submit failed' }); }
   }
 
   // ── Computed stats ───────────────────────────────────────────
@@ -501,7 +505,7 @@ export default function FellowshipHeadPage() {
                         if (!newName || newName === selectedCell.name) return;
                         const res = await fetch('/api/fellowship/cells', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ cell_id: selectedCell.id, name: newName }) });
                         if (res.ok) { setCells(cs => cs.map(c => c.id === selectedCell.id ? { ...c, name: newName } : c)); setSelectedCell(sc => sc ? { ...sc, name: newName } : sc); }
-                        else window.alert('Failed to rename cell.');
+                        else await alertUser('Failed to rename cell.', { title: 'Rename failed' });
                       }}
                       style={{ fontSize: 15, fontWeight: 700, color: t.text, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '4px 8px', background: t.input, outline: 'none', fontFamily: 'inherit' }} />
                   </div>
@@ -699,7 +703,7 @@ export default function FellowshipHeadPage() {
                         const cellId = e.target.value; if (!cellId) return;
                         const res = await fetch('/api/fellowship/members', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ member_id: m.id, cell_id: cellId }) });
                         if (res.ok) { const newCell = cells.find(c => c.id === cellId); setMembers(ms => ms.map(x => x.id === m.id ? { ...x, cell_name: newCell?.name || x.cell_name } : x)); }
-                        else window.alert('Failed to move member.');
+                        else await alertUser('Failed to move member.', { title: 'Move failed' });
                         e.target.value = '';
                       }} style={{ flex: 1, fontSize: 11, border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '6px', background: t.input, color: t.sub, outline: 'none' }}>
                         <option value="">Move to cell...</option>
@@ -742,7 +746,7 @@ export default function FellowshipHeadPage() {
                           const cellId = e.target.value; if (!cellId) return;
                           const res = await fetch('/api/fellowship/members', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ member_id: m.id, cell_id: cellId }) });
                           if (res.ok) { const newCell = cells.find(c => c.id === cellId); setMembers(ms => ms.map(x => x.id === m.id ? { ...x, cell_name: newCell?.name || x.cell_name } : x)); }
-                          else window.alert('Failed to move member.');
+                          else await alertUser('Failed to move member.', { title: 'Move failed' });
                           e.target.value = '';
                         }} style={{ fontSize: 11, border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '3px 6px', background: t.input, color: t.sub, outline: 'none' }}>
                           <option value="">Move to cell...</option>
