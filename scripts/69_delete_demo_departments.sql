@@ -35,8 +35,16 @@ SELECT
   (SELECT count(*) FROM demo_dept_ids) AS departments_to_delete,
   (SELECT count(*) FROM department_members WHERE department_id IN (SELECT id FROM demo_dept_ids)) AS department_members_rows,
   (SELECT count(*) FROM users WHERE department_id IN (SELECT id FROM demo_dept_ids)) AS user_rows,
-  (SELECT count(*) FROM department_attendance_entries WHERE department_id IN (SELECT id FROM demo_dept_ids)) AS attendance_entry_rows,
+  -- department_id lives on department_attendance (one row per
+  -- service+department) — department_attendance_entries only has
+  -- record_id/member_id, no department_id of its own, which is what
+  -- broke the first version of this query.
+  (SELECT count(*) FROM department_attendance WHERE department_id IN (SELECT id FROM demo_dept_ids)) AS attendance_record_rows,
   (SELECT count(*) FROM workforce_profiles WHERE primary_department_id IN (SELECT id FROM demo_dept_ids)) AS workforce_profile_rows,
+  -- Missing from the first version entirely — confirmed real via
+  -- scripts/34_merge_choir_into_music.sql, the repo's own proven pattern
+  -- for a department merge/delete.
+  (SELECT count(*) FROM workforce_rosters WHERE department_id IN (SELECT id FROM demo_dept_ids)) AS workforce_roster_rows,
   (SELECT count(*) FROM member_additions WHERE department_id IN (SELECT id FROM demo_dept_ids)) AS pending_import_rows,
   (SELECT count(*) FROM invites WHERE department_id IN (SELECT id FROM demo_dept_ids) AND used = false) AS unused_invite_rows;
 
