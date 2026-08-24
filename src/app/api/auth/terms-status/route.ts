@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { TERMS_VERSION } from '@/lib/terms-content';
+import { DEMO_USER_IDS } from '@/lib/demo-accounts';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -14,6 +15,16 @@ const hdrs = () => ({ apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}
 export async function GET(req: Request) {
   const user = await getAuthUser(req);
   if (!user) return NextResponse.json({ data: { authenticated: false, mustAccept: false }, error: null });
+
+  // A "preview a portal" session (see /api/admin/impersonate) is a fixed
+  // synthetic id, not a real person — there's no one there to actually
+  // agree to anything. It also can't accept even if shown the gate:
+  // middleware blocks every write from these ids (by design, to keep
+  // preview sessions read-only), including the accept-terms POST, which
+  // would otherwise trap the preview behind a modal it can never dismiss.
+  if (DEMO_USER_IDS.has(user.id)) {
+    return NextResponse.json({ data: { authenticated: true, mustAccept: false, currentVersion: TERMS_VERSION, role: user.role }, error: null });
+  }
 
   const res = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=terms_accepted_at,terms_version&limit=1`, { headers: hdrs() });
   const rows = await res.json().catch(() => []);
