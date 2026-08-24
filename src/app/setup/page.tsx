@@ -639,7 +639,25 @@ export default function SetupWizard() {
   }, [qIndex]);
 
   function saveAnswer(val: Answer) {
-    setAnswers(prev => ({ ...prev, [question.id]: val }));
+    setAnswers(prev => {
+      // Changing the church-structure pick after already visiting the
+      // tier-label questions (e.g. picking Zonal, answering "Zone" /
+      // "District" / "Zonal Pastor" / "District Leader", then going back
+      // and switching to Cell Church) left those labels stuck on the old
+      // structure's terms — the auto-fill effect below only ever fills a
+      // tier-label field once (`if (!answers.tier1_label)`), so it never
+      // re-fires once an answer is already saved, even though the
+      // structure it was derived from no longer matches. Clearing the
+      // four dependent answers here means they're unset again and the
+      // auto-fill picks fresh, correct defaults for whatever structure is
+      // now selected — same behavior as if this were the first time
+      // reaching those questions.
+      if (question.id === 'structure_type' && prev.structure_type !== val) {
+        const { tier1_label, tier2_label, tier1_head_label, tier2_head_label, ...rest } = prev;
+        return { ...rest, [question.id]: val };
+      }
+      return { ...prev, [question.id]: val };
+    });
   }
 
   function currentAnswer(): Answer { return answers[question.id] ?? null; }
