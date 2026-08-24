@@ -1,0 +1,143 @@
+import type { MockupKind } from '@/components/GuideMockup';
+
+export type GuideEntry = {
+  id: string;
+  icon: string; // an Icon.tsx name, e.g. 'ti-calendar-check'
+  title: string;
+  blurb: string; // one line, shown in the first-time tour
+  steps: string[]; // "Go here > click here" style, shown in the Help panel
+  mockup: MockupKind;
+  mockupLabels?: string[];
+};
+
+export type PortalKey = 'dashboard' | 'cell' | 'fellowship' | 'department' | 'care' | 'accounts' | 'partnership' | 'workforce';
+
+export const PORTAL_TITLE: Record<PortalKey, string> = {
+  dashboard: 'Your Dashboard',
+  cell: 'Your Cell Portal',
+  fellowship: 'Your Fellowship Portal',
+  department: 'Your Department Portal',
+  care: 'Care & Follow-Up',
+  accounts: 'Accounts Portal',
+  partnership: 'Partnership Portal',
+  workforce: 'Workforce Portal',
+};
+
+export const GUIDE_CONTENT: Record<PortalKey, GuideEntry[]> = {
+  dashboard: [
+    { id: 'overview', icon: 'ti-layout-dashboard', title: 'Dashboard', blurb: 'A quick summary of what matters most, the moment you log in.', mockup: 'chart', mockupLabels: ['This week at a glance'],
+      steps: ['Tap Dashboard in the menu.', 'See attendance, giving, and growth numbers for the period shown.', 'Tap any tile to jump straight to that section for more detail.'] },
+    { id: 'action-board', icon: 'ti-alert-triangle', title: 'Action Board', blurb: 'Flags what needs a decision now, before it becomes a bigger problem.', mockup: 'board', mockupLabels: ['Needs attention', 'On track'],
+      steps: ['Tap Action Board in the menu.', 'Review anything flagged — a quiet cell, a short-staffed department, a member drifting from attendance.', 'Tap an item to open it and take action directly.'] },
+    { id: 'members', icon: 'ti-users', title: 'Members', blurb: 'Every member across the church, searchable in seconds.', mockup: 'split',
+      steps: ['Tap Members in the menu.', 'Type a name into the search box to narrow the list.', 'Tap a name to see contact details, group, and attendance history.', 'Use "Add Member" to create a new record — it may need approval depending on your church\'s settings.'] },
+    { id: 'departments', icon: 'ti-building', title: 'Departments', blurb: 'Every ministry team, who leads it, and how it\'s doing.', mockup: 'list', mockupLabels: ['Choir', 'Ushering', 'Media'],
+      steps: ['Tap Departments in the menu.', 'See each department with its head and member count.', 'Tap a department to view its full roster and attendance history.'] },
+    { id: 'attendance', icon: 'ti-calendar-check', title: 'Attendance', blurb: 'Church-wide attendance trends, without digging through individual cells.', mockup: 'chart',
+      steps: ['Tap Attendance in the menu.', 'View overall attendance trends and rates across every group.', 'Use this for oversight — individual cells submit their own attendance from their own portal.'] },
+    { id: 'structure', icon: 'ti-circles', title: 'Church Structure', blurb: 'How your church is organized, and how each group is performing.', mockup: 'tree',
+      steps: ['Tap the group section in the menu (its name matches how your church is set up — Fellowships, Zones, or similar).', 'See every group with its leader, size, and a letter grade for consistency.', 'Tap a group to see its own members and attendance history.'] },
+    { id: 'validate', icon: 'ti-checkbox', title: 'Validate Records', blurb: 'Confirm new members and record changes before they\'re treated as final.', mockup: 'form', mockupLabels: ['New member', 'Cell change'],
+      steps: ['Tap Validate Records in the menu.', 'Review each item waiting for confirmation.', 'Approve if correct, or flag it if something looks wrong.'] },
+    { id: 'giving', icon: 'ti-coin', title: 'Giving', blurb: 'Record tithes and offerings from each service — for the church\'s own records.', mockup: 'form', mockupLabels: ['Service date', 'Tithe amount'],
+      steps: ['Tap Giving in the menu.', 'Choose the service date.', 'Enter amounts under the right categories.', 'Tap Submit to save the record.'] },
+    { id: 'requisitions', icon: 'ti-receipt', title: 'Requisitions', blurb: 'Request funds for a ministry need, with a clear approval trail.', mockup: 'form', mockupLabels: ['What it\'s for', 'Amount'],
+      steps: ['Tap Requisitions in the menu.', 'Describe what the funds are for and the amount.', 'Submit — it\'s routed to whoever approves requests at your church.', 'Track its status (Pending, Approved, Declined) on the same screen.'] },
+    { id: 'recognition', icon: 'ti-trophy', title: 'Recognition', blurb: 'Formally celebrate a leader for outstanding work.', mockup: 'chat', mockupLabels: ['Thank you for your faithfulness this quarter!'],
+      steps: ['Tap Recognition in the menu.', 'Choose the leader you want to recognize.', 'Write a short message.', 'Tap Send — they receive it immediately as a notification.'] },
+    { id: 'prayer', icon: 'ti-heart', title: 'Prayer Requests', blurb: 'See and respond to prayer requests submitted across the church.', mockup: 'list', mockupLabels: ['Healing for a family member', 'New job'],
+      steps: ['Tap Prayer Requests in the menu.', 'Open a request to see its details.', 'Mark it "Prayed" once your team has prayed over it.'] },
+    { id: 'care', icon: 'ti-heart-handshake', title: 'Care & Follow-up', blurb: 'Members who\'ve missed a few services, so someone can reach out.', mockup: 'list', mockupLabels: ['Missed 3 services'],
+      steps: ['Tap Care & Follow-up in the menu.', 'Review members needing attention, sorted by how long since they were last seen.', 'After reaching out, log what happened so the whole team stays in the loop.'] },
+    { id: 'workforce', icon: 'ti-user-check', title: 'Workforce', blurb: 'Who\'s serving on which team, and when.', mockup: 'calendar',
+      steps: ['Tap Workforce in the menu.', 'Build a schedule by choosing a date, a team, and assigning members.', 'The screen flags anyone overcommitted, or a team with a gap still needing filling.'] },
+    { id: 'events', icon: 'ti-calendar-event', title: 'Events & Calendar', blurb: 'One shared calendar for every church program.', mockup: 'calendar', mockupLabels: ['Sunday Service — 9:00 AM'],
+      steps: ['Tap Calendar to see everything coming up.', 'Tap any event for full details.', 'Use Events & Service Planning to create a new one — date, description, and whether people register.'] },
+    { id: 'feed', icon: 'ti-speakerphone', title: 'Church Feed', blurb: 'A shared wall for announcements the whole church can see and react to.', mockup: 'chat', mockupLabels: ['Sunday was amazing! 🙏'],
+      steps: ['Tap Church Feed in the menu.', 'Scroll to see recent posts, and react or comment on any of them.', 'Share an update yourself if your role allows posting.'] },
+    { id: 'chat', icon: 'ti-message-circle', title: 'Chat', blurb: 'Private messaging, one-on-one or in groups.', mockup: 'chat', mockupLabels: ['See you Sunday!', 'Confirmed 👍'],
+      steps: ['Tap the chat icon at the top of any screen.', 'Choose an existing conversation or start a new one.', 'Type your message and send.'] },
+    { id: 'reports', icon: 'ti-chart-bar', title: 'Reports', blurb: 'Attendance and growth trends, without digging through raw records.', mockup: 'chart',
+      steps: ['Tap Reports in the menu.', 'Choose what you\'d like to see — attendance, growth, or another summary.', 'Export as a spreadsheet where available.'] },
+    { id: 'team', icon: 'ti-users', title: 'Team & Access', blurb: 'Invite a new leader — they set their own password from a private link.', mockup: 'form', mockupLabels: ['Name', 'Email', 'Role'],
+      steps: ['Tap Settings, then Team & Access.', 'Tap Invite Team Member and fill in their details and role.', 'Send them the link shown, however you\'d normally reach them.'] },
+    { id: 'settings', icon: 'ti-settings', title: 'Church Settings', blurb: 'Your church\'s name, structure, and the words the app uses for each level.', mockup: 'tree',
+      steps: ['Tap Settings, then Church Settings.', 'Rename any term to match how your church already talks about itself — every screen updates to match.'] },
+  ],
+  cell: [
+    { id: 'attendance', icon: 'ti-calendar-check', title: 'Attendance', blurb: 'The task you\'ll use every week — mark who was present.', mockup: 'form', mockupLabels: ['Service date', 'Mark present / absent'],
+      steps: ['Tap Attendance in the menu.', 'Choose the service date.', 'Mark each member Present or Absent, and add visitor count.', 'Tap Submit — you\'ll see your cell\'s attendance rate immediately.'] },
+    { id: 'members', icon: 'ti-users', title: 'Members', blurb: 'Everyone in your cell, with their contact details.', mockup: 'split',
+      steps: ['Tap Members in the menu.', 'Search or scroll to find someone.', 'Tap a name to see their details and attendance history.'] },
+    { id: 'prayer', icon: 'ti-heart', title: 'Prayer Requests', blurb: 'Requests from your members, ready for you to pray over.', mockup: 'list', mockupLabels: ['Healing for my mother'],
+      steps: ['Tap Prayer Requests in the menu.', 'Open a request and mark it Prayed once addressed.'] },
+    { id: 'meetings', icon: 'ti-calendar-event', title: 'Cell Meetings', blurb: 'Log what happened at your last meeting, beyond attendance numbers.', mockup: 'form', mockupLabels: ['What we covered'],
+      steps: ['Tap Meetings in the menu.', 'Add a short note on your last gathering.'] },
+    { id: 'history', icon: 'ti-chart-bar', title: 'Attendance History', blurb: 'How your cell has trended over the past several weeks.', mockup: 'chart',
+      steps: ['Tap History (or scroll down on Attendance) to see your trend line.', 'Use it to spot a dip early, before it becomes a pattern.'] },
+    { id: 'feed', icon: 'ti-speakerphone', title: 'Church Feed', blurb: 'See church-wide announcements and share your own updates.', mockup: 'chat', mockupLabels: ['Great turnout this week!'],
+      steps: ['Tap Church Feed in the menu.', 'React or comment on posts, or share your own.'] },
+    { id: 'chat', icon: 'ti-message-circle', title: 'Chat', blurb: 'Message your Fellowship Head or your members directly.', mockup: 'chat',
+      steps: ['Tap the chat icon at the top.', 'Choose a conversation or start a new one.'] },
+  ],
+  fellowship: [
+    { id: 'overview', icon: 'ti-circles', title: 'Cells Overview', blurb: 'Every cell under your Fellowship, and how each is doing.', mockup: 'list', mockupLabels: ['Overcomers Cell', 'Grace Cell'],
+      steps: ['Tap Overview in the menu.', 'See each cell with its leader, size, and grade.', 'Tap a cell for its full detail and history.'] },
+    { id: 'members', icon: 'ti-users', title: 'Members', blurb: 'Everyone across your whole Fellowship in one list.', mockup: 'split',
+      steps: ['Tap Members in the menu.', 'Search or filter by cell.', 'Move a member between cells directly from their row.'] },
+    { id: 'cells-manage', icon: 'ti-building', title: 'Managing Cells', blurb: 'Rename a cell, or merge two small cells into one.', mockup: 'board', mockupLabels: ['Keep', 'Merge in'],
+      steps: ['Open a cell and tap its name to rename it.', 'Use "Create a new cell" to add one.', 'Use "Collapse cells" to merge smaller cells together.'] },
+    { id: 'history', icon: 'ti-chart-bar', title: 'Attendance & SLA', blurb: 'A grade for each cell showing how consistently it\'s reporting.', mockup: 'chart',
+      steps: ['Open any cell to see its attendance trend and current grade.', 'Use this to spot which cells need support.'] },
+    { id: 'prayer', icon: 'ti-heart', title: 'Prayer Requests', blurb: 'Requests submitted across your Fellowship.', mockup: 'list',
+      steps: ['Tap Prayer Requests in the menu.', 'Mark requests Prayed once addressed.'] },
+    { id: 'removal', icon: 'ti-user-check', title: 'Recommend Removal', blurb: 'Flag a member for removal, with a reason, for approval.', mockup: 'form', mockupLabels: ['Reason for removal'],
+      steps: ['Open the member\'s row and tap Remove.', 'Give a reason — it\'s sent to your PA for approval.'] },
+    { id: 'feed', icon: 'ti-speakerphone', title: 'Church Feed & Chat', blurb: 'Stay connected with the wider church.', mockup: 'chat',
+      steps: ['Tap Church Feed or the chat icon at the top to connect with others.'] },
+  ],
+  department: [
+    { id: 'roster', icon: 'ti-users', title: 'Your Roster', blurb: 'Everyone on your ministry team.', mockup: 'split',
+      steps: ['Tap Roster in the menu.', 'Search existing members to add them to your team.', 'Tap a name to see their details.'] },
+    { id: 'attendance', icon: 'ti-calendar-check', title: 'Attendance', blurb: 'Track who served, service by service.', mockup: 'form', mockupLabels: ['Service date'],
+      steps: ['Tap Attendance in the menu.', 'Choose the service date and mark who was present.', 'Submit to save the record.'] },
+    { id: 'removal', icon: 'ti-user-check', title: 'Recommend Removal', blurb: 'Flag a team member for removal, with a reason.', mockup: 'form', mockupLabels: ['Reason for removal'],
+      steps: ['Open the member\'s row and tap Remove.', 'Give a reason — it\'s sent to your PA for approval.'] },
+    { id: 'serving', icon: 'ti-user-check', title: 'Serving Schedule', blurb: 'Who\'s scheduled to serve, and when.', mockup: 'calendar',
+      steps: ['Tap Serving in the menu.', 'Assign members to upcoming services.'] },
+    { id: 'events', icon: 'ti-calendar-event', title: 'Events', blurb: 'See what\'s coming up for your team to prepare for.', mockup: 'calendar',
+      steps: ['Tap Calendar to see upcoming programs your team is involved in.'] },
+    { id: 'chat', icon: 'ti-message-circle', title: 'Chat & Feed', blurb: 'Coordinate with your team and stay in the loop church-wide.', mockup: 'chat',
+      steps: ['Use Chat to message your team directly, or Church Feed for wider updates.'] },
+  ],
+  care: [
+    { id: 'queue', icon: 'ti-heart-handshake', title: 'Follow-Up Queue', blurb: 'Members who need a call or a visit, sorted by urgency.', mockup: 'list', mockupLabels: ['Missed 3 services'],
+      steps: ['Tap Follow-up in the menu.', 'Open a member to see contact details and history.', 'After reaching out, log what happened so the team stays coordinated.'] },
+    { id: 'birthdays', icon: 'ti-cake', title: 'Birthdays', blurb: 'Never miss a birthday — see who\'s celebrating this month.', mockup: 'list', mockupLabels: ['Ada — Aug 24'],
+      steps: ['Tap Birthdays in the menu.', 'See everyone celebrating this month, ready for a message or call.'] },
+    { id: 'events', icon: 'ti-calendar-event', title: 'Care Events', blurb: 'Visitation drives, welfare programs, and similar care activities.', mockup: 'calendar',
+      steps: ['Tap Care Events to see or log care-related activities.'] },
+  ],
+  accounts: [
+    { id: 'giving', icon: 'ti-coin', title: 'Giving Records', blurb: 'Every tithe and offering, recorded and organized.', mockup: 'form', mockupLabels: ['Service date', 'Amount'],
+      steps: ['Tap Giving in the menu.', 'Choose the service date and enter amounts by category.', 'Submit to save the record.'] },
+    { id: 'periods', icon: 'ti-history', title: 'Financial Periods', blurb: 'Giving totals broken down by month or quarter.', mockup: 'chart',
+      steps: ['Tap Financial Periods to see totals over time.', 'Use this for reporting to leadership.'] },
+    { id: 'calculator', icon: 'ti-coin', title: 'Calculator', blurb: 'A quick built-in calculator for totals and splits.', mockup: 'form', mockupLabels: ['Amount'],
+      steps: ['Tap the calculator icon whenever you need to total figures without leaving the screen.'] },
+  ],
+  partnership: [
+    { id: 'bands', icon: 'ti-star', title: 'Partnership Bands', blurb: 'Your church\'s external partners, organized by giving level.', mockup: 'list', mockupLabels: ['Gold Partner', 'Silver Partner'],
+      steps: ['Tap Partnership in the menu.', 'See partners grouped by their band.', 'Tap a partner to see their giving history.'] },
+    { id: 'giving', icon: 'ti-coin', title: 'Partner Giving', blurb: 'Track contributions from each partner over time.', mockup: 'chart',
+      steps: ['Open a partner\'s profile to see their contribution trend.'] },
+  ],
+  workforce: [
+    { id: 'schedule', icon: 'ti-calendar-event', title: 'Build a Schedule', blurb: 'Assign volunteers to a team for an upcoming date.', mockup: 'calendar',
+      steps: ['Tap Workforce in the menu.', 'Choose a date and a team.', 'Assign members to fill each serving slot.'] },
+    { id: 'gaps', icon: 'ti-alert-triangle', title: 'Gaps & Overcommitment', blurb: 'See at a glance who\'s overloaded, and where a team is short.', mockup: 'board', mockupLabels: ['Short-handed', 'Fully staffed'],
+      steps: ['The Workforce screen automatically flags any team with a gap.', 'It also flags anyone scheduled onto too many teams at once.'] },
+    { id: 'my-schedule', icon: 'ti-calendar-check', title: 'My Schedule', blurb: 'Where every member sees their own upcoming assignments.', mockup: 'list', mockupLabels: ['Sunday — Ushering'],
+      steps: ['Members see their own upcoming schedule from their own account automatically.'] },
+  ],
+};

@@ -52,6 +52,7 @@ const PATHS: Record<string, ReactNode> = {
   'ti-photo': <><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.75"/><path d="M21 15l-5-5-4 4-2-2-6 6"/></>,
   'ti-corner-down-right': <><polyline points="15,10 21,16 15,22"/><path d="M3 4v6a4 4 0 0 0 4 4h14"/></>,
   'ti-mood-smile': <><circle cx="12" cy="12" r="9"/><path d="M8.5 9.5h.01M15.5 9.5h.01M8.5 14a4 4 0 0 0 7 0"/></>,
+  'ti-help': <><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 2.5-3 4.5"/><line x1="12" y1="17.5" x2="12" y2="17.51"/></>,
 };
 
 export default function Icon({ name, size = 15, strokeWidth = 1.8, style, className }: { name?: string; size?: number; strokeWidth?: number; style?: CSSProperties; className?: string }) {

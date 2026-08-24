@@ -11,6 +11,8 @@ import { useRouter } from 'next/navigation';
 import ChatNavButton from '@/components/ChatNavButton';
 import LoadingScreen from '@/components/LoadingScreen';
 import ThemeToggle from '@/components/ThemeToggle';
+import GuideTour, { useFirstVisitGuide } from '@/components/GuideTour';
+import GuideHelpPanel from '@/components/GuideHelpPanel';
 import Icon from '@/components/Icon';
 
 type Lead = {
@@ -96,6 +98,8 @@ export default function CareTeamPage() {
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('queue');
   const {dark, setDark} = useTheme();
+  const [tourOpen, setTourOpen] = useFirstVisitGuide('care');
+  const [helpOpen, setHelpOpen] = useState(false);
   const headerHidden = useHeaderVisibility();
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -299,6 +303,7 @@ export default function CareTeamPage() {
             </div>
           )}
           <ThemeToggle dark={dark} setDark={setDark} border={t.border} compact={isMobile} />
+          <button onClick={() => setHelpOpen(true)} title="How to use this page" style={{ background: 'transparent', border: 'none', color: t.sub, cursor: 'pointer', display: 'flex', padding: 4 }}><Icon name="ti-help" size={16} strokeWidth={2.2}/></button>
           {isMobile ? (
             <>
               <button onClick={() => router.push("/church-center")} title="Church Center" style={{ background: 'transparent', border: 'none', color: t.sub, cursor: 'pointer', display: 'flex', padding: 4 }}><Icon name="ti-building" size={16} strokeWidth={2.2}/></button>
@@ -686,6 +691,10 @@ export default function CareTeamPage() {
           </div>
         )}
       </div>
+      <GuideTour portalKey="care" t={t} open={tourOpen} onClose={() => setTourOpen(false)} />
+      {helpOpen && (
+        <GuideHelpPanel portalKey="care" t={t} onClose={() => setHelpOpen(false)} onReplayTour={() => { setHelpOpen(false); setTourOpen(true); }} />
+      )}
     </div>
   );
 }

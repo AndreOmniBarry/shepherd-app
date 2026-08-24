@@ -19,6 +19,8 @@ import LoadingScreen from '@/components/LoadingScreen';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useHeaderVisibility } from '@/hooks/useHeaderVisibility';
 import { gradeColors } from '@/lib/sla';
+import GuideTour, { useFirstVisitGuide } from '@/components/GuideTour';
+import GuideHelpPanel from '@/components/GuideHelpPanel';
 
 type Member = { id: string; full_name: string; membership_status: string; };
 type HistoryRecord = { id: string; service_date: string; service_number: number; present_count: number; absent_count: number; visitor_count: number; submitted_at: string; sla_grade?: string; };
@@ -186,6 +188,8 @@ export default function CellPage() {
   // show it for the roles that actually arrived here from one.
   const [userRole, setUserRole] = useState<string | null>(null);
   const {dark, setDark} = useTheme();
+  const [tourOpen, setTourOpen] = useFirstVisitGuide('cell');
+  const [helpOpen, setHelpOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [pageReady, setPageReady] = useState(false);
   const headerHidden = useHeaderVisibility();
@@ -433,6 +437,7 @@ export default function CellPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 5 : 8, flexShrink: 0 }}>
           <ThemeToggle dark={dark} setDark={setDark} border={t.border} compact={isMobile} />
+          <button onClick={() => setHelpOpen(true)} title="How to use this page" style={{ background: 'transparent', border: 'none', color: t.sub, cursor: 'pointer', display: 'flex', padding: 4 }}><Icon name="ti-help" size={16} strokeWidth={2.2}/></button>
           {isMobile ? (
             <>
               <button onClick={() => router.push("/church-center")} title="Church Center" style={{ background: 'transparent', border: 'none', color: t.sub, cursor: 'pointer', display: 'flex', padding: 4 }}><Icon name="ti-building" size={16} strokeWidth={2.2}/></button>
@@ -727,6 +732,10 @@ export default function CellPage() {
             </div>
           </div>
         </div>
+      )}
+      <GuideTour portalKey="cell" t={t} open={tourOpen} onClose={() => setTourOpen(false)} />
+      {helpOpen && (
+        <GuideHelpPanel portalKey="cell" t={t} onClose={() => setHelpOpen(false)} onReplayTour={() => { setHelpOpen(false); setTourOpen(true); }} />
       )}
     </div>
   );
