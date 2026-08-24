@@ -12,6 +12,8 @@ import Icon from '@/components/Icon';
 import { formatMoney, currencySymbol } from '@/lib/currency';
 import LoadingScreen from '@/components/LoadingScreen';
 import ThemeToggle from '@/components/ThemeToggle';
+import GuideTour, { useFirstVisitGuide } from '@/components/GuideTour';
+import GuideHelpPanel from '@/components/GuideHelpPanel';
 
 type Band = { id: string; name: string; amount: number; color: string };
 type Partner = {
@@ -40,6 +42,8 @@ export default function PartnershipPage() {
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('partners');
   const {dark, setDark} = useTheme();
+  const [tourOpen, setTourOpen] = useFirstVisitGuide('partnership');
+  const [helpOpen, setHelpOpen] = useState(false);
   const headerHidden = useHeaderVisibility();
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -248,6 +252,7 @@ export default function PartnershipPage() {
           )}
           <NotificationBell dark={dark} compact={isMobile} /><MyAccountButton dark={dark} compact={isMobile} />
           <ThemeToggle dark={dark} setDark={setDark} border={t.border} compact={isMobile} />
+          <button onClick={() => setHelpOpen(true)} title="How to use this page" style={{ background: 'transparent', border: 'none', color: t.sub, cursor: 'pointer', display: 'flex', padding: 4 }}><Icon name="ti-help" size={16} strokeWidth={2.2}/></button>
           {isMobile ? (
             <button onClick={logout} title="Sign out" style={{ background: 'transparent', color: t.sub, border: 'none', cursor: 'pointer', display: 'flex', padding: 4, flexShrink: 0 }}><Icon name="ti-logout" size={16} strokeWidth={2.2}/></button>
           ) : (
@@ -558,6 +563,10 @@ export default function PartnershipPage() {
         )}
       </div>
       <FloatingCalculator role="partnership" />
+      <GuideTour portalKey="partnership" t={t} open={tourOpen} onClose={() => setTourOpen(false)} />
+      {helpOpen && (
+        <GuideHelpPanel portalKey="partnership" t={t} onClose={() => setHelpOpen(false)} onReplayTour={() => { setHelpOpen(false); setTourOpen(true); }} />
+      )}
     </div>
   );
 }

@@ -15,6 +15,8 @@ import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import ServicePlannerPanel from '@/components/ServicePlannerPanel';
 import EventsPanel from '@/components/EventsPanel';
 import CareFollowupPanel from '@/components/CareFollowupPanel';
+import GuideTour, { useFirstVisitGuide } from '@/components/GuideTour';
+import GuideHelpPanel from '@/components/GuideHelpPanel';
 import ChatNavButton from '@/components/ChatNavButton';
 import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -2148,6 +2150,8 @@ export default function DashboardPage(){
     return {q3:1250,dec:1400};
   });
   const {dark, setDark} = useTheme();
+  const [tourOpen, setTourOpen] = useFirstVisitGuide('dashboard');
+  const [helpOpen, setHelpOpen] = useState(false);
   const headerHidden = useHeaderVisibility();
   const [pageReady,setPageReady]=useState(false);
   const [sidebarStyle,setSidebarStyle]=useState<'light'|'dark'>('light');
@@ -2679,6 +2683,7 @@ export default function DashboardPage(){
             <ChatNavButton t={t} compact={isMobile||isCompact} />
             {!isMobile&&<button onClick={()=>router.push('/calendar')} title="Calendar" style={{display:'flex',alignItems:'center',justifyContent:'center',padding:0,width:30,height:30,borderRadius:8,border:`0.5px solid ${t.navBorder}`,background:'transparent',color:t.sub,cursor:'pointer',fontFamily:'inherit',flexShrink:0}}><Icon name="ti-calendar-event" size={13}/></button>}
             <NotificationBell dark={dark} compact={isMobile} /><MyAccountButton dark={dark} compact={isMobile} />
+            <button onClick={()=>setHelpOpen(true)} title="How to use this page" style={{background:'transparent',border:'none',color:t.sub,cursor:'pointer',display:'flex',padding:4,flexShrink:0}}><Icon name="ti-help" size={16} strokeWidth={2.2}/></button>
             {!isMobile&&<div onClick={()=>setDark(v=>!v)} role="switch" aria-checked={dark} style={{width:50,height:28,borderRadius:14,border:`0.5px solid ${t.navBorder}`,background:dark?'linear-gradient(135deg,#3C3489,#534AB7)':'#EEEDFE',display:'flex',alignItems:'center',padding:2,cursor:'pointer',position:'relative',transition:'background 0.25s ease'}}>
               <div style={{width:22,height:22,borderRadius:'50%',background:dark?'#1A1730':'#fff',boxShadow:'0 1px 3px rgba(0,0,0,0.25)',display:'flex',alignItems:'center',justifyContent:'center',transform:dark?'translateX(22px)':'translateX(0)',transition:'transform 0.25s cubic-bezier(0.34,1.56,0.64,1)',color:dark?'#CFC9FF':'#8A7FD8'}}>
                 {dark?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}
@@ -3975,6 +3980,10 @@ export default function DashboardPage(){
     .grid-2{gap:16px;}
   }
 `}</style>
+      <GuideTour portalKey="dashboard" t={t} open={tourOpen} onClose={() => setTourOpen(false)} />
+      {helpOpen && (
+        <GuideHelpPanel portalKey="dashboard" t={t} onClose={() => setHelpOpen(false)} onReplayTour={() => { setHelpOpen(false); setTourOpen(true); }} />
+      )}
     </div>
   );
 }

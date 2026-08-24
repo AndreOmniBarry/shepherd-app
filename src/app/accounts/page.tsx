@@ -11,6 +11,8 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, R
 import ChatNavButton from '@/components/ChatNavButton';
 import LoadingScreen from '@/components/LoadingScreen';
 import ThemeToggle from '@/components/ThemeToggle';
+import GuideTour, { useFirstVisitGuide } from '@/components/GuideTour';
+import GuideHelpPanel from '@/components/GuideHelpPanel';
 import Icon from '@/components/Icon';
 import { formatMoney, currencySymbol } from '@/lib/currency';
 
@@ -66,6 +68,8 @@ export default function AccountsPage() {
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('overview');
   const {dark, setDark} = useTheme();
+  const [tourOpen, setTourOpen] = useFirstVisitGuide('accounts');
+  const [helpOpen, setHelpOpen] = useState(false);
   const headerHidden = useHeaderVisibility();
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -341,6 +345,7 @@ export default function AccountsPage() {
           )}
           <NotificationBell dark={dark} compact={isMobile} /><MyAccountButton dark={dark} compact={isMobile} />
           <ThemeToggle dark={dark} setDark={setDark} border={t.border} compact={isMobile} />
+          <button onClick={() => setHelpOpen(true)} title="How to use this page" style={{ background: 'transparent', border: 'none', color: t.sub, cursor: 'pointer', display: 'flex', padding: 4 }}><Icon name="ti-help" size={16} strokeWidth={2.2}/></button>
           {isMobile ? (
             <button onClick={logout} title="Sign out" style={{ background: 'transparent', color: t.muted, border: 'none', cursor: 'pointer', display: 'flex', padding: 4 }}><Icon name="ti-logout" size={16} strokeWidth={2.2}/></button>
           ) : (
@@ -754,6 +759,10 @@ export default function AccountsPage() {
         )}
       </div>
       <FloatingCalculator role="accounts" />
+      <GuideTour portalKey="accounts" t={t} open={tourOpen} onClose={() => setTourOpen(false)} />
+      {helpOpen && (
+        <GuideHelpPanel portalKey="accounts" t={t} onClose={() => setHelpOpen(false)} onReplayTour={() => { setHelpOpen(false); setTourOpen(true); }} />
+      )}
     </div>
   );
 }
