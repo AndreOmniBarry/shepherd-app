@@ -1,4 +1,5 @@
 import { currencySymbol } from '@/lib/currency';
+import { sendPushToUsers } from '@/lib/push';
 
 // ── Shared notification plumbing ──────────────────────────────────────
 // Two layers:
@@ -66,10 +67,31 @@ export async function notifyMany(rows: NotifyRow[], churchId: string | null | un
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
       console.error('[notifyMany] insert failed:', res.status, errText);
+      return;
     }
   } catch (err) {
     console.error('[notifyMany] failed:', err);
+    return;
   }
+
+  // Real OS-level push, on top of the row(s) just written — grouped by
+  // identical content so the common case (one message, many recipients)
+  // is a single push fan-out rather than one per row. Awaited rather than
+  // fire-and-forget: a serverless function can be torn down the instant
+  // its response is sent, and every caller of notifyMany already awaits
+  // it, so riding along here means delivery actually completes before
+  // that happens. sendPushToUsers never throws, so a delivery hiccup
+  // (offline device, revoked permission) can't turn into a failure of
+  // whatever the caller was actually doing.
+  const groups = new Map<string, { userIds: string[]; content: NotificationContent }>();
+  for (const r of filtered) {
+    const key = JSON.stringify(r.content);
+    const g = groups.get(key);
+    if (g) g.userIds.push(r.userId); else groups.set(key, { userIds: [r.userId], content: r.content });
+  }
+  await Promise.allSettled(
+    Array.from(groups.values()).map(g => sendPushToUsers(g.userIds, g.content))
+  );
 }
 
 /**
@@ -109,6 +131,7 @@ export async function notifyUsersChecked(
     try { detail = JSON.parse(errText)?.message || ''; } catch { /* not JSON */ }
     return { ok: false, error: detail };
   }
+  await sendPushToUsers(unique, content);
   return { ok: true };
 }
 
