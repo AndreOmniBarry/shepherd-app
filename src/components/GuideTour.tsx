@@ -32,10 +32,17 @@ function markSeen(portalKey: PortalKey) {
 // live button): a self-contained, viewport-capped modal can never overflow
 // or drift off-screen on a small phone the way an anchored tooltip can —
 // this is what "nothing floating or cross extending" actually requires.
-export default function GuideTour({ portalKey, t, open, onClose }: {
+export default function GuideTour({ portalKey, t, open, onClose, visibleIds }: {
   portalKey: PortalKey; t: GuideTheme; open: boolean; onClose: () => void;
+  // Optional allow-list of entry ids, for a portal shared across roles with
+  // different real access (the dashboard: Giving/Requisitions hidden from
+  // an ungranted PA, Team & Access hidden below overseer/GO/lead_tech, the
+  // structure tab hidden for single-structure churches). Omit it entirely
+  // for a portal with one fixed feature set — every entry shows as before.
+  visibleIds?: string[];
 }) {
-  const entries = GUIDE_CONTENT[portalKey] || [];
+  const allEntries = GUIDE_CONTENT[portalKey] || [];
+  const entries = visibleIds ? allEntries.filter(e => visibleIds.includes(e.id)) : allEntries;
   const [step, setStep] = useState(-1); // -1 = welcome slide, 0..n-1 = feature slides
 
   useEffect(() => { if (open) setStep(-1); }, [open]);

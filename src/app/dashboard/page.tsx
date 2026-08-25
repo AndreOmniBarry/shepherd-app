@@ -2477,6 +2477,17 @@ export default function DashboardPage(){
     ]},
   ];
   const navItems=navGroups.flatMap(g=>g.items);
+  // Same gating navGroups already applies, mirrored onto the guide's entry
+  // ids — this dashboard is shared by 5 roles with genuinely different
+  // access (a branch_pastor's nav isn't a GO's, a PA's isn't either), so
+  // the guide must not walk a role through a feature their own menu hides.
+  const guideVisibleIds=[
+    'overview','action-board','members','departments','attendance','validate',
+    'recognition','prayer','care','workforce','events','feed','chat','reports','settings',
+    ...(churchConfig.structure_type!=='single'?['structure']:[]),
+    ...(userRole!=='pa'||financeAccessGranted?['giving','requisitions']:[]),
+    ...(['overseer','general_overseer','lead_tech'].includes(userRole)?['team']:[]),
+  ];
   // Curated primary shortcuts for the mobile bottom tab bar — the full
   // navGroups list stays reachable via the "More" tab's bottom sheet, so
   // this is a shortlist, not a compressed copy of the desktop sidebar.
@@ -3980,9 +3991,9 @@ export default function DashboardPage(){
     .grid-2{gap:16px;}
   }
 `}</style>
-      <GuideTour portalKey="dashboard" t={t} open={tourOpen} onClose={() => setTourOpen(false)} />
+      <GuideTour portalKey="dashboard" t={t} open={tourOpen} onClose={() => setTourOpen(false)} visibleIds={guideVisibleIds} />
       {helpOpen && (
-        <GuideHelpPanel portalKey="dashboard" t={t} onClose={() => setHelpOpen(false)} onReplayTour={() => { setHelpOpen(false); setTourOpen(true); }} />
+        <GuideHelpPanel portalKey="dashboard" t={t} onClose={() => setHelpOpen(false)} onReplayTour={() => { setHelpOpen(false); setTourOpen(true); }} visibleIds={guideVisibleIds} />
       )}
     </div>
   );

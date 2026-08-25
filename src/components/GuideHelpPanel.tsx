@@ -10,10 +10,14 @@ import { GUIDE_CONTENT, PORTAL_TITLE, type PortalKey } from '@/lib/guide-content
 // the same on-brand mockup used in the tour in place of instructional
 // video. A full-screen overlay rather than a side panel, so it's exactly
 // as safe on a phone as GuideTour — no anchored positioning to overflow.
-export default function GuideHelpPanel({ portalKey, t, onClose, onReplayTour }: {
+export default function GuideHelpPanel({ portalKey, t, onClose, onReplayTour, visibleIds }: {
   portalKey: PortalKey; t: GuideTheme; onClose: () => void; onReplayTour: () => void;
+  // See GuideTour's visibleIds comment — same allow-list, kept in sync so
+  // the permanent reference never lists a feature the tour also hides.
+  visibleIds?: string[];
 }) {
-  const entries = GUIDE_CONTENT[portalKey] || [];
+  const allEntries = GUIDE_CONTENT[portalKey] || [];
+  const entries = visibleIds ? allEntries.filter(e => visibleIds.includes(e.id)) : allEntries;
   const [openId, setOpenId] = useState<string | null>(entries[0]?.id ?? null);
 
   return (
