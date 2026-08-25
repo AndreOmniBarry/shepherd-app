@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/Icon';
 import { playNotificationSound, triggerHaptic } from '@/lib/notify-feedback';
+import { subscribeToPush } from '@/lib/push-client';
 
 type Notification = {
   id: string;
@@ -119,14 +120,22 @@ export default function NotificationBell({ dark = false, compact = false }: Noti
   // doesn't request it. Requesting has to come from a real click (see
   // requestNotifPermission), not fire automatically on page load, or
   // browsers block it and it reads as broken rather than declined.
+  // Already-granted permission also (re)registers the push subscription —
+  // idempotent both client-side (reuses an existing subscription) and
+  // server-side (upsert on endpoint), so this is just what re-links a
+  // subscription that the browser has but the server's table has lost.
   useEffect(() => {
     if (typeof window === 'undefined' || !('Notification' in window)) { setNotifPermission('unsupported'); return; }
     setNotifPermission(Notification.permission);
+    if (Notification.permission === 'granted') subscribeToPush();
   }, []);
 
   function requestNotifPermission() {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
-    Notification.requestPermission().then(setNotifPermission).catch(() => {});
+    Notification.requestPermission().then(perm => {
+      setNotifPermission(perm);
+      if (perm === 'granted') subscribeToPush();
+    }).catch(() => {});
   }
 
   // Positions the dropdown against the true viewport edge, not this bell's
