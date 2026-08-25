@@ -52,6 +52,7 @@ export default function NotificationBell({ dark = false, compact = false }: Noti
   const [newCount, setNewCount] = useState(0); // tracks new since last open
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const ref = useRef<HTMLDivElement>(null);
+  const [dropdownTop, setDropdownTop] = useState(46);
   const prevCountRef = useRef(0);
   // Separate from prevCountRef>0 — that check meant "not the very first
   // fetch" was conflated with "there were already unread items", so
@@ -127,6 +128,20 @@ export default function NotificationBell({ dark = false, compact = false }: Noti
     if (typeof window === 'undefined' || !('Notification' in window)) return;
     Notification.requestPermission().then(setNotifPermission).catch(() => {});
   }
+
+  // Positions the dropdown against the true viewport edge, not this bell's
+  // own small wrapper. Other icons (chat, account, the guide help button)
+  // sit to its right in the nav, so the bell itself often isn't flush with
+  // the screen's right edge — a 340px panel anchored via "right: 0" against
+  // just this wrapper pushed its left edge straight off narrow phones (see
+  // the report: "Notifications" and "unread" both clipped off-screen).
+  // Measuring the bell and switching to position:fixed with a fixed
+  // viewport-relative margin means the panel can never be pushed further
+  // left than the actual screen allows.
+  useEffect(() => {
+    if (!open || !ref.current) return;
+    setDropdownTop(ref.current.getBoundingClientRect().bottom + 8);
+  }, [open]);
 
   // Close on outside click
   useEffect(() => {
@@ -253,8 +268,8 @@ export default function NotificationBell({ dark = false, compact = false }: Noti
       {/* Dropdown */}
       {open && (
         <div style={{
-          position: 'absolute', right: 0, top: 42,
-          width: 340, maxHeight: 480,
+          position: 'fixed', right: 12, top: dropdownTop,
+          width: 340, maxWidth: 'calc(100vw - 24px)', maxHeight: 480,
           background: t.card,
           border: `0.5px solid ${t.border}`,
           borderRadius: 14,
@@ -299,6 +314,11 @@ export default function NotificationBell({ dark = false, compact = false }: Noti
           {notifPermission === 'denied' && (
             <div style={{ padding: '9px 16px', borderBottom: `0.5px solid ${t.divider}`, fontSize: 10.5, color: t.muted, lineHeight: 1.4 }}>
               Browser notifications are blocked — enable them for this site in your browser settings if you want an alert when this tab isn&apos;t open.
+            </div>
+          )}
+          {notifPermission === 'unsupported' && (
+            <div style={{ padding: '9px 16px', borderBottom: `0.5px solid ${t.divider}`, fontSize: 10.5, color: t.muted, lineHeight: 1.4 }}>
+              This browser can&apos;t show alerts while the tab is closed — on iPhone, add SHEP.HERD to your Home Screen (Share → Add to Home Screen) for that. The sound and badge above still work whenever this tab is open.
             </div>
           )}
 
