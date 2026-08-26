@@ -16,6 +16,8 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return output;
 }
 
+export type SubscribeResult = { ok: true } | { ok: false; reason: string };
+
 /**
  * Subscribes this browser to push (reusing an existing subscription if
  * one is already active) and registers it with the server. Safe to call
@@ -24,32 +26,47 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
  * idempotent, so calling this again on every app load is harmless and is
  * what re-links a subscription if the DB row was ever lost independently
  * of the browser's own grant (a fresh database, a cleared table, etc).
+ *
+ * Returns a reason string on failure (surfaced in NotificationBell while
+ * this feature is new) instead of just swallowing it — a silent boolean
+ * was undebuggable the moment something broke, since nothing else in this
+ * flow can throw a visible error either.
  */
-export async function subscribeToPush(): Promise<boolean> {
+export async function subscribeToPush(): Promise<SubscribeResult> {
   try {
-    if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return { ok: false, reason: 'No service worker support in this browser' };
+    if (!('PushManager' in window)) return { ok: false, reason: 'No Push API support in this browser' };
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    if (!publicKey) return false; // VAPID not configured yet on this deploy
+    if (!publicKey) return { ok: false, reason: 'VAPID key not configured on this deploy' };
 
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
-      });
+      try {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        });
+      } catch (err) {
+        return { ok: false, reason: `subscribe() failed: ${err instanceof Error ? err.message : String(err)}` };
+      }
     }
 
     const json = sub.toJSON();
-    if (!json.endpoint || !json.keys) return false;
-    await fetch('/api/push/subscribe', {
+    if (!json.endpoint || !json.keys) return { ok: false, reason: 'Subscription had no endpoint/keys' };
+
+    const res = await fetch('/api/push/subscribe', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
     });
-    return true;
-  } catch {
-    return false; // notification permission can still be 'granted' with push simply unavailable (e.g. no VAPID key yet) — never throw over this
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return { ok: false, reason: `Server rejected subscription (${res.status}): ${text.slice(0, 200)}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: `Unexpected error: ${err instanceof Error ? err.message : String(err)}` };
   }
 }

@@ -52,6 +52,11 @@ export default function NotificationBell({ dark = false, compact = false }: Noti
   const [loading, setLoading] = useState(false);
   const [newCount, setNewCount] = useState(0); // tracks new since last open
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>('default');
+  // Temporary, visible diagnostic — subscribeToPush() can't throw a
+  // console error anyone can see on a phone, so surface its own reason
+  // right in the dropdown instead of leaving a silent failure with zero
+  // way to tell what broke.
+  const [pushDebug, setPushDebug] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const [dropdownTop, setDropdownTop] = useState(46);
   const prevCountRef = useRef(0);
@@ -127,14 +132,14 @@ export default function NotificationBell({ dark = false, compact = false }: Noti
   useEffect(() => {
     if (typeof window === 'undefined' || !('Notification' in window)) { setNotifPermission('unsupported'); return; }
     setNotifPermission(Notification.permission);
-    if (Notification.permission === 'granted') subscribeToPush();
+    if (Notification.permission === 'granted') subscribeToPush().then(r => { if (!r.ok) setPushDebug(r.reason); });
   }, []);
 
   function requestNotifPermission() {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
     Notification.requestPermission().then(perm => {
       setNotifPermission(perm);
-      if (perm === 'granted') subscribeToPush();
+      if (perm === 'granted') subscribeToPush().then(r => { if (!r.ok) setPushDebug(r.reason); else setPushDebug(null); });
     }).catch(() => {});
   }
 
@@ -328,6 +333,11 @@ export default function NotificationBell({ dark = false, compact = false }: Noti
           {notifPermission === 'unsupported' && (
             <div style={{ padding: '9px 16px', borderBottom: `0.5px solid ${t.divider}`, fontSize: 10.5, color: t.muted, lineHeight: 1.4 }}>
               This browser can&apos;t show alerts while the tab is closed — on iPhone, add SHEP.HERD to your Home Screen (Share → Add to Home Screen) for that. The sound and badge above still work whenever this tab is open.
+            </div>
+          )}
+          {pushDebug && (
+            <div style={{ padding: '9px 16px', borderBottom: `0.5px solid ${t.divider}`, fontSize: 10, color: '#D85A30', lineHeight: 1.4, background: dark ? 'rgba(216,90,48,0.1)' : '#FAECE7' }}>
+              Push setup failed: {pushDebug}
             </div>
           )}
 
