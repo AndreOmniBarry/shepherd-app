@@ -31,7 +31,11 @@ jobs:
             echo "SUPABASE_DB_URL secret is not set — see scripts/README-backup.md" >&2
             exit 1
           fi
-          pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges -F c -f shepherd_backup.dump
+          # The bare `pg_dump` on PATH still resolved to Ubuntu's
+          # pre-installed v16 even after installing postgresql-client-17
+          # (an alternatives/PATH-ordering quirk of this runner image) —
+          # calling the versioned binary directly sidesteps that entirely.
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges -F c -f shepherd_backup.dump
 
       - name: Upload backup artifact
         uses: actions/upload-artifact@v4
