@@ -99,7 +99,9 @@ export default function CareEventsTab({ t, isMobile = false }: { t: Record<strin
                       {r.attended ? 'Attended' : 'Not yet'}
                     </span>
                   </div>
-                  <div style={{ fontSize: 11, color: t.sub }}>{r.phone} · {r.is_member ? 'Member' : 'Guest'} · <span style={{ textTransform: 'capitalize' }}>{r.preferred_comms}</span></div>
+                  <div style={{ fontSize: 11, color: t.sub }}>
+                    <a href={`tel:${r.phone}`} style={{ color: t.teal, textDecoration: 'none', fontWeight: 500 }}>{r.phone}</a> · {r.is_member ? 'Member' : 'Guest'} · <span style={{ textTransform: 'capitalize' }}>{r.preferred_comms}</span>
+                  </div>
                   {(r.needs_transportation || r.needs_accommodation || r.address) && (
                     <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                       {r.needs_transportation && <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 8, background: t.amberBg, color: t.amber, fontWeight: 600 }}>Needs transport</span>}
@@ -124,7 +126,7 @@ export default function CareEventsTab({ t, isMobile = false }: { t: Record<strin
                   {registrants.map(r => (
                     <tr key={r.id} style={{ borderBottom: `0.5px solid ${t.border}` }}>
                       <td style={{ padding: '8px 10px', color: t.text, fontWeight: 500 }}>{r.full_name}</td>
-                      <td style={{ padding: '8px 10px', color: t.sub }}>{r.phone}</td>
+                      <td style={{ padding: '8px 10px', color: t.sub }}><a href={`tel:${r.phone}`} style={{ color: t.teal, textDecoration: 'none', fontWeight: 500 }}>{r.phone}</a></td>
                       <td style={{ padding: '8px 10px', color: t.sub }}>{r.is_member ? 'Yes' : 'No'}</td>
                       <td style={{ padding: '8px 10px', color: t.sub, textTransform: 'capitalize' }}>{r.preferred_comms}</td>
                       <td style={{ padding: '8px 10px', color: r.needs_transportation ? t.amber : t.muted }}>{r.needs_transportation ? 'Yes' : '—'}</td>

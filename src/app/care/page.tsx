@@ -589,7 +589,9 @@ export default function CareTeamPage() {
                 </button>
                 <div style={card()}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4 }}>{selectedTimer.full_name}</div>
-                  <div style={{ fontSize: 12, color: t.muted, marginBottom: 16 }}>{selectedTimer.phone} · {HOW_THEY_CAME.find(h => h.value === selectedTimer.how_they_came)?.label || selectedTimer.how_they_came}</div>
+                  <div style={{ fontSize: 12, color: t.muted, marginBottom: 16 }}>
+                    <a href={`tel:${selectedTimer.phone}`} style={{ color: t.teal, textDecoration: 'none', fontWeight: 500 }}>{selectedTimer.phone}</a> · {HOW_THEY_CAME.find(h => h.value === selectedTimer.how_they_came)?.label || selectedTimer.how_they_came}
+                  </div>
                   {(selectedTimer.address || selectedTimer.occupation || selectedTimer.would_join || selectedTimer.volunteer_interest) && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 14, fontSize: 12, color: t.sub }}>
                       {selectedTimer.address && <div>Address: {selectedTimer.address}</div>}
@@ -644,7 +646,9 @@ export default function CareTeamPage() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{ft.full_name}</div>
-                          <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{ft.phone} · {new Date(ft.service_date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</div>
+                          <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>
+                            <a href={`tel:${ft.phone}`} onClick={e => e.stopPropagation()} style={{ color: t.teal, textDecoration: 'none', fontWeight: 500 }}>{ft.phone}</a> · {new Date(ft.service_date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                          </div>
                         </div>
                         <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, background: cfg.bg, color: cfg.text, fontWeight: 500 }}>{cfg.label}</span>
                       </div>

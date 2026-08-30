@@ -478,7 +478,7 @@ export default function AccountsPage() {
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: t.tealBg, borderRadius: 8, padding: '9px 12px', border: `0.5px solid rgba(29,158,117,0.2)` }}>
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 600, color: t.teal }}>{selectedMember.full_name}</div>
-                          {selectedMember.phone && <div style={{ fontSize: 10, color: t.muted }}>{selectedMember.phone}</div>}
+                          {selectedMember.phone && <a href={`tel:${selectedMember.phone}`} style={{ fontSize: 10, color: t.teal, textDecoration: 'none', fontWeight: 500 }}>{selectedMember.phone}</a>}
                         </div>
                         <button onClick={() => { setSelectedMember(null); setMemberSearch(''); setDuplicateWarning(''); }}
                           style={{ background: 'none', border: 'none', color: t.muted, cursor: 'pointer', fontSize: 14, padding: '0 4px' }}>×</button>

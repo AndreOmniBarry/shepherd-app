@@ -456,7 +456,7 @@ export default function PartnershipPage() {
               <div style={{ background: t.coralBg, borderRadius: 10, padding: '12px 14px', border: '0.5px solid rgba(216,90,48,0.2)' }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: t.coral, marginBottom: 6 }}>⚠ {lapsedPartners.length} lapsed partner{lapsedPartners.length > 1 ? 's' : ''} — follow up needed</div>
                 {lapsedPartners.slice(0, 3).map(p => (
-                  <div key={p.id} style={{ fontSize: 12, color: t.coral, opacity: 0.8 }}>{p.full_name} — {p.band_name}{p.phone ? ` · ${p.phone}` : ''}</div>
+                  <div key={p.id} style={{ fontSize: 12, color: t.coral, opacity: 0.8 }}>{p.full_name} — {p.band_name}{p.phone && <> · <a href={`tel:${p.phone}`} style={{ color: t.coral, fontWeight: 600, textDecoration: 'underline' }}>{p.phone}</a></>}</div>
                 ))}
                 {lapsedPartners.length > 3 && <div style={{ fontSize: 11, color: t.coral, opacity: 0.6, marginTop: 4 }}>+{lapsedPartners.length - 3} more — see Lapsed tab</div>}
               </div>
@@ -547,7 +547,7 @@ export default function PartnershipPage() {
                           <span style={{ fontSize: 11, color: t.muted }}>{currencySymbol(currency)}{p.band_amount.toLocaleString()}/month pledge</span>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                          {p.phone && <div style={{ fontSize: 12, color: t.sub, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="ti-phone" size={11} /> {p.phone}</div>}
+                          {p.phone && <a href={`tel:${p.phone}`} style={{ fontSize: 12, color: t.teal, textDecoration: 'none', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="ti-phone" size={11} /> {p.phone}</a>}
                           {p.email && <div style={{ fontSize: 12, color: t.sub }}>✉ {p.email}</div>}
                           <div style={{ fontSize: 11, color: t.muted }}>Partner since {new Date(p.start_date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
                           <div style={{ fontSize: 11, color: t.muted }}>Total given: {fmtNGN(p.total_given)} · {p.months_consistent} consistent months before lapse</div>

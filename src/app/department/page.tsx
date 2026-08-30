@@ -598,7 +598,7 @@ export default function DepartmentHeadPage() {
                       <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: t.card, borderRadius: 8, padding: '8px 12px', border: `0.5px solid ${t.border}` }}>
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{r.full_name}</div>
-                          <div style={{ fontSize: 10, color: t.muted }}>{r.phone || '—'} · {r.cell_name || 'No cell'}</div>
+                          <div style={{ fontSize: 10, color: t.muted }}>{r.phone?<a href={`tel:${r.phone}`} style={{color:t.teal,textDecoration:'none',fontWeight:500}}>{r.phone}</a>:'—'} · {r.cell_name || 'No cell'}</div>
                         </div>
                         <button onClick={() => addExistingMember(r.id)} disabled={addingId === r.id}
                           style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 7, padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: addingId === r.id ? 0.6 : 1 }}>
@@ -617,7 +617,7 @@ export default function DepartmentHeadPage() {
                 {members.map(m => (
                   <div key={m.id} style={{ background: t.card, borderRadius: 10, border: `0.5px solid ${t.border}`, padding: '11px 13px' }}>
                     <div style={{ fontWeight: 600, fontSize: 13, color: t.text, marginBottom: 2 }}>{m.full_name}</div>
-                    <div style={{ fontSize: 11, color: t.muted, marginBottom: 8 }}>{m.phone || '—'}</div>
+                    <div style={{ fontSize: 11, color: t.muted, marginBottom: 8 }}>{m.phone?<a href={`tel:${m.phone}`} style={{color:t.teal,textDecoration:'none',fontWeight:500}}>{m.phone}</a>:'—'}</div>
                     <input defaultValue={m.role || ''} placeholder="e.g. Chorister, Alter Protocol..."
                       onBlur={e => { if (e.target.value.trim() && e.target.value.trim() !== (m.role || '')) saveRole(m.id, e.target.value.trim()); }}
                       style={{ border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '6px 8px', fontSize: 12, background: t.input || 'transparent', color: t.sub, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit', marginBottom: 8 }} />
@@ -647,7 +647,7 @@ export default function DepartmentHeadPage() {
                         onBlur={e => { if (e.target.value.trim() && e.target.value.trim() !== (m.role || '')) saveRole(m.id, e.target.value.trim()); }}
                         style={{ border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '4px 8px', fontSize: 12, background: t.input || 'transparent', color: t.sub, outline: 'none', width: '100%', maxWidth: 180, fontFamily: 'inherit' }} />
                     </td>
-                    <td style={{ padding: '10px 14px', color: t.muted }}>{m.phone || '—'}</td>
+                    <td style={{ padding: '10px 14px', color: t.muted }}>{m.phone?<a href={`tel:${m.phone}`} style={{color:t.teal,textDecoration:'none',fontWeight:500}}>{m.phone}</a>:'—'}</td>
                     <td style={{ padding: '10px 14px' }}>
                       <button onClick={() => recommendRemoval(m.id, m.full_name)}
                         style={{ background: 'transparent', color: '#D85A30', border: '0.5px solid rgba(216,90,48,0.3)', borderRadius: 6, padding: '4px 9px', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>
