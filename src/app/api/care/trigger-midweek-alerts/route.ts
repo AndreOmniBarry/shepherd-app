@@ -3,11 +3,15 @@ import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { notifyUsers } from '@/lib/notify';
 
 // ── Midweek absence alert engine
-// ── Runs every Thursday after Wednesday service, once per church so one
-// ── church's absentees never land in another's care queue.
-// ── Soft alert after 2 missed midweek services — notifies cell leader only
-// ── Full care lead after 3 missed midweek services — goes to care team
-// ── Protected by secret key
+// ── Runs automatically every Thursday via Vercel Cron (see vercel.json),
+// ── once per church so one church's absentees never land in another's
+// ── care queue.
+// ── Soft alert after church_config.midweek_soft_alert_threshold missed
+// ── midweek services (default 2) — notifies cell leader only.
+// ── Full care lead after church_config.midweek_care_lead_threshold
+// ── (default 3) — goes to the care team. Settings → Services.
+// ── Auth: see isCronAuthorized()/GET below — same convention as
+// ── /api/care/trigger-alerts.
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -43,11 +47,19 @@ type ChurchResults = { church_id: string; soft_alerts: number; care_leads: numbe
 async function runForChurch(churchId: string): Promise<ChurchResults> {
   const results: ChurchResults = { church_id: churchId, soft_alerts: 0, care_leads: 0, skipped: 0, errors: [] };
 
-  const lastThreeWednesdays = getPreviousWednesdays(3);
+  // Per-church configurable — see Settings → Services. Defaults (2/3)
+  // match today's fixed behavior for any church that never touches them.
+  const configRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?church_id=eq.${churchId}&select=midweek_soft_alert_threshold,midweek_care_lead_threshold&limit=1`, { headers: hdrs() });
+  const configData = await configRes.json();
+  const softThreshold: number = configData?.[0]?.midweek_soft_alert_threshold || 2;
+  const fullThreshold: number = configData?.[0]?.midweek_care_lead_threshold || 3;
+  const lookbackWeeks = Math.max(softThreshold, fullThreshold);
+
+  const lookbackWednesdays = getPreviousWednesdays(lookbackWeeks);
   const lastWednesday = getLastWednesday();
 
   const svcRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/services?service_date=in.(${lastThreeWednesdays.join(',')})&service_type=eq.midweek&church_id=eq.${churchId}&select=id,service_date`,
+    `${SUPABASE_URL}/rest/v1/services?service_date=in.(${lookbackWednesdays.join(',')})&service_type=eq.midweek&church_id=eq.${churchId}&select=id,service_date`,
     { headers: hdrs() }
   );
   const services = await svcRes.json();
@@ -120,7 +132,7 @@ async function runForChurch(churchId: string): Promise<ChurchResults> {
 
     const memberAbsences = allEntries.filter((e: Record<string, unknown>) => e.member_id === memberId && e.status === 'absent').length;
 
-    if (memberAbsences < 2) {
+    if (memberAbsences < softThreshold) {
       results.skipped++;
       continue;
     }
@@ -131,7 +143,7 @@ async function runForChurch(churchId: string): Promise<ChurchResults> {
     );
     const existing = await existingRes.json();
 
-    if (memberAbsences === 2) {
+    if (memberAbsences < fullThreshold) {
       if (cellId) {
         const leaderRes = await fetch(
           `${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&cell_id=eq.${cellId}&church_id=eq.${churchId}&select=id&limit=1`,
@@ -142,7 +154,7 @@ async function runForChurch(churchId: string): Promise<ChurchResults> {
           await notifyUsers([leaders[0].id], {
             type: 'pipeline',
             title: 'Midweek absence alert',
-            body: `A member in your cell has missed 2 consecutive Wednesday services. Please follow up with them before this Sunday.`,
+            body: `A member in your cell has missed ${memberAbsences} consecutive Wednesday services. Please follow up with them before this Sunday.`,
           }, churchId);
         }
       }
@@ -192,7 +204,7 @@ async function runForChurch(churchId: string): Promise<ChurchResults> {
     await notifyUsers(careIds, {
       type: 'pipeline',
       title: `${results.care_leads} midweek absence lead${results.care_leads > 1 ? 's' : ''} assigned`,
-      body: `${results.care_leads} member${results.care_leads > 1 ? 's have' : ' has'} missed 3+ Wednesday services and been added to your queue.`,
+      body: `${results.care_leads} member${results.care_leads > 1 ? 's have' : ' has'} missed ${fullThreshold}+ Wednesday services and been added to your queue.`,
     }, churchId);
   }
 
@@ -237,7 +249,26 @@ export async function POST(req: Request) {
   }
 }
 
+// Same two-caller split as /api/care/trigger-alerts: Vercel Cron
+// (Authorization: Bearer $CRON_SECRET, sweeps every church) vs. a
+// signed-in admin manually re-running it for their own church only.
+function isCronAuthorized(req: Request): boolean {
+  if (!process.env.CRON_SECRET) return false;
+  if (req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`) return true;
+  if (req.headers.get('x-cron-secret') === process.env.CRON_SECRET) return true;
+  return false;
+}
+
 export async function GET(req: Request) {
+  if (isCronAuthorized(req)) {
+    const postReq = new Request(req.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: process.env.CRON_SECRET }),
+    });
+    return POST(postReq);
+  }
+
   const cookie = req.headers.get('cookie') || '';
   const m = cookie.match(/shepherd_token=([^;]+)/);
   if (!m?.[1]) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
