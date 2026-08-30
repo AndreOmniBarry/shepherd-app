@@ -377,10 +377,18 @@ export default function CareTeamPage() {
                     {[
                       { label: 'Weeks absent', value: selectedLead.weeks_absent, color: selectedLead.weeks_absent >= 3 ? t.coral : t.amber, bg: selectedLead.weeks_absent >= 3 ? t.coralBg : t.amberBg },
                       { label: 'Contact attempts', value: selectedLead.contact_attempts, color: t.purple, bg: t.purpleBg },
-                      { label: 'Phone', value: selectedLead.member_phone, color: t.teal, bg: t.tealBg },
+                      // tel: href on this one tile only — a one-tap call
+                      // instead of copying the number out and switching
+                      // apps, and the care team often has no other saved
+                      // contact for this member at all.
+                      { label: 'Phone', value: selectedLead.member_phone, color: t.teal, bg: t.tealBg, href: selectedLead.member_phone ? `tel:${selectedLead.member_phone}` : undefined },
                     ].map(s => (
                       <div key={s.label} style={{ background: s.bg, borderRadius: 8, padding: '10px 12px' }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: s.color }}>{s.value}</div>
+                        {s.href ? (
+                          <a href={s.href} style={{ fontSize: 14, fontWeight: 700, color: s.color, textDecoration: 'none', display: 'block' }}>{s.value}</a>
+                        ) : (
+                          <div style={{ fontSize: 14, fontWeight: 700, color: s.color }}>{s.value}</div>
+                        )}
                         <div style={{ fontSize: 10, color: s.color, opacity: 0.8, marginTop: 2 }}>{s.label}</div>
                       </div>
                     ))}
@@ -457,7 +465,12 @@ export default function CareTeamPage() {
                           <div style={{ display: 'flex', gap: 12, fontSize: 11 }}>
                             <span style={{ color: isUrgent ? t.coral : t.amber, fontWeight: 500 }}>{lead.weeks_absent} weeks absent</span>
                             <span style={{ color: t.muted }}>{lead.contact_attempts} attempt{lead.contact_attempts !== 1 ? 's' : ''}</span>
-                            <span style={{ color: t.muted }}>{lead.member_phone}</span>
+                            {lead.member_phone && (
+                              <a href={`tel:${lead.member_phone}`} onClick={e => e.stopPropagation()}
+                                style={{ color: t.teal, textDecoration: 'none', fontWeight: 500 }}>
+                                {lead.member_phone}
+                              </a>
+                            )}
                           </div>
                         </div>
                       );

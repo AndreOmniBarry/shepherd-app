@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
+import Icon from '@/components/Icon';
 
 type FollowupLog = {
   id: string;
@@ -122,7 +123,16 @@ export default function CellFollowup({ dark = false, t }: CellFollowupProps) {
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: 3 }}>{lead.member_name}</div>
                   {lead.member_phone && (
-                    <div style={{ fontSize: 11, color: t.muted }}>{lead.member_phone}</div>
+                    // A tel: link so tapping calls straight away — care
+                    // often can't wait for a copy/paste round trip through
+                    // a separate contacts lookup, and the care team in
+                    // particular frequently doesn't have this member's
+                    // number saved anywhere else at all.
+                    <a href={`tel:${lead.member_phone}`} onClick={e => e.stopPropagation()}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: t.teal, textDecoration: 'none', fontWeight: 500 }}>
+                      <Icon name="ti-phone" size={11} strokeWidth={2.2} />
+                      {lead.member_phone}
+                    </a>
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
