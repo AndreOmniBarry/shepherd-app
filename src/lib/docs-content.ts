@@ -72,7 +72,7 @@ export const FEATURE_DOCS: FeatureDoc[] = [
     description: 'Attendance is logged at every service and cell meeting, and absences trigger a real follow-up workflow instead of disappearing into a notebook — with categorised reasons like bereavement, family emergency, or informed in advance, so leaders know who actually needs a visit.',
     bullets: [
       'Service and cell-meeting attendance logged by leaders in seconds',
-      'Automatic absence alerts once a member misses a configurable threshold',
+      'Automatic absence alerts the moment a member misses a single service',
       'Structured follow-up reasons, not just a yes/no checkbox',
       'Attendance-report accuracy review — fellowship heads can flag "marked absent but was present" style disputes',
     ],
@@ -107,9 +107,9 @@ export const FEATURE_DOCS: FeatureDoc[] = [
     relatedRoles: ['accounts', 'overseer'],
     mock: {
       appName: 'app.shepherd.church',
-      nav: ['Dashboard', 'Income', 'Expenses', 'Requisitions', 'Periods'],
-      activeIndex: 1,
-      heading: 'Accounts · This Month',
+      nav: ['Overview', 'Income', 'Expenses', 'Requisitions'],
+      activeIndex: 0,
+      heading: 'Accounts · Overview',
       tiles: [
         { label: 'Income (MTD)', value: '₦6.8M', sub: '+12% vs last mo.' },
         { label: 'Expenses (MTD)', value: '₦2.1M', sub: '3 pending approval' },
@@ -153,19 +153,19 @@ export const FEATURE_DOCS: FeatureDoc[] = [
     title: 'Care & Follow-Up Pipeline',
     tagline: 'First-timers and altar calls, never lost in the shuffle',
     accent: 'purple',
-    description: 'Every first-timer and altar-call lead moves through a real pipeline — contacted, converted, closed — with declined reasons tracked so patterns are visible. Crusade and outreach intake feeds directly into the same pipeline the care team already works from.',
+    description: 'Two pipelines live in one portal: an absence-follow-up queue for members who\'ve stopped showing up, and a first-timer queue for anyone new — walk-in, altar call, crusade, or online. Each moves through its own real stages, with reasons tracked at every step so patterns are visible instead of lost.',
     bullets: [
-      'Lead pipeline: Active → Contacted → Converted → Closed',
-      'Crusade, outreach, and altar-call intake forms feed the same queue',
-      'Declined-reason tracking so leadership can see real patterns',
+      'First-timer pipeline: Contacted → Follow-up scheduled → Converted or Declined',
+      'Absence pipeline: New → In progress → Reached/Visited → Restored, Unreachable, or Closed',
+      'Altar call, crusade, walk-in, and online intake all land in the same first-timer queue, tagged by how they came',
       'Birthdays and upcoming events surfaced right in the care team\'s own portal',
     ],
     relatedRoles: ['care_team', 'overseer'],
     mock: {
       appName: 'app.shepherd.church',
-      nav: ['Leads', 'Contacted', 'Converted', 'Closed', 'Birthdays'],
-      activeIndex: 0,
-      heading: 'Care & Follow-Up · Leads',
+      nav: ['Overview', 'Absence queue', 'First timers', 'History', 'Birthdays'],
+      activeIndex: 1,
+      heading: 'Care & Follow-Up · Absence queue',
       tiles: [
         { label: 'Active leads', value: '31', sub: '8 new this week' },
         { label: 'Contacted', value: '14', sub: 'in progress' },
@@ -191,16 +191,16 @@ export const FEATURE_DOCS: FeatureDoc[] = [
     relatedRoles: ['workforce', 'department_head'],
     mock: {
       appName: 'app.shepherd.church',
-      nav: ['My Schedule', 'This Week', 'Confirmed', 'Declined'],
+      nav: ['Upcoming', 'Past assignments'],
       activeIndex: 0,
-      heading: 'Workforce · My Schedule',
+      heading: 'Workforce · Upcoming',
       tiles: [
         { label: 'This Sunday', value: 'Ushering', sub: '8:00am service' },
-        { label: 'Confirmed', value: '32 / 36', sub: 'department-wide' },
-        { label: 'Declined', value: '2', sub: 'need cover' },
-        { label: 'Streak', value: '11 wks', sub: 'served in a row' },
+        { label: 'Status', value: 'Awaiting you', sub: 'Confirm or decline' },
+        { label: 'This month', value: '3', sub: 'assignments confirmed' },
+        { label: 'Past assignments', value: '18', sub: 'on file' },
       ],
-      chartLabel: 'Confirmation rate — 6 weeks',
+      chartLabel: 'Confirmed vs. declined — 6 weeks',
       chartValues: [85, 88, 80, 92, 89, 94],
     },
   },
@@ -239,7 +239,7 @@ export const FEATURE_DOCS: FeatureDoc[] = [
     accent: 'coral',
     description: 'Internal messaging between staff and leaders, a church-wide feed for announcements and testimonies, a shared calendar of programs, and public event registration pages that anyone can sign up for — no account required.',
     bullets: [
-      'Direct and group chat between any two roles',
+      'Direct and group chat between any two roles on a Growth or Enterprise plan; admin-level roles only on trial/Starter',
       'Church-wide feed with comments and acknowledgements',
       'Shared calendar visible to every role, not siloed by portal',
       'Public event pages with anonymous registration — the one page open to non-members',
@@ -272,7 +272,7 @@ export const ROLE_DOCS: RoleDoc[] = [
       { heading: 'Getting oriented', steps: [
         'Log in and land on the Dashboard — church-wide attendance and structure at a glance.',
         'Use the sidebar to open any portal (Fellowship, Cell, Care, Workforce, Accounts) exactly as that role would see it.',
-        'Check Settings → Billing for your current plan tier and trial days remaining.',
+        'Plan tier and trial status aren\'t self-serve yet — email support@justshephrd.com if you need to check or change yours.',
       ]},
       { heading: 'Building your team', steps: [
         'Open Team Access from the Dashboard to invite new users into any role.',
@@ -362,7 +362,7 @@ export const ROLE_DOCS: RoleDoc[] = [
         'Use the built-in calculator widget for quick reconciliation while you work.',
       ]},
       { heading: 'Closing a period', steps: [
-        'Open Financial Periods once a month or quarter ends.',
+        'Find the Financial Periods panel on your Overview tab once a month or quarter ends.',
         'Confirm the net balance matches your physical records before closing the period.',
       ]},
     ],
