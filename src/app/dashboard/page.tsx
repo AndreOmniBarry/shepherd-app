@@ -1639,7 +1639,7 @@ function MemberApprovalPanel({t,dark}:{t:Record<string,string>;dark:boolean}) {
           <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap' as const}}>
             <div style={{flex:1,minWidth:140}}>
               <div style={{fontSize:13,fontWeight:500,color:t.text}}>{a.full_name}</div>
-              <div style={{fontSize:11,color:t.muted}}>{a.phone||'—'} · Submitted by {a.submitted_by_name||'—'} ({a.submitted_by_role||'—'}) · {new Date(a.created_at).toLocaleDateString()}</div>
+              <div style={{fontSize:11,color:t.muted}}>{a.phone?<a href={`tel:${a.phone}`} style={{color:t.teal,textDecoration:'none',fontWeight:500}}>{a.phone}</a>:'—'} · Submitted by {a.submitted_by_name||'—'} ({a.submitted_by_role||'—'}) · {new Date(a.created_at).toLocaleDateString()}</div>
             </div>
             <div style={{display:'flex',gap:6}}>
               {a.status==='pending' ? (
@@ -2999,7 +2999,7 @@ export default function DashboardPage(){
                       ) : membersList.slice(0,10).map(m=>(
                         <tr key={m.id} style={{borderBottom:`0.5px solid ${t.border}`}}>
                           <td style={{padding:'8px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.full_name}</td>
-                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone||'—'}</td>
+                          <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone?<a href={`tel:${m.phone}`} style={{color:t.teal,textDecoration:'none',fontWeight:500}}>{m.phone}</a>:'—'}</td>
                           <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.join_date||'—'}</td>
                           <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.cell_name||'—'}</td>
                           <td style={{padding:'8px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.fellowship_name||'—'}</td>
@@ -3058,7 +3058,7 @@ export default function DashboardPage(){
                             <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,flexShrink:0,background:m.membership_status==='active'?'#E1F5EE':'#FAECE7',color:m.membership_status==='active'?'#085041':'#993C1D',textTransform:'capitalize' as const}}>{m.membership_status}</span>
                           </div>
                           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,fontSize:11,color:t.sub,marginBottom:canManage?8:0}}>
-                            <div><span style={{color:t.muted}}>Phone: </span>{m.phone||'—'}</div>
+                            <div><span style={{color:t.muted}}>Phone: </span>{m.phone?<a href={`tel:${m.phone}`} style={{color:t.teal,textDecoration:'none',fontWeight:500}}>{m.phone}</a>:'—'}</div>
                             <div><span style={{color:t.muted}}>{churchConfig.tier2_label||'Cell'}: </span>{m.cell_name||'—'}</div>
                             <div><span style={{color:t.muted}}>{churchConfig.tier1_label||'Fellowship'}: </span>{m.fellowship_name||'—'}</div>
                             <div><span style={{color:t.muted}}>Joined: </span>{m.join_date?new Date(m.join_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</div>
@@ -3104,7 +3104,7 @@ export default function DashboardPage(){
                         ):filtered.map((m,i)=>(
                           <tr key={m.id||i} style={{borderBottom:`0.5px solid ${t.border}`}}>
                             <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.full_name}</td>
-                            <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone||'—'}</td>
+                            <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone?<a href={`tel:${m.phone}`} style={{color:t.teal,textDecoration:'none',fontWeight:500}}>{m.phone}</a>:'—'}</td>
                             <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.cell_name||'—'}</td>
                             <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.fellowship_name||'—'}</td>
                             <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.join_date?new Date(m.join_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—'}</td>
@@ -3275,7 +3275,7 @@ export default function DashboardPage(){
                           <div style={{fontWeight:600,fontSize:13,color:dark?'#E5E7EB':'#374151'}}>{m.name}</div>
                           {m.status?<span style={{fontSize:10,padding:'2px 8px',borderRadius:10,flexShrink:0,background:m.status==='present'?'#E1F5EE':'#FAECE7',color:m.status==='present'?'#085041':'#993C1D',textTransform:'capitalize' as const}}>{m.status}</span>:<span style={{fontSize:10,color:t.muted,flexShrink:0}}>No data</span>}
                         </div>
-                        <div style={{fontSize:11,color:t.sub,marginBottom:8}}>{m.role} · {m.phone||'—'}</div>
+                        <div style={{fontSize:11,color:t.sub,marginBottom:8}}>{m.role} · {m.phone?<a href={`tel:${m.phone}`} style={{color:t.teal,textDecoration:'none',fontWeight:500}}>{m.phone}</a>:'—'}</div>
                         <button onClick={()=>setRemoveMemberTarget({id:m.id,name:m.name})} style={{width:'100%',background:'transparent',border:`0.5px solid rgba(216,90,48,0.3)`,borderRadius:6,color:t.coral,fontSize:11,fontWeight:600,padding:'6px 9px',cursor:'pointer'}}>Remove</button>
                       </div>
                     ))}
@@ -3291,7 +3291,7 @@ export default function DashboardPage(){
                       <tr key={m.id} style={{borderBottom:`0.5px solid ${t.border}`}}>
                         <td style={{padding:'7px 8px',fontWeight:500,color:dark?'#E5E7EB':'#374151',whiteSpace:'nowrap'}}>{m.name}</td>
                         <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.role}</td>
-                        <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone||'—'}</td>
+                        <td style={{padding:'7px 8px',color:t.sub,whiteSpace:'nowrap'}}>{m.phone?<a href={`tel:${m.phone}`} style={{color:t.teal,textDecoration:'none',fontWeight:500}}>{m.phone}</a>:'—'}</td>
                         <td style={{padding:'7px 8px'}}>{m.status?<span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:m.status==='present'?'#E1F5EE':'#FAECE7',color:m.status==='present'?'#085041':'#993C1D',textTransform:'capitalize'}}>{m.status}</span>:<span style={{fontSize:11,color:t.muted}}>No data</span>}</td>
                         <td style={{padding:'7px 8px'}}>
                           <button onClick={()=>setRemoveMemberTarget({id:m.id,name:m.name})} style={{background:'transparent',border:'none',color:t.coral,fontSize:11,cursor:'pointer'}}>Remove</button>

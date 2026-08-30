@@ -139,7 +139,7 @@ function AddMembersTab({t, dark}: {t: Record<string,string>; dark: boolean}) {
             <div key={a.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:i<pending.length-1?`0.5px solid ${t2.border}`:'none'}}>
               <div>
                 <div style={{fontSize:12,fontWeight:500,color:t2.text}}>{a.full_name}</div>
-                <div style={{fontSize:10,color:t2.muted}}>{a.phone||'—'} · {new Date(a.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
+                <div style={{fontSize:10,color:t2.muted}}>{a.phone?<a href={`tel:${a.phone}`} style={{color:t2.teal,textDecoration:'none',fontWeight:500}}>{a.phone}</a>:'—'} · {new Date(a.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
               </div>
               <span style={{fontSize:10,padding:'2px 8px',borderRadius:10,fontWeight:500,
                 background:a.status==='approved'?'#E1F5EE':a.status==='rejected'?'#FAECE7':'#FAEEDA',

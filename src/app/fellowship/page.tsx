@@ -117,7 +117,7 @@ function FellowshipApprovalPanel({t, dark}: {t: Record<string,string>; dark: boo
         <div key={a.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:i<additions.length-1?`0.5px solid ${t.border}`:'none',flexWrap:'wrap' as const}}>
           <div style={{flex:1,minWidth:140}}>
             <div style={{fontSize:13,fontWeight:500,color:t.text}}>{a.full_name}</div>
-            <div style={{fontSize:11,color:t.muted}}>{a.phone||'—'} · {a.gender||'—'} · Joined {a.join_date}</div>
+            <div style={{fontSize:11,color:t.muted}}>{a.phone?<a href={`tel:${a.phone}`} style={{color:t.teal,textDecoration:'none',fontWeight:500}}>{a.phone}</a>:'—'} · {a.gender||'—'} · Joined {a.join_date}</div>
           </div>
           <div style={{display:'flex',gap:6}}>
             <button onClick={() => act(a.id, 'approve')} disabled={processing[a.id]}

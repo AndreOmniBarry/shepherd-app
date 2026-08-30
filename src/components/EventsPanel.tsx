@@ -366,7 +366,7 @@ export default function EventsPanel({ t, isMobile = false }: { t: Record<string,
                       {r.companion_count > 0 && <span style={{fontSize:10,color:t.muted,marginLeft:4}}>+{r.companion_count}</span>}
                     </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ color: t.muted }}>{r.phone}</span>
+                      <a href={`tel:${r.phone}`} style={{ color: t.teal, textDecoration: 'none' }}>{r.phone}</a>
                       {r.attended && <span style={{fontSize:9,padding:'2px 7px',borderRadius:8,background:t.tealBg,color:t.teal,fontWeight:600}}>Attended</span>}
                     </span>
                   </div>
