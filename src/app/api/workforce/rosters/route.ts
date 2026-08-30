@@ -75,6 +75,20 @@ export async function POST(req: Request) {
     const deptCheck = await deptCheckRes.json();
     if (!deptCheck?.[0]) return NextResponse.json({ data: null, error: { message: 'Department not found' } }, { status: 404 });
 
+    // A department_head could otherwise publish a roster (and send
+    // notifications) for ANY department in their own church, not just the
+    // one they actually head — a same-tenant authorization gap, not a
+    // cross-church one (see MULTI_TENANT_AUDIT.md). department_id isn't on
+    // the JWT, so it's looked up fresh here rather than trusted from the
+    // token.
+    if (user.role === 'department_head') {
+      const ownDeptRes = await fetch(`${SURL}/rest/v1/users?id=eq.${user.id}&select=department_id&limit=1`, { headers: H() });
+      const ownDept = await ownDeptRes.json();
+      if (ownDept?.[0]?.department_id !== department_id) {
+        return NextResponse.json({ data: null, error: { message: 'You can only manage the roster for the department you head' } }, { status: 403 });
+      }
+    }
+
     // Upsert roster
     const rRes = await fetch(`${SURL}/rest/v1/workforce_rosters`, {
       method: 'POST', headers: { ...H(), 'Prefer': 'return=representation,resolution=merge-duplicates' },
