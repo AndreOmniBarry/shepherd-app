@@ -1132,6 +1132,7 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
   const [config, setConfig] = React.useState<Record<string,unknown>>({});
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
+  const [saveError, setSaveError] = React.useState('');
   const [activeTab, setActiveTab] = React.useState<'structure'|'church'|'services'>('structure');
   const [originalStructureType, setOriginalStructureType] = React.useState('cell_church');
   const [showStructureConfirm, setShowStructureConfirm] = React.useState(false);
@@ -1148,6 +1149,8 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
   const [country, setCountry] = React.useState('Nigeria');
   const [serviceDays, setServiceDays] = React.useState<string[]>(['Sunday']);
   const [absenceThreshold, setAbsenceThreshold] = React.useState(1);
+  const [midweekSoftThreshold, setMidweekSoftThreshold] = React.useState(2);
+  const [midweekFullThreshold, setMidweekFullThreshold] = React.useState(3);
 
   React.useEffect(() => {
     fetch('/api/settings/church-config', { credentials: 'include' })
@@ -1168,14 +1171,24 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
           setCountry(c.country || 'Nigeria');
           setServiceDays(c.service_days || ['Sunday']);
           setAbsenceThreshold(c.absence_alert_threshold || 1);
+          setMidweekSoftThreshold(c.midweek_soft_alert_threshold || 2);
+          setMidweekFullThreshold(c.midweek_care_lead_threshold || 3);
         }
       }).catch(() => {});
   }, []);
 
   async function doSave() {
+    setSaveError('');
+    // The DB itself enforces care-lead > soft-alert (a church_config CHECK
+    // constraint), but catching it here first means an admin sees an
+    // immediate, specific message instead of a save that silently no-ops.
+    if (midweekFullThreshold <= midweekSoftThreshold) {
+      setSaveError('The care-team threshold must be higher than the soft-alert threshold.');
+      return;
+    }
     setSaving(true);
     try {
-      await fetch('/api/settings/church-config', {
+      const res = await fetch('/api/settings/church-config', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1191,13 +1204,23 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
           country,
           service_days: serviceDays,
           absence_alert_threshold: absenceThreshold,
+          midweek_soft_alert_threshold: midweekSoftThreshold,
+          midweek_care_lead_threshold: midweekFullThreshold,
         }),
       });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        setSaveError(json?.error?.message || 'Failed to save — please try again.');
+        setSaving(false);
+        return;
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
       setOriginalStructureType(structureType);
       onConfigSaved?.({ structure_type: structureType, tier1_label: tier1Label || null, tier2_label: tier2Label || null, tier1_head_label: tier1HeadLabel, tier2_head_label: tier2HeadLabel, church_name: churchName, currency });
-    } catch {}
+    } catch {
+      setSaveError('Network error — nothing was saved.');
+    }
     setSaving(false);
   }
 
@@ -1263,6 +1286,9 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
           {saving?'Saving…':saved?'✓ Saved':'Save changes'}
         </button>
       </div>
+      {saveError && (
+        <div style={{background:t.coralBg||'#FAECE7',color:t.coral||'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12,marginTop:8}}>{saveError}</div>
+      )}
 
       {/* Tab nav */}
       <div style={{display:'flex',gap:0,borderBottom:`0.5px solid ${t.border}`}}>
@@ -1389,6 +1415,33 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
             {absenceThreshold===1
               ? 'A care lead is created the very first Sunday a member is absent.'
               : `A care lead is only created once a member has missed ${absenceThreshold} Sundays in a row — a single missed week alone won't trigger anything.`}
+          </div>
+        </div>
+      )}
+      {activeTab === 'services' && (
+        <div style={cardS()}>
+          <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:6}}>Midweek Absence Follow-Up</div>
+          <div style={{fontSize:12,color:t.muted,marginBottom:14}}>
+            Only applies if your church runs a midweek (e.g. Wednesday) service. A two-stage check runs automatically every Thursday: a soft heads-up to the member&apos;s own cell leader first, then a full care-team lead if it keeps happening.
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            <div>
+              <label style={labelS}>Soft alert to cell leader after</label>
+              <select value={midweekSoftThreshold} onChange={e=>setMidweekSoftThreshold(Number(e.target.value))} style={{...inputS,width:'auto',minWidth:200}}>
+                {[1,2,3,4,5,6,7].map(n=><option key={n} value={n}>{n} missed midweek service{n>1?'s':''} in a row</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelS}>Escalate to care team after</label>
+              <select value={midweekFullThreshold} onChange={e=>setMidweekFullThreshold(Number(e.target.value))} style={{...inputS,width:'auto',minWidth:200}}>
+                {[1,2,3,4,5,6,7,8].map(n=><option key={n} value={n}>{n} missed midweek service{n>1?'s':''} in a row</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{marginTop:12,background:midweekFullThreshold<=midweekSoftThreshold?t.coralBg:t.tealBg,borderRadius:8,padding:'10px 14px',fontSize:11,color:midweekFullThreshold<=midweekSoftThreshold?t.coral:t.teal}}>
+            {midweekFullThreshold<=midweekSoftThreshold
+              ? 'The care-team threshold needs to be higher than the soft-alert threshold, or this won\'t save.'
+              : `The cell leader hears about it first at ${midweekSoftThreshold}; if it's still happening by ${midweekFullThreshold}, the care team takes over.`}
           </div>
         </div>
       )}

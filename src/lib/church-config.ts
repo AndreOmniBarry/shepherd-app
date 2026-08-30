@@ -32,6 +32,14 @@ export type ChurchConfig = {
   // Defaults to 1 (today's fixed behavior, unchanged for any church that
   // never touches this setting).
   absence_alert_threshold?: number;
+  // Same idea, for the midweek (e.g. Wednesday) service: a soft alert to
+  // the member's own cell leader after `midweek_soft_alert_threshold`
+  // consecutive misses, escalating to a full care-team lead after
+  // `midweek_care_lead_threshold` — see /api/care/trigger-midweek-alerts.
+  // Defaults (2/3) match today's fixed behavior for any church that
+  // never touches these.
+  midweek_soft_alert_threshold?: number;
+  midweek_care_lead_threshold?: number;
   plan_tier?: string;
   subscription_status?: string;
   subscription_started_at?: string | null;
@@ -139,6 +147,8 @@ export const DEFAULT_CONFIG: Omit<ChurchConfig, 'id'> = {
   logo_url: null,
   is_configured: false,
   absence_alert_threshold: 1,
+  midweek_soft_alert_threshold: 2,
+  midweek_care_lead_threshold: 3,
 };
 
 // Helper: get display label for a tier
