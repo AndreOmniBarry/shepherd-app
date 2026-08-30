@@ -1147,6 +1147,7 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
   const [currency, setCurrency] = React.useState('NGN');
   const [country, setCountry] = React.useState('Nigeria');
   const [serviceDays, setServiceDays] = React.useState<string[]>(['Sunday']);
+  const [absenceThreshold, setAbsenceThreshold] = React.useState(1);
 
   React.useEffect(() => {
     fetch('/api/settings/church-config', { credentials: 'include' })
@@ -1166,6 +1167,7 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
           setCurrency(c.currency || 'NGN');
           setCountry(c.country || 'Nigeria');
           setServiceDays(c.service_days || ['Sunday']);
+          setAbsenceThreshold(c.absence_alert_threshold || 1);
         }
       }).catch(() => {});
   }, []);
@@ -1188,6 +1190,7 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
           currency,
           country,
           service_days: serviceDays,
+          absence_alert_threshold: absenceThreshold,
         }),
       });
       setSaved(true);
@@ -1368,6 +1371,24 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
           </div>
           <div style={{marginTop:6,fontSize:11,color:t.muted}}>
             This is the church-wide default. {pluralizeLabel(branchLabel)} can run their own schedule below — different days, or more than one service in a day.
+          </div>
+        </div>
+      )}
+      {activeTab === 'services' && (
+        <div style={cardS()}>
+          <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:6}}>Absence Follow-Up</div>
+          <div style={{fontSize:12,color:t.muted,marginBottom:14}}>
+            How many Sundays in a row a member has to miss before they&apos;re escalated to your care team&apos;s queue for follow-up. A weekly sweep checks this automatically every Monday.
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <select value={absenceThreshold} onChange={e=>setAbsenceThreshold(Number(e.target.value))} style={{...inputS,width:'auto',minWidth:160}}>
+              {[1,2,3,4,5,6].map(n=><option key={n} value={n}>{n} missed Sunday{n>1?'s':''} in a row</option>)}
+            </select>
+          </div>
+          <div style={{marginTop:12,background:t.purpleBg,borderRadius:8,padding:'10px 14px',fontSize:11,color:t.purple}}>
+            {absenceThreshold===1
+              ? 'A care lead is created the very first Sunday a member is absent.'
+              : `A care lead is only created once a member has missed ${absenceThreshold} Sundays in a row — a single missed week alone won't trigger anything.`}
           </div>
         </div>
       )}

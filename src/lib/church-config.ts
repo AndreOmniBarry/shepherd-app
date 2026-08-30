@@ -27,6 +27,11 @@ export type ChurchConfig = {
   service_days: string[];
   logo_url: string | null;
   is_configured: boolean;
+  // Consecutive missed Sundays before the weekly absence sweep escalates a
+  // member into the care team's queue — see /api/care/trigger-alerts.
+  // Defaults to 1 (today's fixed behavior, unchanged for any church that
+  // never touches this setting).
+  absence_alert_threshold?: number;
   plan_tier?: string;
   subscription_status?: string;
   subscription_started_at?: string | null;
@@ -133,6 +138,7 @@ export const DEFAULT_CONFIG: Omit<ChurchConfig, 'id'> = {
   service_days: ['Sunday'],
   logo_url: null,
   is_configured: false,
+  absence_alert_threshold: 1,
 };
 
 // Helper: get display label for a tier

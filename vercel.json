@@ -3,6 +3,10 @@
     {
       "path": "/api/admin/health-check",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/care/trigger-alerts",
+      "schedule": "0 6 * * 1"
     }
   ]
 }
