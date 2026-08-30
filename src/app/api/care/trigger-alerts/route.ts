@@ -4,11 +4,16 @@ import { assignToLeastLoadedCareTeamMember } from '@/lib/care-assignment';
 import { notifyUsers } from '@/lib/notify';
 
 // ── This endpoint scans last Sunday's attendance and creates care leads
-// ── for any member absent 1+ Sunday with no open lead already.
+// ── for any member who's missed enough CONSECUTIVE Sundays to cross
+// ── their own church's configured threshold (church_config.
+// ── absence_alert_threshold, default 1 — Settings → Services).
 // ── Runs once per church so one church's absentees never land in
 // ── another's care queue — see runForChurch() below.
-// ── Call this every Monday via cron or manually from the dashboard.
-// ── Protected by a secret key to prevent unauthorised triggers.
+// ── Runs automatically every Monday via Vercel Cron (see vercel.json);
+// ── also reachable by a signed-in admin re-running it for their own
+// ── church (GET, cookie-based) or any external scheduler (POST with a
+// ── shared secret) — see isCronAuthorized()/GET below for exactly how
+// ── each caller is told apart and protected.
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -25,10 +30,30 @@ function getLastSunday(): string {
   return d.toISOString().split('T')[0];
 }
 
+// The `count` Sundays immediately before (and including) `lastSunday`,
+// oldest first — used to look back for a consecutive-absence streak when
+// a church's threshold is set above 1.
+function getPreviousSundays(count: number, lastSunday: string): string[] {
+  const dates: string[] = [];
+  const base = new Date(lastSunday + 'T12:00:00');
+  for (let i = 0; i < count; i++) {
+    const d = new Date(base);
+    d.setDate(d.getDate() - i * 7);
+    dates.unshift(d.toISOString().split('T')[0]);
+  }
+  return dates;
+}
+
 type ChurchResults = { church_id: string; leads_created: number; leads_skipped: number; errors: string[]; message?: string };
 
 async function runForChurch(churchId: string, lastSunday: string): Promise<ChurchResults> {
   const results: ChurchResults = { church_id: churchId, leads_created: 0, leads_skipped: 0, errors: [] };
+
+  // Per-church configurable — see Settings → Services. Defaults to 1
+  // (today's fixed behavior: escalate on the very first missed Sunday).
+  const configRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?church_id=eq.${churchId}&select=absence_alert_threshold&limit=1`, { headers: hdrs() });
+  const configData = await configRes.json();
+  const threshold: number = configData?.[0]?.absence_alert_threshold || 1;
 
   // 1. Get last Sunday's service for this church
   const svcRes = await fetch(
@@ -82,6 +107,50 @@ async function runForChurch(churchId: string, lastSunday: string): Promise<Churc
   const careIdsData = await careIdsRes.json();
   const careIds: string[] = Array.isArray(careIdsData) ? careIdsData.map((u: Record<string, string>) => u.id) : [];
 
+  // When the threshold is above 1, a member has to be marked absent on
+  // EVERY one of the previous (threshold - 1) Sundays too, not just this
+  // one — a single missed week alone must never escalate. Fetches each
+  // prior Sunday's main service + its absent entries once per church
+  // (not once per member), building memberId -> set of dates confirmed
+  // absent on.
+  const priorAbsentByMember: Record<string, Set<string>> = {};
+  let priorSundays: string[] = [];
+  if (threshold > 1) {
+    // The (threshold - 1) Sundays strictly before lastSunday.
+    priorSundays = getPreviousSundays(threshold, lastSunday).slice(0, -1);
+    const priorSvcRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/services?service_date=in.(${priorSundays.join(',')})&service_number=eq.1&church_id=eq.${churchId}&select=id,service_date`,
+      { headers: hdrs() }
+    );
+    const priorSvcData = await priorSvcRes.json();
+    const priorServices: { id: string; service_date: string }[] = Array.isArray(priorSvcData) ? priorSvcData : [];
+    if (priorServices.length > 0) {
+      const dateByRecordId: Record<string, string> = {};
+      const priorRecordIdsRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/attendance_records?service_id=in.(${priorServices.map(s => s.id).join(',')})&select=id,service_id`,
+        { headers: hdrs() }
+      );
+      const priorRecordIdsData = await priorRecordIdsRes.json();
+      const priorRecordIds: { id: string; service_id: string }[] = Array.isArray(priorRecordIdsData) ? priorRecordIdsData : [];
+      const serviceDateById: Record<string, string> = {};
+      priorServices.forEach(s => { serviceDateById[s.id] = s.service_date; });
+      priorRecordIds.forEach(r => { dateByRecordId[r.id] = serviceDateById[r.service_id]; });
+
+      if (priorRecordIds.length > 0) {
+        const priorAbsentRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/attendance_entries?status=eq.absent&record_id=in.(${priorRecordIds.map(r => r.id).join(',')})&select=member_id,record_id`,
+          { headers: hdrs() }
+        );
+        const priorAbsentData = await priorAbsentRes.json();
+        (Array.isArray(priorAbsentData) ? priorAbsentData : []).forEach((e: Record<string, string>) => {
+          const date = dateByRecordId[e.record_id];
+          if (!e.member_id || !date) return;
+          (priorAbsentByMember[e.member_id] = priorAbsentByMember[e.member_id] || new Set()).add(date);
+        });
+      }
+    }
+  }
+
   // 4. For each absent member — create care lead if none exists
   for (let i = 0; i < absentEntries.length; i++) {
     const entry = absentEntries[i] as Record<string, string>;
@@ -106,6 +175,18 @@ async function runForChurch(churchId: string, lastSunday: string): Promise<Churc
       continue;
     }
 
+    // Below threshold — confirmed absent this week, but hasn't yet missed
+    // enough CONSECUTIVE prior Sundays to escalate. No lead, no
+    // notification; the next weekly run checks again.
+    if (threshold > 1) {
+      const confirmedDates = priorAbsentByMember[memberId];
+      const metStreak = priorSundays.every(d => confirmedDates?.has(d));
+      if (!metStreak) {
+        results.leads_skipped++;
+        continue;
+      }
+    }
+
     // Assign to whichever care team member (within this church) currently
     // has the fewest open items
     const assignedTo = await assignToLeastLoadedCareTeamMember(SUPABASE_URL, hdrs(), churchId);
@@ -117,7 +198,7 @@ async function runForChurch(churchId: string, lastSunday: string): Promise<Churc
       body: JSON.stringify({
         member_id: memberId,
         assigned_to: assignedTo,
-        weeks_absent: 1,
+        weeks_absent: threshold,
         status: 'new',
         contact_attempts: 0,
         notes: entry.absence_reason ? `Absence reason logged: ${entry.absence_reason}` : null,
@@ -141,7 +222,9 @@ async function runForChurch(churchId: string, lastSunday: string): Promise<Churc
     await notifyUsers(careIds, {
       type: 'pipeline',
       title: `${results.leads_created} new absence lead${results.leads_created > 1 ? 's' : ''} assigned`,
-      body: `${results.leads_created} member${results.leads_created > 1 ? 's were' : ' was'} absent last Sunday and assigned to your queue. Please follow up by Wednesday.`,
+      body: threshold > 1
+        ? `${results.leads_created} member${results.leads_created > 1 ? 's have' : ' has'} missed ${threshold} Sundays in a row and ${results.leads_created > 1 ? 'were' : 'was'} assigned to your queue. Please follow up by Wednesday.`
+        : `${results.leads_created} member${results.leads_created > 1 ? 's were' : ' was'} absent last Sunday and assigned to your queue. Please follow up by Wednesday.`,
     }, churchId);
   }
 
@@ -192,11 +275,32 @@ export async function POST(req: Request) {
   }
 }
 
-// GET — manual trigger from dashboard, overseer/pa/lead_tech only.
-// Scoped to the calling user's own church only — an overseer triggering
-// this manually should never sweep every other church too.
+// GET has two distinct callers, told apart by how they authenticate:
+//   1. Vercel Cron (see vercel.json) — every Monday, no cookie, no
+//      church_id. Vercel automatically sends `Authorization: Bearer
+//      $CRON_SECRET` when that env var is set (same convention as
+//      /api/admin/health-check) — sweeps every church.
+//   2. A signed-in admin manually re-running it for their own church —
+//      scoped to their own church_id only; they should never be able to
+//      sweep every other church too.
+function isCronAuthorized(req: Request): boolean {
+  if (!process.env.CRON_SECRET) return false;
+  if (req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`) return true;
+  if (req.headers.get('x-cron-secret') === process.env.CRON_SECRET) return true;
+  return false;
+}
+
 export async function GET(req: Request) {
   try {
+    if (isCronAuthorized(req)) {
+      const postReq = new Request(req.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret: process.env.CRON_SECRET }),
+      });
+      return POST(postReq);
+    }
+
     const cookie = req.headers.get('cookie') || '';
     const m = cookie.match(/shepherd_token=([^;]+)/);
     if (!m?.[1]) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
