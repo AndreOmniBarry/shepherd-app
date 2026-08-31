@@ -168,13 +168,33 @@ export async function PATCH(req: Request) {
     );
     const existingData = await existing.json();
 
+    // subscription_status must NEVER be settable through this general
+    // settings route — it's the one field hasPremiumAccess() actually
+    // gates on (see src/lib/plans.ts), and the only two paths allowed to
+    // flip it to 'active' are a verified Paystack transaction
+    // (/api/subscription's PATCH) or the webhook's charge.success handler
+    // (/api/webhooks/paystack). This previously trusted plan_tier alone —
+    // picking "Growth" here (the onboarding wizard's PlanScreen sends
+    // exactly this, before any payment exists) set subscription_status
+    // straight to 'active', silently unlocking every premium feature
+    // (Moshe, Partnership, full chat, SMS/WhatsApp) for free, for as long
+    // as the church wanted, for both a brand-new signup AND — since the
+    // `else if` branch applied on every later PATCH too — any already-
+    // configured church at any time, from any caller (this route's own
+    // role check allows overseer/lead_tech/pa) simply by resending their
+    // existing plan_tier. plan_tier itself still gets stored normally
+    // below (a church's own displayed/intended tier is harmless to keep),
+    // it just can no longer carry subscription_status along with it.
+    const { subscription_status: _ignoredSubStatus, subscription_started_at: _ignoredSubStarted, ...safeBody } = body as Record<string, unknown>;
     const payload = {
-      ...body,
+      ...safeBody,
       is_configured: true,
       updated_at: new Date().toISOString(),
     };
 
-    // Auto-set trial dates on first configuration
+    // Auto-set trial dates on first configuration — status is always
+    // 'trial' here regardless of which plan_tier the church says it
+    // wants; that's just its stated intent until it actually pays.
     if (!existingData?.[0]?.trial_started_at) {
       const now = new Date();
       const trialEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -182,14 +202,8 @@ export async function PATCH(req: Request) {
         trial_started_at: now.toISOString(),
         trial_ends_at: trialEnd.toISOString(),
         plan_tier: body.plan_tier || 'trial',
-        subscription_status: body.plan_tier && body.plan_tier !== 'trial' ? 'active' : 'trial',
-        subscription_started_at: body.plan_tier && body.plan_tier !== 'trial' ? now.toISOString() : null,
-      });
-    } else if (body.plan_tier && body.plan_tier !== 'trial') {
-      // Upgrading from trial to paid
-      Object.assign(payload, {
-        subscription_status: 'active',
-        subscription_started_at: new Date().toISOString(),
+        subscription_status: 'trial',
+        subscription_started_at: null,
       });
     }
 

@@ -10,8 +10,10 @@
 // church_config (e.g. a "pa" account can display as "Deacon" or "Reverend"
 // for a given church) — this union is the fixed internal permission key,
 // not the display text. Add a new role here when a new permission set is
-// introduced; `general_overseer`/`branch_pastor` are reserved for the
-// multi-branch model and unused until that ships.
+// introduced. `general_overseer` and `branch_pastor` are the multi-branch
+// model, which has since shipped (see src/lib/branch-scope.ts) — both are
+// live, in active use across dashboard/page.tsx, resolveBranchScope, and
+// every branch-scoped API route.
 export type Role =
   | 'cell_leader'
   | 'fellowship_head'
