@@ -3,17 +3,28 @@ import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { assignToLeastLoadedCareTeamMember } from '@/lib/care-assignment';
 import { notifyUsers } from '@/lib/notify';
 
-// ── This endpoint scans last Sunday's attendance and creates care leads
-// ── for any member who's missed enough CONSECUTIVE Sundays to cross
-// ── their own church's configured threshold (church_config.
-// ── absence_alert_threshold, default 1 — Settings → Services).
+// ── This endpoint scans the church's last main-service attendance and
+// ── creates care leads for any member who's missed enough CONSECUTIVE
+// ── main services to cross their own church's configured threshold
+// ── (church_config.absence_alert_threshold, default 1 — Settings →
+// ── Services).
 // ── Runs once per church so one church's absentees never land in
 // ── another's care queue — see runForChurch() below.
-// ── Runs automatically every Monday via Vercel Cron (see vercel.json);
-// ── also reachable by a signed-in admin re-running it for their own
-// ── church (GET, cookie-based) or any external scheduler (POST with a
-// ── shared secret) — see isCronAuthorized()/GET below for exactly how
-// ── each caller is told apart and protected.
+// ── Runs automatically every day via Vercel Cron (see vercel.json); also
+// ── reachable by a signed-in admin re-running it for their own church
+// ── (GET, cookie-based) or any external scheduler (POST with a shared
+// ── secret) — see isCronAuthorized()/GET below for exactly how each
+// ── caller is told apart and protected.
+// ── Was hardcoded to literal Sunday (getLastSunday()/getPreviousSundays()
+// ── did real weekday-0 math, and the cron itself only ran Mondays) — a
+// ── church whose "main" configured service day isn't Sunday (the
+// ── Settings → Services picker lets an admin select days in any order,
+// ── and church_config.service_days[0] — whichever was clicked first — is
+// ── what /api/attendance treats as the primary/"sunday" service_type)
+// ── would never have this fire on the right date. Same fix as the
+// ── midweek cron: derive the church's own main day from
+// ── church_config.service_days[0], and check "yesterday" against it
+// ── daily instead of a fixed weekly schedule.
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -23,19 +34,20 @@ const hdrs = () => ({
   'Content-Type': 'application/json',
 });
 
-function getLastSunday(): string {
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function getYesterday(): string {
   const d = new Date();
-  const day = d.getDay(); // 0 = Sunday
-  d.setDate(d.getDate() - (day === 0 ? 7 : day)); // previous Sunday
+  d.setDate(d.getDate() - 1);
   return d.toISOString().split('T')[0];
 }
 
-// The `count` Sundays immediately before (and including) `lastSunday`,
-// oldest first — used to look back for a consecutive-absence streak when
-// a church's threshold is set above 1.
-function getPreviousSundays(count: number, lastSunday: string): string[] {
+// The `count` occurrences of `dateStr`'s own weekday immediately before
+// (and including) `dateStr`, oldest first — used to look back for a
+// consecutive-absence streak when a church's threshold is above 1.
+function getPreviousOccurrences(dateStr: string, count: number): string[] {
   const dates: string[] = [];
-  const base = new Date(lastSunday + 'T12:00:00');
+  const base = new Date(dateStr + 'T12:00:00');
   for (let i = 0; i < count; i++) {
     const d = new Date(base);
     d.setDate(d.getDate() - i * 7);
@@ -46,16 +58,31 @@ function getPreviousSundays(count: number, lastSunday: string): string[] {
 
 type ChurchResults = { church_id: string; leads_created: number; leads_skipped: number; errors: string[]; message?: string };
 
-async function runForChurch(churchId: string, lastSunday: string): Promise<ChurchResults> {
+async function runForChurch(churchId: string): Promise<ChurchResults> {
   const results: ChurchResults = { church_id: churchId, leads_created: 0, leads_skipped: 0, errors: [] };
 
   // Per-church configurable — see Settings → Services. Defaults to 1
-  // (today's fixed behavior: escalate on the very first missed Sunday).
-  const configRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?church_id=eq.${churchId}&select=absence_alert_threshold&limit=1`, { headers: hdrs() });
+  // (today's fixed behavior: escalate on the very first missed main
+  // service).
+  const configRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?church_id=eq.${churchId}&select=absence_alert_threshold,service_days&limit=1`, { headers: hdrs() });
   const configData = await configRes.json();
   const threshold: number = configData?.[0]?.absence_alert_threshold || 1;
 
-  // 1. Get last Sunday's service for this church
+  // First configured day is this church's "main" service (see
+  // /api/attendance's identical convention — service_type='sunday' for
+  // whichever day that is, regardless of its literal name).
+  const serviceDays: string[] = configData?.[0]?.service_days?.length ? configData[0].service_days : ['Sunday'];
+  const mainDay = serviceDays[0];
+
+  const yesterday = getYesterday();
+  const yesterdayName = DAY_NAMES[new Date(yesterday + 'T12:00:00').getDay()];
+  if (yesterdayName !== mainDay) {
+    results.message = `Yesterday (${yesterdayName}) isn't this church's configured main service day (${mainDay})`;
+    return results;
+  }
+  const lastSunday = yesterday;
+
+  // 1. Get yesterday's main service for this church
   const svcRes = await fetch(
     `${SUPABASE_URL}/rest/v1/services?service_date=eq.${lastSunday}&service_number=eq.1&church_id=eq.${churchId}&select=id&limit=1`,
     { headers: hdrs() }
@@ -85,7 +112,7 @@ async function runForChurch(churchId: string, lastSunday: string): Promise<Churc
   })() : [];
 
   if (!Array.isArray(absentEntries) || absentEntries.length === 0) {
-    results.message = 'No absent members found for last Sunday';
+    results.message = `No absent members found for ${lastSunday}`;
     return results;
   }
 
@@ -116,8 +143,8 @@ async function runForChurch(churchId: string, lastSunday: string): Promise<Churc
   const priorAbsentByMember: Record<string, Set<string>> = {};
   let priorSundays: string[] = [];
   if (threshold > 1) {
-    // The (threshold - 1) Sundays strictly before lastSunday.
-    priorSundays = getPreviousSundays(threshold, lastSunday).slice(0, -1);
+    // The (threshold - 1) occurrences of the main day strictly before lastSunday.
+    priorSundays = getPreviousOccurrences(lastSunday, threshold).slice(0, -1);
     const priorSvcRes = await fetch(
       `${SUPABASE_URL}/rest/v1/services?service_date=in.(${priorSundays.join(',')})&service_number=eq.1&church_id=eq.${churchId}&select=id,service_date`,
       { headers: hdrs() }
@@ -223,8 +250,8 @@ async function runForChurch(churchId: string, lastSunday: string): Promise<Churc
       type: 'pipeline',
       title: `${results.leads_created} new absence lead${results.leads_created > 1 ? 's' : ''} assigned`,
       body: threshold > 1
-        ? `${results.leads_created} member${results.leads_created > 1 ? 's have' : ' has'} missed ${threshold} Sundays in a row and ${results.leads_created > 1 ? 'were' : 'was'} assigned to your queue. Please follow up by Wednesday.`
-        : `${results.leads_created} member${results.leads_created > 1 ? 's were' : ' was'} absent last Sunday and assigned to your queue. Please follow up by Wednesday.`,
+        ? `${results.leads_created} member${results.leads_created > 1 ? 's have' : ' has'} missed ${threshold} main services in a row and ${results.leads_created > 1 ? 'were' : 'was'} assigned to your queue. Please follow up before the next service.`
+        : `${results.leads_created} member${results.leads_created > 1 ? 's were' : ' was'} absent from your last main service and assigned to your queue. Please follow up before the next service.`,
     }, churchId);
   }
 
@@ -240,8 +267,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const lastSunday = getLastSunday();
-
     // If a specific church_id is passed (the manual per-church trigger from
     // the dashboard does this), only run that one. Otherwise run every
     // church — each fully isolated from the others.
@@ -256,7 +281,7 @@ export async function POST(req: Request) {
 
     const perChurch: ChurchResults[] = [];
     for (const churchId of churchIds) {
-      perChurch.push(await runForChurch(churchId, lastSunday));
+      perChurch.push(await runForChurch(churchId));
     }
 
     const totals = perChurch.reduce((acc, r) => ({
@@ -265,7 +290,7 @@ export async function POST(req: Request) {
     }), { leads_created: 0, leads_skipped: 0 });
 
     return NextResponse.json({
-      data: { service_date: lastSunday, ...totals, churches: perChurch },
+      data: { checked_date: getYesterday(), ...totals, churches: perChurch },
       error: null,
     });
 
@@ -276,7 +301,7 @@ export async function POST(req: Request) {
 }
 
 // GET has two distinct callers, told apart by how they authenticate:
-//   1. Vercel Cron (see vercel.json) — every Monday, no cookie, no
+//   1. Vercel Cron (see vercel.json) — every day, no cookie, no
 //      church_id. Vercel automatically sends `Authorization: Bearer
 //      $CRON_SECRET` when that env var is set (same convention as
 //      /api/admin/health-check) — sweeps every church.
