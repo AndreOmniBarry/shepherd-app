@@ -5,16 +5,8 @@
       "schedule": "0 8 * * *"
     },
     {
-      "path": "/api/care/trigger-alerts",
+      "path": "/api/care/trigger-daily-alerts",
       "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/care/trigger-midweek-alerts",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/care/trigger-birthday-alerts",
-      "schedule": "0 7 * * *"
     }
   ]
 }
