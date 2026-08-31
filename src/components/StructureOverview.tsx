@@ -96,11 +96,16 @@ interface StructureOverviewProps {
   structureKey: 'cell' | 'dept';
   /** e.g. 'Cell' or 'Department' — used for the members KPI label. */
   unitLabel: string;
+  /** e.g. 'Fellowship' / 'Zone' / 'Campus' — the tier-1 parent's own label,
+      used only when structureKey === 'cell' (unit.fellowship holds that
+      parent's name). Defaults to 'Fellowship' so cell_church callers that
+      never pass it keep today's behavior. */
+  parentLabel?: string;
   emptyTitle: string;
   emptySubtitle?: string;
 }
 
-export default function StructureOverview({ dark = false, t, isMobile = false, fetchUrl, structureKey, unitLabel, emptyTitle, emptySubtitle }: StructureOverviewProps) {
+export default function StructureOverview({ dark = false, t, isMobile = false, fetchUrl, structureKey, unitLabel, parentLabel = 'Fellowship', emptyTitle, emptySubtitle }: StructureOverviewProps) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
   const [memberView, setMemberView] = useState<'all' | 'critical' | 'watch' | 'healthy'>('all');
@@ -173,7 +178,7 @@ export default function StructureOverview({ dark = false, t, isMobile = false, f
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
         {[
-          { label: `${unitLabel} members`, value: unit.totalMembers, sub: unit.fellowship ? `${unit.fellowship} Fellowship` : unit.name, accent: '#534AB7' },
+          { label: `${unitLabel} members`, value: unit.totalMembers, sub: unit.fellowship ? `${unit.fellowship} ${parentLabel}` : unit.name, accent: '#534AB7' },
           { label: 'Avg attendance', value: stats.avgRate !== null ? `${stats.avgRate}%` : '—', sub: 'Last 8 Sundays', accent: '#1D9E75' },
           { label: 'Current SLA', value: stats.currentSLA || '—', sub: 'This week', accent: slaColor.text, valueBg: slaColor.bg, valueText: slaColor.text },
           { label: 'Members at risk', value: atRisk, sub: atRiskSub, accent: atRisk > 0 ? '#D85A30' : '#1D9E75' },
@@ -404,7 +409,7 @@ export default function StructureOverview({ dark = false, t, isMobile = false, f
 
       {/* Summary footer */}
       <div style={{ background: t.purpleBg, borderRadius: 10, padding: '12px 14px', border: `0.5px solid rgba(83,74,183,0.15)`, fontSize: 11, color: t.purple, lineHeight: 1.6 }}>
-        <strong>{unit.name}</strong>{unit.fellowship ? ` · ${unit.fellowship} Fellowship` : ''} · {unit.totalMembers} active members · {stats.totalSubmissions} submissions recorded · Average attendance {stats.avgRate !== null ? `${stats.avgRate}%` : 'not yet calculated'}
+        <strong>{unit.name}</strong>{unit.fellowship ? ` · ${unit.fellowship} ${parentLabel}` : ''} · {unit.totalMembers} active members · {stats.totalSubmissions} submissions recorded · Average attendance {stats.avgRate !== null ? `${stats.avgRate}%` : 'not yet calculated'}
         {stats.currentSLA && ` · Current SLA grade: ${stats.currentSLA}`}
       </div>
     </div>

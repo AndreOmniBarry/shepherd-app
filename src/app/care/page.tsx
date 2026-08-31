@@ -5,6 +5,7 @@ import NotificationBell from "@/components/NotificationBell";
 import MyAccountButton from "@/components/MyAccountButton";
 import CareOverview from '@/components/CareOverview';
 import BirthdayPanel from '@/components/BirthdayPanel';
+import BirthdayBanner from '@/components/BirthdayBanner';
 import CareEventsTab from '@/components/CareEventsTab';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -331,6 +332,8 @@ export default function CareTeamPage() {
           )}
         </div>
       </div>
+
+      <BirthdayBanner isMobile={isMobile} />
 
       {/* Sub-nav */}
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '10px 20px', display: 'flex', gap: 6, overflowX: 'auto' }}>

@@ -7,6 +7,7 @@ import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import FloatingCalculator from '@/components/FloatingCalculator';
 import FinancialPeriodsPanel from '@/components/FinancialPeriodsPanel';
+import BirthdayBanner from '@/components/BirthdayBanner';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import ChatNavButton from '@/components/ChatNavButton';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -353,6 +354,8 @@ export default function AccountsPage() {
           )}
         </div>
       </div>
+
+      <BirthdayBanner isMobile={isMobile} />
 
       {/* Sub-nav */}
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '10px 20px', display: 'flex', gap: 6, overflowX: 'auto' }}>

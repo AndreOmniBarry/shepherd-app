@@ -6,6 +6,7 @@ import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 import NotificationBell from "@/components/NotificationBell";
 import MyAccountButton from "@/components/MyAccountButton";
 import BirthdayPanel from '@/components/BirthdayPanel';
+import BirthdayBanner from '@/components/BirthdayBanner';
 import FellowshipOverview from '@/components/FellowshipOverview';
 import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
 import DateTimePicker from '@/components/DateTimePicker';
@@ -456,6 +457,8 @@ export default function FellowshipHeadPage() {
           )}
         </div>
       </div>
+
+      <BirthdayBanner isMobile={isMobile} />
 
       {/* ── Sub-nav ── */}
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '10px 20px', display: 'flex', gap: 6, overflowX: 'auto' }}>
