@@ -5,6 +5,7 @@ import NotificationBell from "@/components/NotificationBell";
 import MyAccountButton from "@/components/MyAccountButton";
 import StructureOverview from '@/components/StructureOverview';
 import BirthdayPanel from '@/components/BirthdayPanel';
+import BirthdayBanner from '@/components/BirthdayBanner';
 import WorkforceServingTab from '@/components/WorkforceServingTab';
 import CareEventsTab from '@/components/CareEventsTab';
 import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
@@ -370,6 +371,8 @@ export default function DepartmentHeadPage() {
           )}
         </div>
       </div>
+
+      <BirthdayBanner isMobile={isMobile} />
 
       {/* Sub-nav */}
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '10px 20px', display: 'flex', gap: 6, overflowX: 'auto' }}>

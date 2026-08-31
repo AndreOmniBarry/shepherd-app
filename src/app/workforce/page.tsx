@@ -11,6 +11,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import GuideTour, { useFirstVisitGuide } from '@/components/GuideTour';
 import GuideHelpPanel from '@/components/GuideHelpPanel';
 import Icon from '@/components/Icon';
+import BirthdayBanner from '@/components/BirthdayBanner';
 
 type Entry = {
   id: string;
@@ -142,6 +143,8 @@ export default function WorkforcePage() {
           )}
         </div>
       </div>
+
+      <BirthdayBanner isMobile={isMobile} />
 
       <div style={{ maxWidth: 700, margin: '0 auto', padding: isMobile ? '14px 10px' : '20px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>

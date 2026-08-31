@@ -5,6 +5,7 @@ import NotificationBell from "@/components/NotificationBell";
 import MyAccountButton from "@/components/MyAccountButton";
 import Icon from "@/components/Icon";
 import BirthdayPanel from '@/components/BirthdayPanel';
+import BirthdayBanner from '@/components/BirthdayBanner';
 import StructureOverview from '@/components/StructureOverview';
 import CellFollowup from '@/components/CellFollowup';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
@@ -464,6 +465,8 @@ export default function CellPage() {
         </div>
       </div>
 
+      <BirthdayBanner isMobile={isMobile} />
+
       <div style={{ maxWidth: isMobile ? 480 : 880, margin: '0 auto', padding: isMobile ? '20px 16px' : '28px 24px' }}>
 
         {/* Tabs */}
@@ -494,7 +497,8 @@ export default function CellPage() {
             fetchUrl="/api/cell/overview"
             structureKey="cell"
             unitLabel={getLeafUnitLabel(churchConfig)}
-            emptyTitle="No cell assigned to your account."
+            parentLabel={churchConfig.tier1_label || 'Fellowship'}
+            emptyTitle={`No ${getLeafUnitLabel(churchConfig).toLowerCase()} assigned to your account.`}
             emptySubtitle="Contact your administrator."
           />
         )}

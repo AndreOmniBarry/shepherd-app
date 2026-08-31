@@ -2,6 +2,7 @@
 import { useTheme } from '@/hooks/useTheme';
 import React from 'react';
 import NotificationBell from "@/components/NotificationBell";
+import BirthdayBanner from "@/components/BirthdayBanner";
 import MyAccountButton from "@/components/MyAccountButton";
 import Icon from "@/components/Icon";
 import PastorAttendance from '@/components/PastorAttendance';
@@ -1422,11 +1423,11 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
         <div style={cardS()}>
           <div style={{fontSize:13,fontWeight:600,color:t.text,marginBottom:6}}>Midweek Absence Follow-Up</div>
           <div style={{fontSize:12,color:t.muted,marginBottom:14}}>
-            Only applies if your church runs a midweek (e.g. Wednesday) service. A two-stage check runs automatically every Thursday: a soft heads-up to the member&apos;s own cell leader first, then a full care-team lead if it keeps happening.
+            Only applies if your church runs a midweek (e.g. Wednesday) service — set under Service Days below. A two-stage check runs automatically the day after each midweek service, whichever day of the week that is: a soft heads-up to the member&apos;s own {(tier2HeadLabel||'cell leader').toLowerCase()} first, then a full care-team lead if it keeps happening.
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:12}}>
             <div>
-              <label style={labelS}>Soft alert to cell leader after</label>
+              <label style={labelS}>Soft alert to {(tier2HeadLabel||'cell leader').toLowerCase()} after</label>
               <select value={midweekSoftThreshold} onChange={e=>setMidweekSoftThreshold(Number(e.target.value))} style={{...inputS,width:'auto',minWidth:200}}>
                 {[1,2,3,4,5,6,7].map(n=><option key={n} value={n}>{n} missed midweek service{n>1?'s':''} in a row</option>)}
               </select>
@@ -1441,7 +1442,7 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
           <div style={{marginTop:12,background:midweekFullThreshold<=midweekSoftThreshold?t.coralBg:t.tealBg,borderRadius:8,padding:'10px 14px',fontSize:11,color:midweekFullThreshold<=midweekSoftThreshold?t.coral:t.teal}}>
             {midweekFullThreshold<=midweekSoftThreshold
               ? 'The care-team threshold needs to be higher than the soft-alert threshold, or this won\'t save.'
-              : `The cell leader hears about it first at ${midweekSoftThreshold}; if it's still happening by ${midweekFullThreshold}, the care team takes over.`}
+              : `The ${(tier2HeadLabel||'cell leader').toLowerCase()} hears about it first at ${midweekSoftThreshold}; if it's still happening by ${midweekFullThreshold}, the care team takes over.`}
           </div>
         </div>
       )}
@@ -2784,6 +2785,8 @@ export default function DashboardPage(){
           </div>
         </div>
 
+        <BirthdayBanner isMobile={isMobile} />
+
         {/* branch_pastor is mandatorily branch-scoped everywhere in the API
             (resolveBranchScope, ~20 routes) — with no branch_id assigned,
             every one of those routes fails closed (403/empty), so cells,
@@ -2798,7 +2801,7 @@ export default function DashboardPage(){
           <div style={{margin:isMobile?'0 12px':'0 20px',marginTop:12,background:dark?'rgba(216,90,48,0.12)':'#FAECE7',border:`0.5px solid ${dark?'rgba(216,90,48,0.35)':'rgba(216,90,48,0.3)'}`,borderRadius:10,padding:'12px 16px',display:'flex',alignItems:'flex-start',gap:10}}>
             <span style={{color:'#D85A30',flexShrink:0,marginTop:1}}><Icon name="ti-alert-triangle" size={16}/></span>
             <div style={{fontSize:12.5,color:t.text,lineHeight:1.5}}>
-              <strong>No {getBranchLabel(churchConfig).toLowerCase()} assigned to your account.</strong> Cells, fellowships, departments, members, and reports will look empty everywhere until a General Overseer assigns one — Team &amp; Access → find your account → pick a {getBranchLabel(churchConfig).toLowerCase()} from the dropdown.
+              <strong>No {getBranchLabel(churchConfig).toLowerCase()} assigned to your account.</strong> {pluralizeLabel(churchConfig.tier2_label||'Cell')}, {pluralizeLabel(churchConfig.tier1_label||'Fellowship').toLowerCase()}, departments, members, and reports will look empty everywhere until a General Overseer assigns one — Team &amp; Access → find your account → pick a {getBranchLabel(churchConfig).toLowerCase()} from the dropdown.
             </div>
           </div>
         )}
@@ -3843,7 +3846,7 @@ export default function DashboardPage(){
                       </select>
                     )}
                     {commendScope==='all' && (
-                      <div style={{fontSize:11,color:t.muted,padding:'8px 0'}}>Every cell leader, fellowship head, and department head in your branch.</div>
+                      <div style={{fontSize:11,color:t.muted,padding:'8px 0'}}>Every {getRoleLabel('cell_leader',churchConfig).toLowerCase()}, {getRoleLabel('fellowship_head',churchConfig).toLowerCase()}, and {getRoleLabel('department_head',churchConfig).toLowerCase()} in your branch.</div>
                     )}
                   </div>
                   <div>
@@ -3959,7 +3962,7 @@ export default function DashboardPage(){
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                 <div>
                   <div style={{fontSize:15,fontWeight:700,color:t.text}}>Prayer Requests</div>
-                  <div style={{fontSize:12,color:t.muted,marginTop:2}}>All prayer requests submitted by cell leaders, fellowship heads, and the care team.</div>
+                  <div style={{fontSize:12,color:t.muted,marginTop:2}}>All prayer requests submitted by {pluralizeLabel(getRoleLabel('cell_leader',churchConfig)).toLowerCase()}, {pluralizeLabel(getRoleLabel('fellowship_head',churchConfig)).toLowerCase()}, and the care team.</div>
                 </div>
                 <div style={{display:'flex',gap:8}}>
                   <span style={{fontSize:11,padding:'4px 12px',borderRadius:20,background:t.tealBg,color:t.teal,fontWeight:500,cursor:'pointer'}}>Open</span>

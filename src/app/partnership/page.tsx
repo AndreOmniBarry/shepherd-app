@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import NotificationBell from '@/components/NotificationBell';
 import MyAccountButton from '@/components/MyAccountButton';
 import FloatingCalculator from '@/components/FloatingCalculator';
+import BirthdayBanner from '@/components/BirthdayBanner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import ChatNavButton from '@/components/ChatNavButton';
 import Icon from '@/components/Icon';
@@ -260,6 +261,8 @@ export default function PartnershipPage() {
           )}
         </div>
       </div>
+
+      <BirthdayBanner isMobile={isMobile} />
 
       {/* Sub-nav */}
       <div style={{ background: t.navBg, borderBottom: `0.5px solid ${t.navBorder}`, padding: '10px 20px', display: 'flex', gap: 6, overflowX: 'auto' }}>

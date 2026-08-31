@@ -54,6 +54,27 @@ export async function GET(req: Request) {
 
     const fullName = profile?.full_name || user.name || user.email?.split('@')[0] || 'Pastor';
 
+    // For the in-app "It's your birthday!" banner — every login account
+    // may be linked to its own membership record (users.member_id) that
+    // actually carries date_of_birth; the users table itself has no
+    // birthdate column. Never blocks login if the lookup fails.
+    let isBirthdayToday = false;
+    if (user.member_id) {
+      try {
+        const memberRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/members?id=eq.${user.member_id}&select=date_of_birth&limit=1`,
+          { headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` } }
+        );
+        const memberRows = await memberRes.json();
+        const dob: string | null = memberRows?.[0]?.date_of_birth || null;
+        if (dob) {
+          const [, bmStr, bdStr] = dob.split('-');
+          const today = new Date();
+          isBirthdayToday = parseInt(bmStr, 10) - 1 === today.getMonth() && parseInt(bdStr, 10) === today.getDate();
+        }
+      } catch { /* default to false — never blocks login */ }
+    }
+
     let currency = 'NGN';
     try {
       const configRes = await fetch(
@@ -65,7 +86,7 @@ export async function GET(req: Request) {
     } catch { /* default to NGN if config lookup fails — never blocks login */ }
 
     return NextResponse.json({
-      data: { ...user, name: fullName, cell_name: cellName, department_name: departmentName, currency },
+      data: { ...user, name: fullName, cell_name: cellName, department_name: departmentName, currency, is_birthday_today: isBirthdayToday },
       error: null,
     });
   } catch (err) {
