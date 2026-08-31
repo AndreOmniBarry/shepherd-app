@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import Icon from '@/components/Icon';
 import GuideMockup, { type GuideTheme } from '@/components/GuideMockup';
-import { GUIDE_CONTENT, PORTAL_TITLE, type PortalKey } from '@/lib/guide-content';
+import { getGuideContent, getPortalTitle, guideLabelsFromConfig, type PortalKey } from '@/lib/guide-content';
+import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 
 const STORAGE_PREFIX = 'shepherd_guide_seen_';
 
@@ -41,7 +42,9 @@ export default function GuideTour({ portalKey, t, open, onClose, visibleIds }: {
   // for a portal with one fixed feature set — every entry shows as before.
   visibleIds?: string[];
 }) {
-  const allEntries = GUIDE_CONTENT[portalKey] || [];
+  const { config: churchConfig } = useChurchConfigStandalone();
+  const guideLabels = guideLabelsFromConfig(churchConfig);
+  const allEntries = getGuideContent(guideLabels)[portalKey] || [];
   const entries = visibleIds ? allEntries.filter(e => visibleIds.includes(e.id)) : allEntries;
   const [step, setStep] = useState(-1); // -1 = welcome slide, 0..n-1 = feature slides
 
@@ -84,7 +87,7 @@ export default function GuideTour({ portalKey, t, open, onClose, visibleIds }: {
         <div style={{ padding: '14px 22px 4px' }}>
           {isWelcome ? (
             <>
-              <div style={{ fontSize: 18, fontWeight: 800, color: t.text, marginBottom: 8 }}>Welcome to {PORTAL_TITLE[portalKey]}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: t.text, marginBottom: 8 }}>Welcome to {getPortalTitle(portalKey, guideLabels)}</div>
               <div style={{ fontSize: 13, color: t.sub, lineHeight: 1.6, marginBottom: 4 }}>
                 Here's a quick walkthrough of everything you can do here — {total} short stops, and you can skip at any time. You can replay this anytime from the Guide button in your menu.
               </div>

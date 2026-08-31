@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
 import { SkeletonCard } from '@/components/Skeleton';
 import { gradeColors } from '@/lib/sla';
+import { pluralizeLabel } from '@/lib/church-config';
 
 type CellStatus = {
   cell_id: string; cell_name: string; fellowship_name: string;
@@ -34,9 +35,15 @@ interface PastorAttendanceProps {
   t: Record<string, string>;
   branchId?: string;
   isMobile?: boolean;
+  // The church's own tier terminology (e.g. "District"/"Zone" instead of
+  // "Cell"/"Fellowship" for a zonal structure) — defaults preserve the
+  // exact previous copy for any caller that hasn't been updated to pass
+  // these yet.
+  tier1Label?: string;
+  tier2Label?: string;
 }
 
-export default function PastorAttendance({ dark, t, branchId, isMobile = false }: PastorAttendanceProps) {
+export default function PastorAttendance({ dark, t, branchId, isMobile = false, tier1Label = 'Fellowship', tier2Label = 'Cell' }: PastorAttendanceProps) {
   const [data, setData] = useState<AttendanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'sunday' | 'midweek'>('sunday');
@@ -112,17 +119,17 @@ export default function PastorAttendance({ dark, t, branchId, isMobile = false }
       {/* Current service info */}
       {latestService && (
         <div style={{ background: t.purpleBg, borderRadius: 10, padding: '11px 14px', border: `0.5px solid rgba(83,74,183,0.15)`, fontSize: 12, color: t.purple }}>
-          Latest {view === 'sunday' ? 'Sunday' : 'Wednesday'}: <strong>{formatDate(latestService.service_date)}</strong> · {cellsSubmitted}/{data.total_cells} cells submitted · {totalPresent} total present
+          Latest {view === 'sunday' ? 'Sunday' : 'Wednesday'}: <strong>{formatDate(latestService.service_date)}</strong> · {cellsSubmitted}/{data.total_cells} {pluralizeLabel(tier2Label).toLowerCase()} submitted · {totalPresent} total present
         </div>
       )}
 
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
         {[
-          { label: 'Cells submitted', value: `${cellsSubmitted}/${data.total_cells}`, sub: `${Math.round((cellsSubmitted / Math.max(1, data.total_cells)) * 100)}% completion`, accent: '#534AB7' },
+          { label: `${pluralizeLabel(tier2Label)} submitted`, value: `${cellsSubmitted}/${data.total_cells}`, sub: `${Math.round((cellsSubmitted / Math.max(1, data.total_cells)) * 100)}% completion`, accent: '#534AB7' },
           { label: 'Total present', value: totalPresent, sub: 'This service', accent: '#1D9E75' },
           { label: 'Avg attendance rate', value: latestTrend && latestTrend.present > 0 ? `${latestTrend.rate}%` : '—', sub: 'Latest service', accent: '#BA7517' },
-          { label: 'Cells pending', value: data.total_cells - cellsSubmitted, sub: 'Not yet submitted', accent: data.total_cells - cellsSubmitted > 0 ? '#D85A30' : '#1D9E75' },
+          { label: `${pluralizeLabel(tier2Label)} pending`, value: data.total_cells - cellsSubmitted, sub: 'Not yet submitted', accent: data.total_cells - cellsSubmitted > 0 ? '#D85A30' : '#1D9E75' },
         ].map(k => (
           <div key={k.label} style={{ background: t.card, borderRadius: 11, border: `0.5px solid ${t.border}`, padding: '12px 14px', borderTop: `2.5px solid ${k.accent}` }}>
             <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>{k.label}</div>
@@ -147,7 +154,7 @@ export default function PastorAttendance({ dark, t, branchId, isMobile = false }
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         {/* Fellowship summary */}
         <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px', gridColumn: '1 / -1' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 12 }}>Fellowship submission status</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 12 }}>{tier1Label} submission status</div>
           {data.fellowship_summary.length === 0 ? (
             <div style={{ color: t.muted, fontSize: 12, textAlign: 'center', padding: '20px 0' }}>No data</div>
           ) : (
@@ -232,13 +239,13 @@ export default function PastorAttendance({ dark, t, branchId, isMobile = false }
       {/* Cell submission status */}
       <div style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, overflow: 'hidden' }}>
         <div style={{ padding: '12px 16px', borderBottom: `0.5px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Cell submission status</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{tier2Label} submission status</div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <input value={cellSearch} onChange={e => setCellSearch(e.target.value)} placeholder="Search cell..."
+            <input value={cellSearch} onChange={e => setCellSearch(e.target.value)} placeholder={`Search ${tier2Label.toLowerCase()}...`}
               style={{ border: `0.5px solid ${t.border}`, borderRadius: 7, padding: '5px 10px', fontSize: 11, background: t.input, color: t.text, outline: 'none' }} />
             <select value={fellowshipFilter} onChange={e => setFellowshipFilter(e.target.value)}
               style={{ border: `0.5px solid ${t.border}`, borderRadius: 7, padding: '5px 10px', fontSize: 11, background: t.input, color: t.text, outline: 'none' }}>
-              <option value="all">All fellowships</option>
+              <option value="all">All {pluralizeLabel(tier1Label).toLowerCase()}</option>
               {fellowships.map(f => <option key={f} value={f}>{f}</option>)}
             </select>
           </div>
@@ -278,7 +285,7 @@ export default function PastorAttendance({ dark, t, branchId, isMobile = false }
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
-              {['Cell', 'Fellowship', view === 'sunday' ? 'Sunday status' : 'Midweek status', 'Present', 'Absent', 'SLA'].map(h => (
+              {[tier2Label, tier1Label, view === 'sunday' ? 'Sunday status' : 'Midweek status', 'Present', 'Absent', 'SLA'].map(h => (
                 <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px', background: t.card, whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>

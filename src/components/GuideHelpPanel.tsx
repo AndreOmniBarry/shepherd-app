@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import Icon from '@/components/Icon';
 import GuideMockup, { type GuideTheme } from '@/components/GuideMockup';
-import { GUIDE_CONTENT, PORTAL_TITLE, type PortalKey } from '@/lib/guide-content';
+import { getGuideContent, getPortalTitle, guideLabelsFromConfig, type PortalKey } from '@/lib/guide-content';
+import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 
 // The permanent "come back and learn your way around anytime" reference —
 // unlike GuideTour (a one-pass walkthrough), every entry here stays open
@@ -16,7 +17,9 @@ export default function GuideHelpPanel({ portalKey, t, onClose, onReplayTour, vi
   // the permanent reference never lists a feature the tour also hides.
   visibleIds?: string[];
 }) {
-  const allEntries = GUIDE_CONTENT[portalKey] || [];
+  const { config: churchConfig } = useChurchConfigStandalone();
+  const guideLabels = guideLabelsFromConfig(churchConfig);
+  const allEntries = getGuideContent(guideLabels)[portalKey] || [];
   const entries = visibleIds ? allEntries.filter(e => visibleIds.includes(e.id)) : allEntries;
   const [openId, setOpenId] = useState<string | null>(entries[0]?.id ?? null);
 
@@ -27,7 +30,7 @@ export default function GuideHelpPanel({ portalKey, t, onClose, onReplayTour, vi
           <Icon name="ti-x" size={18} strokeWidth={2.2} />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: t.text }}>How to use {PORTAL_TITLE[portalKey]}</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: t.text }}>How to use {getPortalTitle(portalKey, guideLabels)}</div>
           <div style={{ fontSize: 11.5, color: t.muted }}>Tap any feature below to see how it works</div>
         </div>
         <button onClick={onReplayTour} style={{ background: t.purpleBg, color: t.purple, border: 'none', borderRadius: 9, padding: '9px 13px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>

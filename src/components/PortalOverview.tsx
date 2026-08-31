@@ -1,5 +1,5 @@
 'use client';
-import { getRoleLabel } from '@/lib/church-config';
+import { getRoleLabel, pluralizeLabel } from '@/lib/church-config';
 import { gradeColors } from '@/lib/sla';
 
 interface PortalOverviewProps {
@@ -13,6 +13,13 @@ interface PortalOverviewProps {
   // resolved label through here. Falls back to a static label via
   // getRoleLabel() so existing callers keep working unchanged.
   roleLabel?: string;
+  // Same idea as roleLabel — a caller with the church's configured tier
+  // terminology in scope should pass it through, so a zonal (or any
+  // non-cell-church) structure doesn't show "Cell"/"Fellowship" in these
+  // KPI labels. Falls back to those exact words so any existing caller
+  // is unaffected.
+  tier1Label?: string;
+  tier2Label?: string;
   stats: {
     slaGrade?: string;
     lastSubmission?: string;
@@ -41,7 +48,7 @@ const TIER_LABELS: Record<string, string> = {
   'F-': 'Critical — overdue',
 };
 
-export default function PortalOverview({ role, name, dark = false, t, stats, roleLabel }: PortalOverviewProps) {
+export default function PortalOverview({ role, name, dark = false, t, stats, roleLabel, tier1Label = 'Fellowship', tier2Label = 'Cell' }: PortalOverviewProps) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const firstName = name.split(' ')[0];
@@ -55,11 +62,11 @@ export default function PortalOverview({ role, name, dark = false, t, stats, rol
   const kpis = role === 'cell_leader' ? [
     { label: 'SLA grade', value: sla, sub: tier, valueBg: slaColor.bg, valueColor: slaColor.text },
     { label: 'Attendance rate', value: stats.attendanceRate ? `${stats.attendanceRate}%` : '—', sub: 'Last Sunday', valueBg: t.tealBg, valueColor: t.teal },
-    { label: 'Cell members', value: stats.totalMembers ?? '—', sub: 'Active roster', valueBg: t.purpleBg, valueColor: t.purple },
+    { label: `${tier2Label} members`, value: stats.totalMembers ?? '—', sub: 'Active roster', valueBg: t.purpleBg, valueColor: t.purple },
   ] : role === 'fellowship_head' ? [
     { label: 'SLA grade', value: sla, sub: tier, valueBg: slaColor.bg, valueColor: slaColor.text },
-    { label: 'Fellowship rate', value: stats.attendanceRate ? `${stats.attendanceRate}%` : '—', sub: 'Last Sunday', valueBg: t.tealBg, valueColor: t.teal },
-    { label: 'Total members', value: stats.totalMembers ?? '—', sub: 'All cells', valueBg: t.purpleBg, valueColor: t.purple },
+    { label: `${tier1Label} rate`, value: stats.attendanceRate ? `${stats.attendanceRate}%` : '—', sub: 'Last Sunday', valueBg: t.tealBg, valueColor: t.teal },
+    { label: 'Total members', value: stats.totalMembers ?? '—', sub: `All ${pluralizeLabel(tier2Label).toLowerCase()}`, valueBg: t.purpleBg, valueColor: t.purple },
   ] : role === 'department_head' ? [
     { label: 'SLA grade', value: sla, sub: tier, valueBg: slaColor.bg, valueColor: slaColor.text },
     { label: 'Dept attendance', value: stats.attendanceRate ? `${stats.attendanceRate}%` : '—', sub: 'Last Sunday', valueBg: t.tealBg, valueColor: t.teal },
