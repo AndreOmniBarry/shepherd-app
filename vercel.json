@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/care/trigger-alerts",
-      "schedule": "0 6 * * 1"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/care/trigger-midweek-alerts",
