@@ -227,7 +227,7 @@ export default function CellPage() {
       .then(r => r.json())
       .then(({ data }) => {
         if (!data) { router.push('/login'); return; }
-        setCellName(data.cell_name || 'Your Cell');
+        setCellName(data.cell_name || `Your ${churchConfig.tier2_label || 'Cell'}`);
         setCellId(data.cell_id || null);
         setLeaderName(data.name || '');
         setUserRole(data.role || null);

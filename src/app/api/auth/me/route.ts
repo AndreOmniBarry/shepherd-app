@@ -52,6 +52,23 @@ export async function GET(req: Request) {
       departmentName = depts?.[0]?.name || null;
     }
 
+    // Also never fetched here — same bug as department_name above, just
+    // for fellowship_head accounts instead: fellowship/page.tsx always
+    // fell back client-side to the literal placeholder "Your Fellowship"
+    // (permanently, since this field never existed to override it),
+    // rendered right in the portal header as "Your Fellowship Fellowship".
+    // fellowship_id is already on the JWT (payloadToAuthUser), no extra
+    // profile column needed.
+    let fellowshipName = null;
+    if (user.fellowship_id) {
+      const felRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/fellowships?id=eq.${user.fellowship_id}&select=name&limit=1`,
+        { headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` } }
+      );
+      const fels = await felRes.json();
+      fellowshipName = fels?.[0]?.name || null;
+    }
+
     const fullName = profile?.full_name || user.name || user.email?.split('@')[0] || 'Pastor';
 
     // For the in-app "It's your birthday!" banner — every login account
@@ -86,7 +103,7 @@ export async function GET(req: Request) {
     } catch { /* default to NGN if config lookup fails — never blocks login */ }
 
     return NextResponse.json({
-      data: { ...user, name: fullName, cell_name: cellName, department_name: departmentName, currency, is_birthday_today: isBirthdayToday },
+      data: { ...user, name: fullName, cell_name: cellName, department_name: departmentName, fellowship_name: fellowshipName, currency, is_birthday_today: isBirthdayToday },
       error: null,
     });
   } catch (err) {
