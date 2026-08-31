@@ -17,7 +17,7 @@ const C = {
 
 const STRUCTURES = [
   { icon: 'ti-building-church', label: 'Cell Church', sub: 'Fellowships → Cells', accent: 'purple' },
-  { icon: 'ti-map-2', label: 'Zonal', sub: 'Zones → Districts → Cells', accent: 'teal' },
+  { icon: 'ti-map-2', label: 'Zonal', sub: 'Zones → Districts', accent: 'teal' },
   { icon: 'ti-buildings', label: 'Multi-Campus', sub: 'Campus → Fellowship → Cell', accent: 'amber' },
   { icon: 'ti-building-bank', label: 'Department', sub: 'Departments → Units', accent: 'coral' },
   { icon: 'ti-home', label: 'House Network', sub: 'Network → Home Groups', accent: 'purple' },

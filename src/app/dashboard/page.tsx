@@ -1982,7 +1982,7 @@ function CreateDepartmentModal({t,dark,onClose,onCreated}:{t:Record<string,strin
   );
 }
 
-function CreateCellModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dark:boolean;onClose:()=>void;onCreated:()=>void}) {
+function CreateCellModal({t,dark,onClose,onCreated,tier1Label='Fellowship',tier2Label='Cell'}:{t:Record<string,string>;dark:boolean;onClose:()=>void;onCreated:()=>void;tier1Label?:string;tier2Label?:string}) {
   const [name,setName]=React.useState('');
   const [fellowshipId,setFellowshipId]=React.useState('');
   const [targetSize,setTargetSize]=React.useState('');
@@ -2003,13 +2003,13 @@ function CreateCellModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dar
   },[]);
 
   async function submit(){
-    if(!name.trim()){setError('Cell name is required.');return;}
-    if(!fellowshipId){setError('A fellowship is required — a cell can\'t exist outside one.');return;}
+    if(!name.trim()){setError(`${tier2Label} name is required.`);return;}
+    if(!fellowshipId){setError(`A ${tier1Label.toLowerCase()} is required — a ${tier2Label.toLowerCase()} can't exist outside one.`);return;}
     setSaving(true);setError('');
     try{
       const res=await fetch('/api/cells/create',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
         body:JSON.stringify({name:name.trim(),fellowship_id:fellowshipId,target_size:targetSize||null})});
-      if(!res.ok){const e=await res.json();setError(e?.error?.message||'Failed to create cell.');setSaving(false);return;}
+      if(!res.ok){const e=await res.json();setError(e?.error?.message||`Failed to create ${tier2Label.toLowerCase()}.`);setSaving(false);return;}
       onCreated();onClose();
     }catch{setError('Network error.');}
     setSaving(false);
@@ -2021,23 +2021,23 @@ function CreateCellModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dar
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',backdropFilter:'blur(2px)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={onClose}>
       <div style={{background:dark?'#151030':'#fff',borderRadius:16,padding:24,maxWidth:400,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,0.4)'}} onClick={e=>e.stopPropagation()}>
-        <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:16}}>Create Cell</div>
+        <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:16}}>Create {tier2Label}</div>
         {error && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12,marginBottom:12}}>{error}</div>}
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
-          <div><label style={labelS}>Cell name *</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Overcomers" style={inputS}/></div>
+          <div><label style={labelS}>{tier2Label} name *</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Overcomers" style={inputS}/></div>
           <div>
-            <label style={labelS}>Fellowship *</label>
+            <label style={labelS}>{tier1Label} *</label>
             <select value={fellowshipId} onChange={e=>setFellowshipId(e.target.value)} style={inputS}>
-              <option value="">Select a fellowship...</option>
+              <option value="">Select a {tier1Label.toLowerCase()}...</option>
               {fellowships.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
             {!fellowshipsLoading && !error && fellowships.length===0 && (
-              <div style={{fontSize:10.5,color:t.muted,marginTop:4}}>No fellowships found for your account yet.</div>
+              <div style={{fontSize:10.5,color:t.muted,marginTop:4}}>No {tier1Label.toLowerCase()}s found for your account yet.</div>
             )}
           </div>
           <div><label style={labelS}>Target size (optional)</label><input value={targetSize} onChange={e=>setTargetSize(e.target.value.replace(/\D/g,''))} style={inputS}/></div>
           <div style={{display:'flex',gap:8,marginTop:6}}>
-            <button onClick={submit} disabled={saving} style={{flex:1,background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'11px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:saving?0.6:1}}>{saving?'Creating…':'Create cell'}</button>
+            <button onClick={submit} disabled={saving} style={{flex:1,background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'11px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:saving?0.6:1}}>{saving?'Creating…':`Create ${tier2Label.toLowerCase()}`}</button>
             <button onClick={onClose} style={{background:'transparent',color:t.muted,border:`0.5px solid ${t.border}`,borderRadius:9,padding:'11px 16px',fontSize:13,cursor:'pointer'}}>Cancel</button>
           </div>
         </div>
@@ -2046,7 +2046,8 @@ function CreateCellModal({t,dark,onClose,onCreated}:{t:Record<string,string>;dar
   );
 }
 
-function MergeCellsModal({t,dark,cells,onClose,onMerged}:{t:Record<string,string>;dark:boolean;cells:{id:string;cell:string;fel:string;members:number}[];onClose:()=>void;onMerged:()=>void}) {
+function MergeCellsModal({t,dark,cells,onClose,onMerged,tier1Label='Fellowship',tier2Label='Cell'}:{t:Record<string,string>;dark:boolean;cells:{id:string;cell:string;fel:string;members:number}[];onClose:()=>void;onMerged:()=>void;tier1Label?:string;tier2Label?:string}) {
+  const tier2Lower=tier2Label.toLowerCase();
   const [fellowship,setFellowship]=React.useState('');
   const [targetId,setTargetId]=React.useState('');
   const [sourceIds,setSourceIds]=React.useState<Set<string>>(new Set());
@@ -2062,14 +2063,14 @@ function MergeCellsModal({t,dark,cells,onClose,onMerged}:{t:Record<string,string
   }
 
   async function submit(){
-    if(!targetId||sourceIds.size===0){setError('Pick a target cell and at least one cell to merge into it.');return;}
+    if(!targetId||sourceIds.size===0){setError(`Pick a target ${tier2Lower} and at least one ${tier2Lower} to merge into it.`);return;}
     setSaving(true);setError('');
     try{
       const res=await fetch('/api/admin/cells/merge',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
         body:JSON.stringify({source_cell_ids:Array.from(sourceIds),target_cell_id:targetId})});
       const json=await res.json();
       if(res.ok){setResult(json.data);onMerged();}
-      else setError(json.error?.message||'Failed to merge cells.');
+      else setError(json.error?.message||`Failed to merge ${tier2Lower}s.`);
     }catch{setError('Network error.');}
     setSaving(false);
   }
@@ -2080,29 +2081,29 @@ function MergeCellsModal({t,dark,cells,onClose,onMerged}:{t:Record<string,string
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',backdropFilter:'blur(2px)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={onClose}>
       <div style={{background:dark?'#151030':'#fff',borderRadius:16,padding:24,maxWidth:440,width:'100%',maxHeight:'85vh',overflowY:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.4)'}} onClick={e=>e.stopPropagation()}>
-        <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:4}}>Merge Cells</div>
-        <div style={{fontSize:11,color:t.muted,marginBottom:16}}>Move every member from one or more cells into a single target cell. The merged cells are deactivated, not deleted — their history stays intact.</div>
+        <div style={{fontSize:16,fontWeight:700,color:t.text,marginBottom:4}}>Merge {tier2Label}s</div>
+        <div style={{fontSize:11,color:t.muted,marginBottom:16}}>Move every member from one or more {tier2Lower}s into a single target {tier2Lower}. The merged {tier2Lower}s are deactivated, not deleted — their history stays intact.</div>
         {error && <div style={{background:'#FAECE7',color:'#993C1D',borderRadius:8,padding:'8px 12px',fontSize:12,marginBottom:12}}>{error}</div>}
         {result ? (
           <div>
             <div style={{background:'#E1F5EE',color:'#085041',borderRadius:8,padding:'10px 14px',fontSize:12,marginBottom:16}}>
-              Moved {result.moved_members} member{result.moved_members===1?'':'s'} into the target cell and deactivated {result.merged_cells} cell{result.merged_cells===1?'':'s'}.
+              Moved {result.moved_members} member{result.moved_members===1?'':'s'} into the target {tier2Lower} and deactivated {result.merged_cells} {tier2Lower}{result.merged_cells===1?'':'s'}.
             </div>
             <button onClick={onClose} style={{width:'100%',background:t.purple,color:'#fff',border:'none',borderRadius:9,padding:'11px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Done</button>
           </div>
         ) : (
           <div style={{display:'flex',flexDirection:'column',gap:12}}>
             <div>
-              <label style={labelS}>Fellowship</label>
+              <label style={labelS}>{tier1Label}</label>
               <select value={fellowship} onChange={e=>{setFellowship(e.target.value);setTargetId('');setSourceIds(new Set());}} style={inputS}>
-                <option value="">Select a fellowship...</option>
+                <option value="">Select a {tier1Label.toLowerCase()}...</option>
                 {fellowships.map(f=><option key={f} value={f}>{f}</option>)}
               </select>
             </div>
             {fellowship && (
               <>
                 <div>
-                  <label style={labelS}>Keep this cell (target)</label>
+                  <label style={labelS}>Keep this {tier2Lower} (target)</label>
                   <select value={targetId} onChange={e=>{setTargetId(e.target.value);setSourceIds(prev=>{const next=new Set(prev);next.delete(e.target.value);return next;});}} style={inputS}>
                     <option value="">Select...</option>
                     {inFellowship.map(c=><option key={c.id} value={c.id}>{c.cell} ({c.members} members)</option>)}
@@ -2110,7 +2111,7 @@ function MergeCellsModal({t,dark,cells,onClose,onMerged}:{t:Record<string,string
                 </div>
                 {targetId && (
                   <div>
-                    <label style={labelS}>Merge these cells into it</label>
+                    <label style={labelS}>Merge these {tier2Lower}s into it</label>
                     {inFellowship.filter(c=>c.id!==targetId).map(c=>(
                       <label key={c.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',fontSize:12,color:t.text,cursor:'pointer'}}>
                         <input type="checkbox" checked={sourceIds.has(c.id)} onChange={()=>toggleSource(c.id)} />
@@ -2122,7 +2123,7 @@ function MergeCellsModal({t,dark,cells,onClose,onMerged}:{t:Record<string,string
               </>
             )}
             <div style={{display:'flex',gap:8,marginTop:6}}>
-              <button onClick={submit} disabled={saving||!targetId||sourceIds.size===0} style={{flex:1,background:t.coral,color:'#fff',border:'none',borderRadius:9,padding:'11px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:saving||!targetId||sourceIds.size===0?0.6:1}}>{saving?'Merging…':'Merge cells'}</button>
+              <button onClick={submit} disabled={saving||!targetId||sourceIds.size===0} style={{flex:1,background:t.coral,color:'#fff',border:'none',borderRadius:9,padding:'11px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:saving||!targetId||sourceIds.size===0?0.6:1}}>{saving?'Merging…':`Merge ${tier2Lower}s`}</button>
               <button onClick={onClose} style={{background:'transparent',color:t.muted,border:`0.5px solid ${t.border}`,borderRadius:9,padding:'11px 16px',fontSize:13,cursor:'pointer'}}>Cancel</button>
             </div>
           </div>
@@ -2974,7 +2975,7 @@ export default function DashboardPage(){
 
           {/* ══ ATTENDANCE ══ */}
           {page==='attendance'&&(
-            <PastorAttendance dark={dark} t={t} branchId={selectedBranch||undefined} isMobile={isMobile} />
+            <PastorAttendance dark={dark} t={t} branchId={selectedBranch||undefined} isMobile={isMobile} tier1Label={churchConfig.tier1_label||'Fellowship'} tier2Label={churchConfig.tier2_label||'Cell'} />
           )}          {/* ══ GIVING ══ */}
           {page==='giving'&&(
             <>
@@ -3214,8 +3215,8 @@ export default function DashboardPage(){
             </div>
           )}
           {showCreateMember && <CreateMemberModal t={t} dark={dark} onClose={()=>setShowCreateMember(false)} onCreated={()=>{loadMembers();fetch('/api/analytics/dashboard',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setKpi(data);}).catch(()=>{});}}/>}
-          {showCreateCell && <CreateCellModal t={t} dark={dark} onClose={()=>setShowCreateCell(false)} onCreated={reloadCells}/>}
-          {showMergeCells && <MergeCellsModal t={t} dark={dark} cells={dbCells||[]} onClose={()=>setShowMergeCells(false)} onMerged={reloadCells}/>}
+          {showCreateCell && <CreateCellModal t={t} dark={dark} onClose={()=>setShowCreateCell(false)} onCreated={reloadCells} tier1Label={churchConfig.tier1_label||'Fellowship'} tier2Label={churchConfig.tier2_label||'Cell'}/>}
+          {showMergeCells && <MergeCellsModal t={t} dark={dark} cells={dbCells||[]} onClose={()=>setShowMergeCells(false)} onMerged={reloadCells} tier1Label={churchConfig.tier1_label||'Fellowship'} tier2Label={churchConfig.tier2_label||'Cell'}/>}
           {showCreateDept && <CreateDepartmentModal t={t} dark={dark} onClose={()=>setShowCreateDept(false)} onCreated={reloadDeptsList}/>}
           {deleteTarget && (
             <div style={{position:'fixed',inset:0,background:'rgba(15,10,30,0.6)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}}>

@@ -579,18 +579,18 @@ export default function FellowshipHeadPage() {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
                   <button onClick={() => setShowCreateCell(v => !v)}
                     style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                    {showCreateCell ? 'Cancel' : '+ Create Cell'}
+                    {showCreateCell ? 'Cancel' : `+ Create ${churchConfig.tier2_label || 'Cell'}`}
                   </button>
                 </div>
                 {showCreateCell && (
                   <div style={{ ...card(), marginBottom: 14 }}>
-                    <div style={{ fontSize: 12, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>New cell name</div>
+                    <div style={{ fontSize: 12, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>New {(churchConfig.tier2_label || 'Cell').toLowerCase()} name</div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <input value={newCellName} onChange={e => setNewCellName(e.target.value)} placeholder="e.g. Overcomers"
                         style={{ flex: 1, border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '9px 11px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }} />
                       <button
                         onClick={async () => {
-                          if (!newCellName.trim()) { setCreateCellError('Cell name is required'); return; }
+                          if (!newCellName.trim()) { setCreateCellError(`${churchConfig.tier2_label || 'Cell'} name is required`); return; }
                           setCreatingCell(true); setCreateCellError('');
                           try {
                             const res = await fetch('/api/cells/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ name: newCellName.trim() }) });
@@ -642,7 +642,7 @@ export default function FellowshipHeadPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                     <thead>
                       <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
-                        {['Cell', 'Leader', 'Members', 'Last rate', 'SLA', 'Status'].map(h => (
+                        {[churchConfig.tier2_label || 'Cell', 'Leader', 'Members', 'Last rate', 'SLA', 'Status'].map(h => (
                           <th key={h} style={{ textAlign: 'left', padding: '9px 12px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px', background: t.card }}>{h}</th>
                         ))}
                       </tr>
@@ -730,7 +730,7 @@ export default function FellowshipHeadPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
-                    {['Name', 'Cell', 'Status', 'Last seen', '', ''].map((h, hi) => (
+                    {['Name', churchConfig.tier2_label || 'Cell', 'Status', 'Last seen', '', ''].map((h, hi) => (
                       <th key={h ? h : `col-${hi}`} style={{ textAlign: 'left', padding: '9px 12px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px', background: t.card }}>{h}</th>
                     ))}
                   </tr>
@@ -1023,7 +1023,7 @@ export default function FellowshipHeadPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ borderBottom: `0.5px solid ${t.border}` }}>
-                      {['Cell', 'Service date', 'Reason', 'Status', 'Raised'].map(h => (
+                      {[churchConfig.tier2_label || 'Cell', 'Service date', 'Reason', 'Status', 'Raised'].map(h => (
                         <th key={h} style={{ textAlign: 'left', padding: '9px 12px', fontSize: 10, color: t.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px', background: t.card }}>{h}</th>
                       ))}
                     </tr>

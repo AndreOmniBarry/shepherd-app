@@ -193,6 +193,7 @@ export default function AdminPortal() {
   const [billDrafts, setBillDrafts] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+  const [activatingPlan, setActivatingPlan] = useState(false);
   const [stats, setStats] = useState({ total: 0, trial: 0, active: 0, expired: 0, growth: 0, starter: 0 });
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
@@ -200,8 +201,8 @@ export default function AdminPortal() {
   const [alertCounts, setAlertCounts] = useState({ critical: 0, medium: 0, low: 0 });
   const [alertsLoading, setAlertsLoading] = useState(true);
 
-  useEffect(() => {
-    fetch('/api/admin/churches', { credentials: 'include' })
+  function loadChurches() {
+    return fetch('/api/admin/churches', { credentials: 'include' })
       .then(r => {
         if (r.status === 403) { router.push('/dashboard'); return null; }
         return r.json();
@@ -218,10 +219,15 @@ export default function AdminPortal() {
             growth: c.filter((x: Church) => x.plan_tier === 'growth').length,
             starter: c.filter((x: Church) => x.plan_tier === 'starter').length,
           });
+          return c as Church[];
         }
+        return null;
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => null);
+  }
+
+  useEffect(() => {
+    loadChurches().finally(() => setLoading(false));
 
     fetch('/api/admin/alerts', { credentials: 'include' })
       .then(r => r.json())
@@ -318,6 +324,31 @@ export default function AdminPortal() {
       body: JSON.stringify({ id: selected.id, admin_notes: notes }),
     });
     setSavingNotes(false);
+  }
+
+  // Enterprise is sales-negotiated — no fixed price for the self-service
+  // Paystack flow to verify a payment against, so this is the one place
+  // it ever gets turned on or off, deliberately narrow (see the matching
+  // comment on the API route) rather than a generic plan-field setter.
+  async function toggleEnterprise(activate: boolean) {
+    if (!selected) return;
+    if (!window.confirm(activate
+      ? `Activate ${selected.church_name} on Enterprise? This grants every premium feature immediately, with no Paystack charge involved.`
+      : `Deactivate ${selected.church_name}'s Enterprise access? Their premium features will lock immediately.`)) return;
+    setActivatingPlan(true);
+    try {
+      await fetch(`/api/admin/churches`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: selected.id, action: activate ? 'activate_enterprise' : 'deactivate_enterprise' }),
+      });
+      const refreshed = await loadChurches();
+      const match = refreshed?.find(c => c.id === selected.id);
+      if (match) setSelected(match);
+    } finally {
+      setActivatingPlan(false);
+    }
   }
 
   const card = (e?: React.CSSProperties): React.CSSProperties => ({ background: C.card, border: `0.5px solid ${C.border}`, borderRadius: 12, ...e });
@@ -751,6 +782,19 @@ export default function AdminPortal() {
                     </span>
                     {selected.subscription_status === 'trial' && (
                       <span style={{ fontSize: 10, color: C.muted, padding: '3px 0' }}>{selected.trial_days_remaining ?? '—'} days left</span>
+                    )}
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    {selected.plan_tier === 'enterprise' && selected.subscription_status === 'active' ? (
+                      <button onClick={() => toggleEnterprise(false)} disabled={activatingPlan}
+                        style={{ fontSize: 11, fontWeight: 600, color: C.coral, background: 'transparent', border: `0.5px solid ${C.coral}`, borderRadius: 8, padding: '6px 12px', cursor: 'pointer' }}>
+                        {activatingPlan ? 'Working…' : 'Deactivate Enterprise'}
+                      </button>
+                    ) : (
+                      <button onClick={() => toggleEnterprise(true)} disabled={activatingPlan}
+                        style={{ fontSize: 11, fontWeight: 600, color: '#fff', background: C.purple, border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer' }}>
+                        {activatingPlan ? 'Working…' : 'Activate on Enterprise'}
+                      </button>
                     )}
                   </div>
                 </div>
