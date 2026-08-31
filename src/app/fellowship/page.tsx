@@ -221,7 +221,11 @@ export default function FellowshipHeadPage() {
       .then(r => r.json())
       .then(({ data }) => {
         if (!data) { router.push('/login'); return; }
-        setFellowshipName(data.fellowship_name || 'Your Fellowship');
+        // The header below already appends the church's own tier-1 label
+        // (e.g. "Grace Fellowship" / "District 3 Zone") — this fallback
+        // only needs the name half, so it reads "Your Fellowship" / "Your
+        // Zone" rather than duplicating the label.
+        setFellowshipName(data.fellowship_name || 'Your');
         setLeaderName(data.name || '');
         setCurrency(data.currency || 'NGN');
         setPageReady(true);
@@ -417,10 +421,10 @@ export default function FellowshipHeadPage() {
           {!isMobile ? (
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: t.purple, letterSpacing: '0.5px' }}>SHEP.HERD</div>
-              <div style={{ fontSize: 10, color: t.muted }}>{fellowshipName} Fellowship{leaderName ? ` · ${leaderName}` : ''}</div>
+              <div style={{ fontSize: 10, color: t.muted }}>{fellowshipName} {churchConfig.tier1_label || 'Fellowship'}{leaderName ? ` · ${leaderName}` : ''}</div>
             </div>
           ) : (
-            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fellowshipName} Fellowship</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fellowshipName} {churchConfig.tier1_label || 'Fellowship'}</div>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 5 : 8, flexShrink: 0 }}>

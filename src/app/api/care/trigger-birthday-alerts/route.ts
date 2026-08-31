@@ -55,7 +55,35 @@ async function runForChurch(churchId: string): Promise<ChurchResults> {
   const seniorRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,general_overseer)&is_active=eq.true&church_id=eq.${churchId}&select=id`, { headers: hdrs() });
   const seniorLeadership: string[] = (await seniorRes.json().catch(() => [])).map((u: { id: string }) => u.id);
 
+  const todayStr = today.toISOString().split('T')[0];
+
   for (const member of celebrants) {
+    // Idempotency guard — a manual admin re-run, or a retried cron
+    // invocation, must not re-notify this member's whole leadership chain
+    // or re-post to Church Feed a second time today. resolution=
+    // ignore-duplicates + return=representation lets us tell "genuine new
+    // row" (array has one element) apart from "already existed" (empty
+    // array) in a single round trip. If the table itself isn't there yet
+    // (migration not run) or the request otherwise fails, fail OPEN —
+    // proceed as if this is the first alert today, since silently
+    // skipping every celebrant's real alert would be worse than an
+    // occasional duplicate.
+    try {
+      const markerRes = await fetch(`${SUPABASE_URL}/rest/v1/birthday_alerts_sent`, {
+        method: 'POST',
+        headers: { ...hdrs(), 'Prefer': 'return=representation,resolution=ignore-duplicates' },
+        body: JSON.stringify({ member_id: member.id, alert_date: todayStr }),
+      });
+      if (markerRes.ok) {
+        const inserted = await markerRes.json().catch(() => null);
+        if (Array.isArray(inserted) && inserted.length === 0) continue; // already alerted today
+      } else {
+        console.error('[trigger-birthday-alerts] idempotency marker insert failed', markerRes.status);
+      }
+    } catch (err) {
+      console.error('[trigger-birthday-alerts] idempotency marker threw', err);
+    }
+
     results.members_celebrated++;
     const recipientIds = new Set<string>(seniorLeadership);
 

@@ -1141,11 +1141,16 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
   // Form fields
   const [churchName, setChurchName] = React.useState('');
   const [structureType, setStructureType] = React.useState('cell_church');
-  const [tier1Label, setTier1Label] = React.useState('Fellowship');
-  const [tier2Label, setTier2Label] = React.useState('Cell');
+  // Empty until the real config loads (see the fetch below) — these used
+  // to default to the cell_church words ('Fellowship'/'Cell'/'Fellowship
+  // Head'/'Cell Leader'), which meant a zonal/campus/other-structure
+  // church saw a brief flash of the wrong structure's terminology in its
+  // own Settings form on every load, before the real values arrived.
+  const [tier1Label, setTier1Label] = React.useState('');
+  const [tier2Label, setTier2Label] = React.useState('');
   const [tier3Label, setTier3Label] = React.useState('');
-  const [tier1HeadLabel, setTier1HeadLabel] = React.useState('Fellowship Head');
-  const [tier2HeadLabel, setTier2HeadLabel] = React.useState('Cell Leader');
+  const [tier1HeadLabel, setTier1HeadLabel] = React.useState('');
+  const [tier2HeadLabel, setTier2HeadLabel] = React.useState('');
   const [currency, setCurrency] = React.useState('NGN');
   const [country, setCountry] = React.useState('Nigeria');
   const [serviceDays, setServiceDays] = React.useState<string[]>(['Sunday']);
@@ -1166,8 +1171,8 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
           setTier1Label(c.tier1_label || '');
           setTier2Label(c.tier2_label || '');
           setTier3Label(c.tier3_label || '');
-          setTier1HeadLabel(c.tier1_head_label || 'Fellowship Head');
-          setTier2HeadLabel(c.tier2_head_label || 'Cell Leader');
+          setTier1HeadLabel(c.tier1_head_label || '');
+          setTier2HeadLabel(c.tier2_head_label || '');
           setCurrency(c.currency || 'NGN');
           setCountry(c.country || 'Nigeria');
           setServiceDays(c.service_days || ['Sunday']);
@@ -3017,14 +3022,6 @@ export default function DashboardPage(){
                 <div style={card()}>
                   <div style={{fontSize:13,fontWeight:500,marginBottom:12}}>Conversion Sources</div>
                   <div style={{fontSize:11,color:t.muted,textAlign:'center',padding:'20px 0'}}>Not wired yet — how a member first came to church is only captured on the first-timer&apos;s care card, and isn&apos;t yet linked through to their member record once converted.</div>
-                  {false && [{src:'Cell outreach',n:312,p:27},{src:'Walk-in',n:298,p:26},{src:'Referral',n:241,p:21},{src:'Crusade',n:195,p:17},{src:'Online',n:101,p:9}].map(s=>(
-                    <div key={s.src} style={{marginBottom:8}}>
-                      <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:3}}>
-                        <span style={{color:dark?'#E5E7EB':'#374151'}}>{s.src}</span><span style={{color:t.sub}}>{s.n} ({s.p}%)</span>
-                      </div>
-                      <div style={{height:6,background:dark?'#1A1740':'#F3F4F6',borderRadius:3,overflow:'hidden'}}><div style={{height:'100%',width:`${s.p}%`,background:'#534AB7',borderRadius:3}}/></div>
-                    </div>
-                  ))}
                 </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:14}}>
@@ -3768,9 +3765,9 @@ export default function DashboardPage(){
                     {icon:'ti-eye',name:'Sharp Eye',desc:'Zero disputed submissions in a month',cat:'Accuracy'},
                     {icon:'ti-gem',name:'Crystal Clear',desc:'Zero disputes for a full quarter',cat:'Accuracy'},
                     {icon:'ti-shield',name:'Ironclad',desc:'Zero disputes pilot to year end',cat:'Accuracy'},
-                    {icon:'ti-sprout',name:'First Harvest',desc:'First new convert in your cell',cat:'Growth'},
+                    {icon:'ti-sprout',name:'First Harvest',desc:`First new convert in your ${(churchConfig.tier2_label||'Cell').toLowerCase()}`,cat:'Growth'},
                     {icon:'ti-star',name:'Soul Winner',desc:'5 new converts retained',cat:'Growth'},
-                    {icon:'ti-rocket',name:'Multiplier',desc:'Cell membership doubled',cat:'Growth'},
+                    {icon:'ti-rocket',name:'Multiplier',desc:`${churchConfig.tier2_label||'Cell'} membership doubled`,cat:'Growth'},
                     {icon:'ti-heart',name:'Restorer',desc:'5 members restored after absence',cat:'Care'},
                     {icon:'ti-crown',name:'Crown Carrier',desc:'Crown of Excellence for full quarter',cat:'Leadership'},
                   ].map(b=>(
