@@ -15,8 +15,12 @@ tsconfig.tsbuildinfo
 # OS files
 .DS_Store
 
-# Claude Code local tooling state (isolated-worktree agent scratch dirs)
-.claude/
+# Claude Code local tooling state (isolated-worktree agent scratch dirs) —
+# except .claude/skills/, which holds committed, shareable skills (e.g.
+# run-shepherd-app, the build/run/screenshot harness) meant to be checked
+# in and reused by future sessions, not local scratch state.
+.claude/*
+!.claude/skills/
 
 # Logs
 *.log

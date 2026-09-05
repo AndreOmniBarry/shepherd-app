@@ -82,7 +82,11 @@ export default function SplashIntro() {
         </div>
       </div>
 
-      <style>{`
+      {/* dangerouslySetInnerHTML, not {`...`} — see the identical fix
+          (and full explanation) in src/app/page.tsx's own <style> block;
+          same footgun, just not currently tripped here since this CSS
+          has no apostrophes/quotes yet. */}
+      <style dangerouslySetInnerHTML={{ __html: `
         .sp-outline {
           stroke-dasharray: 300;
           stroke-dashoffset: 300;
@@ -129,7 +133,7 @@ export default function SplashIntro() {
         @media (prefers-reduced-motion: reduce) {
           .sp-outline, .sp-flash, .sp-shock, .sp-mark, .sp-letter { animation: none; opacity: 1; }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }
