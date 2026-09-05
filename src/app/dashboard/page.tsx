@@ -4019,7 +4019,9 @@ export default function DashboardPage(){
           </div>
         </div>
       )}
-      <style>{`
+      {/* dangerouslySetInnerHTML, not {`...`} — see src/app/page.tsx's
+          <style> block for why. */}
+      <style dangerouslySetInnerHTML={{ __html: `
   @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
   *{box-sizing:border-box;}
@@ -4065,7 +4067,7 @@ export default function DashboardPage(){
     .grid-3{gap:16px;}
     .grid-2{gap:16px;}
   }
-`}</style>
+` }} />
       <GuideTour portalKey="dashboard" t={t} open={tourOpen} onClose={() => setTourOpen(false)} visibleIds={guideVisibleIds} />
       {helpOpen && (
         <GuideHelpPanel portalKey="dashboard" t={t} onClose={() => setHelpOpen(false)} onReplayTour={() => { setHelpOpen(false); setTourOpen(true); }} visibleIds={guideVisibleIds} />

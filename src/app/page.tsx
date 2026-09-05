@@ -331,7 +331,21 @@ export default function LandingPage() {
         </div>
       </div>
 
-      <style>{`
+      {/* dangerouslySetInnerHTML, not a plain {`...`} text child — a
+          <style> tag is a "raw text" element per the HTML spec, so
+          browsers never HTML-decode entities inside it, but React's
+          normal text-child rendering still HTML-escapes this string on
+          the way to markup (turning every ' into &#x27;, etc). That
+          mismatch — SSR emits the escaped entity, the browser stores it
+          completely literally since it never decodes it there, but
+          React's hydration check compares against the raw un-escaped
+          string it started with — is a real "Text content did not
+          match" hydration error on this exact page (confirmed live via
+          .claude/skills/run-shepherd-app), triggered by the apostrophes
+          in the CSS comment below ("buttons' ", "isn't"). __html skips
+          that escaping entirely, matching what the browser actually
+          stores. */}
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 860px) {
           .shep-landing-nav-links, .shep-landing-nav-cta { display: none !important; }
           .shep-landing-burger { display: block !important; }
@@ -391,7 +405,7 @@ export default function LandingPage() {
         .shep-pricing-card:active .shep-plan-cta--featured {
           transform: scale(1.03);
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }

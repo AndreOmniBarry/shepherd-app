@@ -481,13 +481,19 @@ function PlanScreen({ answers, onSelect }: { answers: Record<string, Answer>; on
           </div>
         )}
       </div>
-      <style>{`
+      {/* dangerouslySetInnerHTML, not {`...`} — see src/app/page.tsx's
+          <style> block for why: browsers never HTML-decode entities
+          inside a <style> tag, but plain {`...`} text-child rendering
+          still escapes the string on the way to markup, so any
+          apostrophe/quote added to this CSS later would cause a real
+          hydration mismatch. __html skips that escaping. */}
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 860px) {
           .shep-plan-shell { flex-direction: column !important; }
           .shep-plan-main { padding: 28px 20px !important; }
           .shep-plan-sidebar { width: 100% !important; min-height: auto !important; padding: 28px 20px 36px !important; }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }
@@ -935,7 +941,9 @@ export default function SetupWizard() {
         </div>
       </div>
 
-      <style>{`
+      {/* dangerouslySetInnerHTML, not {`...`} — see src/app/page.tsx's
+          <style> block for why. */}
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 860px) {
           .shep-setup-shell { flex-direction: column !important; }
           .shep-setup-left { width: 100% !important; min-height: auto !important; padding: 28px 20px !important; }
@@ -944,7 +952,7 @@ export default function SetupWizard() {
         @media (max-width: 640px) {
           .shep-setup-preview { display: none !important; }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }

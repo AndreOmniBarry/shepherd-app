@@ -99,14 +99,16 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         </div>
       </div>
 
-      <style>{`
+      {/* dangerouslySetInnerHTML, not {`...`} — see src/app/page.tsx's
+          <style> block for why. */}
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 800px) {
           .shep-docs-shell { flex-direction: column; padding-top: 0 !important; }
           .shep-docs-sidebar { display: none !important; }
           .shep-docs-mobile-toggle { display: flex !important; }
           .shep-docs-mobile-nav { display: block !important; }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }
