@@ -49,11 +49,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       if (existing.created_at) update.sla_grade = computeSlaGrade(existing.created_at, new Date().toISOString());
     }
 
-    await fetch(`${SUPABASE_URL}/rest/v1/first_timers?id=eq.${params.id}&church_id=eq.${user.church_id}`, {
+    const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/first_timers?id=eq.${params.id}&church_id=eq.${user.church_id}`, {
       method: 'PATCH',
       headers: { ...hdrs(), 'Prefer': 'return=minimal' },
       body: JSON.stringify(update),
     });
+    if (!updateRes.ok) {
+      const errBody = await updateRes.json().catch(() => ({}));
+      console.error('first_timers update failed:', errBody);
+      return NextResponse.json({ data: null, error: { message: 'Failed to update' } }, { status: 500 });
+    }
 
     return NextResponse.json({ data: { updated: true }, error: null });
   } catch (err) {

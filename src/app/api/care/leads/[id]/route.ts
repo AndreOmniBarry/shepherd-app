@@ -51,6 +51,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       headers: { ...hdrs(), 'Prefer': 'return=representation' },
       body: JSON.stringify(update),
     });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      console.error('care_leads update failed:', errBody);
+      return NextResponse.json({ data: null, error: { message: 'Failed to update lead' } }, { status: 500 });
+    }
 
     return NextResponse.json({ data: { updated: true }, error: null });
   } catch (err) {
