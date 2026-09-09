@@ -99,7 +99,7 @@ Screenshots land in
 | `screenshot [name]` | full-page PNG |
 | `click <css>` / `fill <css> <text>` / `press <key>` | interact |
 | `eval <js-expr>` | run JS in the page, prints the JSON-serialized result |
-| `console` | print buffered console/page errors since the last `console` call, **with resolved arg values** (see Gotchas — this is not `chromium-cli`'s plain `msg.text()`) |
+| `console` | print buffered console/page errors since the last `console` call, **with resolved arg values**, plus a `[http <status>] <method> <url>` line for every non-2xx HTTP response the page made since the last call (see Gotchas — this is not `chromium-cli`'s plain `msg.text()`) |
 | `quit` | close the browser and exit |
 
 **What's actually reachable without real credentials:** the public
@@ -176,6 +176,17 @@ regression.
   and the info you need got cut off. Resolve each arg via
   `arg.jsonValue()` and print them alongside (already done in
   `driver.cjs`'s console listener).
+
+- **The browser console alone doesn't tell you *which* request failed.**
+  `Failed to load resource: the server responded with a status of 401
+  (Unauthorized)` has no URL attached, so on a page that makes several
+  requests you can't tell which one 401'd. Fix: `driver.cjs` also listens
+  on `page.on('response', ...)` and buffers a `[http <status>] <method>
+  <url>` line for every non-2xx response, surfaced by the same `console`
+  command. This is exactly how the `/setup` wizard's account-creation gap
+  was found — `console` printed `[http 401] PATCH http://localhost:3000/
+  api/settings/church-config`, pinpointing the one failing call instantly
+  instead of guessing from a bare "401" in the log.
 
 - **Hydration warnings need real wall-clock time to fire.** Calling
   `console` immediately after `wait-for selector=body` can miss them —

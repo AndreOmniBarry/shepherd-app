@@ -56,6 +56,13 @@ const logs = [];
     logs.push(`[console.${msg.type()}] ${msg.text()}${extra}`);
   });
   page.on('pageerror', err => logs.push(`[pageerror] ${err.message}`));
+  // The console only ever shows "Failed to load resource: ... 401" with
+  // no URL — useless for telling one failing request apart from another
+  // when a page makes several. This logs method + URL + status for every
+  // non-2xx response instead.
+  page.on('response', res => {
+    if (res.status() >= 300) logs.push(`[http ${res.status()}] ${res.request().method()} ${res.url()}`);
+  });
 
   async function handle(line) {
     const [cmd, ...rest] = line.trim().split(/\s+/);
