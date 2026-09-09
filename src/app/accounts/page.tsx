@@ -140,10 +140,18 @@ export default function AccountsPage() {
   });
 
   useEffect(() => {
+    // data:null happens both on a genuine 401 (no session) and on an
+    // unrelated downstream failure inside /api/auth/me (500 — see
+    // fellowship/page.tsx's identical comment for the full story). Only
+    // redirect on the former; a transient backend hiccup shouldn't
+    // force-log-out a real, currently-authenticated accounts user.
     fetch('/api/auth/me', { credentials: 'include' })
-      .then(r => r.json())
-      .then(({ data }) => { if (!data) { router.push('/login'); return; } setLeaderName(data.name || ''); setCurrency(data.currency || 'NGN'); setPageReady(true); })
-      .catch(() => router.push('/login'));
+      .then(async r => {
+        const { data } = await r.json();
+        if (!data) { if (r.status === 401) { router.push('/login'); return; } setPageReady(true); return; }
+        setLeaderName(data.name || ''); setCurrency(data.currency || 'NGN'); setPageReady(true);
+      })
+      .catch(() => setPageReady(true));
 
     Promise.all([
       fetch('/api/accounts/income-types', { credentials: 'include' }).then(r => r.json()),

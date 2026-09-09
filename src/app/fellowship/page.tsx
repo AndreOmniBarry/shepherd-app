@@ -218,9 +218,21 @@ export default function FellowshipHeadPage() {
   // ── Load data ────────────────────────────────────────────────
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
-      .then(r => r.json())
-      .then(({ data }) => {
-        if (!data) { router.push('/login'); return; }
+      .then(async r => {
+        const { data } = await r.json();
+        if (!data) {
+          // /api/auth/me returns data:null both when there's genuinely no
+          // session (401) and when an unrelated downstream lookup inside
+          // it fails (500 — e.g. a Supabase hiccup enriching the profile;
+          // see that route's own catch-all). Only the former means this
+          // session is actually gone. Redirecting to /login on the latter
+          // silently logs out a real, currently-authenticated fellowship
+          // head over a transient backend blip — fail open instead, same
+          // as dashboard/page.tsx already does for this exact call.
+          if (r.status === 401) { router.push('/login'); return; }
+          setPageReady(true);
+          return;
+        }
         // The header below already appends the church's own tier-1 label
         // (e.g. "Grace Fellowship" / "District 3 Zone") — this fallback
         // only needs the name half, so it reads "Your Fellowship" / "Your
@@ -230,7 +242,7 @@ export default function FellowshipHeadPage() {
         setCurrency(data.currency || 'NGN');
         setPageReady(true);
       })
-      .catch(() => router.push('/login'));
+      .catch(() => setPageReady(true));
 
     // Whether this fellowship is "aggregate only" (no individual member/cell
     // tracking, just a headcount register) is a per-fellowship flag any
