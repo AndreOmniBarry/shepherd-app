@@ -141,9 +141,14 @@ export default function UpdatePage() {
 
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
-      .then(r => r.json())
-      .then(({ data }) => {
-        if (!data) { router.push('/login'); return; }
+      .then(async r => {
+        const { data } = await r.json();
+        // data:null happens both on a genuine 401 (no session) and on an
+        // unrelated downstream failure inside /api/auth/me (500 — see
+        // fellowship/page.tsx's identical comment for the full story). Only
+        // redirect on the former; a transient backend hiccup shouldn't
+        // force-log-out a real, currently-authenticated user.
+        if (!data) { if (r.status === 401) router.push('/login'); return; }
         // Overseer/PA/lead_tech have their own review queue on the Dashboard's
         // "Validate Records" tab (shows every fellowship/dept head's pending
         // submissions) — this page only ever shows the logged-in user's own
@@ -165,7 +170,7 @@ export default function UpdatePage() {
             .catch(() => {});
         }
       })
-      .catch(() => router.push('/login'));
+      .catch(() => {});
 
     fetch('/api/update/members', { credentials: 'include' })
       .then(r => r.json())
