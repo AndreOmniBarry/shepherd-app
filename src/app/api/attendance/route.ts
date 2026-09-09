@@ -71,7 +71,16 @@ export async function POST(req: Request) {
     const { service_date, entries, visitor_count, absence_reasons } = body;
     const service_number = Math.max(1, Math.min(10, Number(body.service_number) || 1));
 
-    if (!service_date || !entries?.length) {
+    // entries is normally required — it's the only source of present_count/
+    // absent_count below — but a cell with zero members yet (most visibly a
+    // single-structure church's auto-provisioned cell on its very first
+    // Sunday, before anyone's added a member) legitimately has nothing to
+    // put there. The UI already lets that cell report a visitor headcount
+    // with no members on screen at all ("No members found for this cell");
+    // this check silently 400'd every one of those submissions. A genuinely
+    // blank submit (no entries AND no visitors) is still rejected.
+    const hasVisitors = Number(visitor_count) > 0;
+    if (!service_date || (!entries?.length && !hasVisitors)) {
       return NextResponse.json({ data: null, error: { message: 'service_date and entries are required' } }, { status: 400 });
     }
 
@@ -158,8 +167,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'Attendance already submitted for this service' } }, { status: 409 });
     }
 
-    const present_count = entries.filter((e: Record<string, string>) => e.status === 'present').length;
-    const absent_count = entries.filter((e: Record<string, string>) => e.status === 'absent').length;
+    const present_count = (entries || []).filter((e: Record<string, string>) => e.status === 'present').length;
+    const absent_count = (entries || []).filter((e: Record<string, string>) => e.status === 'absent').length;
     const submittedAt = new Date().toISOString();
     // Universal, day-independent — how long after the actual service date
     // this got logged, not a lookup table tied to specific weekdays.
@@ -190,7 +199,7 @@ export async function POST(req: Request) {
     }
 
     // ── Insert attendance entries with absence reasons ──────────
-    if (entries.length > 0) {
+    if (entries?.length > 0) {
       const entryRows = entries.map((e: Record<string, string>) => ({
         record_id: record.id,
         member_id: e.member_id || null,
