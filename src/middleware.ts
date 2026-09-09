@@ -70,12 +70,21 @@ function allowedPrefixes(role: string): string[] {
     case 'general_overseer':
     case 'pa':
     case 'lead_tech':
-      // Full access — can view all portals for troubleshooting
-      return ['/dashboard', '/fellowship', '/department', '/cell', '/care', '/workforce', '/update', '/admin', '/api'];
+      // Full access — can view all portals for troubleshooting. This must
+      // include every specialized portal (accounts, partnership) that these
+      // roles are explicitly authorized for at the API layer (see each
+      // route's own ALLOWED array) — /accounts and /partnership were
+      // missing here, so the page itself 307-redirected straight back to
+      // /dashboard before ever mounting, even though the underlying API
+      // calls would have succeeded. Same bug class as the Church Center fix
+      // below: a portal path silently absent from this allow-list looks
+      // exactly like a broken link, not a 401.
+      return ['/dashboard', '/fellowship', '/department', '/cell', '/care', '/workforce', '/accounts', '/partnership', '/update', '/admin', '/api'];
     case 'branch_pastor':
       // Same portal set as overseer, minus admin — every view is scoped
-      // server-side to the pastor's own branch_id.
-      return ['/dashboard', '/fellowship', '/department', '/cell', '/care', '/workforce', '/update', '/api'];
+      // server-side to the pastor's own branch_id. See the overseer case
+      // above for why /accounts and /partnership belong here too.
+      return ['/dashboard', '/fellowship', '/department', '/cell', '/care', '/workforce', '/accounts', '/partnership', '/update', '/api'];
     case 'fellowship_head':
       return ['/fellowship', '/update', '/api'];
     case 'department_head':
