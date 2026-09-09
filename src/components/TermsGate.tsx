@@ -42,8 +42,16 @@ export default function TermsGate() {
 
   if (!show) return null;
 
+  // A brand-new account's first dashboard load mounts both this gate and
+  // the product tour (GuideTour, zIndex 1200) at once, with no
+  // coordination between the two — found live, driving a real signup end
+  // to end. This gate used to sit at zIndex 999, so the optional,
+  // skippable tour rendered ON TOP of a mandatory Terms-of-Use
+  // acceptance. Fixed by putting this gate above the tour instead (this
+  // backdrop is nearly opaque, so it fully covers the tour underneath
+  // without needing to touch GuideTour's own open-state logic).
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(8,6,20,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1300, background: 'rgba(8,6,20,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ width: '100%', maxWidth: 520, maxHeight: '86vh', display: 'flex', flexDirection: 'column', background: '#0F0A2E', border: '0.5px solid rgba(168,159,255,0.15)', borderRadius: 18, overflow: 'hidden' }}>
         <div style={{ padding: '22px 26px 16px', borderBottom: '0.5px solid rgba(168,159,255,0.1)' }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#E8E5FF' }}>Terms of Use</div>
