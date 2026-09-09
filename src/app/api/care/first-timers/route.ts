@@ -98,6 +98,17 @@ export async function POST(req: Request) {
       }),
     });
     const data = await res.json();
+    // PostgREST returns a 2xx-shaped body on success (an array with the new
+    // row, since we asked for return=representation) but on a constraint
+    // violation it returns a non-2xx status with an error object instead —
+    // {code, message, details, hint}. Without checking res.ok here, that
+    // error object gets treated as "the created row" and shipped straight
+    // back to the client inside a hardcoded 201, so the UI shows "First
+    // timer added" and clears the form even though nothing was saved.
+    if (!res.ok) {
+      console.error('first_timers insert failed:', data);
+      return NextResponse.json({ data: null, error: { message: 'Failed to save first timer' } }, { status: 500 });
+    }
     const created = Array.isArray(data) ? data[0] : data;
 
     // Notify overseers/PAs about new first timer
