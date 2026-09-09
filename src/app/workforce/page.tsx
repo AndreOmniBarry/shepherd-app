@@ -68,12 +68,20 @@ export default function WorkforcePage() {
 
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
-      .then(r => r.json())
-      .then(({ data }) => {
-        if (!data) { router.push('/login'); return; }
+      .then(async r => {
+        const { data } = await r.json();
+        if (!data) {
+          // See fellowship/page.tsx's identical comment: data:null happens
+          // both on a genuine 401 (no session) and on an unrelated
+          // downstream failure inside /api/auth/me (500). Only redirect on
+          // the former — a transient backend hiccup shouldn't force-log-out
+          // a real, currently-authenticated workforce user.
+          if (r.status === 401) router.push('/login');
+          return;
+        }
         setName(data.name || '');
       })
-      .catch(() => router.push('/login'));
+      .catch(() => {});
     load();
   }, []);
 

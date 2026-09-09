@@ -224,9 +224,18 @@ export default function CellPage() {
 
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
-      .then(r => r.json())
-      .then(({ data }) => {
-        if (!data) { router.push('/login'); return; }
+      .then(async r => {
+        const { data } = await r.json();
+        if (!data) {
+          // See fellowship/page.tsx's identical comment: data:null happens
+          // both on a genuine 401 (no session) and on an unrelated
+          // downstream failure inside /api/auth/me (500). Only redirect on
+          // the former — a transient backend hiccup shouldn't force-log-out
+          // a real, currently-authenticated cell leader.
+          if (r.status === 401) { router.push('/login'); return; }
+          setPageReady(true);
+          return;
+        }
         setCellName(data.cell_name || `Your ${churchConfig.tier2_label || 'Cell'}`);
         setCellId(data.cell_id || null);
         setLeaderName(data.name || '');
@@ -239,7 +248,7 @@ export default function CellPage() {
           }).catch(() => {});
         }
       })
-      .catch(() => router.push('/login'));
+      .catch(() => setPageReady(true));
 
     fetch('/api/services/special/upcoming', { credentials: 'include' }).then(r => r.json()).then(({ data }) => setSpecialServices(data?.special_services || [])).catch(() => {});
 

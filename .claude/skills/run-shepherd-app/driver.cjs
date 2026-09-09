@@ -22,6 +22,7 @@
 //   fill <css-selector> <text...>
 //   press <key>
 //   eval <js-expression>
+//   set-cookie <name> <value>   - set a cookie (incl. httpOnly) directly
 //   console            - print buffered console/page errors since last call
 //   quit
 
@@ -99,6 +100,17 @@ const logs = [];
       } else if (cmd === 'eval') {
         const result = await page.evaluate(new Function(`return (${arg})`));
         console.log(`OK eval -> ${JSON.stringify(result)}`);
+      } else if (cmd === 'set-cookie') {
+        // set-cookie <name> <value> — for reaching auth-gated routes when
+        // there's no reachable backend to log in against for real (e.g. a
+        // locally-minted JWT matching the app's own session-cookie shape).
+        // Playwright's context-level cookie API can set httpOnly cookies,
+        // unlike page-JS document.cookie.
+        const [name, ...rest] = arg.split(' ');
+        const value = rest.join(' ');
+        const u = new URL(page.url() === 'about:blank' ? 'http://localhost:3000' : page.url());
+        await page.context().addCookies([{ name, value, domain: u.hostname, path: '/' }]);
+        console.log(`OK set-cookie ${name}`);
       } else if (cmd === 'sleep') {
         await new Promise(r => setTimeout(r, parseInt(arg, 10) || 1000));
         console.log(`OK sleep ${arg}`);
