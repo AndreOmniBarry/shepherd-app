@@ -105,6 +105,18 @@ interface StructureOverviewProps {
   emptySubtitle?: string;
 }
 
+// Real churches routinely name their tier-1 entity with the tier-1 label
+// already in it — the app's own seed data does this ("Youth Fellowship",
+// "Men's Fellowship") and so does a Zonal church naming a zone "North
+// Zone" or a Campus church naming one "Main Campus". `${name} ${label}`
+// then doubles up into "Youth Fellowship Fellowship" / "North Zone Zone" /
+// "Main Campus Campus". Found live, driving a real signup + district
+// setup end to end. Only append the label when the name doesn't already
+// end with it (case-insensitive).
+function withParentLabel(name: string, parentLabel: string): string {
+  return name.toLowerCase().endsWith(parentLabel.toLowerCase()) ? name : `${name} ${parentLabel}`;
+}
+
 export default function StructureOverview({ dark = false, t, isMobile = false, fetchUrl, structureKey, unitLabel, parentLabel = 'Fellowship', emptyTitle, emptySubtitle }: StructureOverviewProps) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -178,7 +190,7 @@ export default function StructureOverview({ dark = false, t, isMobile = false, f
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
         {[
-          { label: `${unitLabel} members`, value: unit.totalMembers, sub: unit.fellowship ? `${unit.fellowship} ${parentLabel}` : unit.name, accent: '#534AB7' },
+          { label: `${unitLabel} members`, value: unit.totalMembers, sub: unit.fellowship ? withParentLabel(unit.fellowship, parentLabel) : unit.name, accent: '#534AB7' },
           { label: 'Avg attendance', value: stats.avgRate !== null ? `${stats.avgRate}%` : '—', sub: 'Last 8 Sundays', accent: '#1D9E75' },
           { label: 'Current SLA', value: stats.currentSLA || '—', sub: 'This week', accent: slaColor.text, valueBg: slaColor.bg, valueText: slaColor.text },
           { label: 'Members at risk', value: atRisk, sub: atRiskSub, accent: atRisk > 0 ? '#D85A30' : '#1D9E75' },
@@ -409,7 +421,7 @@ export default function StructureOverview({ dark = false, t, isMobile = false, f
 
       {/* Summary footer */}
       <div style={{ background: t.purpleBg, borderRadius: 10, padding: '12px 14px', border: `0.5px solid rgba(83,74,183,0.15)`, fontSize: 11, color: t.purple, lineHeight: 1.6 }}>
-        <strong>{unit.name}</strong>{unit.fellowship ? ` · ${unit.fellowship} ${parentLabel}` : ''} · {unit.totalMembers} active members · {stats.totalSubmissions} submissions recorded · Average attendance {stats.avgRate !== null ? `${stats.avgRate}%` : 'not yet calculated'}
+        <strong>{unit.name}</strong>{unit.fellowship ? ` · ${withParentLabel(unit.fellowship, parentLabel)}` : ''} · {unit.totalMembers} active members · {stats.totalSubmissions} submissions recorded · Average attendance {stats.avgRate !== null ? `${stats.avgRate}%` : 'not yet calculated'}
         {stats.currentSLA && ` · Current SLA grade: ${stats.currentSLA}`}
       </div>
     </div>
