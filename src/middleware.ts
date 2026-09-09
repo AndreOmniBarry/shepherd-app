@@ -27,6 +27,7 @@ const PUBLIC_PATHS = [
   '/events/',
   '/api/auth/login',
   '/api/auth/register',
+  '/api/auth/signup',
   '/api/register',
   '/api/invites',
   '/api/settings/church-config',

@@ -199,6 +199,20 @@ export type RegisterRequest = {
   cell_id:      string;
 };
 
+// The founding-admin signup at the end of /setup — distinct from
+// RegisterRequest above, which is a member joining a cell of a church that
+// already exists (requires an existing cell_id, lands is_active: false
+// pending approval). SignupRequest has no church yet: it creates the
+// account only, role 'overseer', is_active true immediately (this IS the
+// approval — nobody else could have approved a church that doesn't exist
+// yet), and the church itself gets bootstrapped by the very next request
+// (PATCH /api/settings/church-config), scoped to the session this creates.
+export type SignupRequest = {
+  email:     string;
+  password:  string;
+  full_name: string;
+};
+
 // ── API RESPONSES ────────────────────────────────────────────
 
 export type APIResponse<T> = {

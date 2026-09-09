@@ -389,7 +389,7 @@ function PreviewPanel({ answers }: { answers: Record<string, Answer> }) {
 }
 
 // ── Plan selection screen ────────────────────────────────────
-function PlanScreen({ answers, onSelect }: { answers: Record<string, Answer>; onSelect: (plan: string) => void }) {
+function PlanScreen({ answers, error, onSelect }: { answers: Record<string, Answer>; error: string; onSelect: (plan: string) => void }) {
   const router = useRouter();
   const [selected, setSelected] = useState('growth');
   const churchName = (answers.church_name as string) || 'Your Church';
@@ -441,6 +441,10 @@ function PlanScreen({ answers, onSelect }: { answers: Record<string, Answer>; on
               </button>
             ))}
           </div>
+
+          {error && (
+            <div style={{ background: C.coralBg, color: C.coral, borderRadius: 9, padding: '10px 14px', fontSize: 13, marginBottom: 14, fontWeight: 500 }}>{error}</div>
+          )}
 
           <button onClick={() => onSelect(selected)}
             style={{ width: '100%', background: C.purple, color: C.white, border: 'none', borderRadius: 12, padding: '15px', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 12 }}>
@@ -498,11 +502,140 @@ function PlanScreen({ answers, onSelect }: { answers: Record<string, Answer>; on
   );
 }
 
+// ── Account creation screen ──────────────────────────────────
+// The actual "start free trial" step: creates the login (POST
+// /api/auth/signup) that everything after this — the trial dates, the
+// church itself — gets bootstrapped onto. Comes after the plan is picked,
+// not before the questions, so a visitor sees the product's shape and
+// commits to a plan before being asked for a password — same order the
+// marketing site's "Start free trial" copy implies.
+function AccountScreen({
+  churchName, planName, submitting, error, onBack, onSubmit,
+}: {
+  churchName: string; planName: string; submitting: boolean; error: string;
+  onBack: () => void;
+  onSubmit: (fields: { fullName: string; email: string; password: string }) => void;
+}) {
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [localError, setLocalError] = useState('');
+
+  function validateAndSubmit() {
+    if (submitting) return;
+    setLocalError('');
+    if (!fullName.trim() || !email.trim() || !password) {
+      setLocalError('All fields are required.');
+      return;
+    }
+    if (password.length < 8) {
+      setLocalError('Password must be at least 8 characters.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setLocalError('Passwords don’t match.');
+      return;
+    }
+    onSubmit({ fullName: fullName.trim(), email: email.trim(), password });
+  }
+
+  const displayError = localError || error;
+  const inputStyle = { width: '100%', border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', fontSize: 14, background: C.white, color: C.text, outline: 'none', boxSizing: 'border-box' as const };
+
+  return (
+    <div className="shep-plan-shell" style={{ display: 'flex', minHeight: '100vh', fontFamily: 'var(--font-inter, -apple-system, Inter, sans-serif)', background: C.bg }}>
+      <div className="shep-plan-main" style={{ flex: 1, padding: '48px', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+        <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 48, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}>
+          <div style={{ width: 32, height: 32, background: C.purple, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
+            <div style={{ position: 'absolute', width: 4, height: 17, background: C.white, borderRadius: 2 }} />
+            <div style={{ position: 'absolute', width: 17, height: 4, background: C.white, borderRadius: 2 }} />
+          </div>
+          <span style={{ fontSize: 16, fontWeight: 800, color: C.purpleDark }}>SHEP.HERD</span>
+        </button>
+
+        <div style={{ maxWidth: 420 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: C.purple, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 8 }}>Almost there</div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: C.text, letterSpacing: '-0.5px', marginBottom: 10 }}>Create your account</div>
+          <div style={{ fontSize: 14, color: C.sub, marginBottom: 28, lineHeight: 1.6 }}>
+            This is how you'll log back in to <strong>{churchName}</strong>'s SHEP.HERD workspace. You'll be the {planName} plan's admin.
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.sub, marginBottom: 6 }}>Your full name</label>
+              <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="e.g. Pastor Ade Johnson" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.sub, marginBottom: 6 }}>Email address</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@yourchurch.org" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.sub, marginBottom: 6 }}>Password</label>
+              <div style={{ position: 'relative' }}>
+                <input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" style={{ ...inputStyle, paddingRight: 60 }} />
+                <button type="button" onClick={() => setShowPw(v => !v)} style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: C.purple, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 8 }}>
+                  {showPw ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.sub, marginBottom: 6 }}>Confirm password</label>
+              <input type={showPw ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !submitting) validateAndSubmit(); }}
+                placeholder="Re-enter your password" style={inputStyle} />
+            </div>
+          </div>
+
+          {displayError && (
+            <div style={{ background: C.coralBg, color: C.coral, borderRadius: 9, padding: '10px 14px', fontSize: 13, marginBottom: 14, fontWeight: 500 }}>{displayError}</div>
+          )}
+
+          <button onClick={validateAndSubmit} disabled={submitting}
+            style={{ width: '100%', background: submitting ? C.border : C.purple, color: C.white, border: 'none', borderRadius: 12, padding: '15px', fontSize: 15, fontWeight: 700, cursor: submitting ? 'default' : 'pointer', marginBottom: 12 }}>
+            {submitting ? 'Creating your account…' : <>Create account &amp; start trial →</>}
+          </button>
+          <div style={{ fontSize: 12, color: C.muted, textAlign: 'center' }}>
+            No credit card required. Cancel anytime.
+          </div>
+        </div>
+      </div>
+
+      <div className="shep-plan-sidebar" style={{ width: '380px', background: C.purpleDark, minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '48px 36px', boxSizing: 'border-box' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.white, marginBottom: 20 }}>You're setting up</div>
+        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: '16px 18px', marginBottom: 20 }}>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Church</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.white }}>{churchName}</div>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: '16px 18px' }}>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Plan — 30-day free trial</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.white }}>{planName}</div>
+        </div>
+        <div style={{ marginTop: 'auto', paddingTop: 16, fontSize: 11.5, color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
+          Your password is never visible to your team or to us — SHEP.HERD only ever stores it hashed, through Supabase Auth.
+        </div>
+      </div>
+      {/* dangerouslySetInnerHTML — same reasoning as PlanScreen's <style>
+          block above (this one has no special chars yet, but the pattern
+          stays consistent so a later edit doesn't reintroduce the
+          hydration footgun). */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 860px) {
+          .shep-plan-shell { flex-direction: column !important; }
+          .shep-plan-main { padding: 28px 20px !important; }
+          .shep-plan-sidebar { width: 100% !important; min-height: auto !important; padding: 28px 20px 36px !important; }
+        }
+      ` }} />
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────
 export default function SetupWizard() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [screen, setScreen] = useState<'questions' | 'plan' | 'saving'>('questions');
+  const [screen, setScreen] = useState<'questions' | 'plan' | 'account' | 'saving'>('questions');
   const [qIndex, setQIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [textVal, setTextVal] = useState('');
@@ -512,6 +645,23 @@ export default function SetupWizard() {
   const [transitioning, setTransitioning] = useState(false);
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Plan choice has to survive past the account-creation screen (finish()
+  // needs it) and a possible retry from 'plan' after a failed PATCH — kept
+  // here rather than re-derived, since PlanScreen's own `selected` state
+  // resets on remount.
+  const [selectedPlan, setSelectedPlan] = useState('growth');
+  // Set once /api/auth/signup succeeds. Lets the "Start free trial" button
+  // skip straight back to finish() on a retry instead of asking this
+  // visitor to sign up a second time (which would 409 — the account
+  // already exists from the first attempt).
+  const [accountCreated, setAccountCreated] = useState(false);
+  // In-flight state for createAccount()'s POST /api/auth/signup — kept
+  // here (not local to AccountScreen) only so the button can disable
+  // itself; the actual form field VALUES stay in AccountScreen's own
+  // state, which is what keeps them intact across a failed request (see
+  // createAccount's comment).
+  const [creatingAccount, setCreatingAccount] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -626,6 +776,46 @@ export default function SetupWizard() {
     setAnswers(prev => ({ ...prev, branch_names: current.filter((_, idx) => idx !== i) }));
   }
 
+  // Creates the actual login (POST /api/auth/signup) that finish() below
+  // has always assumed already existed — see that route's own comment for
+  // the full story. Runs once, from AccountScreen; a retry after this
+  // succeeds (e.g. finish()'s own PATCH failing) skips straight back to
+  // finish() via accountCreated, never re-submits this form.
+  //
+  // Deliberately does NOT setScreen('saving') on entry, unlike finish()
+  // below — that would unmount AccountScreen mid-request, and since its
+  // full name/email/password fields live in ITS OWN useState (not lifted
+  // up here), unmounting on a failed request wiped every field the
+  // visitor had just typed, forcing them to redo the whole form for a
+  // simple typo or network blip. Staying on 'account' and toggling
+  // `creatingAccount` (passed down as AccountScreen's `submitting` prop)
+  // keeps the component mounted, so a failure leaves the form exactly as
+  // they left it. Only a successful signup hands off to finish(), which
+  // owns the transition to 'saving' from there.
+  async function createAccount(fields: { fullName: string; email: string; password: string }) {
+    setError('');
+    setCreatingAccount(true);
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: fields.email, password: fields.password, full_name: fields.fullName }),
+      });
+      if (res.ok) {
+        setAccountCreated(true);
+        await finish(selectedPlan);
+      } else {
+        const d = await res.json();
+        setError(d?.error?.message || 'Failed to create your account. Please try again.');
+        setCreatingAccount(false);
+      }
+    } catch {
+      setCreatingAccount(false);
+      setError('Network error. Please check your connection.');
+    }
+  }
+
   async function finish(plan: string) {
     setScreen('saving');
     const a = { ...answers };
@@ -709,7 +899,30 @@ export default function SetupWizard() {
   }
 
   if (!mounted) return null;
-  if (screen === 'plan') return <PlanScreen answers={answers} onSelect={(plan) => { setError(''); finish(plan); }} />;
+  if (screen === 'plan') return (
+    <PlanScreen
+      answers={answers}
+      error={error}
+      onSelect={(plan) => {
+        setError('');
+        setSelectedPlan(plan);
+        // Already have a session from a prior successful signup (this is a
+        // retry after finish()'s own PATCH failed) — skip straight back to
+        // it instead of asking for a password a second time.
+        if (accountCreated) { finish(plan); } else { setScreen('account'); }
+      }}
+    />
+  );
+  if (screen === 'account') return (
+    <AccountScreen
+      churchName={(answers.church_name as string) || 'Your Church'}
+      planName={PLANS.find(p => p.id === selectedPlan)?.name || 'Growth'}
+      submitting={creatingAccount}
+      error={error}
+      onBack={() => { setError(''); setScreen('plan'); }}
+      onSubmit={createAccount}
+    />
+  );
   if (screen === 'saving') return (
     <div style={{ minHeight: '100vh', background: C.purpleDark, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
       <div style={{ width: 48, height: 48, border: `3px solid rgba(255,255,255,0.2)`, borderTopColor: C.white, borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
