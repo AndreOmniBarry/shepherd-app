@@ -45,7 +45,16 @@ type CellRow = { id:string; cell:string; fel:string; leader:string; members:numb
 function fmt(n:number|undefined|null){return n!=null?n.toLocaleString():'—';}
 function greeting(){const h=new Date().getHours();return h<12?'Good morning':h<17?'Good afternoon':'Good evening';}
 const PASTOR_TIER_ROLES=['overseer','general_overseer','branch_pastor'];
-function greetingName(userName:string,userRole:string){const first=userName.split(' ')[0];return PASTOR_TIER_ROLES.includes(userRole)?`Pastor ${first}`:first;}
+// Names already carrying their own title collide with the prepend below —
+// /setup's account-creation screen literally suggests "e.g. Pastor Ade
+// Johnson" as its full-name placeholder, so any pastor-tier admin who
+// followed that example got greeted "Good morning, Pastor Pastor Ade".
+// Found live, driving a real signup end to end. Recognize a leading title
+// word and keep it instead of doubling it, showing title + first real
+// name (e.g. "Pastor Ade") — the same two-word shape this greeting
+// already uses for untitled names.
+const NAME_TITLE_WORDS=['pastor','rev','reverend','dr','apostle','bishop','evangelist'];
+function greetingName(userName:string,userRole:string){const words=userName.trim().split(/\s+/);if(words[0]&&NAME_TITLE_WORDS.includes(words[0].toLowerCase()))return words.slice(0,2).join(' ');const first=words[0]||'';return PASTOR_TIER_ROLES.includes(userRole)?`Pastor ${first}`:first;}
 
 
 // Export helpers
