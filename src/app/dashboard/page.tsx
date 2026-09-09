@@ -2005,6 +2005,17 @@ function CreateCellModal({t,dark,onClose,onCreated,tier1Label='Fellowship',tier2
   const [fellowshipsLoading,setFellowshipsLoading]=React.useState(true);
   const [saving,setSaving]=React.useState(false);
   const [error,setError]=React.useState('');
+  // Nothing anywhere else in the app could create a fellowship/zone/campus/
+  // etc. (tier 1) for any structure except 'single' (bootstrapChurch's own
+  // one-time auto-provision at signup) — this dropdown was a genuine dead
+  // end for every other structure type, cell_church (the default) included.
+  // Found live, driving a real signup end to end. Inline "+ Create new
+  // {tier1Label}" here instead of a whole separate modal, since creating
+  // the very first one is exactly the moment someone's already here trying
+  // to create its child.
+  const [creatingFellowship,setCreatingFellowship]=React.useState(false);
+  const [newFellowshipName,setNewFellowshipName]=React.useState('');
+  const [creatingFellowshipSaving,setCreatingFellowshipSaving]=React.useState(false);
 
   React.useEffect(()=>{
     // Was silently leaving the dropdown empty on any non-2xx (most often a
@@ -2030,6 +2041,23 @@ function CreateCellModal({t,dark,onClose,onCreated,tier1Label='Fellowship',tier2
     setSaving(false);
   }
 
+  async function submitNewFellowship(){
+    if(!newFellowshipName.trim()){setError(`${tier1Label} name is required.`);return;}
+    setCreatingFellowshipSaving(true);setError('');
+    try{
+      const res=await fetch('/api/fellowships/create',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+        body:JSON.stringify({name:newFellowshipName.trim()})});
+      const json=await res.json();
+      if(!res.ok||!json.data?.fellowship?.id){setError(json?.error?.message||`Failed to create ${tier1Label.toLowerCase()}.`);setCreatingFellowshipSaving(false);return;}
+      const created=json.data.fellowship;
+      setFellowships(prev=>[...prev,{id:created.id,name:created.name}]);
+      setFellowshipId(created.id);
+      setNewFellowshipName('');
+      setCreatingFellowship(false);
+    }catch{setError('Network error.');}
+    setCreatingFellowshipSaving(false);
+  }
+
   const inputS:React.CSSProperties={width:'100%',border:`0.5px solid ${t.border}`,borderRadius:8,padding:'9px 11px',fontSize:13,background:t.input,color:t.text,outline:'none',fontFamily:'inherit',boxSizing:'border-box' as const};
   const labelS:React.CSSProperties={fontSize:10,color:t.muted,textTransform:'uppercase' as const,letterSpacing:'0.4px',marginBottom:5,display:'block'};
 
@@ -2042,12 +2070,27 @@ function CreateCellModal({t,dark,onClose,onCreated,tier1Label='Fellowship',tier2
           <div><label style={labelS}>{tier2Label} name *</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Overcomers" style={inputS}/></div>
           <div>
             <label style={labelS}>{tier1Label} *</label>
-            <select value={fellowshipId} onChange={e=>setFellowshipId(e.target.value)} style={inputS}>
-              <option value="">Select a {tier1Label.toLowerCase()}...</option>
-              {fellowships.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
-            {!fellowshipsLoading && !error && fellowships.length===0 && (
-              <div style={{fontSize:10.5,color:t.muted,marginTop:4}}>No {tier1Label.toLowerCase()}s found for your account yet.</div>
+            {!creatingFellowship ? (
+              <>
+                <select value={fellowshipId} onChange={e=>setFellowshipId(e.target.value)} style={inputS}>
+                  <option value="">Select a {tier1Label.toLowerCase()}...</option>
+                  {fellowships.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+                {!fellowshipsLoading && !error && fellowships.length===0 && (
+                  <div style={{fontSize:10.5,color:t.muted,marginTop:4}}>No {tier1Label.toLowerCase()}s found for your account yet — create the first one below.</div>
+                )}
+                <button type="button" onClick={()=>{setCreatingFellowship(true);setError('');}} style={{background:'transparent',border:'none',color:t.purple,fontSize:11.5,fontWeight:600,cursor:'pointer',padding:'6px 0 0',textAlign:'left'}}>+ Create new {tier1Label.toLowerCase()}</button>
+              </>
+            ) : (
+              <div style={{border:`0.5px solid ${t.border}`,borderRadius:9,padding:10,background:t.input}}>
+                <input value={newFellowshipName} onChange={e=>setNewFellowshipName(e.target.value)}
+                  onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();submitNewFellowship();}}}
+                  placeholder={`e.g. ${tier1Label} 1`} style={{...inputS,marginBottom:8}} autoFocus/>
+                <div style={{display:'flex',gap:8}}>
+                  <button type="button" onClick={submitNewFellowship} disabled={creatingFellowshipSaving} style={{flex:1,background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'8px',fontSize:12,fontWeight:600,cursor:'pointer',opacity:creatingFellowshipSaving?0.6:1}}>{creatingFellowshipSaving?'Creating…':`Create ${tier1Label.toLowerCase()}`}</button>
+                  <button type="button" onClick={()=>{setCreatingFellowship(false);setNewFellowshipName('');setError('');}} style={{background:'transparent',color:t.muted,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'8px 12px',fontSize:12,cursor:'pointer'}}>Cancel</button>
+                </div>
+              </div>
             )}
           </div>
           <div><label style={labelS}>Target size (optional)</label><input value={targetSize} onChange={e=>setTargetSize(e.target.value.replace(/\D/g,''))} style={inputS}/></div>
