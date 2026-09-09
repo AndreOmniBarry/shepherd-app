@@ -70,6 +70,15 @@ export default function PartnershipPage() {
   const [addingPartner, setAddingPartner] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
 
+  // New band — a newly onboarded church starts with zero partnership_bands
+  // and there was previously no way anywhere in the product to create one,
+  // so "Add partner" could never actually be completed. Same inline
+  // create-as-you-go pattern as CreateCellModal's "+ Create new fellowship".
+  const [creatingBand, setCreatingBand] = useState(false);
+  const [newBand, setNewBand] = useState({ name: '', amount: '' });
+  const [creatingBandSaving, setCreatingBandSaving] = useState(false);
+  const [bandError, setBandError] = useState('');
+
   // Log giving — one form handles both current-month and backdated entries;
   // picking a past month automatically marks the entry as backdated instead
   // of asking a separate yes/no question.
@@ -145,6 +154,30 @@ export default function PartnershipPage() {
       }
     } catch {}
     setAddingPartner(false);
+  }
+
+  async function submitNewBand() {
+    if (!newBand.name.trim() || !newBand.amount) return;
+    setCreatingBandSaving(true);
+    setBandError('');
+    try {
+      const res = await fetch('/api/partnership/bands', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ name: newBand.name.trim(), amount: newBand.amount }),
+      });
+      const json = await res.json();
+      if (res.ok && json.data?.band) {
+        setBands(prev => [...prev, json.data.band]);
+        setNewPartner(p => ({ ...p, band_id: json.data.band.id }));
+        setNewBand({ name: '', amount: '' });
+        setCreatingBand(false);
+      } else {
+        setBandError(json?.error?.message || 'Failed to create band');
+      }
+    } catch {
+      setBandError('Network error — band was not created.');
+    }
+    setCreatingBandSaving(false);
   }
 
   async function logGiving() {
@@ -336,6 +369,30 @@ export default function PartnershipPage() {
                       <option value="">Select band</option>
                       {bands.map(b => <option key={b.id} value={b.id}>{b.name} — {currencySymbol(currency)}{b.amount.toLocaleString()}/month</option>)}
                     </select>
+                    {!creatingBand ? (
+                      <button onClick={() => setCreatingBand(true)} style={{ marginTop: 6, background: 'transparent', border: 'none', color: t.purple, fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                        + Create new band
+                      </button>
+                    ) : (
+                      <div style={{ marginTop: 8, padding: 10, background: t.purpleBg, borderRadius: 8 }}>
+                        {bandError && <div style={{ fontSize: 11, color: t.coral, marginBottom: 6 }}>{bandError}</div>}
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                          <input value={newBand.name} onChange={e => setNewBand(b => ({ ...b, name: e.target.value }))}
+                            placeholder="e.g. Silver, Gold" style={{ flex: 1, border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '6px 8px', fontSize: 11, background: t.input, color: t.text, outline: 'none' }} />
+                          <input type="number" value={newBand.amount} onChange={e => setNewBand(b => ({ ...b, amount: e.target.value }))}
+                            placeholder={`${currencySymbol(currency)}/month`} style={{ width: 100, border: `0.5px solid ${t.border}`, borderRadius: 6, padding: '6px 8px', fontSize: 11, background: t.input, color: t.text, outline: 'none' }} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={submitNewBand} disabled={creatingBandSaving || !newBand.name.trim() || !newBand.amount}
+                            style={{ background: t.purple, color: '#fff', border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: creatingBandSaving || !newBand.name.trim() || !newBand.amount ? 0.6 : 1 }}>
+                            {creatingBandSaving ? 'Creating...' : 'Create'}
+                          </button>
+                          <button onClick={() => { setCreatingBand(false); setBandError(''); }} style={{ background: 'transparent', color: t.muted, border: 'none', fontSize: 11, cursor: 'pointer' }}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
