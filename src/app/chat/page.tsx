@@ -136,10 +136,16 @@ export default function ChatPage() {
   };
 
   useEffect(() => {
-    fetch('/api/auth/me', { credentials: 'include' }).then(r => r.json()).then(({ data }) => {
-      if (!data) { router.push('/login'); return; }
+    // data:null happens both on a genuine 401 (no session) and on an
+    // unrelated downstream failure inside /api/auth/me (500 — see
+    // fellowship/page.tsx's identical comment for the full story). Only
+    // redirect on the former; a transient backend hiccup shouldn't
+    // force-log-out a real, currently-authenticated user.
+    fetch('/api/auth/me', { credentials: 'include' }).then(async r => {
+      const { data } = await r.json();
+      if (!data) { if (r.status === 401) router.push('/login'); return; }
       setHomePath(rolePortal(data.role)); setMyId(data.id); setMyRole(data.role); setMyName(data.name || '');
-    }).catch(() => router.push('/login'));
+    }).catch(() => {});
   }, [router]);
 
   const loadThreads = useCallback(() => {

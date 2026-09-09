@@ -98,7 +98,16 @@ export default function CalendarPage() {
   };
 
   useEffect(() => {
-    fetch('/api/auth/me', { credentials: 'include' }).then(r => r.json()).then(({ data }) => { if (!data) router.push('/login'); else { setHomePath(rolePortal(data.role)); setPageReady(true); } }).catch(() => router.push('/login'));
+    // data:null happens both on a genuine 401 (no session) and on an
+    // unrelated downstream failure inside /api/auth/me (500 — see
+    // fellowship/page.tsx's identical comment for the full story). Only
+    // redirect on the former; a transient backend hiccup shouldn't
+    // force-log-out a real, currently-authenticated user.
+    fetch('/api/auth/me', { credentials: 'include' }).then(async r => {
+      const { data } = await r.json();
+      if (!data) { if (r.status === 401) { router.push('/login'); return; } setPageReady(true); return; }
+      setHomePath(rolePortal(data.role)); setPageReady(true);
+    }).catch(() => setPageReady(true));
   }, []);
 
   useEffect(() => {
