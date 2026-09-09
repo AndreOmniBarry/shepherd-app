@@ -52,8 +52,16 @@ export async function GET(req: Request) {
     // Derive lapsed status from actual giving history — nothing writes 'lapsed' to
     // the DB directly, so compute it at read time: 2+ consecutive months with no
     // paid entry (counting back from now) counts as lapsed, regardless of `status`.
+    // The walk-back must never cross the partner's own start_date: without that
+    // floor, a partner added today has zero giving rows at all, so the loop
+    // happily counted every month before they even joined as "missed" and hit
+    // missedStreak >= 2 on the very first read — every new partner landed in
+    // Lapsed before they'd had a single chance to pay.
+    const startKey = p.start_date ? String(p.start_date).slice(0, 7) : monthKey(now);
     let missedStreak = 0;
-    while (missedStreak < 60 && !paidMonths.has(monthKey(new Date(now.getFullYear(), now.getMonth() - missedStreak, 1)))) {
+    while (missedStreak < 60) {
+      const checkKey = monthKey(new Date(now.getFullYear(), now.getMonth() - missedStreak, 1));
+      if (checkKey < startKey || paidMonths.has(checkKey)) break;
       missedStreak++;
     }
     // Consecutive paid months immediately preceding the current gap (or, for an
