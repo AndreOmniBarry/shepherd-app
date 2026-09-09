@@ -268,6 +268,77 @@ const TIER_DEFAULTS: Record<string, { t1: string; t2: string; t1h: string; t2h: 
   single: { t1: '', t2: '', t1h: 'Pastor', t2h: 'Pastor' },
 };
 
+// ── Structure-aware wording for later questions ──────────────
+// structure_type + tier1_label/tier2_label are answered in section
+// "Church Structure" (questions 9-13), well before any of the questions
+// below that used to say "cell" unconditionally — a Zonal church would
+// hit "Which day do your cells meet?" and "Cell leaders not submitting
+// attendance" despite having just told SHEPHERD its second tier is called
+// "District". These two helpers pull the label the church already gave
+// (falling back to TIER_DEFAULTS, then literally "cell" as the last
+// resort — the only structure with nothing to substitute is 'single',
+// which has no second tier at all, so "cell" stays the closest generic
+// word rather than leaving a blank).
+function tier2Word(answers: Record<string, Answer>): string {
+  const struct = (answers.structure_type as string) || 'cell_church';
+  const td = TIER_DEFAULTS[struct] || TIER_DEFAULTS.cell_church;
+  return ((answers.tier2_label as string) || td.t2 || 'cell').trim() || 'cell';
+}
+function tier2HeadWord(answers: Record<string, Answer>): string {
+  const struct = (answers.structure_type as string) || 'cell_church';
+  const td = TIER_DEFAULTS[struct] || TIER_DEFAULTS.cell_church;
+  return ((answers.tier2_head_label as string) || td.t2h || 'Cell Leader').trim() || 'Cell Leader';
+}
+
+// Only the four question ids below ever hardcoded "cell" for something
+// the church might call by a different name — everything else in
+// QUESTIONS is either genuinely generic (attendance, giving, comms) or an
+// internal `value`/id, never shown to the visitor. Returns `q` unchanged
+// for every other id, so this is cheap to call for every question on
+// every render.
+function withStructureWording(q: Question, answers: Record<string, Answer>): Question {
+  const t2 = tier2Word(answers);
+  const t2Lower = t2.toLowerCase();
+  const t2Head = tier2HeadWord(answers);
+
+  if (q.id === 'cydf_combined') {
+    return {
+      ...q,
+      sub: `Some churches run them as one group with a simple headcount register (no individual ${t2Lower}s); others keep them fully separate fellowships like any other. Either is fine — this just decides which one gets set up for you.`,
+      options: q.options?.map(o => o.value === 'combined'
+        ? { ...o, sub: `One group, aggregate headcount register, no separate ${t2Lower}s` }
+        : o),
+    };
+  }
+  if (q.id === 'cell_meeting_day') {
+    return {
+      ...q,
+      question: `Which day do your ${t2Lower}s typically meet?`,
+      sub: `Sets ${t2Lower} submission reminders.`,
+      options: q.options?.map(o => o.value === 'varies' ? { ...o, label: `Varies by ${t2Lower}` } : o),
+    };
+  }
+  if (q.id === 'primary_goals') {
+    return {
+      ...q,
+      options: q.options?.map(o => {
+        if (o.value === 'cell_growth') return { ...o, label: `Grow and manage ${t2Lower}s` };
+        if (o.value === 'accountability') return { ...o, label: `Enforce ${t2Head.toLowerCase()} accountability` };
+        return o;
+      }),
+    };
+  }
+  if (q.id === 'biggest_challenge') {
+    return {
+      ...q,
+      options: q.options?.map(o => o.value === 'cell_no_submit'
+        ? { ...o, label: `${t2Head}s not submitting attendance regularly` }
+        : o),
+    };
+  }
+  return q;
+}
+
 const CURRENCY_MAP: Record<string, string> = {
   Nigeria: 'NGN', Ghana: 'GHS', Kenya: 'KES', 'South Africa': 'ZAR',
   Uganda: 'UGX', Tanzania: 'TZS', Rwanda: 'RWF', Ethiopia: 'ETB',
@@ -665,7 +736,7 @@ export default function SetupWizard() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  const question = QUESTIONS[qIndex];
+  const question = withStructureWording(QUESTIONS[qIndex], answers);
   const totalQ = QUESTIONS.length;
   const currentSection = question?.section;
   const sectionIndex = SECTIONS.indexOf(currentSection);
