@@ -405,7 +405,15 @@ export default function DepartmentHeadPage() {
             dark={dark} t={t} isMobile={isMobile}
             fetchUrl="/api/department/overview"
             structureKey="dept"
-            unitLabel={churchConfig.tier1_label || 'Department'}
+            // Was churchConfig.tier1_label — that's the church's
+            // Fellowship/Zone/Campus/Network label, a completely different
+            // concept from departments (departments sit outside the
+            // tier1/tier2 hierarchy entirely; there's no user-configurable
+            // "department" label anywhere in church_config). This produced
+            // "ZONE MEMBERS" on a Zonal church's department overview —
+            // found live, driving a real department_head account through
+            // this exact page.
+            unitLabel="Department"
             emptyTitle="No department assigned."
             emptySubtitle="Contact your administrator."
           />
