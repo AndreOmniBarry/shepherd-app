@@ -180,6 +180,33 @@ export function getLeafUnitLabel(config?: LeafUnitLabelConfig | null): string {
   return label || 'Cell';
 }
 
+// ── Leaf unit's direct parent label ──────────────────────────────
+// The Cell Ministry page (dashboard) and its "+ Create <leaf>" modal are
+// the one and only place in the app that creates the leaf unit above —
+// always backed by the `fellowships` table one level up, church_config's
+// tier1/tier2 labeling notwithstanding. For every preset except campus
+// that parent IS tier1 (Fellowship/Zone/Department/Network), so
+// tier1_label was always the right label to show there. For campus,
+// tier1_label is "Campus" (the Branch-equivalent, see getBranchLabel) —
+// the fellowships-table row one level above a real Cell is actually
+// tier2 ("Fellowship"). Using tier1_label there showed "Campus" on a
+// dropdown that actually listed and created fellowships-table rows, and
+// "+ Create <tier2_label>" ("+ Create Fellowship") on a button that
+// actually created a cells-table row — both backwards. Centralised here
+// so Cell Ministry reads through the same kind of helper as
+// getBranchLabel/getLeafUnitLabel instead of a third copy of the
+// campus ternary.
+export type LeafParentLabelConfig = {
+  structure_type?: string | null;
+  tier1_label?: string | null;
+  tier2_label?: string | null;
+};
+
+export function getLeafParentLabel(config?: LeafParentLabelConfig | null): string {
+  const label = config?.structure_type === 'campus' ? config?.tier2_label : config?.tier1_label;
+  return label || 'Fellowship';
+}
+
 // ── Branch label ──────────────────────────────────────────────────
 // The `branches` table backs the Campus/Branch concept for every preset,
 // but the plain word "Branch" is only actually renamed for campus (whose
