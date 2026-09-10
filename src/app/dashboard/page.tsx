@@ -23,7 +23,7 @@ import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 import LoadingScreen from '@/components/LoadingScreen';
 import { CURRENCIES, formatMoney } from '@/lib/currency';
 import { COUNTRY_NAMES } from '@/lib/countries';
-import { getRoleLabel, getLeafUnitLabel, getBranchLabel, pluralizeLabel, type RoleLabelConfig } from '@/lib/church-config';
+import { getRoleLabel, getLeafUnitLabel, getLeafParentLabel, getBranchLabel, pluralizeLabel, type RoleLabelConfig } from '@/lib/church-config';
 import { useAppDialog } from '@/components/AppDialog';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -2077,7 +2077,7 @@ function CreateCellModal({t,dark,onClose,onCreated,tier1Label='Fellowship',tier2
                   {fellowships.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
                 {!fellowshipsLoading && !error && fellowships.length===0 && (
-                  <div style={{fontSize:10.5,color:t.muted,marginTop:4}}>No {tier1Label.toLowerCase()}s found for your account yet — create the first one below.</div>
+                  <div style={{fontSize:10.5,color:t.muted,marginTop:4}}>No {pluralizeLabel(tier1Label).toLowerCase()} found for your account yet — create the first one below.</div>
                 )}
                 <button type="button" onClick={()=>{setCreatingFellowship(true);setError('');}} style={{background:'transparent',border:'none',color:t.purple,fontSize:11.5,fontWeight:600,cursor:'pointer',padding:'6px 0 0',textAlign:'left'}}>+ Create new {tier1Label.toLowerCase()}</button>
               </>
@@ -3267,8 +3267,8 @@ export default function DashboardPage(){
             </div>
           )}
           {showCreateMember && <CreateMemberModal t={t} dark={dark} onClose={()=>setShowCreateMember(false)} onCreated={()=>{loadMembers();fetch('/api/analytics/dashboard',{credentials:'include'}).then(r=>r.json()).then(({data})=>{if(data)setKpi(data);}).catch(()=>{});}}/>}
-          {showCreateCell && <CreateCellModal t={t} dark={dark} onClose={()=>setShowCreateCell(false)} onCreated={reloadCells} tier1Label={churchConfig.tier1_label||'Fellowship'} tier2Label={churchConfig.tier2_label||'Cell'}/>}
-          {showMergeCells && <MergeCellsModal t={t} dark={dark} cells={dbCells||[]} onClose={()=>setShowMergeCells(false)} onMerged={reloadCells} tier1Label={churchConfig.tier1_label||'Fellowship'} tier2Label={churchConfig.tier2_label||'Cell'}/>}
+          {showCreateCell && <CreateCellModal t={t} dark={dark} onClose={()=>setShowCreateCell(false)} onCreated={reloadCells} tier1Label={getLeafParentLabel(churchConfig)} tier2Label={getLeafUnitLabel(churchConfig)}/>}
+          {showMergeCells && <MergeCellsModal t={t} dark={dark} cells={dbCells||[]} onClose={()=>setShowMergeCells(false)} onMerged={reloadCells} tier1Label={getLeafParentLabel(churchConfig)} tier2Label={getLeafUnitLabel(churchConfig)}/>}
           {showCreateDept && <CreateDepartmentModal t={t} dark={dark} onClose={()=>setShowCreateDept(false)} onCreated={reloadDeptsList}/>}
           {deleteTarget && (
             <div style={{position:'fixed',inset:0,background:'rgba(15,10,30,0.6)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}}>
@@ -3502,17 +3502,17 @@ export default function DashboardPage(){
           {page==='cells'&&!selectedCell&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
-                {[{label:`Total Active ${churchConfig.tier2_label||'Cell'}s`,value:String((dbCells||[]).length)},{label:'Rising',value:String((dbCells||[]).filter(c=>c.status==='rising').length)},{label:'Need Attention',value:String((dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length)},{label:'Avg Attendance Rate',value:(()=>{const cells=(dbCells||[]);const withRate=cells.filter(c=>c.members>0);return withRate.length>0?`${Math.round(withRate.reduce((s,c)=>s+(c.avg/c.members*100),0)/withRate.length)}%`:'—';})()}].map(s=>(
+                {[{label:`Total Active ${getLeafUnitLabel(churchConfig)}s`,value:String((dbCells||[]).length)},{label:'Rising',value:String((dbCells||[]).filter(c=>c.status==='rising').length)},{label:'Need Attention',value:String((dbCells||[]).filter(c=>c.status==='alert'||c.status==='watch').length)},{label:'Avg Attendance Rate',value:(()=>{const cells=(dbCells||[]);const withRate=cells.filter(c=>c.members>0);return withRate.length>0?`${Math.round(withRate.reduce((s,c)=>s+(c.avg/c.members*100),0)/withRate.length)}%`:'—';})()}].map(s=>(
                   <div key={s.label} style={card({padding:'10px 12px'})}><div style={{fontSize:11,color:t.sub,marginBottom:3}}>{s.label}</div><div style={{fontSize:20,fontWeight:500,color:t.text}}>{s.value}</div></div>
                 ))}
               </div>
               <div style={card()}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:isMobile?'stretch':'center',marginBottom:10,flexDirection:isMobile?'column':'row',gap:isMobile?10:0}}>
-                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>All {(dbCells||[]).length} {churchConfig.tier2_label||'Cell'}s - click any {(churchConfig.tier2_label||'Cell').toLowerCase()} to drill down</div>
+                  <div style={{fontSize:13,fontWeight:500,color:t.text}}>All {(dbCells||[]).length} {getLeafUnitLabel(churchConfig)}s - click any {getLeafUnitLabel(churchConfig).toLowerCase()} to drill down</div>
                   <div style={{display:'flex',gap:8,flexWrap:isMobile?'wrap':undefined}}>
-                    <button onClick={()=>setShowCreateCell(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined,whiteSpace:'nowrap'}}>+ Create {churchConfig.tier2_label||'Cell'}</button>
-                    <button onClick={()=>setShowMergeCells(true)} style={{background:'transparent',color:t.coral,border:`0.5px solid ${t.coral}`,borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined,whiteSpace:'nowrap'}}>Merge {churchConfig.tier2_label||'Cell'}s</button>
-                    <button onClick={()=>exportCSV((dbCells||[]).map(c=>({[churchConfig.tier2_label||'Cell']:c.cell,[churchConfig.tier1_label||'Fellowship']:c.fel,Leader:c.leader,Members:c.members,AvgAttendance:c.avg,Rate:`${c.rate}%`,Trend:c.trend,Status:c.status})),'cells_export')}
+                    <button onClick={()=>setShowCreateCell(true)} style={{background:t.purple,color:'#fff',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined,whiteSpace:'nowrap'}}>+ Create {getLeafUnitLabel(churchConfig)}</button>
+                    <button onClick={()=>setShowMergeCells(true)} style={{background:'transparent',color:t.coral,border:`0.5px solid ${t.coral}`,borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',flex:isMobile?1:undefined,whiteSpace:'nowrap'}}>Merge {getLeafUnitLabel(churchConfig)}s</button>
+                    <button onClick={()=>exportCSV((dbCells||[]).map(c=>({[getLeafUnitLabel(churchConfig)]:c.cell,[getLeafParentLabel(churchConfig)]:c.fel,Leader:c.leader,Members:c.members,AvgAttendance:c.avg,Rate:`${c.rate}%`,Trend:c.trend,Status:c.status})),'cells_export')}
                       style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:5,flex:isMobile?1:undefined,whiteSpace:'nowrap'}}><Icon name="ti-download" size={12}/>Export CSV</button>
                   </div>
                 </div>
@@ -3551,7 +3551,7 @@ export default function DashboardPage(){
                 ) : (
                 <div className="table-wrap">
                   <table style={{width:'100%',fontSize:12,borderCollapse:'collapse',minWidth:600}}>
-                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{[churchConfig.tier2_label||'Cell',churchConfig.tier1_label||'Fellowship','Leader','Members','Avg Att.','Rate','Trend','Status','Weekly Meeting'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+                    <thead><tr style={{borderBottom:`0.5px solid ${t.navBorder}`}}>{[getLeafUnitLabel(churchConfig),getLeafParentLabel(churchConfig),'Leader','Members','Avg Att.','Rate','Trend','Status','Weekly Meeting'].map(h=><th key={h} style={{textAlign:'left',padding:'6px 8px',fontSize:10,fontWeight:500,color:t.sub,textTransform:'uppercase',letterSpacing:'0.04em',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
                     <tbody>
                       {(dbCells||[]).filter(row=>cellFilter==='all'||(row.status===cellFilter)||(row.fel===cellFilter)).map((row,i)=>{const s=ss(row.status);return(
                         <tr key={i} onClick={()=>setSelectedCell(row)} style={{borderBottom:`0.5px solid ${t.border}`,cursor:'pointer'}}
@@ -3577,7 +3577,7 @@ export default function DashboardPage(){
           )}
           {page==='cells'&&selectedCell&&(
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <button onClick={()=>setSelectedCell(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to {churchConfig.tier2_label||'Cell'}s</button>
+              <button onClick={()=>setSelectedCell(null)} style={{alignSelf:'flex-start',background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'6px 14px',fontSize:13,cursor:'pointer'}}>← Back to {getLeafUnitLabel(churchConfig)}s</button>
               <div style={card()}>
                 <input defaultValue={selectedCell.cell}
                   onBlur={async e=>{
@@ -3590,7 +3590,7 @@ export default function DashboardPage(){
                     else await alertUser('Failed to rename cell.', { title: 'Rename failed' });
                   }}
                   style={{fontSize:15,fontWeight:600,color:t.text,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'4px 8px',background:t.input,outline:'none',fontFamily:'inherit',marginBottom:6,width:'100%',boxSizing:'border-box'}} />
-                <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} {churchConfig.tier1_label||'Fellowship'} · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
+                <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} {getLeafParentLabel(churchConfig)} · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
                 <AttendanceHistoryPanel t={t} color={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'}
                   fetchUrl={(g,o)=>`/api/cells/history?cell_id=${(selectedCell as unknown as {id?:string})?.id}&granularity=${g}&offset=${o}`} />
               </div>
@@ -3607,7 +3607,7 @@ export default function DashboardPage(){
                 <div style={{fontSize:13,fontWeight:500,marginBottom:4}}>AI-Powered Reports</div>
                 <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Select a prompt to generate a narrative report via Moshe. Add credits at console.anthropic.com if needed.</div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-                  {[...['Monthly attendance report for June 2026'],...(userRole==='pa'?[]:['YTD giving analysis and projections']),...[`${churchConfig.tier2_label||'Cell'} performance review with intervention recommendations`,'Membership growth analysis and conversion trends',`Plan a realistic membership budget for all 35 ${(churchConfig.tier2_label||'Cell').toLowerCase()}s based on current trends`,`Which 3 ${(churchConfig.tier2_label||'Cell').toLowerCase()}s need immediate pastoral intervention and why?`]].map(q=>(
+                  {[...['Monthly attendance report for June 2026'],...(userRole==='pa'?[]:['YTD giving analysis and projections']),...[`${churchConfig.tier2_label||'Cell'} performance review with intervention recommendations`,'Membership growth analysis and conversion trends',`Plan a realistic membership budget for all 35 ${pluralizeLabel(churchConfig.tier2_label||'Cell').toLowerCase()} based on current trends`,`Which 3 ${pluralizeLabel(churchConfig.tier2_label||'Cell').toLowerCase()} need immediate pastoral intervention and why?`]].map(q=>(
                     <button key={q} onClick={()=>{setChatOpen(true);setChatInput(q);}}
                       style={{background:'#EEEDFE',color:'#3C3489',border:'none',borderRadius:8,padding:'8px 14px',fontSize:12,cursor:'pointer',fontWeight:500,textAlign:'left'}}>
                       {q}
