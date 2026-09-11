@@ -69,6 +69,16 @@ export async function POST(req: Request) {
       body: JSON.stringify(row),
     });
     const data = await res.json();
+    // A failed insert (e.g. the table itself missing, or any other
+    // PostgREST-level rejection) was previously never checked here: `data`
+    // wouldn't be an array, so it fell through to the `: data` branch below
+    // and got returned as-is with error: null at HTTP 201 -- the portal
+    // showed "Submitted for approval." for a recommendation that was never
+    // written anywhere.
+    if (!res.ok) {
+      console.error('[POST /api/update/member-removals] insert failed:', data);
+      return NextResponse.json({ data: null, error: { message: 'Failed to submit removal recommendation' } }, { status: 500 });
+    }
 
     const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
     const adminData = await adminRes.json();
