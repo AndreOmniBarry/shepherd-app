@@ -94,6 +94,14 @@ export async function POST(req: Request) {
       body: JSON.stringify({ record_id, cell_id: rec.cell_id, fellowship_id, raised_by: user.id, dispute_reason: reason, status: 'pending' }),
     });
     const data = await res.json();
+    // A failed insert here was never checked (same class of bug found
+    // repeatedly this session elsewhere) -- a real PostgREST error would
+    // have come back as "data" with error: null at HTTP 201, and the
+    // fellowship head raising the dispute would see a false success.
+    if (!res.ok) {
+      console.error('[POST /api/fellowship/disputes] insert failed:', data);
+      return NextResponse.json({ data: null, error: { message: 'Failed to raise dispute' } }, { status: 500 });
+    }
     return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ data: null, error: { message: 'Failed to raise dispute' } }, { status: 500 });

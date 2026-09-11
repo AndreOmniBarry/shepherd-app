@@ -110,5 +110,13 @@ export async function POST(req: Request) {
     body: JSON.stringify({ full_name, phone: phone || null, email: email || null, band_id, start_date, status: 'active', church_id: user.church_id || null }),
   });
   const data = await res.json();
+  // full_name and start_date are NOT NULL on partners; a missing/invalid
+  // one was never checked here (same class of bug found repeatedly this
+  // session elsewhere) -- the raw PostgREST error would have come back as
+  // "data" with error: null at HTTP 201.
+  if (!res.ok) {
+    console.error('[POST /api/partnership/partners] insert failed:', data);
+    return NextResponse.json({ data: null, error: { message: 'Failed to add partner' } }, { status: 500 });
+  }
   return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
 }

@@ -34,5 +34,12 @@ export async function POST(req: Request) {
     body: JSON.stringify({ name: body.name, church_id: user.church_id || null }),
   });
   const data = await res.json();
+  // name is NOT NULL on expense_categories and was never validated or
+  // checked for a failed insert here (same class of bug found repeatedly
+  // this session elsewhere).
+  if (!res.ok) {
+    console.error('[POST /api/accounts/expense-categories] insert failed:', data);
+    return NextResponse.json({ data: null, error: { message: 'Failed to create category' } }, { status: 500 });
+  }
   return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
 }
