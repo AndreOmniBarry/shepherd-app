@@ -51,6 +51,19 @@ export async function POST(req: Request) {
       body: JSON.stringify({ title, event_date, end_date: end_date || null, description: description || null, event_type: event_type || 'programme', start_time: start_time || null, end_time: end_time || null, location: location || null, is_free: is_free ?? true, price: is_free ? 0 : (price || 0), capacity: capacity || null, banner_url: banner_url || null, public_slug, registration_open: true, whatsapp_confirmation: whatsapp_confirmation ?? true, sms_confirmation: sms_confirmation ?? true, status: 'upcoming', created_by: user.id, church_id: user.church_id || null }),
     });
     const data = await res.json();
+    // public_slug is unique, derived from title+date -- two events with the
+    // same title on the same date (a duplicate-click submit, or two
+    // legitimately different events sharing a name and day) collide on it,
+    // and PostgREST rejects the insert with 23505. That was never checked
+    // here: the route returned the raw error object as "data" with
+    // error: null at HTTP 201, so the second event silently vanished while
+    // the UI showed a normal success. Reproduced live: creating the same
+    // title+date twice returns 201 both times but only the first row exists.
+    if (!res.ok) {
+      console.error('[POST /api/events] insert failed:', data);
+      const message = data?.code === '23505' ? 'An event with this title and date already exists.' : 'Failed to create event';
+      return NextResponse.json({ data: null, error: { message } }, { status: data?.code === '23505' ? 409 : 500 });
+    }
     return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
   } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
 }
