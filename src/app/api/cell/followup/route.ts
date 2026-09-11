@@ -94,6 +94,16 @@ export async function POST(req: Request) {
       }),
     });
     const data = await res.json();
+    // A failed insert here (e.g. cell_leader_followups missing entirely)
+    // was never checked: the route went on to bump care_leads'
+    // contact_attempts/last_contact and notify the assigned admin
+    // regardless, leaving a permanently-lost follow-up log next to an
+    // attempt counter that says one was made and a notification nobody
+    // can trace back to any actual content.
+    if (!res.ok) {
+      console.error('[POST /api/cell/followup] insert failed:', data);
+      return NextResponse.json({ data: null, error: { message: 'Failed to log follow-up' } }, { status: 500 });
+    }
 
     // Fetch the lead's current contact_attempts so we increment rather than overwrite
     const careRes = await fetch(

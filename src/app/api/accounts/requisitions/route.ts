@@ -65,5 +65,17 @@ export async function POST(req: Request) {
     }),
   });
   const data = await res.json();
+  // amount_requested is NOT NULL on expense_requisitions but was never
+  // validated here -- parseFloat(undefined) is NaN, which JSON.stringify
+  // silently serializes to null, so a missing amount hit the DB's
+  // not-null constraint. That failure was never checked (same class of
+  // bug found repeatedly this session elsewhere): the raw PostgREST error
+  // came back as "data" with error: null at HTTP 201. Reproduced live:
+  // submitting a requisition with no amount_requested returned 201 with
+  // zero rows actually written.
+  if (!res.ok) {
+    console.error('[POST /api/accounts/requisitions] insert failed:', data);
+    return NextResponse.json({ data: null, error: { message: 'Failed to submit requisition — check the amount is a valid number.' } }, { status: 500 });
+  }
   return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null }, { status: 201 });
 }

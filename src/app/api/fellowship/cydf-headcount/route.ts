@@ -153,6 +153,14 @@ export async function POST(req: Request) {
       }),
     });
     const data = await res.json();
+    // A failed insert here was never checked (same class of bug found
+    // repeatedly this session elsewhere) -- worse, the route would still
+    // go on to notify admins "CYDF attendance submitted" below even
+    // though nothing was actually written.
+    if (!res.ok) {
+      console.error('[POST /api/fellowship/cydf-headcount] insert failed:', data);
+      return NextResponse.json({ data: null, error: { message: 'Failed to submit headcount' } }, { status: 500 });
+    }
 
     // This comment used to say "Notify pastor and PA" while only ever
     // notifying the submitter — the lookup was never actually implemented.
