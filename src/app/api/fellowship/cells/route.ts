@@ -27,10 +27,33 @@ export async function GET(req: Request) {
 
     // Get all cells in fellowship
     const cellsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/cells?fellowship_id=eq.${fellowship_id}&select=id,name,member_count,leader:members(full_name)&order=name.asc`,
+      `${SUPABASE_URL}/rest/v1/cells?fellowship_id=eq.${fellowship_id}&select=id,name,leader:members(full_name)&order=name.asc`,
       { headers: hdrs }
     );
     const cellsData = await cellsRes.json();
+
+    // cells.member_count is a stored column nothing in the app (or the DB)
+    // ever writes to -- no route sets it on member add/move/remove, no
+    // trigger recomputes it -- so it sits at its schema default of 0
+    // forever, for every cell in every church. Every real cell here had
+    // member_count: 0 despite having real, active members. Computing it
+    // live from the actual members table (same approach /api/cell/overview
+    // already uses for its own totalMembers) instead of trusting that
+    // column.
+    const cellIdsForCount = (Array.isArray(cellsData) ? cellsData : []).map((c: Record<string, string>) => c.id);
+    const memberCountByCell: Record<string, number> = {};
+    if (cellIdsForCount.length > 0) {
+      const countRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/members?cell_id=in.(${cellIdsForCount.join(',')})&membership_status=eq.active&select=cell_id`,
+        { headers: hdrs }
+      );
+      const countData = await countRes.json();
+      if (Array.isArray(countData)) {
+        countData.forEach((m: Record<string, string>) => {
+          memberCountByCell[m.cell_id] = (memberCountByCell[m.cell_id] || 0) + 1;
+        });
+      }
+    }
 
     // Get last Sunday's attendance for each cell
     const lastSunday = new Date();
@@ -99,7 +122,7 @@ export async function GET(req: Request) {
         record_id: att?.id,
         name: c.name,
         leader_name: leader?.full_name || 'Unassigned',
-        member_count: c.member_count || 0,
+        member_count: memberCountByCell[c.id as string] || 0,
         last_present: att?.present,
         last_absent: att?.absent,
         last_rate: total > 0 ? Math.round((att.present / total) * 100) : undefined,
