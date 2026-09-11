@@ -121,6 +121,7 @@ export default function UpdatePage() {
   const [existingRecords, setExistingRecords] = useState<MonthlyRecord[]>([]);
   const [savingAttendance, setSavingAttendance] = useState(false);
   const [attendanceSaved, setAttendanceSaved] = useState(false);
+  const [attendanceError, setAttendanceError] = useState('');
 
   const t = {
     bg: dark ? '#080614' : '#F0EFF8', card: dark ? '#13102A' : '#FFFFFF',
@@ -270,6 +271,7 @@ export default function UpdatePage() {
 
   async function saveAttendance() {
     setSavingAttendance(true);
+    setAttendanceError('');
     try {
       const records = Object.values(attendanceRecords).map(r => ({
         ...r,
@@ -288,8 +290,17 @@ export default function UpdatePage() {
         fetch('/api/update/attendance', { credentials: 'include' })
           .then(r => r.json())
           .then(({ data }) => { if (data?.records) setExistingRecords(data.records); });
+      } else {
+        // Previously a non-ok response (e.g. the API rejecting the request)
+        // fell through here silently -- "Saving..." would just revert back
+        // to "Save records" with no indication anything went wrong, and
+        // every record the leader entered was lost.
+        const json = await res.json().catch(() => ({}));
+        setAttendanceError(json?.error?.message || 'Failed to save records.');
       }
-    } catch {}
+    } catch {
+      setAttendanceError('Network error — records not saved.');
+    }
     setSavingAttendance(false);
   }
 
@@ -322,7 +333,15 @@ export default function UpdatePage() {
   const navTabs = [
     { id: 'profiles' as Tab, label: 'Update profiles' },
     { id: 'add_member' as Tab, label: 'Add members' },
-    { id: 'attendance' as Tab, label: 'Log past attendance' },
+    // Attendance backdating writes one monthly_attendance row per member,
+    // tied to a single cell_id, submitted "from your cell register" and
+    // later validated by the fellowship head via that same cell -> fellowship
+    // link. It only makes sense for a leader with exactly one cell of their
+    // own. fellowship_head oversees many cells and department_head none at
+    // all -- both used to see this tab, fill in a full attendance grid for
+    // every member, hit Save, and have the submission silently rejected by
+    // the API (400 "No cell assigned") with nothing shown on screen.
+    ...(userRole === 'cell_leader' ? [{ id: 'attendance' as Tab, label: 'Log past attendance' }] : []),
     ...(['fellowship_head', 'department_head'].includes(userRole) ? [{ id: 'remove_member' as Tab, label: 'Recommend removal' }] : []),
     ...(userRole === 'fellowship_head' ? [{ id: 'cell_edit' as Tab, label: `${churchConfig.tier2_label || 'Cell'} Edit` }] : []),
   ];
@@ -597,6 +616,7 @@ export default function UpdatePage() {
                     <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{selectedMonthSundays} Sundays in this month · tap the number to edit</div>
                   </div>
                   {attendanceSaved && <span style={{ fontSize: 11, color: t.teal, fontWeight: 500 }}>✓ Saved</span>}
+                  {attendanceError && <span style={{ fontSize: 11, color: t.coral, fontWeight: 500 }}>{attendanceError}</span>}
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
