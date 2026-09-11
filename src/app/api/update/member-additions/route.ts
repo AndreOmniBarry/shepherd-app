@@ -71,6 +71,16 @@ export async function POST(req: Request) {
       }),
     });
     const data = await res.json();
+    // PostgREST returns an error object (not the created row) on a failed
+    // insert -- e.g. PGRST204 when the schema cache is out of sync with a
+    // column the app expects. Previously this was never checked: the route
+    // returned 201 with that error object standing in for "data", so the
+    // portal showed a false "submitted for approval" success message while
+    // no row was ever written and the member vanished.
+    if (!res.ok) {
+      console.error('[POST /api/update/member-additions] insert failed:', data);
+      return NextResponse.json({ data: null, error: { message: 'Failed to submit' } }, { status: 500 });
+    }
 
     // Notify fellowship head / department head (L1) and overseers/PA (can always approve directly)
     const l1Res = fellowship_id
