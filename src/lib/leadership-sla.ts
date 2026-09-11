@@ -252,7 +252,18 @@ export async function buildCellScores(params: {
     return {
       id: cid,
       cell: c.name as string,
-      fel: fellowship?.name?.replace(' Fellowship', '') || 'Unknown',
+      // The real, unmodified fellowship/zone/campus name — this used to
+      // unconditionally strip a literal " Fellowship" suffix, which was
+      // meant to avoid "Grace Fellowship Fellowship" at the one call site
+      // that re-appends a tier label, but instead silently truncated the
+      // real name (to just "Grace") at every OTHER call site that shows
+      // this field as-is (the Cell Ministry table, CSV exports, the cell
+      // picker dropdown) — exactly the common case for a cell_church/
+      // campus church, whose fellowships are very often literally named
+      // "X Fellowship". Callers that need to append a tier label without
+      // doubling it up should use withParentLabel() instead of assuming
+      // this field has already had one stripped.
+      fel: fellowship?.name || 'Unknown',
       leader: leaderMap[cid] || 'Unassigned',
       members: count,
       avg,

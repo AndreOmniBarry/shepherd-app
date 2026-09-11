@@ -207,6 +207,18 @@ export function getLeafParentLabel(config?: LeafParentLabelConfig | null): strin
   return label || 'Fellowship';
 }
 
+// ── Appending a parent-tier label without doubling it up ──────────
+// A real fellowship/zone/campus name very often already contains the
+// tier label word — the seed data for this app's own original church
+// does this ("Men's Fellowship", "Youth Fellowship"), and so does a
+// Zonal church naming a zone "North Zone" or a Campus church naming one
+// "Main Campus". Appending the label unconditionally then doubles up
+// into "Youth Fellowship Fellowship" / "North Zone Zone". Only append
+// when the name doesn't already end with it (case-insensitive).
+export function withParentLabel(name: string, parentLabel: string): string {
+  return name.toLowerCase().endsWith(parentLabel.toLowerCase()) ? name : `${name} ${parentLabel}`;
+}
+
 // ── Branch label ──────────────────────────────────────────────────
 // The `branches` table backs the Campus/Branch concept for every preset,
 // but the plain word "Branch" is only actually renamed for campus (whose

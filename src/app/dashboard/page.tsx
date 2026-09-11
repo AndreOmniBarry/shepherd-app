@@ -23,7 +23,7 @@ import { SkeletonCard, SkeletonRow } from '@/components/Skeleton';
 import LoadingScreen from '@/components/LoadingScreen';
 import { CURRENCIES, formatMoney } from '@/lib/currency';
 import { COUNTRY_NAMES } from '@/lib/countries';
-import { getRoleLabel, getLeafUnitLabel, getLeafParentLabel, getBranchLabel, pluralizeLabel, type RoleLabelConfig } from '@/lib/church-config';
+import { getRoleLabel, getLeafUnitLabel, getLeafParentLabel, getBranchLabel, pluralizeLabel, withParentLabel, type RoleLabelConfig } from '@/lib/church-config';
 import { useAppDialog } from '@/components/AppDialog';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -3590,7 +3590,7 @@ export default function DashboardPage(){
                     else await alertUser('Failed to rename cell.', { title: 'Rename failed' });
                   }}
                   style={{fontSize:15,fontWeight:600,color:t.text,border:`0.5px solid ${t.border}`,borderRadius:8,padding:'4px 8px',background:t.input,outline:'none',fontFamily:'inherit',marginBottom:6,width:'100%',boxSizing:'border-box'}} />
-                <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {selectedCell.fel} {getLeafParentLabel(churchConfig)} · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
+                <div style={{fontSize:12,color:t.sub,marginBottom:14}}>Leader: {selectedCell.leader} · {withParentLabel(selectedCell.fel,getLeafParentLabel(churchConfig))} · {selectedCell.members} members · Avg: {selectedCell.avg} · Rate: {selectedCell.rate}%</div>
                 <AttendanceHistoryPanel t={t} color={selectedCell.status==='alert'?'#D85A30':selectedCell.status==='rising'?'#1D9E75':'#534AB7'}
                   fetchUrl={(g,o)=>`/api/cells/history?cell_id=${(selectedCell as unknown as {id?:string})?.id}&granularity=${g}&offset=${o}`} />
               </div>
