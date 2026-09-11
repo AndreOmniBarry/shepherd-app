@@ -59,6 +59,19 @@ export async function POST(req: Request) {
       }),
     });
     const regData = await regRes.json();
+    // A failed insert here (an FK violation on a stale member_id, a
+    // transient DB error, or any other PostgREST-level rejection) was
+    // never checked: regData would be a PostgREST error object, not an
+    // array, and it got returned as "registration" with error: null at
+    // HTTP 201 regardless -- a real attendee filling out this public form
+    // would see a normal-looking confirmation while never actually being
+    // registered. Same class of bug already found and fixed on
+    // POST /api/events (this endpoint's own event-creation counterpart)
+    // and on member-additions/member-removals.
+    if (!regRes.ok) {
+      console.error('[POST /api/events/register] insert failed:', regData);
+      return NextResponse.json({ data: null, error: { message: 'Registration failed — please try again.' } }, { status: 500 });
+    }
     const registration = Array.isArray(regData) ? regData[0] : regData;
 
     // Determine confirmation channel (WhatsApp first, SMS fallback)
