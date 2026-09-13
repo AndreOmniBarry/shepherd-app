@@ -74,7 +74,16 @@ export async function PATCH(req: Request) {
     if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     if (!['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'].includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     const { id, ...rest } = await req.json();
-    await fetch(`${SURL}/rest/v1/church_events?id=eq.${id}&church_id=eq.${user.church_id}`, { method: 'PATCH', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify({ ...rest, updated_at: new Date().toISOString() }) });
+    // return=representation + a row check — with return=minimal this
+    // never checked anything at all, so a wrong-church or nonexistent
+    // event id (the church_id filter silently matching zero rows) still
+    // reported "updated: true".
+    const res = await fetch(`${SURL}/rest/v1/church_events?id=eq.${id}&church_id=eq.${user.church_id}`, { method: 'PATCH', headers: { ...H(), 'Prefer': 'return=representation' }, body: JSON.stringify({ ...rest, updated_at: new Date().toISOString() }) });
+    const data = await res.json().catch(() => []);
+    const updated = Array.isArray(data) ? data[0] : data;
+    if (!res.ok || !updated?.id) {
+      return NextResponse.json({ data: null, error: { message: 'Event not found or update failed' } }, { status: 404 });
+    }
     return NextResponse.json({ data: { updated: true }, error: null });
   } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
 }

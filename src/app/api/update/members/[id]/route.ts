@@ -47,14 +47,21 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ data: null, error: { message: 'No fields to update' } }, { status: 400 });
     }
 
+    // return=representation + a row check, not just res.ok — with
+    // return=minimal, a PATCH matching zero rows (a wrong-church or
+    // nonexistent member id slipping past the church_id filter above)
+    // still comes back 200 with an empty body, indistinguishable from a
+    // real update, and would report "updated" while nothing changed.
     const res = await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${params.id}&church_id=eq.${user.church_id}`, {
       method: 'PATCH',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
+      headers: { ...hdrs(), 'Prefer': 'return=representation' },
       body: JSON.stringify(updateData),
     });
+    const data = await res.json().catch(() => []);
+    const updated = Array.isArray(data) ? data[0] : data;
 
-    if (!res.ok) {
-      return NextResponse.json({ data: null, error: { message: 'Failed to update member' } }, { status: 500 });
+    if (!res.ok || !updated?.id) {
+      return NextResponse.json({ data: null, error: { message: 'Member not found or update failed' } }, { status: 404 });
     }
 
     return NextResponse.json({ data: { updated: true }, error: null });

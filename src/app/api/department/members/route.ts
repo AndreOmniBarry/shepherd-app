@@ -110,11 +110,18 @@ export async function PATCH(req: Request) {
     const department_id = userData?.[0]?.department_id;
     if (!department_id) return NextResponse.json({ data: null, error: { message: 'No department assigned to your account' } }, { status: 400 });
 
+    // return=representation + a row check — member_id isn't verified to
+    // actually be on this department's roster before the PATCH, and with
+    // return=minimal a match on zero rows (a stale/mistyped member_id)
+    // still came back 200 with nothing to inspect, reporting success
+    // either way.
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/department_members?department_id=eq.${department_id}&member_id=eq.${member_id}`,
-      { method: 'PATCH', headers: { ...hdrs, Prefer: 'return=minimal' }, body: JSON.stringify({ role: role.trim() }) }
+      { method: 'PATCH', headers: { ...hdrs, Prefer: 'return=representation' }, body: JSON.stringify({ role: role.trim() }) }
     );
-    if (!res.ok) return NextResponse.json({ data: null, error: { message: 'Failed to update role' } }, { status: 500 });
+    const data = await res.json().catch(() => []);
+    const updated = Array.isArray(data) ? data[0] : data;
+    if (!res.ok || !updated?.id) return NextResponse.json({ data: null, error: { message: 'That member is not on your department roster' } }, { status: 404 });
     return NextResponse.json({ data: { updated: true }, error: null });
   } catch (err) {
     console.error('[PATCH /api/department/members]', err);

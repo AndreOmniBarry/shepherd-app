@@ -64,13 +64,21 @@ export async function PATCH(req: Request) {
     // the same class of hole here.
     if (action === 'activate_enterprise' || action === 'deactivate_enterprise') {
       const isActivating = action === 'activate_enterprise';
-      await fetch(`${SUPABASE_URL}/rest/v1/church_config?id=eq.${id}`, {
+      // return=representation + a row check — a bogus/stale church_config
+      // id previously still reported "updated: true" (return=minimal gives
+      // 200 on a zero-row match), silently no-opping a billing-status change.
+      const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/church_config?id=eq.${id}`, {
         method: 'PATCH',
-        headers: { ...hdrs(), 'Prefer': 'return=minimal' },
+        headers: { ...hdrs(), 'Prefer': 'return=representation' },
         body: JSON.stringify(isActivating
           ? { plan_tier: 'enterprise', subscription_status: 'active', subscription_started_at: new Date().toISOString(), updated_at: new Date().toISOString() }
           : { subscription_status: 'expired', updated_at: new Date().toISOString() }),
       });
+      const patchData = await patchRes.json().catch(() => []);
+      const patched = Array.isArray(patchData) ? patchData[0] : patchData;
+      if (!patchRes.ok || !patched?.id) {
+        return NextResponse.json({ data: null, error: { message: 'Church not found or update failed' } }, { status: 404 });
+      }
       logAudit({
         actor_id: user.id, actor_role: user.role,
         action: isActivating ? 'enterprise_activated' : 'enterprise_deactivated',
