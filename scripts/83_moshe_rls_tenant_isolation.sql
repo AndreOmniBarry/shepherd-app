@@ -36,6 +36,17 @@ BEGIN
   END IF;
 END $$;
 
+-- `ALTER FUNCTION ... OWNER TO moshe_query_role` below requires the role
+-- running this script to already be a member of moshe_query_role (Postgres
+-- refuses to hand ownership to a role you can't SET ROLE into) -- CREATE
+-- ROLE alone doesn't grant that. A true superuser bypasses this check
+-- entirely, which is why this passed in a plain local Postgres instance
+-- but fails against Supabase's own `postgres` role, which is deliberately
+-- not a full superuser. Granting membership to whichever role is actually
+-- running this script (not hardcoding "postgres") fixes it regardless of
+-- what that role is called.
+GRANT moshe_query_role TO CURRENT_USER;
+
 -- 2) Helpers reading the scope for the current query from session-local
 --    settings set inside execute_safe_query below -- never from anything
 --    embedded in the AI-generated query text itself.
