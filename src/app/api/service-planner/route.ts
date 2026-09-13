@@ -46,6 +46,10 @@ export async function POST(req: Request) {
     });
     const planData = await planRes.json();
     const plan = Array.isArray(planData) ? planData[0] : planData;
+    if (!planRes.ok || !plan?.id) {
+      console.error('[POST /api/service-planner] insert failed', planRes.status, planData);
+      return NextResponse.json({ data: null, error: { message: 'Failed to create service plan' } }, { status: 500 });
+    }
     if (items?.length > 0) {
       const itemRows = items.map((item: Record<string,unknown>, i: number) => ({ plan_id: plan.id, position: i, ...item }));
       await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(itemRows) });
