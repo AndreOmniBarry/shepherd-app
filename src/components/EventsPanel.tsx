@@ -176,6 +176,7 @@ export default function EventsPanel({ t, isMobile = false }: { t: Record<string,
     if (!selected) return;
     if (checkinMode === 'member' && !pickedMember) { setCheckinError('Select a member first'); return; }
     if (checkinMode === 'visitor' && !visitorName.trim()) { setCheckinError('Name is required'); return; }
+    if (checkinMode === 'visitor' && !visitorPhone.trim()) { setCheckinError('Phone is required for a new visitor'); return; }
     setCheckingIn(true); setCheckinError(''); setCheckinSuccess('');
     try {
       const res = await fetch('/api/events/checkin', {

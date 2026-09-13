@@ -53,6 +53,14 @@ export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ data: null, error: { message: 'id is required' } }, { status: 400 });
-  await fetch(`${S}/rest/v1/financial_periods?id=eq.${id}&church_id=eq.${user.church_id}`, { method: 'DELETE', headers: h() });
+  // return=representation + a row check — a bogus or wrong-church id
+  // (silently caught by the church_id filter) previously still reported
+  // "reopened: true" with nothing actually deleted.
+  const res = await fetch(`${S}/rest/v1/financial_periods?id=eq.${id}&church_id=eq.${user.church_id}`, { method: 'DELETE', headers: { ...h(), Prefer: 'return=representation' } });
+  const data = await res.json().catch(() => []);
+  const deleted = Array.isArray(data) ? data[0] : data;
+  if (!res.ok || !deleted?.id) {
+    return NextResponse.json({ data: null, error: { message: 'Period not found' } }, { status: 404 });
+  }
   return NextResponse.json({ data: { reopened: true }, error: null });
 }

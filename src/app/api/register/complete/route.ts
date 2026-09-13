@@ -85,10 +85,20 @@ export async function POST(req: Request) {
 
     const userId = authData.id;
 
-    // Insert into users table
-    await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+    // Insert into users table. return=representation + a row check — not
+    // reproducible against this schema's own FK constraints today (invites
+    // and users share the identical FK/NOT-NULL set, so a valid invite can
+    // never fail here on those grounds), but a transient DB error is still
+    // possible, and this insert was previously unchecked: the Auth account
+    // would exist, the invite would still get marked used below (burning
+    // it), and the invitee would be told "success" while having no
+    // corresponding profile row — permanently locked out with no invite
+    // left to retry. Clean up the orphaned Auth account on failure instead,
+    // matching the same pattern /api/auth/signup and /api/auth/register
+    // already use, so the same email can be re-invited.
+    const profileRes = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
       method: 'POST',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
+      headers: { ...hdrs(), 'Prefer': 'return=representation' },
       body: JSON.stringify({
         id: userId,
         email: invite.email,
@@ -103,6 +113,13 @@ export async function POST(req: Request) {
         is_active: true,
       }),
     });
+    const profileData = await profileRes.json().catch(() => []);
+    const profile = Array.isArray(profileData) ? profileData[0] : profileData;
+    if (!profileRes.ok || !profile?.id) {
+      console.error('[POST /api/register/complete] profile insert failed', profileRes.status, profileData);
+      await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, { method: 'DELETE', headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } }).catch(() => {});
+      return NextResponse.json({ data: null, error: { message: 'Registration failed. Please try again.' } }, { status: 500 });
+    }
 
     // Mark invite as used
     await fetch(`${SUPABASE_URL}/rest/v1/invites?id=eq.${invite.id}`, {
