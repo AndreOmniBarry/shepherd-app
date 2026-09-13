@@ -23,7 +23,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'No branch assigned to this account' } }, { status: 403 });
     }
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/care_leads?order=created_at.desc&limit=100&select=id,member_id,weeks_absent,status,contact_attempts,last_contact,notes,outcome,sla_grade,assigned_to,created_at,members(full_name,phone,cells(name),fellowships(name))&church_id=eq.${user.church_id}${scope}${branchFilter}`,
+      `${SUPABASE_URL}/rest/v1/care_leads?order=created_at.desc&limit=100&select=id,member_id,weeks_absent,status,contact_attempts,last_contact,notes,outcome,sla_grade,assigned_to,created_at,updated_at,members(full_name,phone,cells(name),fellowships(name))&church_id=eq.${user.church_id}${scope}${branchFilter}`,
       { headers: hdrs() }
     );
     const data = await res.json();
@@ -39,6 +39,7 @@ export async function GET(req: Request) {
         fellowship: fel?.name || '—',
         weeks_absent: l.weeks_absent || 0,
         trigger_date: l.created_at,
+        updated_at: l.updated_at,
         assigned_to: l.assigned_to,
         status: l.status || 'new',
         contact_attempts: l.contact_attempts || 0,

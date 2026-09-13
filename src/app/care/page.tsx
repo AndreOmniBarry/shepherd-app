@@ -15,7 +15,6 @@ import ThemeToggle from '@/components/ThemeToggle';
 import GuideTour, { useFirstVisitGuide } from '@/components/GuideTour';
 import GuideHelpPanel from '@/components/GuideHelpPanel';
 import Icon from '@/components/Icon';
-import { useChurchConfigStandalone } from '@/hooks/useChurchConfig';
 
 type Lead = {
   id: string;
@@ -100,7 +99,6 @@ export default function CareTeamPage() {
   const router = useRouter();
   const [tab, setTab] = useState<NavTab>('queue');
   const {dark, setDark} = useTheme();
-  const { config: churchConfig } = useChurchConfigStandalone();
   const [tourOpen, setTourOpen] = useFirstVisitGuide('care');
   const [helpOpen, setHelpOpen] = useState(false);
   const headerHidden = useHeaderVisibility();
@@ -386,7 +384,13 @@ export default function CareTeamPage() {
                 </button>
                 <div style={card({ marginBottom: 14 })}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4 }}>{selectedLead.member_name}</div>
-                  <div style={{ fontSize: 12, color: t.sub, marginBottom: 16 }}>{selectedLead.cell_name} · {selectedLead.fellowship} {churchConfig.tier1_label || 'Fellowship'}</div>
+                  {/* selectedLead.fellowship is already the fellowship's own
+                      name (e.g. "North Zone" for a church whose tier1_label
+                      is "Zone") — appending tier1_label after it duplicated
+                      the label ("North Zone Zone"). The list card just above
+                      already renders this correctly without the suffix;
+                      matching that here. Reproduced live via the actual UI. */}
+                  <div style={{ fontSize: 12, color: t.sub, marginBottom: 16 }}>{selectedLead.cell_name} · {selectedLead.fellowship}</div>
                   <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
                     {[
                       { label: 'Weeks absent', value: selectedLead.weeks_absent, color: selectedLead.weeks_absent >= 3 ? t.coral : t.amber, bg: selectedLead.weeks_absent >= 3 ? t.coralBg : t.amberBg },
