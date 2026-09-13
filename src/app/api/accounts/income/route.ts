@@ -53,6 +53,10 @@ export async function POST(req: Request) {
   if (financeBlocked) return financeBlocked;
   const body = await req.json();
   const { income_type_id, member_name, amount, service_date, notes, fellowship_id, is_adjustment, adjustment_note } = body;
+  const parsedAmount = parseFloat(amount);
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    return NextResponse.json({ data: null, error: { message: 'A valid amount greater than 0 is required' } }, { status: 400 });
+  }
 
   // Lock-step reconciliation: once a month is closed, a normal entry can no
   // longer land inside it silently — it must be explicitly marked as an
@@ -73,7 +77,7 @@ export async function POST(req: Request) {
     body: JSON.stringify({
       income_type_id,
       member_name: member_name || null,
-      amount: parseFloat(amount),
+      amount: parsedAmount,
       service_date,
       notes: notes || null,
       fellowship_id: fellowship_id || null,
@@ -85,15 +89,19 @@ export async function POST(req: Request) {
     }),
   });
   const data = await res.json();
-  // Fire to pastor dashboard and PA
   const entry = Array.isArray(data) ? data[0] : data;
+  if (!res.ok || !entry?.id) {
+    console.error('[POST /api/accounts/income] insert failed', res.status, data);
+    return NextResponse.json({ data: null, error: { message: 'Failed to save income record' } }, { status: 500 });
+  }
+  // Fire to pastor dashboard and PA
   await dispatchEvent({
     event: 'income_logged',
     actor_name: user.id,
     actor_role: user.role,
     church_id: user.church_id,
-    detail: `Income recorded — ${Number(body.amount || 0).toLocaleString()}`,
-    amount: parseFloat(body.amount) || 0,
+    detail: `Income recorded — ${parsedAmount.toLocaleString()}`,
+    amount: parsedAmount,
   });
   return NextResponse.json({ data: entry, error: null }, { status: 201 });
 }

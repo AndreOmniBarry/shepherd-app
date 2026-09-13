@@ -49,6 +49,10 @@ export async function POST(req: Request) {
   if (blocked) return blocked;
   const body = await req.json();
   const { partner_id, amount, month, status, notes } = body;
+  const parsedAmount = parseFloat(amount);
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    return NextResponse.json({ data: null, error: { message: 'A valid amount greater than 0 is required' } }, { status: 400 });
+  }
 
   // partner_id is client-supplied — verify it belongs to this caller's own
   // church before attaching a giving record to it.
@@ -62,7 +66,7 @@ export async function POST(req: Request) {
     method: 'POST',
     headers: { ...h(), 'Prefer': 'return=representation' },
     body: JSON.stringify({
-      partner_id, amount: parseFloat(amount),
+      partner_id, amount: parsedAmount,
       month, status: status || 'paid',
       notes: notes || null, submitted_by: user.id,
       church_id: user.church_id || null,
@@ -70,13 +74,17 @@ export async function POST(req: Request) {
   });
   const data = await res.json();
   const giving = Array.isArray(data) ? data[0] : data;
+  if (!res.ok || !giving?.id) {
+    console.error('[POST /api/partnership/giving] insert failed', res.status, data);
+    return NextResponse.json({ data: null, error: { message: 'Failed to save giving record' } }, { status: 500 });
+  }
   await dispatchEvent({
     event: 'partnership_giving_logged',
     actor_name: user.id,
     actor_role: user.role,
     church_id: user.church_id,
-    detail: `Partnership giving logged — ${Number(body.amount || 0).toLocaleString()}`,
-    amount: parseFloat(body.amount) || 0,
+    detail: `Partnership giving logged — ${parsedAmount.toLocaleString()}`,
+    amount: parsedAmount,
   });
   return NextResponse.json({ data: giving, error: null }, { status: 201 });
 }

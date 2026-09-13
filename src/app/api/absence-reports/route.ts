@@ -61,6 +61,10 @@ export async function POST(req: Request) {
     });
     const data = await res.json();
     const report = Array.isArray(data) ? data[0] : data;
+    if (!res.ok || !report?.id) {
+      console.error('[POST /api/absence-reports] insert failed', res.status, data);
+      return NextResponse.json({ data: null, error: { message: 'Failed to save absence report' } }, { status: 500 });
+    }
     const notifyRoles = requires_followup ? ['fellowship_head','care_team','pa','overseer'] : ['fellowship_head','pa'];
     const notifyIds: string[] = [];
     for (const role of notifyRoles) {

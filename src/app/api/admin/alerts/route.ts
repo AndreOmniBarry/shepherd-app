@@ -75,5 +75,10 @@ export async function PATCH(req: Request) {
     body: JSON.stringify(patch),
   });
   const data = await res.json();
-  return NextResponse.json({ data: Array.isArray(data) ? data[0] : data, error: null });
+  const updated = Array.isArray(data) ? data[0] : data;
+  if (!res.ok || !updated?.id) {
+    console.error('[PATCH /api/admin/alerts] update failed', res.status, data);
+    return NextResponse.json({ data: null, error: { message: 'Alert not found or update failed' } }, { status: 404 });
+  }
+  return NextResponse.json({ data: updated, error: null });
 }
