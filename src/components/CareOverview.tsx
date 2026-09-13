@@ -60,11 +60,15 @@ export default function CareOverview({ dark = false, t, isMobile = false }: Care
       const inProgress = leads.filter((l: Record<string, unknown>) => ['in_progress','reached','visited'].includes(l.status as string));
       const newLeads = leads.filter((l: Record<string, unknown>) => l.status === 'new');
 
-      // Avg response time (days from created to first contact)
+      // Avg response time (days from created to first contact). /api/care/leads
+      // returns the lead's creation timestamp as `trigger_date`, not
+      // `created_at` — reading l.created_at here always produced an Invalid
+      // Date -> NaN, rendered straight to the UI as the literal text "NaNd".
+      // Reproduced live.
       const respondedLeads = leads.filter((l: Record<string, unknown>) => l.last_contact);
       const avgDays = respondedLeads.length > 0
         ? Math.round(respondedLeads.reduce((sum: number, l: Record<string, unknown>) => {
-            const diff = (new Date(l.last_contact as string).getTime() - new Date(l.created_at as string).getTime()) / 86400000;
+            const diff = (new Date(l.last_contact as string).getTime() - new Date(l.trigger_date as string).getTime()) / 86400000;
             return sum + diff;
           }, 0) / respondedLeads.length)
         : 0;
@@ -100,7 +104,7 @@ export default function CareOverview({ dark = false, t, isMobile = false }: Care
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 7);
         const weekLeads = leads.filter((l: Record<string, unknown>) => {
-          const d = new Date(l.created_at as string);
+          const d = new Date(l.trigger_date as string);
           return d >= weekStart && d < weekEnd;
         });
         const weekRestored = leads.filter((l: Record<string, unknown>) => {
