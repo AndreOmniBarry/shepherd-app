@@ -255,11 +255,18 @@ export async function PATCH(req: Request) {
       }
     }
 
+    // return=representation + a row check — the non-admin branch above
+    // already verifies cell_id belongs to the caller's fellowship, but the
+    // admin branch has no such pre-check, and with return=minimal a PATCH
+    // matching zero rows (a wrong-church/nonexistent cell_id) still came
+    // back 200 with nothing to inspect, reporting success either way.
     const res = await fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${cell_id}&church_id=eq.${user.church_id}`, {
-      method: 'PATCH', headers: { ...hdrs, Prefer: 'return=minimal' },
+      method: 'PATCH', headers: { ...hdrs, Prefer: 'return=representation' },
       body: JSON.stringify({ name: name.trim() }),
     });
-    if (!res.ok) return NextResponse.json({ data: null, error: { message: 'Failed to rename cell' } }, { status: 500 });
+    const data = await res.json().catch(() => []);
+    const updated = Array.isArray(data) ? data[0] : data;
+    if (!res.ok || !updated?.id) return NextResponse.json({ data: null, error: { message: 'Cell not found or rename failed' } }, { status: 404 });
     return NextResponse.json({ data: { updated: true }, error: null });
   } catch (err) {
     console.error('[PATCH /api/fellowship/cells]', err);
