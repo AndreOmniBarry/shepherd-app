@@ -125,11 +125,13 @@ export async function PATCH(req: Request) {
     if (body.name?.trim()) patch.name = body.name.trim();
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/platform_cost_line_items?id=eq.${body.id}`, {
-      method: 'PATCH', headers: { ...hdrs(), Prefer: 'return=minimal' },
+      method: 'PATCH', headers: { ...hdrs(), Prefer: 'return=representation' },
       body: JSON.stringify(patch),
     });
-    if (!res.ok) {
-      return NextResponse.json({ data: null, error: { message: 'Failed to update line item' } }, { status: 500 });
+    const data = await res.json().catch(() => []);
+    const updated = Array.isArray(data) ? data[0] : data;
+    if (!res.ok || !updated?.id) {
+      return NextResponse.json({ data: null, error: { message: 'Line item not found or update failed' } }, { status: 404 });
     }
     return NextResponse.json({ data: { updated: true }, error: null });
   } catch (err) {
@@ -150,9 +152,14 @@ export async function DELETE(req: Request) {
     if (!body.id) {
       return NextResponse.json({ data: null, error: { message: 'id is required' } }, { status: 400 });
     }
-    await fetch(`${SUPABASE_URL}/rest/v1/platform_cost_line_items?id=eq.${body.id}`, {
-      method: 'DELETE', headers: { ...hdrs(), Prefer: 'return=minimal' },
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/platform_cost_line_items?id=eq.${body.id}`, {
+      method: 'DELETE', headers: { ...hdrs(), Prefer: 'return=representation' },
     });
+    const data = await res.json().catch(() => []);
+    const deleted = Array.isArray(data) ? data[0] : data;
+    if (!res.ok || !deleted?.id) {
+      return NextResponse.json({ data: null, error: { message: 'Line item not found' } }, { status: 404 });
+    }
     return NextResponse.json({ data: { deleted: true }, error: null });
   } catch (err) {
     console.error('[DELETE /api/admin/platform-costs]', err);

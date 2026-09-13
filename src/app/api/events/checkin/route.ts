@@ -45,6 +45,15 @@ export async function POST(req: Request) {
       regName = member.full_name; regPhone = member.phone;
     } else if (!full_name?.trim()) {
       return NextResponse.json({ data: null, error: { message: 'Name is required for a new visitor' } }, { status: 400 });
+    } else if (!phone?.trim()) {
+      // first_timers.phone is NOT NULL — matches the same requirement
+      // /api/care/first-timers already enforces for the regular (non-event)
+      // walk-in path. Without this, a phone-less visitor checked in here
+      // "successfully" (event_registrations still got its row) while the
+      // first_timers insert below silently failed on the NOT NULL
+      // violation, losing the entire care-team routing with no error shown
+      // to the person checking them in — reproduced live.
+      return NextResponse.json({ data: null, error: { message: 'Phone is required for a new visitor' } }, { status: 400 });
     }
 
     // Check-in as an event_registrations row — the same table pre-registered
@@ -84,6 +93,13 @@ export async function POST(req: Request) {
       const ftData = await ftRes.json();
       const created = Array.isArray(ftData) ? ftData[0] : ftData;
       firstTimerId = created?.id || null;
+      if (!ftRes.ok || !firstTimerId) {
+        // The phone check above closes the one confirmed trigger, but log
+        // loudly rather than silently swallowing any other future failure
+        // here — this used to leave "checked_in: true" with the entire
+        // care-team routing lost and nothing to show for it.
+        console.error('[POST /api/events/checkin] first_timers insert failed', ftRes.status, ftData);
+      }
 
       if (prayer_point?.trim()) {
         // Scoped to the caller's own church only — this used to have no
