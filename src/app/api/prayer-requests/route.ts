@@ -109,11 +109,19 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const { id, status } = body;
 
-    await fetch(`${SUPABASE_URL}/rest/v1/prayer_requests?id=eq.${id}&church_id=eq.${user.church_id}`, {
+    // return=representation + a row check — a bogus or wrong-church id
+    // (silently caught by the church_id filter) previously still reported
+    // "updated: true" with nothing actually changed.
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/prayer_requests?id=eq.${id}&church_id=eq.${user.church_id}`, {
       method: 'PATCH',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
+      headers: { ...hdrs(), 'Prefer': 'return=representation' },
       body: JSON.stringify({ status, updated_at: new Date().toISOString() }),
     });
+    const data = await res.json().catch(() => []);
+    const updated = Array.isArray(data) ? data[0] : data;
+    if (!res.ok || !updated?.id) {
+      return NextResponse.json({ data: null, error: { message: 'Prayer request not found' } }, { status: 404 });
+    }
 
     return NextResponse.json({ data: { updated: true }, error: null });
   } catch (err) {
