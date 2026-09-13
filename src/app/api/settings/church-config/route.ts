@@ -72,6 +72,29 @@ async function bootstrapChurch(user: AuthUser, churchName: string, structureType
     body: JSON.stringify({ church_id: church.id }),
   });
 
+  // Church Feed's church-wide feed reads from the one feed_groups row with
+  // type='church' for this church (see GET /api/feed/groups) — nothing
+  // ever created that row anywhere in the app until now. Without it,
+  // Church Feed has no group to post into or read from at all: every
+  // church bootstrapped before this fix has zero feed_groups rows of any
+  // kind (confirmed against every church this session created through the
+  // real /setup flow), so the church-wide feed has never actually been
+  // usable for any of them. Auto-provisioning it here, unconditionally,
+  // regardless of structure_type — every church gets one, the same way
+  // every church gets a churches row.
+  const feedGroupRes = await fetch(`${SUPABASE_URL}/rest/v1/feed_groups`, {
+    method: 'POST',
+    headers: { ...hdrs(), Prefer: 'return=minimal' },
+    body: JSON.stringify({ type: 'church', church_id: church.id, branch_id: null, name: 'Church Feed', created_by: user.id }),
+  }).catch((err) => { console.error('[bootstrapChurch] feed_groups insert threw', err); return null; });
+  // Not fatal to church creation (the same tolerance the single-structure
+  // fellowship/cell provisioning below already has for its own failures) —
+  // but logged loudly, not swallowed, so a real failure is diagnosable
+  // instead of quietly leaving another church with no working Church Feed.
+  if (feedGroupRes && !feedGroupRes.ok) {
+    console.error('[bootstrapChurch] feed_groups insert failed', feedGroupRes.status, await feedGroupRes.text().catch(() => ''));
+  }
+
   // A `single`-structure church ("one congregation, one pastor, no
   // sub-structure needed") has no fellowship/cell hierarchy for anyone to
   // set up by hand — but attendance submission is hard-gated on the
