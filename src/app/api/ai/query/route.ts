@@ -40,12 +40,11 @@ async function getUser(req: Request) {
   return getAuthUser(req);
 }
 
-// Only general_overseer and lead_tech have unrestricted BRANCH reach —
-// every other role that can reach Moshe at all is either blocked from
-// financial tables entirely (pa) or hard-scoped to their own branch
-// (overseer, branch_pastor). This is enforced here in code, not just
-// described in the prompt, since an LLM's own judgement about what it
-// should or shouldn't say is not a security boundary.
+// pa is blocked from financial tables entirely — a simple role gate, not
+// a tenant-isolation boundary, so it stays here as a fast app-level check
+// (clearer error message, no DB round-trip needed) rather than moving into
+// RLS, which can't express "block this one role" against a single shared
+// database role the way a per-request check can.
 const FINANCIAL_TABLES = ['income_records', 'income_types', 'giving_records', 'expense_requisitions', 'financial_periods'];
 
 function touchesFinancialData(sql: string): boolean {
@@ -53,20 +52,26 @@ function touchesFinancialData(sql: string): boolean {
   return FINANCIAL_TABLES.some(t => new RegExp(`\\b${t}\\b`).test(lower));
 }
 
-// CHURCH tenant boundary — no role is unrestricted here, including
-// lead_tech and general_overseer. Every table Moshe knows about that
-// carries its own church_id column must be filtered to the caller's own
-// church whenever the generated SQL touches it, or a natural-language
-// question like "list all cells" would hand back every church's member
-// PII, attendance, and giving data platform-wide. Platform-wide diagnostics
-// belong in the dedicated admin endpoints (admin/churches, admin/alerts),
-// not this raw-SQL surface.
-const CHURCH_SCOPED_TABLES = ['branches', 'cells', 'fellowships', 'services', 'income_records', 'members', 'departments', 'expense_requisitions'];
-
-function touchesChurchScopedTable(sql: string): boolean {
-  const lower = sql.toLowerCase();
-  return CHURCH_SCOPED_TABLES.some(t => new RegExp(`\\b${t}\\b`).test(lower));
-}
+// CHURCH and BRANCH tenant isolation used to be enforced here too, as a
+// check that the generated SQL's text literally contained the caller's own
+// church_id/branch_id. That was a naive substring match, not a real
+// filter check, and was exploitable two ways: a query like
+// `WHERE church_id != '<own church>'` contains the string but returns
+// every OTHER church's rows, and church_config (church names, plan_tier,
+// subscription/billing status for every customer) was never in the
+// guarded table list at all. Both reproduced live against the real
+// database.
+//
+// Real enforcement now lives in the database itself (see
+// scripts/83_moshe_rls_tenant_isolation.sql): execute_safe_query takes the
+// caller's real church_id/branch_id as explicit parameters (below, always
+// taken from the server-verified `user` object — never from the query text
+// or anything the model/end user supplies) and runs as a dedicated,
+// unprivileged Postgres role with real RLS policies on every table Moshe
+// can reach. No matter how the generated SQL is phrased, or which tables
+// it touches, the database itself restricts every row to the caller's own
+// tenant — and a table Moshe was never granted (church_config included)
+// fails outright rather than silently returning everything.
 
 const BASE_RULES = `
 ## IDENTITY
@@ -202,35 +207,31 @@ async function executeSQL(rawSql: string, user: AuthUser): Promise<string> {
     return JSON.stringify({ error: 'Prohibited keyword detected.' });
   }
 
-  // Church tenant guardrail — applies to every role, no exceptions. This
-  // is a naive string-containment check (matching the existing branch_id
-  // pattern below), not a real SQL parser, but it closes off the previous
-  // total absence of any tenant check on this endpoint.
-  if (touchesChurchScopedTable(sql)) {
-    if (!user.church_id || !sql.includes(user.church_id)) {
-      console.log('[SQL BLOCKED — missing church_id filter]');
-      return JSON.stringify({ error: 'This query must be scoped to your own church. Please rephrase.' });
-    }
+  // pa financial block — see the comment above FINANCIAL_TABLES for why
+  // this stays an app-level check rather than moving into RLS.
+  if (touchesFinancialData(sql) && user.role === 'pa') {
+    console.log('[SQL BLOCKED — pa financial query]');
+    return JSON.stringify({ error: 'Financial data access is restricted for this role. Ask your General Overseer or Branch Pastor.' });
   }
 
-  // Financial guardrail — enforced in code, not trusted to the model.
-  if (touchesFinancialData(sql)) {
-    if (user.role === 'pa') {
-      console.log('[SQL BLOCKED — pa financial query]');
-      return JSON.stringify({ error: 'Financial data access is restricted for this role. Ask your General Overseer or Branch Pastor.' });
-    }
-    if (['overseer', 'branch_pastor'].includes(user.role)) {
-      if (!user.branch_id || !sql.includes(user.branch_id)) {
-        console.log('[SQL BLOCKED — branch-scoped role missing branch filter]');
-        return JSON.stringify({ error: `Financial queries for this role must be scoped to your own branch (branch_id = '${user.branch_id || ''}'). Please rephrase or ask about your own branch specifically.` });
-      }
-    }
-    // general_overseer and lead_tech: unrestricted.
+  if (!user.church_id) {
+    return JSON.stringify({ error: 'No church is associated with this account.' });
   }
 
   try {
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+    // p_church_id/p_branch_id come directly from the server-verified `user`
+    // object (resolved from the caller's own session, upstream in POST
+    // below) — never from the SQL text, the model's output, or anything
+    // else influenceable by the conversation. p_branch_id is only set for
+    // the roles whose branch reach is actually restricted (overseer,
+    // branch_pastor); general_overseer/lead_tech pass none and see their
+    // whole church, matching the existing business rule — but now it's
+    // Postgres enforcing it via RLS (scripts/83_moshe_rls_tenant_isolation.sql),
+    // not a check on the query's text.
+    const p_branch_id = ['overseer', 'branch_pastor'].includes(user.role) ? (user.branch_id || null) : null;
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/execute_safe_query`, {
       method: 'POST',
@@ -239,7 +240,7 @@ async function executeSQL(rawSql: string, user: AuthUser): Promise<string> {
         'apikey': SERVICE_KEY,
         'Authorization': `Bearer ${SERVICE_KEY}`,
       },
-      body: JSON.stringify({ query_text: sql }),
+      body: JSON.stringify({ query_text: sql, p_church_id: user.church_id, p_branch_id }),
     });
 
     const rawText = await res.text();
