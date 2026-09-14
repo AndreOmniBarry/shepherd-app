@@ -89,18 +89,38 @@ export async function POST(req: Request) {
       }
     }
 
-    // Upsert roster
-    const rRes = await fetch(`${SURL}/rest/v1/workforce_rosters`, {
+    // Upsert roster. on_conflict=department_id,service_date is required for
+    // resolution=merge-duplicates to actually upsert on this table's real
+    // unique constraint — without it, PostgREST upserts on the primary key
+    // only, which a fresh payload with no `id` never matches, so it falls
+    // through to a plain INSERT that then hits the unique constraint
+    // directly and fails outright. Same bug, same fix as
+    // /api/department/roster (this route's department_head-scoped sibling)
+    // — reproduced live there; re-saving an already-existing roster failed
+    // every time with no roster?.id check even present here to catch it.
+    const rRes = await fetch(`${SURL}/rest/v1/workforce_rosters?on_conflict=department_id,service_date`, {
       method: 'POST', headers: { ...H(), 'Prefer': 'return=representation,resolution=merge-duplicates' },
       body: JSON.stringify({ department_id, service_date, service_type: service_type || 'sunday', created_by: user.id, published: publish || false, updated_at: new Date().toISOString() }),
     });
     const rData = await rRes.json();
     const roster = Array.isArray(rData) ? rData[0] : rData;
+    if (!rRes.ok || !roster?.id) {
+      console.error('[POST /api/workforce/rosters] roster upsert failed:', rRes.status, rData);
+      return NextResponse.json({ data: null, error: { message: 'Failed to save roster' } }, { status: 500 });
+    }
 
     if (entries?.length > 0) {
       await fetch(`${SURL}/rest/v1/workforce_roster_entries?roster_id=eq.${roster.id}`, { method: 'DELETE', headers: H() });
       const rows = entries.map((e: Record<string,unknown>) => ({ ...e, roster_id: roster.id, confirmed: false }));
-      await fetch(`${SURL}/rest/v1/workforce_roster_entries`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(rows) });
+      // Old entries were just deleted above — a failed re-insert (e.g. a
+      // stale member_id) previously left the roster silently wiped with
+      // this route still returning 201. Surface it instead.
+      const entriesRes = await fetch(`${SURL}/rest/v1/workforce_roster_entries`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(rows) });
+      if (!entriesRes.ok) {
+        const errBody = await entriesRes.text().catch(() => '');
+        console.error('[POST /api/workforce/rosters] entries insert failed after clearing old entries:', entriesRes.status, errBody);
+        return NextResponse.json({ data: null, error: { message: 'Roster saved but one or more entries failed — the roster list was cleared. Please re-add the entries and try again.' } }, { status: 500 });
+      }
     }
 
     // If publishing, notify assigned members
