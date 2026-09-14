@@ -199,6 +199,20 @@ export async function POST(req: Request) {
     }
 
     // ── Insert attendance entries with absence reasons ──────────
+    // This is a single PostgREST array insert, so it's all-or-nothing: one
+    // bad row (e.g. a member_id that no longer exists — a real, live
+    // scenario if a member was removed between the cell leader loading
+    // the roster and submitting) silently failed the entire batch while
+    // this route still reported success with the pre-computed
+    // present/absent counts. Reproduced live: a single stale member_id
+    // zeroed out every per-member entry for the whole service, with the
+    // top-level response unchanged — and per-member attendance is exactly
+    // what the Care & Follow-up "missed N weeks" pipeline reads to
+    // generate leads, so this silently broke that downstream too.
+    // Compensate the same way /api/chat/threads already does for its own
+    // two-step insert: delete the just-created attendance_records row and
+    // fail the whole submission, rather than leave a phantom count with
+    // no per-member detail behind it.
     if (entries?.length > 0) {
       const entryRows = entries.map((e: Record<string, string>) => ({
         record_id: record.id,
@@ -206,11 +220,17 @@ export async function POST(req: Request) {
         status: e.status,
         absence_reason: e.status === 'absent' ? (absence_reasons?.[e.member_id] || 'unknown') : null,
       }));
-      await fetch(`${SUPABASE_URL}/rest/v1/attendance_entries`, {
+      const entriesRes = await fetch(`${SUPABASE_URL}/rest/v1/attendance_entries`, {
         method: 'POST',
         headers: { ...hdrs(), 'Prefer': 'return=minimal' },
         body: JSON.stringify(entryRows),
       });
+      if (!entriesRes.ok) {
+        const errBody = await entriesRes.text().catch(() => '');
+        console.error('[POST /api/attendance] attendance_entries insert failed, rolling back record:', entriesRes.status, errBody);
+        await fetch(`${SUPABASE_URL}/rest/v1/attendance_records?id=eq.${record.id}`, { method: 'DELETE', headers: hdrs() }).catch(() => {});
+        return NextResponse.json({ data: null, error: { message: 'Failed to save member-level attendance — one or more members on this list may no longer exist. Refresh and try again.' } }, { status: 500 });
+      }
     }
 
     // ── Fire to all responsible parties ─────────────────────────

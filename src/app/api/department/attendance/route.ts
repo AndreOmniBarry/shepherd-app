@@ -142,6 +142,12 @@ export async function POST(req: Request) {
     }
 
     // ── Insert attendance entries with absence reasons ──────────
+    // Same bug as /api/attendance, same fix: this array insert is
+    // all-or-nothing, so one stale member_id silently failed the whole
+    // batch while the route still reported success with the pre-computed
+    // counts. Compensate by deleting the just-created record and failing
+    // the request, rather than leave a phantom count with no per-member
+    // detail behind it.
     if (entries.length > 0) {
       const entryRows = entries.map((e: Record<string, string>) => ({
         record_id: record.id,
@@ -149,11 +155,17 @@ export async function POST(req: Request) {
         status: e.status,
         absence_reason: e.status === 'absent' ? (absence_reasons?.[e.member_id] || 'unknown') : null,
       }));
-      await fetch(`${SUPABASE_URL}/rest/v1/department_attendance_entries`, {
+      const entriesRes = await fetch(`${SUPABASE_URL}/rest/v1/department_attendance_entries`, {
         method: 'POST',
         headers: { ...hdrs(), 'Prefer': 'return=minimal' },
         body: JSON.stringify(entryRows),
       });
+      if (!entriesRes.ok) {
+        const errBody = await entriesRes.text().catch(() => '');
+        console.error('[POST /api/department/attendance] entries insert failed, rolling back record:', entriesRes.status, errBody);
+        await fetch(`${SUPABASE_URL}/rest/v1/department_attendance?id=eq.${record.id}`, { method: 'DELETE', headers: hdrs() }).catch(() => {});
+        return NextResponse.json({ data: null, error: { message: 'Failed to save member-level attendance — one or more members on this list may no longer exist. Refresh and try again.' } }, { status: 500 });
+      }
     }
 
     return NextResponse.json({

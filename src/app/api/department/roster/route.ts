@@ -60,19 +60,42 @@ export async function POST(req: Request) {
     const { service_date, service_type, entries, publish } = await req.json();
     if (!service_date) return NextResponse.json({ data: null, error: { message: 'service_date is required' } }, { status: 400 });
 
-    const rRes = await fetch(`${SURL}/rest/v1/workforce_rosters`, {
+    // on_conflict=department_id,service_date is required for
+    // resolution=merge-duplicates to actually upsert on this table's real
+    // unique constraint (workforce_rosters_department_service_date_key) —
+    // without it, PostgREST upserts on the primary key only, which a
+    // fresh payload with no `id` never matches, so it falls through to a
+    // plain INSERT that then hits the unique constraint directly and
+    // fails outright. Reproduced live: re-saving an already-existing
+    // roster for the same department+date (the normal "edit before
+    // publishing" flow) failed every time with a generic "Failed to save
+    // roster" — this wasn't an edge case, it was the core edit path.
+    const rRes = await fetch(`${SURL}/rest/v1/workforce_rosters?on_conflict=department_id,service_date`, {
       method: 'POST', headers: { ...H(), 'Prefer': 'return=representation,resolution=merge-duplicates' },
       body: JSON.stringify({ department_id, service_date, service_type: service_type || 'sunday', created_by: user.id, published: publish || false, updated_at: new Date().toISOString() }),
     });
     const rData = await rRes.json();
     const roster = Array.isArray(rData) ? rData[0] : rData;
-    if (!roster?.id) return NextResponse.json({ data: null, error: { message: 'Failed to save roster' } }, { status: 500 });
+    if (!rRes.ok || !roster?.id) {
+      console.error('[POST /api/department/roster] roster upsert failed:', rRes.status, rData);
+      return NextResponse.json({ data: null, error: { message: 'Failed to save roster' } }, { status: 500 });
+    }
 
     if (entries) {
       await fetch(`${SURL}/rest/v1/workforce_roster_entries?roster_id=eq.${roster.id}`, { method: 'DELETE', headers: H() });
       if (entries.length > 0) {
         const rows = entries.map((e: Record<string,unknown>) => ({ ...e, roster_id: roster.id, confirmed: false }));
-        await fetch(`${SURL}/rest/v1/workforce_roster_entries`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(rows) });
+        // The existing entries were just deleted above, so a failure here
+        // (e.g. a stale member_id, or a row missing the NOT NULL
+        // role_title) previously left the roster silently wiped — deleted,
+        // never replaced, response still claiming success. Reproduced
+        // live. Surface the failure instead of swallowing it.
+        const entriesRes = await fetch(`${SURL}/rest/v1/workforce_roster_entries`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(rows) });
+        if (!entriesRes.ok) {
+          const errBody = await entriesRes.text().catch(() => '');
+          console.error('[POST /api/department/roster] entries insert failed after clearing old entries:', entriesRes.status, errBody);
+          return NextResponse.json({ data: null, error: { message: 'Roster saved but one or more entries failed — the roster list was cleared. Please re-add the entries and try again.' } }, { status: 500 });
+        }
       }
     }
 
