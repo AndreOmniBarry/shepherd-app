@@ -23,17 +23,28 @@ export async function GET(req: Request) {
     const fellowship_id = user.fellowship_id || memberData?.[0]?.fellowship_id;
     if (!fellowship_id) return NextResponse.json({ data: { members: [] }, error: null });
 
+    // members has no last_seen column — it never did. Selecting it made
+    // every request here fail with PostgREST's "column does not exist",
+    // and the failed response then got silently coerced into an empty
+    // array below, so this tab showed "No members found" for every
+    // fellowship in every church, always, with no error surfaced.
+    // Reproduced live. last_seen stays null (the frontend already
+    // renders "—" for it) until real last-seen tracking exists.
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/members?fellowship_id=eq.${fellowship_id}&select=id,full_name,membership_status,last_seen,cells(name)&order=full_name.asc&limit=500`,
+      `${SUPABASE_URL}/rest/v1/members?fellowship_id=eq.${fellowship_id}&select=id,full_name,membership_status,cells(name)&order=full_name.asc&limit=500`,
       { headers: hdrs }
     );
     const data = await res.json();
+    if (!res.ok) {
+      console.error('[GET /api/fellowship/members] query failed:', res.status, data);
+      return NextResponse.json({ data: null, error: { message: 'Failed to load members' } }, { status: 500 });
+    }
     const members = (Array.isArray(data) ? data : []).map((m: Record<string, unknown>) => ({
       id: m.id,
       full_name: m.full_name,
       membership_status: m.membership_status,
       cell_name: (m.cells as Record<string, string> | null)?.name || 'Unassigned',
-      last_seen: m.last_seen || null,
+      last_seen: null,
     }));
 
     return NextResponse.json({ data: { members }, error: null });
