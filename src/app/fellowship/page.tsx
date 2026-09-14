@@ -233,11 +233,12 @@ export default function FellowshipHeadPage() {
           setPageReady(true);
           return;
         }
-        // The header below already appends the church's own tier-1 label
-        // (e.g. "Grace Fellowship" / "District 3 Zone") — this fallback
-        // only needs the name half, so it reads "Your Fellowship" / "Your
-        // Zone" rather than duplicating the label.
-        setFellowshipName(data.fellowship_name || 'Your');
+        // Empty (not 'Your') when there's no real name yet — the header
+        // itself falls back to "Your <tier1_label>" only in that case; a
+        // real fellowship_name is shown exactly as-is, since it already
+        // is the full name (see the header's own comment for why it no
+        // longer appends tier1_label unconditionally).
+        setFellowshipName(data.fellowship_name || '');
         setLeaderName(data.name || '');
         setCurrency(data.currency || 'NGN');
         setPageReady(true);
@@ -433,10 +434,17 @@ export default function FellowshipHeadPage() {
           {!isMobile ? (
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: t.purple, letterSpacing: '0.5px' }}>SHEP.HERD</div>
-              <div style={{ fontSize: 10, color: t.muted }}>{fellowshipName} {churchConfig.tier1_label || 'Fellowship'}{leaderName ? ` · ${leaderName}` : ''}</div>
+              {/* fellowshipName is already the fellowship's own name (e.g.
+                  "North Zone" for a church whose tier1_label is "Zone") —
+                  appending tier1_label after it duplicated the word for any
+                  church that names fellowships after their own tier1_label,
+                  the common case (same bug already fixed in
+                  src/app/care/page.tsx). Only fall back to "Your <label>"
+                  when there's no real name to show at all. */}
+              <div style={{ fontSize: 10, color: t.muted }}>{fellowshipName || `Your ${churchConfig.tier1_label || 'Fellowship'}`}{leaderName ? ` · ${leaderName}` : ''}</div>
             </div>
           ) : (
-            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fellowshipName} {churchConfig.tier1_label || 'Fellowship'}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fellowshipName || `Your ${churchConfig.tier1_label || 'Fellowship'}`}</div>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 5 : 8, flexShrink: 0 }}>
