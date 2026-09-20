@@ -487,8 +487,8 @@ export default function UpdatePage() {
                           <select value={edit.gender} onChange={e => setEditing(prev => ({ ...prev, [m.id]: { ...prev[m.id], gender: e.target.value } }))}
                             style={{ width: '100%', border: `0.5px solid ${!edit.gender ? 'rgba(216,90,48,0.5)' : t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
                             <option value="">Select gender</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
                           </select>
                         </div>
                       </div>
@@ -548,8 +548,8 @@ export default function UpdatePage() {
                   <select value={newMember.gender} onChange={e => setNewMember(p => ({ ...p, gender: e.target.value }))}
                     style={{ width: '100%', border: `0.5px solid ${t.border}`, borderRadius: 8, padding: '8px 10px', fontSize: 12, background: t.input, color: t.text, outline: 'none' }}>
                     <option value="">Select gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
                   </select>
                 </div>
               </div>
