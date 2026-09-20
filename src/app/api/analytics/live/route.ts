@@ -1,5 +1,15 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
+import { resolveBranchScope } from '@/lib/branch-scope';
+
+// The dashboard page this route feeds (src/app/dashboard/page.tsx) is the
+// exact same component for all 5 roles rolePortal() sends to /dashboard
+// (overseer, general_overseer, branch_pastor, pa, lead_tech — see
+// src/lib/role-portal.ts), and it fires this fetch unconditionally on
+// mount and every 30s. This route only ever allowed 'overseer', so the
+// other 4 roles got a 403 on every single load/poll, forever — the Live
+// Feed widget was silently empty for 4 of the 5 roles it's shown to.
+const ALLOWED = ['overseer', 'general_overseer', 'pa', 'lead_tech', 'branch_pastor'];
 
 export async function GET(req: Request) {
   try {
@@ -10,16 +20,22 @@ export async function GET(req: Request) {
     const payload = await verifyToken(token);
     if (!payload) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     const user = payloadToAuthUser(payload);
-    if (user.role !== 'overseer') return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
+    if (!ALLOWED.includes(user.role)) return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
+
+    const { branchFilter, forbidden } = resolveBranchScope(user, null);
+    if (forbidden) {
+      return NextResponse.json({ data: { feed: [], today_present: 0, cells_reported: 0 }, error: null });
+    }
 
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const headers = { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` };
 
-    // attendance_records carries no church_id of its own — scope both
-    // queries via the cells that belong to this overseer's own church,
-    // otherwise the live feed would leak every church's submissions.
-    const cellsRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?church_id=eq.${user.church_id}&select=id`, { headers });
+    // attendance_records carries no church_id/branch_id of its own — scope
+    // both queries via the cells that belong to this caller's own church
+    // (and, for a branch_pastor, their own branch too), otherwise the live
+    // feed would leak every church's/branch's submissions.
+    const cellsRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?church_id=eq.${user.church_id}${branchFilter}&select=id`, { headers });
     const cellRows: { id: string }[] = await cellsRes.json();
     const cellIds = (Array.isArray(cellRows) ? cellRows : []).map(c => c.id);
     const cellFilter = cellIds.length > 0 ? `&cell_id=in.(${cellIds.join(',')})` : '&cell_id=eq.00000000-0000-0000-0000-000000000000';
