@@ -22,26 +22,32 @@ export async function GET(req: Request) {
     const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const hdrs = { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` };
 
-    type Row = { id: string; full_name: string; membership_status: string; cell_name: string };
+    type Row = { id: string; full_name: string; membership_status: string; cell_name: string; phone: string | null; email: string | null; date_of_birth: string | null; gender: string | null };
     const mapRow = (m: Record<string, unknown>): Row => ({
       id: m.id as string,
       full_name: m.full_name as string,
       membership_status: m.membership_status as string,
       cell_name: (m.cells as Record<string, string> | null)?.name || 'Unassigned',
+      phone: (m.phone as string) ?? null,
+      email: (m.email as string) ?? null,
+      date_of_birth: (m.date_of_birth as string) ?? null,
+      gender: (m.gender as string) ?? null,
     });
+
+    const MEMBER_FIELDS = 'id,full_name,membership_status,phone,email,date_of_birth,gender,cells(name)';
 
     let members: Row[] = [];
 
     if (user.role === 'cell_leader' && user.cell_id) {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/members?cell_id=eq.${user.cell_id}&select=id,full_name,membership_status,cells(name)&order=full_name.asc&limit=500`,
+        `${SUPABASE_URL}/rest/v1/members?cell_id=eq.${user.cell_id}&select=${MEMBER_FIELDS}&order=full_name.asc&limit=500`,
         { headers: hdrs }
       );
       const data = await res.json();
       members = (Array.isArray(data) ? data : []).map(mapRow);
     } else if (user.role === 'fellowship_head' && user.fellowship_id) {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/members?fellowship_id=eq.${user.fellowship_id}&select=id,full_name,membership_status,cells(name)&order=full_name.asc&limit=500`,
+        `${SUPABASE_URL}/rest/v1/members?fellowship_id=eq.${user.fellowship_id}&select=${MEMBER_FIELDS}&order=full_name.asc&limit=500`,
         { headers: hdrs }
       );
       const data = await res.json();
@@ -52,7 +58,7 @@ export async function GET(req: Request) {
       const department_id = deptData?.[0]?.department_id;
       if (department_id) {
         const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/department_members?department_id=eq.${department_id}&select=members(id,full_name,membership_status,cells(name))`,
+          `${SUPABASE_URL}/rest/v1/department_members?department_id=eq.${department_id}&select=members(${MEMBER_FIELDS})`,
           { headers: hdrs }
         );
         const data = await res.json();
