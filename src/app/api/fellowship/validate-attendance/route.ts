@@ -86,11 +86,25 @@ export async function PATCH(req: Request) {
       }
     }
 
-    await fetch(`${SUPABASE_URL}/rest/v1/monthly_attendance?id=eq.${id}`, {
+    // return=representation + a row check, not return=minimal left
+    // unchecked — monthly_attendance has no validated_at column at all, so
+    // this PATCH always failed with PGRST204 ("Could not find the
+    // 'validated_at' column"), on every single call, for every role. The
+    // response was never checked, so this route has always reported
+    // "updated: true" while never actually validating or rejecting a
+    // single record — the entire Validate Records / Fellowship Validation
+    // feature was silently a no-op.
+    const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/monthly_attendance?id=eq.${id}`, {
       method: 'PATCH',
-      headers: { ...hdrs(), 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ status, validated_by: user.id, validated_at: new Date().toISOString() }),
+      headers: { ...hdrs(), 'Prefer': 'return=representation' },
+      body: JSON.stringify({ status, validated_by: user.id }),
     });
+    const patchData = await patchRes.json().catch(() => []);
+    const updated = Array.isArray(patchData) ? patchData[0] : patchData;
+    if (!patchRes.ok || !updated?.id) {
+      console.error('[PATCH /api/fellowship/validate-attendance] update failed', patchRes.status, patchData);
+      return NextResponse.json({ data: null, error: { message: 'Failed to update record' } }, { status: 500 });
+    }
 
     return NextResponse.json({ data: { updated: true }, error: null });
   } catch (err) {
