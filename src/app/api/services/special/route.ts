@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
+import { resolveBranchScope } from '@/lib/branch-scope';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -22,7 +23,14 @@ export async function GET(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
     }
 
-    const svcRes = await fetch(`${SURL}/rest/v1/services?service_type=eq.special&church_id=eq.${user.church_id}&order=service_date.desc&limit=25&select=id,service_date,notes,created_at`, { headers: H() });
+    // Reproduced live: a branch_pastor saw another branch's special
+    // service (and its attendance counts) here — the query only ever
+    // filtered by church_id, never by branch, unlike every other
+    // branch_pastor-facing route in this app.
+    const { branchFilter, forbidden } = resolveBranchScope(user, null);
+    if (forbidden) return NextResponse.json({ data: { special_services: [] }, error: null });
+
+    const svcRes = await fetch(`${SURL}/rest/v1/services?service_type=eq.special&church_id=eq.${user.church_id}${branchFilter}&order=service_date.desc&limit=25&select=id,service_date,notes,created_at`, { headers: H() });
     const services = await svcRes.json();
     const rows = Array.isArray(services) ? services : [];
     if (rows.length === 0) return NextResponse.json({ data: { special_services: [] }, error: null });
