@@ -42,10 +42,35 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'A member and a reason are required' } }, { status: 400 });
     }
 
-    const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${member_id}&church_id=eq.${user.church_id}&select=id,full_name&limit=1`, { headers: hdrs() });
+    const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${member_id}&church_id=eq.${user.church_id}&select=id,full_name,fellowship_id&limit=1`, { headers: hdrs() });
     const memberData = await memberRes.json();
     const member = memberData?.[0];
     if (!member) return NextResponse.json({ data: null, error: { message: 'Member not found' } }, { status: 404 });
+
+    // The church_id check above only confirms the member is in the same
+    // church — it never confirmed the member is actually one this specific
+    // leader is over, so a fellowship_head/department_head could recommend
+    // removal of ANY member churchwide, not just their own, contradicting
+    // this route's own documented chain-of-command model (see the comment
+    // above POST). Reproduced live: a fellowship_head successfully
+    // submitted a removal recommendation for a member of a completely
+    // different fellowship. Verify ownership before accepting it.
+    if (user.role === 'fellowship_head') {
+      if (!user.fellowship_id || member.fellowship_id !== user.fellowship_id) {
+        return NextResponse.json({ data: null, error: { message: 'You can only recommend removal for members of your own fellowship' } }, { status: 403 });
+      }
+    } else if (user.role === 'department_head') {
+      const ownDeptRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=department_id&limit=1`, { headers: hdrs() });
+      const ownDeptData = await ownDeptRes.json();
+      const ownDepartmentId = ownDeptData?.[0]?.department_id;
+      const membershipRes = ownDepartmentId
+        ? await fetch(`${SUPABASE_URL}/rest/v1/department_members?department_id=eq.${ownDepartmentId}&member_id=eq.${member_id}&select=member_id&limit=1`, { headers: hdrs() })
+        : null;
+      const membershipData = membershipRes ? await membershipRes.json() : [];
+      if (!ownDepartmentId || !Array.isArray(membershipData) || membershipData.length === 0) {
+        return NextResponse.json({ data: null, error: { message: 'You can only recommend removal for members of your own department' } }, { status: 403 });
+      }
+    }
 
     const row = {
       member_id,
