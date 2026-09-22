@@ -37,6 +37,28 @@ export async function POST(req: Request) {
     const demoId = DEMO_ID[role];
     if (!demoId) return NextResponse.json({ data: null, error: { message: 'Cannot preview this role' } }, { status: 400 });
 
+    // ref_id is client-supplied and becomes the demo persona's own
+    // cell_id/fellowship_id/department_id/branch_id — reproduced live: an
+    // overseer passed another church's cell id here and the resulting
+    // "read-only" preview session (middleware only blocks writes, not
+    // reads) returned that other church's member names/DOB/attendance
+    // straight through /api/cell/overview, which — like every other
+    // portal-page GET — trusts the token's own cell_id unconditionally,
+    // the same way it would for a real cell_leader account. Every other
+    // portal GET route makes the same assumption, so this has to be
+    // caught here, before ref_id is ever put in a token.
+    const REF_TABLE: Partial<Record<Role, string>> = {
+      cell_leader: 'cells', fellowship_head: 'fellowships', department_head: 'departments',
+      branch_pastor: 'branches', pa: 'branches',
+    };
+    const refTable = REF_TABLE[role];
+    if (ref_id && refTable) {
+      const refCheck = await fetch(`${SUPABASE_URL}/rest/v1/${refTable}?id=eq.${ref_id}&church_id=eq.${user.church_id}&select=id&limit=1`, { headers: hdrs() }).then(r => r.json());
+      if (!refCheck?.[0]) {
+        return NextResponse.json({ data: null, error: { message: 'Not found in your church' } }, { status: 404 });
+      }
+    }
+
     const label = `DEMO — ${role.replace('_', ' ')}${ref_name ? ` (${ref_name})` : ''}`;
     const row: Record<string, unknown> = {
       id: demoId, full_name: label, email: `demo.${role}@shepherd.app`, role, is_active: true,
