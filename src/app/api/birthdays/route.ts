@@ -84,11 +84,27 @@ async function resolveMemberIds(user: { id: string; role: string; church_id?: st
 
   // scope === 'all' — church-wide, or branch-scoped for a branch_pastor
   // (mandatorily scoped, same as everywhere else this role appears).
+  // Only care/page.tsx actually requests this (care_team needs to see
+  // birthdays across the whole church for outreach), plus the usual
+  // admin roles — every other role falls through to empty, same as an
+  // unresolvable cell/fellowship/department scope, rather than being
+  // able to self-elevate to church-wide member DOB data just by editing
+  // the query string.
+  const ALL_SCOPE_ROLES = ['care_team', 'overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
+  if (!ALL_SCOPE_ROLES.includes(user.role)) return null;
   if (user.role === 'branch_pastor') {
     if (!user.branch_id) return null;
     return { query: `branch_id=eq.${user.branch_id}${churchFilter}` };
   }
-  return { query: `1=eq.1${churchFilter}` };
+  // `1=eq.1` is not a valid PostgREST no-op filter — it looks for a real
+  // column literally named "1", which doesn't exist, so this always
+  // errored (42703) and got swallowed by the caller's own .catch(() =>
+  // []), silently returning zero results. This is the only filter this
+  // branch actually needs — church_id alone, no filler required — and it
+  // was the entire church-wide Birthdays tab (care/page.tsx) that was
+  // silently broken for every church, for every care_team account.
+  if (!user.church_id) return null;
+  return { query: `church_id=eq.${user.church_id}` };
 }
 
 export async function GET(req: Request) {
