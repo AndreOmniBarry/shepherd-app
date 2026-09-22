@@ -61,17 +61,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'Email, name and role are required' } }, { status: 400 });
     }
 
-    // branch_id is client-supplied — verify it belongs to this admin's own
-    // church before use, same pattern as cell_id/fellowship_id/department_id
-    // ownership checks elsewhere (see members/create), otherwise a leaked/
-    // guessed id from another church could tag this invite with it.
-    if (branch_id) {
-      const branchCheck = await fetch(
-        `${SUPABASE_URL}/rest/v1/branches?id=eq.${branch_id}&church_id=eq.${user.church_id}&select=id&limit=1`,
+    // Each of these is client-supplied — verify it belongs to this admin's
+    // own church before use. branch_id already had this check; a *valid*
+    // cell_id/fellowship_id/department_id belonging to a different church
+    // wasn't rejected — only a nonexistent one was, and only incidentally,
+    // by the table's own FK constraint (cells/fellowships/departments
+    // still have to exist somewhere, just not in this admin's church).
+    const ownershipChecks: Array<[string | undefined, string]> = [
+      [branch_id, 'branches'], [cell_id, 'cells'], [fellowship_id, 'fellowships'], [department_id, 'departments'],
+    ];
+    for (const [value, table] of ownershipChecks) {
+      if (!value) continue;
+      const check = await fetch(
+        `${SUPABASE_URL}/rest/v1/${table}?id=eq.${value}&church_id=eq.${user.church_id}&select=id&limit=1`,
         { headers: hdrs() }
       ).then(r => r.json());
-      if (!branchCheck?.[0]) {
-        return NextResponse.json({ data: null, error: { message: 'Branch not found' } }, { status: 404 });
+      if (!check?.[0]) {
+        return NextResponse.json({ data: null, error: { message: `${table === 'branches' ? 'Branch' : table === 'cells' ? 'Cell' : table === 'fellowships' ? 'Fellowship' : 'Department'} not found` } }, { status: 404 });
       }
     }
 
