@@ -268,6 +268,18 @@ const TIER_DEFAULTS: Record<string, { t1: string; t2: string; t1h: string; t2h: 
   single: { t1: '', t2: '', t1h: 'Pastor', t2h: 'Pastor' },
 };
 
+// Naive "word + 's'" pluralization breaks for any tier label that already
+// ends in an s/x/z/ch/sh sound — "Campus" (the actual TIER_DEFAULTS.campus
+// t1) became "Campuss" everywhere this was inlined as `${word}s`, and any
+// church naming its second tier "Class" or "Branch" would hit the same
+// thing. Standard English pluralization rule, not a fully general
+// pluralizer (no irregulars like "Family" -> "Families") — every label
+// this substitutes into is a single, church-chosen or TIER_DEFAULTS noun,
+// never a word needing that level of handling.
+function pluralize(word: string): string {
+  return /[sxz]$|[cs]h$/i.test(word) ? `${word}es` : `${word}s`;
+}
+
 // ── Structure-aware wording for later questions ──────────────
 // structure_type + tier1_label/tier2_label are answered in section
 // "Church Structure" (questions 9-13), well before any of the questions
@@ -304,16 +316,16 @@ function withStructureWording(q: Question, answers: Record<string, Answer>): Que
   if (q.id === 'cydf_combined') {
     return {
       ...q,
-      sub: `Some churches run them as one group with a simple headcount register (no individual ${t2Lower}s); others keep them fully separate fellowships like any other. Either is fine — this just decides which one gets set up for you.`,
+      sub: `Some churches run them as one group with a simple headcount register (no individual ${pluralize(t2Lower)}); others keep them fully separate fellowships like any other. Either is fine — this just decides which one gets set up for you.`,
       options: q.options?.map(o => o.value === 'combined'
-        ? { ...o, sub: `One group, aggregate headcount register, no separate ${t2Lower}s` }
+        ? { ...o, sub: `One group, aggregate headcount register, no separate ${pluralize(t2Lower)}` }
         : o),
     };
   }
   if (q.id === 'cell_meeting_day') {
     return {
       ...q,
-      question: `Which day do your ${t2Lower}s typically meet?`,
+      question: `Which day do your ${pluralize(t2Lower)} typically meet?`,
       sub: `Sets ${t2Lower} submission reminders.`,
       options: q.options?.map(o => o.value === 'varies' ? { ...o, label: `Varies by ${t2Lower}` } : o),
     };
@@ -322,7 +334,7 @@ function withStructureWording(q: Question, answers: Record<string, Answer>): Que
     return {
       ...q,
       options: q.options?.map(o => {
-        if (o.value === 'cell_growth') return { ...o, label: `Grow and manage ${t2Lower}s` };
+        if (o.value === 'cell_growth') return { ...o, label: `Grow and manage ${pluralize(t2Lower)}` };
         if (o.value === 'accountability') return { ...o, label: `Enforce ${t2Head.toLowerCase()} accountability` };
         return o;
       }),
@@ -332,7 +344,7 @@ function withStructureWording(q: Question, answers: Record<string, Answer>): Que
     return {
       ...q,
       options: q.options?.map(o => o.value === 'cell_no_submit'
-        ? { ...o, label: `${t2Head}s not submitting attendance regularly` }
+        ? { ...o, label: `${pluralize(t2Head)} not submitting attendance regularly` }
         : o),
     };
   }
@@ -411,7 +423,7 @@ function PreviewPanel({ answers }: { answers: Record<string, Answer> }) {
   const sizeLabel = { under_100: '<100', '100_500': '100–500', '500_2000': '500–2k', '2000_10000': '2k–10k', above_10000: '10k+' }[size] || '—';
   const days = (answers.service_days as string[]) || [];
 
-  const nav = ['Dashboard', 'Members', tier1 ? `${tier1}s` : 'Groups', tier2 ? `${tier2} Ministry` : 'Cells', 'Attendance', 'Giving', 'Reports', 'Settings'];
+  const nav = ['Dashboard', 'Members', tier1 ? pluralize(tier1) : 'Groups', tier2 ? `${tier2} Ministry` : 'Cells', 'Attendance', 'Giving', 'Reports', 'Settings'];
 
   return (
     <div style={{ background: C.white, borderRadius: 14, overflow: 'hidden', boxShadow: '0 8px 32px rgba(83,74,183,0.15)', border: `0.5px solid ${C.border}` }}>
