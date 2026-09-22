@@ -8,6 +8,30 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const H = () => ({ 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' });
 
+// PostgREST's bulk insert builds one INSERT from the first array element's
+// keys — every object in the array must have the exact same key set
+// (PGRST102 "All object keys must match" otherwise). A real order-of-
+// service naturally mixes item types with different optional fields (a
+// song has no assigned_to, a sermon does), so passing `items` straight
+// through with only `plan_id`/`position` added broke the instant two
+// items had different shapes — reproduced live: a 2-item plan (song +
+// sermon, the sermon carrying an extra `assigned_to` key) silently
+// inserted zero items while the route still reported success.
+function normalizeItemRow(item: Record<string, unknown>, planId: string, position: number) {
+  return {
+    plan_id: planId,
+    position,
+    item_type: item.item_type ?? 'item',
+    title: item.title ?? '',
+    description: item.description ?? null,
+    duration_minutes: item.duration_minutes ?? 5,
+    assigned_to: item.assigned_to ?? null,
+    assigned_to_name: item.assigned_to_name ?? null,
+    color: item.color ?? '#534AB7',
+    is_completed: item.is_completed ?? false,
+  };
+}
+
 async function getUser(req: Request) {
   return getAuthUser(req);
 }
@@ -51,8 +75,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'Failed to create service plan' } }, { status: 500 });
     }
     if (items?.length > 0) {
-      const itemRows = items.map((item: Record<string,unknown>, i: number) => ({ plan_id: plan.id, position: i, ...item }));
-      await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(itemRows) });
+      const itemRows = items.map((item: Record<string,unknown>, i: number) => normalizeItemRow(item, plan.id, i));
+      const itemsRes = await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=representation' }, body: JSON.stringify(itemRows) });
+      const itemsData = await itemsRes.json().catch(() => []);
+      if (!itemsRes.ok || !Array.isArray(itemsData) || itemsData.length !== itemRows.length) {
+        console.error('[POST /api/service-planner] item insert failed', itemsRes.status, itemsData);
+        return NextResponse.json({ data: null, error: { message: 'Service plan created but failed to save items' } }, { status: 500 });
+      }
     }
     return NextResponse.json({ data: { plan }, error: null }, { status: 201 });
   } catch { return NextResponse.json({ data: null, error: { message: 'Failed' } }, { status: 500 }); }
@@ -73,8 +102,13 @@ export async function PATCH(req: Request) {
     if (items) {
       await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items?plan_id=eq.${id}`, { method: 'DELETE', headers: H() });
       if (items.length > 0) {
-        const rows = items.map((item: Record<string,unknown>, i: number) => ({ plan_id: id, position: i, ...item }));
-        await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=minimal' }, body: JSON.stringify(rows) });
+        const rows = items.map((item: Record<string,unknown>, i: number) => normalizeItemRow(item, id, i));
+        const rowsRes = await fetch(`${SUPABASE_URL}/rest/v1/service_plan_items`, { method: 'POST', headers: { ...H(), 'Prefer': 'return=representation' }, body: JSON.stringify(rows) });
+        const rowsData = await rowsRes.json().catch(() => []);
+        if (!rowsRes.ok || !Array.isArray(rowsData) || rowsData.length !== rows.length) {
+          console.error('[PATCH /api/service-planner] item re-insert failed', rowsRes.status, rowsData);
+          return NextResponse.json({ data: null, error: { message: 'Failed to save updated items — plan items may be incomplete, please retry' } }, { status: 500 });
+        }
       }
     }
     if (status === 'published') {
