@@ -49,6 +49,71 @@ export async function GET(req: Request) {
   }
 }
 
+// Resolve/dismiss a dispute — the other half of the promise this feature's
+// own UI copy makes ("The PA will review and resolve within 48 hours").
+// Until this existed, nothing anywhere could ever act on a raised dispute:
+// the fellowship_head-scoped GET above only ever returns the caller's own
+// fellowship's disputes, and a PA/overseer/lead_tech/branch_pastor
+// typically has no fellowship_id at all, so even they got an empty list —
+// there was no admin view AND no way to change a dispute's status, for
+// any role, anywhere in the app. The frontend (fellowship/page.tsx) already
+// has full 'resolved'/'dismissed' badge rendering built and waiting for
+// real data — this is the missing other end of that wire.
+const ADMIN_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
+
+export async function PATCH(req: Request) {
+  try {
+    const cookie = req.headers.get('cookie') || '';
+    const m = cookie.match(/shepherd_token=([^;]+)/);
+    const token = m?.[1];
+    if (!token) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    const payload = await verifyToken(token);
+    if (!payload) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
+    const user = payloadToAuthUser(payload);
+    if (!ADMIN_ROLES.includes(user.role)) {
+      return NextResponse.json({ data: null, error: { message: 'Only the PA or an overseer can resolve a dispute' } }, { status: 403 });
+    }
+
+    const { id, status } = await req.json();
+    if (!id || !['resolved', 'dismissed'].includes(status)) {
+      return NextResponse.json({ data: null, error: { message: 'id and a valid status (resolved or dismissed) are required' } }, { status: 400 });
+    }
+
+    // attendance_disputes has no church_id of its own — verify via its
+    // cell, same transitive-scoping pattern the POST handler above already
+    // uses, so an admin can never resolve another church's dispute by id.
+    const disputeRes = await fetch(`${SUPABASE_URL}/rest/v1/attendance_disputes?id=eq.${id}&select=cell_id&limit=1`, { headers: hdrs() });
+    const disputeData = await disputeRes.json();
+    const cellId = disputeData?.[0]?.cell_id;
+    if (!cellId) return NextResponse.json({ data: null, error: { message: 'Dispute not found' } }, { status: 404 });
+
+    const cellRes = await fetch(`${SUPABASE_URL}/rest/v1/cells?id=eq.${cellId}&church_id=eq.${user.church_id}&select=branch_id&limit=1`, { headers: hdrs() });
+    const cellData = await cellRes.json();
+    const cell = cellData?.[0];
+    if (!cell) return NextResponse.json({ data: null, error: { message: 'Dispute not found' } }, { status: 404 });
+    if (user.role === 'branch_pastor' && cell.branch_id !== user.branch_id) {
+      return NextResponse.json({ data: null, error: { message: 'Dispute not found' } }, { status: 404 });
+    }
+
+    const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/attendance_disputes?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...hdrs(), 'Prefer': 'return=representation' },
+      body: JSON.stringify({ status }),
+    });
+    const patchData = await patchRes.json().catch(() => []);
+    const updated = Array.isArray(patchData) ? patchData[0] : patchData;
+    if (!patchRes.ok || !updated?.id) {
+      console.error('[PATCH /api/fellowship/disputes] update failed', patchRes.status, patchData);
+      return NextResponse.json({ data: null, error: { message: 'Failed to update dispute' } }, { status: 500 });
+    }
+
+    return NextResponse.json({ data: { updated: true }, error: null });
+  } catch (err) {
+    console.error('[PATCH /api/fellowship/disputes]', err);
+    return NextResponse.json({ data: null, error: { message: 'Failed to update dispute' } }, { status: 500 });
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const cookie = req.headers.get('cookie') || '';
