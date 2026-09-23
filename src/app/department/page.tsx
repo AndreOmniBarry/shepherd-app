@@ -494,7 +494,7 @@ export default function DepartmentHeadPage() {
                 Department members ({members.length}) — tap to toggle
               </div>
               {members.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 20, color: t.muted, fontSize: 13 }}>No members found. Contact your administrator.</div>
+                <div style={{ textAlign: 'center', padding: 20, color: t.muted, fontSize: 13 }}>No members yet — add one from the Members tab.</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {members.map(m => {
@@ -631,7 +631,7 @@ export default function DepartmentHeadPage() {
               </div>
             )}
             {members.length === 0 ? (
-              <div style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No roster found. Contact your administrator.</div>
+              <div style={{ padding: 32, textAlign: 'center', color: t.muted, fontSize: 13 }}>No members yet — add one with the buttons above.</div>
             ) : isMobile ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {members.map(m => (
