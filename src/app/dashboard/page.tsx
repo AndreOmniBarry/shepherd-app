@@ -12,6 +12,7 @@ import PastorGiving from '@/components/PastorGiving';
 import PartnershipSummaryPanel from '@/components/PartnershipSummaryPanel';
 import PastorRequisitions from '@/components/PastorRequisitions';
 import FellowshipValidation from '@/components/FellowshipValidation';
+import DisputeResolutionPanel from '@/components/DisputeResolutionPanel';
 import PrayerRequestPanel from '@/components/PrayerRequestPanel';
 import ServicePlannerPanel from '@/components/ServicePlannerPanel';
 import EventsPanel from '@/components/EventsPanel';
@@ -3991,6 +3992,7 @@ export default function DashboardPage(){
               <MemberApprovalPanel t={t} dark={dark} />
               <RemovalApprovalPanel t={t} dark={dark} userRole={userRole} />
               <FellowshipValidation t={t} dark={dark} isMobile={isMobile} tier2Label={churchConfig.tier2_label} />
+              <DisputeResolutionPanel t={t} dark={dark} isMobile={isMobile} />
             </div>
           )}
           {page==='settings'&&(

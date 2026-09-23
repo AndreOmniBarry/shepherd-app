@@ -5,6 +5,8 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const hdrs = () => ({ 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' });
 
+const GET_ADMIN_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lead_tech'];
+
 export async function GET(req: Request) {
   try {
     const cookie = req.headers.get('cookie') || '';
@@ -15,24 +17,47 @@ export async function GET(req: Request) {
     if (!payload) return NextResponse.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
     const user = payloadToAuthUser(payload);
 
-    const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs() });
-    const memberData = await memberRes.json();
-    const fellowship_id = user.fellowship_id || memberData?.[0]?.fellowship_id;
-    if (!fellowship_id) return NextResponse.json({ data: { disputes: [] }, error: null });
+    // Admin roles (the ones the PATCH handler below lets resolve a dispute)
+    // see every dispute across their own church, not just one fellowship —
+    // this is the other half of the same gap PATCH closed: a PA/overseer
+    // has no fellowship_id, so without this branch they always got an
+    // empty list here regardless of how many disputes were pending.
+    // branch_pastor is further narrowed to their own branch's cells, same
+    // as the PATCH handler's own branch check.
+    let scopeFilter: string;
+    if (GET_ADMIN_ROLES.includes(user.role)) {
+      const fellowshipsRes = await fetch(`${SUPABASE_URL}/rest/v1/fellowships?church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
+      const fellowshipRows = await fellowshipsRes.json();
+      const fellowshipIds = (Array.isArray(fellowshipRows) ? fellowshipRows : []).map((f: { id: string }) => f.id);
+      if (fellowshipIds.length === 0) return NextResponse.json({ data: { disputes: [] }, error: null });
+      scopeFilter = `&fellowship_id=in.(${fellowshipIds.join(',')})`;
+    } else {
+      const memberRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}&select=fellowship_id&limit=1`, { headers: hdrs() });
+      const memberData = await memberRes.json();
+      const fellowship_id = user.fellowship_id || memberData?.[0]?.fellowship_id;
+      if (!fellowship_id) return NextResponse.json({ data: { disputes: [] }, error: null });
+      scopeFilter = `&fellowship_id=eq.${fellowship_id}`;
+    }
 
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/attendance_disputes?fellowship_id=eq.${fellowship_id}&order=created_at.desc&limit=50&select=id,cell_id,dispute_reason,status,created_at,attendance_records(present_count,absent_count,services(service_date)),cells(name,members(full_name))`,
+      `${SUPABASE_URL}/rest/v1/attendance_disputes?order=created_at.desc&limit=50&select=id,cell_id,dispute_reason,status,created_at,attendance_records(present_count,absent_count,services(service_date)),cells(name,branch_id,members(full_name),fellowships(name))${scopeFilter}`,
       { headers: hdrs() }
     );
     const data = await res.json();
-    const disputes = (Array.isArray(data) ? data : []).map((d: Record<string, unknown>) => {
+    const rows = Array.isArray(data) ? data : [];
+    const filteredRows = user.role === 'branch_pastor'
+      ? rows.filter((d: Record<string, unknown>) => (d.cells as Record<string, unknown> | null)?.branch_id === user.branch_id)
+      : rows;
+    const disputes = filteredRows.map((d: Record<string, unknown>) => {
       const rec = d.attendance_records as Record<string, unknown> | null;
       const svc = rec?.services as Record<string, unknown> | null;
       const cell = d.cells as Record<string, unknown> | null;
       const leader = cell?.members as Record<string, string> | null;
+      const fellowship = cell?.fellowships as Record<string, string> | null;
       return {
         id: d.id,
         cell_name: cell?.name || '—',
+        fellowship_name: fellowship?.name || '—',
         leader_name: leader?.full_name || '—',
         service_date: (svc?.service_date as string) || '—',
         original_present: rec?.present_count || 0,
