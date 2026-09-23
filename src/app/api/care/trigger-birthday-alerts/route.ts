@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { notifyUsers } from '@/lib/notify';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 // ── Birthday notification engine ───────────────────────────────────────
 // Runs automatically every day via Vercel Cron (see vercel.json), once
@@ -52,7 +53,7 @@ async function runForChurch(churchId: string): Promise<ChurchResults> {
   if (celebrants.length === 0) return results;
 
   // Church-wide leadership — same for every celebrant regardless of branch.
-  const seniorRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,general_overseer)&is_active=eq.true&church_id=eq.${churchId}&select=id`, { headers: hdrs() });
+  const seniorRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,general_overseer)&is_active=eq.true&church_id=eq.${churchId}${EXCLUDE_DEMO_IDS}&select=id`, { headers: hdrs() });
   const seniorLeadership: string[] = (await seniorRes.json().catch(() => [])).map((u: { id: string }) => u.id);
 
   const todayStr = today.toISOString().split('T')[0];
@@ -103,11 +104,11 @@ async function runForChurch(churchId: string): Promise<ChurchResults> {
         cellName = cell.name || '—';
         fellowshipName = cell.fellowships?.name || '—';
 
-        const leaderRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&cell_id=eq.${member.cell_id}&is_active=eq.true&church_id=eq.${churchId}&select=id`, { headers: hdrs() });
+        const leaderRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&cell_id=eq.${member.cell_id}&is_active=eq.true&church_id=eq.${churchId}${EXCLUDE_DEMO_IDS}&select=id`, { headers: hdrs() });
         (await leaderRes.json().catch(() => [])).forEach((u: { id: string }) => recipientIds.add(u.id));
 
         if (cell.fellowship_id) {
-          const headRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.fellowship_head&fellowship_id=eq.${cell.fellowship_id}&is_active=eq.true&church_id=eq.${churchId}&select=id`, { headers: hdrs() });
+          const headRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.fellowship_head&fellowship_id=eq.${cell.fellowship_id}&is_active=eq.true&church_id=eq.${churchId}${EXCLUDE_DEMO_IDS}&select=id`, { headers: hdrs() });
           (await headRes.json().catch(() => [])).forEach((u: { id: string }) => recipientIds.add(u.id));
         }
       }
@@ -118,7 +119,7 @@ async function runForChurch(churchId: string): Promise<ChurchResults> {
     const deptMemberships = await deptMembershipRes.json().catch(() => []);
     const departmentIds: string[] = [...new Set((Array.isArray(deptMemberships) ? deptMemberships : []).map((d: { department_id: string }) => d.department_id).filter(Boolean))];
     if (departmentIds.length > 0) {
-      const deptHeadRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.department_head&department_id=in.(${departmentIds.join(',')})&is_active=eq.true&church_id=eq.${churchId}&select=id`, { headers: hdrs() });
+      const deptHeadRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.department_head&department_id=in.(${departmentIds.join(',')})&is_active=eq.true&church_id=eq.${churchId}${EXCLUDE_DEMO_IDS}&select=id`, { headers: hdrs() });
       (await deptHeadRes.json().catch(() => [])).forEach((u: { id: string }) => recipientIds.add(u.id));
     }
 
@@ -126,14 +127,14 @@ async function runForChurch(churchId: string): Promise<ChurchResults> {
     // is included for every branch; one scoped to a specific branch only
     // for that branch's own celebrants.
     if (member.branch_id) {
-      const branchLeadersRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(branch_pastor,pa)&is_active=eq.true&church_id=eq.${churchId}&select=id,role,branch_id`, { headers: hdrs() });
+      const branchLeadersRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(branch_pastor,pa)&is_active=eq.true&church_id=eq.${churchId}${EXCLUDE_DEMO_IDS}&select=id,role,branch_id`, { headers: hdrs() });
       const branchLeaders = await branchLeadersRes.json().catch(() => []);
       (Array.isArray(branchLeaders) ? branchLeaders : []).forEach((u: { id: string; role: string; branch_id: string | null }) => {
         if (u.role === 'branch_pastor' && u.branch_id === member.branch_id) recipientIds.add(u.id);
         if (u.role === 'pa' && (u.branch_id === null || u.branch_id === member.branch_id)) recipientIds.add(u.id);
       });
     } else {
-      const paRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.pa&is_active=eq.true&church_id=eq.${churchId}&select=id`, { headers: hdrs() });
+      const paRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.pa&is_active=eq.true&church_id=eq.${churchId}${EXCLUDE_DEMO_IDS}&select=id`, { headers: hdrs() });
       (await paRes.json().catch(() => [])).forEach((u: { id: string }) => recipientIds.add(u.id));
     }
 

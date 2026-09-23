@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { notifyUsers } from '@/lib/notify';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -170,7 +171,7 @@ export async function POST(req: Request) {
     // same church_id-scoped admin-lookup pattern already used correctly
     // in events/checkin.
     const adminRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,general_overseer,pa)&church_id=eq.${user.church_id}&select=id`,
+      `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,general_overseer,pa)&church_id=eq.${user.church_id}${EXCLUDE_DEMO_IDS}&select=id`,
       { headers: hdrs() }
     );
     const admins = await adminRes.json();

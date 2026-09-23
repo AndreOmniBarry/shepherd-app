@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { notifyUsersChecked } from '@/lib/notify';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -36,7 +37,7 @@ async function resolveRecipients(scope: string, opts: { leader_id?: string; fell
   // "it said success but nobody saw it" with no error anywhere to catch it.
   if (scope === 'fellowship' && opts.fellowship_id) {
     const [headRes, cellsRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.fellowship_head&fellowship_id=eq.${opts.fellowship_id}&is_active=eq.true${churchFilter}&select=id`, { headers: hdrs() }),
+      fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.fellowship_head&fellowship_id=eq.${opts.fellowship_id}&is_active=eq.true${churchFilter}${EXCLUDE_DEMO_IDS}&select=id`, { headers: hdrs() }),
       fetch(`${SUPABASE_URL}/rest/v1/cells?fellowship_id=eq.${opts.fellowship_id}${churchFilter}&select=id`, { headers: hdrs() }),
     ]);
     const heads = await headRes.json().catch(() => []);
@@ -44,7 +45,7 @@ async function resolveRecipients(scope: string, opts: { leader_id?: string; fell
     const cellIds = (Array.isArray(cells) ? cells : []).map((c: { id: string }) => c.id);
     let leaderIds: string[] = [];
     if (cellIds.length > 0) {
-      const leadersRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&cell_id=in.(${cellIds.join(',')})&is_active=eq.true${churchFilter}&select=id`, { headers: hdrs() });
+      const leadersRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&cell_id=in.(${cellIds.join(',')})&is_active=eq.true${churchFilter}${EXCLUDE_DEMO_IDS}&select=id`, { headers: hdrs() });
       const leaders = await leadersRes.json().catch(() => []);
       leaderIds = (Array.isArray(leaders) ? leaders : []).map((l: { id: string }) => l.id);
     }
@@ -52,14 +53,14 @@ async function resolveRecipients(scope: string, opts: { leader_id?: string; fell
   }
 
   if (scope === 'department' && opts.department_id) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.department_head&department_id=eq.${opts.department_id}&is_active=eq.true${churchFilter}&select=id`, { headers: hdrs() });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.department_head&department_id=eq.${opts.department_id}&is_active=eq.true${churchFilter}${EXCLUDE_DEMO_IDS}&select=id`, { headers: hdrs() });
     const data = await res.json().catch(() => []);
     return Array.isArray(data) ? data.map((u: { id: string }) => u.id) : [];
   }
 
   if (scope === 'all') {
     const branchFilter = opts.branch_id ? `&branch_id=eq.${opts.branch_id}` : '';
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(cell_leader,fellowship_head,department_head)&is_active=eq.true&select=id${branchFilter}${churchFilter}`, { headers: hdrs() });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(cell_leader,fellowship_head,department_head)&is_active=eq.true&select=id${branchFilter}${churchFilter}${EXCLUDE_DEMO_IDS}`, { headers: hdrs() });
     const data = await res.json().catch(() => []);
     return Array.isArray(data) ? data.map((u: { id: string }) => u.id) : [];
   }

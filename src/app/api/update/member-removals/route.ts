@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { notifyUsers } from '@/lib/notify';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -105,7 +106,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ data: null, error: { message: 'Failed to submit removal recommendation' } }, { status: 500 });
     }
 
-    const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
+    const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}${EXCLUDE_DEMO_IDS}&select=id`, { headers: hdrs() });
     const adminData = await adminRes.json();
     await notifyUsers(Array.isArray(adminData) ? adminData.map((u: { id: string }) => u.id) : [], {
       type: 'pipeline',

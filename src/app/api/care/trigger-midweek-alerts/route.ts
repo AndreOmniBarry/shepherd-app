@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { notifyUsers } from '@/lib/notify';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 // ── Midweek absence alert engine
 // ── Runs automatically every day via Vercel Cron (see vercel.json), once
@@ -136,7 +137,7 @@ async function runForChurch(churchId: string): Promise<ChurchResults> {
   }
 
   const careRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?role=eq.care_team&is_active=eq.true&church_id=eq.${churchId}&select=id`,
+    `${SUPABASE_URL}/rest/v1/users?role=eq.care_team&is_active=eq.true&church_id=eq.${churchId}${EXCLUDE_DEMO_IDS}&select=id`,
     { headers: hdrs() }
   );
   const careTeam = await careRes.json();
@@ -180,7 +181,7 @@ async function runForChurch(churchId: string): Promise<ChurchResults> {
     if (memberAbsences < fullThreshold) {
       if (cellId) {
         const leaderRes = await fetch(
-          `${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&cell_id=eq.${cellId}&church_id=eq.${churchId}&select=id&limit=1`,
+          `${SUPABASE_URL}/rest/v1/users?role=eq.cell_leader&cell_id=eq.${cellId}&church_id=eq.${churchId}${EXCLUDE_DEMO_IDS}&select=id&limit=1`,
           { headers: hdrs() }
         );
         const leaders = await leaderRes.json();

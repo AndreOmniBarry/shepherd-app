@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { gradeToScore } from '@/lib/sla';
 import { resolveBranchScope } from '@/lib/branch-scope';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
 
     const churchFilter = `&church_id=eq.${user.church_id}`;
     const [teamRes, timersRes, leadsRes] = await Promise.all([
-      fetch(`${SURL}/rest/v1/users?role=eq.care_team&select=id,full_name,is_active${branchFilter}${churchFilter}`, { headers: H() }),
+      fetch(`${SURL}/rest/v1/users?role=eq.care_team&select=id,full_name,is_active${branchFilter}${churchFilter}${EXCLUDE_DEMO_IDS}`, { headers: H() }),
       fetch(`${SURL}/rest/v1/first_timers?order=created_at.desc&limit=300&select=id,full_name,status,outcome,assigned_to,sla_grade,created_at,service_date${branchFilter}${churchFilter}`, { headers: H() }),
       fetch(`${SURL}/rest/v1/care_leads?order=created_at.desc&limit=300&select=id,weeks_absent,status,assigned_to,sla_grade,created_at,members(full_name)${branchFilter}${churchFilter}`, { headers: H() }),
     ]);

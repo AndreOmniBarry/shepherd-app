@@ -25,6 +25,7 @@
 // ============================================================
 
 import { getRoleLabel, pluralizeLabel, type RoleLabelConfig } from '@/lib/church-config';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const S = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const K = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -75,7 +76,7 @@ async function getChurchConfigLabels(churchId: string): Promise<RoleLabelConfig>
 async function fetchUserIdsByRole(role: string, churchId: string, branchId: string | null): Promise<string[]> {
   const branchFilter = branchId ? `&branch_id=eq.${branchId}` : '';
   const res = await fetch(
-    `${S}/rest/v1/users?role=eq.${role}&is_active=eq.true&church_id=eq.${churchId}${branchFilter}&select=id`,
+    `${S}/rest/v1/users?role=eq.${role}&is_active=eq.true&church_id=eq.${churchId}${branchFilter}${EXCLUDE_DEMO_IDS}&select=id`,
     { headers: H() }
   );
   const rows = await res.json().catch(() => []);
@@ -85,7 +86,7 @@ async function fetchUserIdsByRole(role: string, churchId: string, branchId: stri
 async function fetchDepartmentHeadIds(deptIds: string[], churchId: string): Promise<string[]> {
   if (deptIds.length === 0) return [];
   const res = await fetch(
-    `${S}/rest/v1/users?role=eq.department_head&is_active=eq.true&department_id=in.(${deptIds.join(',')})&church_id=eq.${churchId}&select=id`,
+    `${S}/rest/v1/users?role=eq.department_head&is_active=eq.true&department_id=in.(${deptIds.join(',')})&church_id=eq.${churchId}${EXCLUDE_DEMO_IDS}&select=id`,
     { headers: H() }
   );
   const rows = await res.json().catch(() => []);
