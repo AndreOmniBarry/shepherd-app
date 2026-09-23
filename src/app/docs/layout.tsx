@@ -49,7 +49,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         {/* Mobile-only collapsible nav — collapsed by default so the actual
             page content is what you see first, not a wall of 17 links. */}
         <button onClick={() => setMobileNavOpen(v => !v)} className="shep-docs-mobile-toggle"
-          style={{ display: 'none', width: '100%', alignItems: 'center', justifyContent: 'space-between', background: 'transparent', border: 'none', borderTop: `0.5px solid ${C.border}`, padding: '12px 24px', fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer' }}>
+          style={{ display: 'none', width: '100%', alignItems: 'center', justifyContent: 'space-between', background: 'transparent', borderLeft: 'none', borderRight: 'none', borderBottom: 'none', borderTop: `0.5px solid ${C.border}`, padding: '12px 24px', fontSize: 13, fontWeight: 600, color: C.text, cursor: 'pointer' }}>
           Browse guides
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ transform: mobileNavOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}><path d="M6 9l6 6 6-6" /></svg>
         </button>

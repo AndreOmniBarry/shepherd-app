@@ -78,7 +78,7 @@ export default function PastorGiving({ dark, t, branchId, isMobile = false, curr
           { label: 'This month', value: fmtNGN(data.kpi.mtd), sub: 'Month to date', accent: '#BA7517', bg: t.amberBg },
           { label: 'YTD total', value: fmtNGN(data.kpi.ytd), sub: data.kpi.yoy_growth !== null ? `${data.kpi.yoy_growth >= 0 ? '+' : ''}${data.kpi.yoy_growth}% vs last year` : `${data.total_entries} entries`, accent: '#534AB7', bg: t.purpleBg },
         ].map(k => (
-          <div key={k.label} style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: isMobile ? '12px 14px' : '14px', borderTop: `2.5px solid ${k.accent}` }}>
+          <div key={k.label} style={{ background: t.card, borderRadius: 12, borderLeft: `0.5px solid ${t.border}`, borderRight: `0.5px solid ${t.border}`, borderBottom: `0.5px solid ${t.border}`, padding: isMobile ? '12px 14px' : '14px', borderTop: `2.5px solid ${k.accent}` }}>
             <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</div>
             <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, color: t.text, lineHeight: 1.15 }}>{k.value}</div>
             <div style={{ fontSize: 10, color: t.muted, marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.sub}</div>

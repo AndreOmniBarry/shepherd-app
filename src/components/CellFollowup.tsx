@@ -116,7 +116,7 @@ export default function CellFollowup({ dark = false, t }: CellFollowupProps) {
           const isSuccess = success === lead.id;
 
           return (
-            <div key={lead.id} style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${lead.weeks_absent >= 3 ? 'rgba(198,40,40,0.3)' : t.border}`, padding: '16px 18px', borderLeft: `3px solid ${lead.weeks_absent >= 3 ? '#C62828' : lead.weeks_absent >= 2 ? '#D85A30' : '#BA7517'}` }}>
+            <div key={lead.id} style={{ background: t.card, borderRadius: 12, borderTop: `0.5px solid ${lead.weeks_absent >= 3 ? 'rgba(198,40,40,0.3)' : t.border}`, borderRight: `0.5px solid ${lead.weeks_absent >= 3 ? 'rgba(198,40,40,0.3)' : t.border}`, borderBottom: `0.5px solid ${lead.weeks_absent >= 3 ? 'rgba(198,40,40,0.3)' : t.border}`, padding: '16px 18px', borderLeft: `3px solid ${lead.weeks_absent >= 3 ? '#C62828' : lead.weeks_absent >= 2 ? '#D85A30' : '#BA7517'}` }}>
 
               {/* Member info */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
