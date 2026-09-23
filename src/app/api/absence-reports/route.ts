@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { notifyUsers } from '@/lib/notify';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
     const notifyRoles = requires_followup ? ['fellowship_head','care_team','pa','overseer'] : ['fellowship_head','pa'];
     const notifyIds: string[] = [];
     for (const role of notifyRoles) {
-      const ur = await fetch(`${SURL}/rest/v1/users?role=eq.${role}&church_id=eq.${user.church_id}&select=id`, { headers: H() });
+      const ur = await fetch(`${SURL}/rest/v1/users?role=eq.${role}&church_id=eq.${user.church_id}${EXCLUDE_DEMO_IDS}&select=id`, { headers: H() });
       const ru = await ur.json();
       if (Array.isArray(ru)) notifyIds.push(...ru.map((u: Record<string,string>) => u.id));
     }
@@ -94,7 +95,7 @@ export async function PATCH(req: Request) {
       const visibility: string[] = pastor_instruction_visibility?.includes('all') ? ['cell_leader','fellowship_head','care_team','pa'] : (pastor_instruction_visibility || ['all']);
       const instructionIds: string[] = [];
       for (const role of visibility) {
-        const ur = await fetch(`${SURL}/rest/v1/users?role=eq.${role}&church_id=eq.${user.church_id}&select=id`, { headers: H() });
+        const ur = await fetch(`${SURL}/rest/v1/users?role=eq.${role}&church_id=eq.${user.church_id}${EXCLUDE_DEMO_IDS}&select=id`, { headers: H() });
         const ru = await ur.json();
         if (Array.isArray(ru)) instructionIds.push(...ru.map((u: Record<string,string>) => u.id));
       }

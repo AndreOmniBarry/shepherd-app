@@ -3,6 +3,7 @@ import { getAuthUser } from '@/lib/auth';
 import { sendSMS, welcomeMessage } from '@/lib/sms';
 import { computeSlaGrade } from '@/lib/sla';
 import { notifyUsers } from '@/lib/notify';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -89,7 +90,7 @@ export async function POST(req: Request) {
         ? await fetch(`${SUPABASE_URL}/rest/v1/users?department_id=eq.${department_id}&role=eq.department_head&select=id`, { headers: hdrs() })
         : null;
     const l1Data = l1Res ? await l1Res.json() : [];
-    const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
+    const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}${EXCLUDE_DEMO_IDS}&select=id`, { headers: hdrs() });
     const adminData = await adminRes.json();
     const notifyIds = [...(Array.isArray(l1Data) ? l1Data.map((u: Record<string,string>) => u.id) : []), ...(Array.isArray(adminData) ? adminData.map((u: Record<string,string>) => u.id) : [])];
     await notifyUsers(notifyIds, {

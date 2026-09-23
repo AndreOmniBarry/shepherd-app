@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyToken, payloadToAuthUser } from '@/lib/auth';
 import { assignToLeastLoadedCareTeamMember } from '@/lib/care-assignment';
 import { notifyUsers } from '@/lib/notify';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 // ── This endpoint scans the church's last main-service attendance and
 // ── creates care leads for any member who's missed enough CONSECUTIVE
@@ -130,7 +131,7 @@ async function runForChurch(churchId: string): Promise<ChurchResults> {
     membersData.forEach((m: Record<string, string>) => { branchByMember[m.id] = m.branch_id || null; });
   }
 
-  const careIdsRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.care_team&church_id=eq.${churchId}&select=id`, { headers: hdrs() });
+  const careIdsRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.care_team&church_id=eq.${churchId}${EXCLUDE_DEMO_IDS}&select=id`, { headers: hdrs() });
   const careIdsData = await careIdsRes.json();
   const careIds: string[] = Array.isArray(careIdsData) ? careIdsData.map((u: Record<string, string>) => u.id) : [];
 

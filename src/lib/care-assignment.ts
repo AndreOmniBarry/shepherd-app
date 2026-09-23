@@ -1,17 +1,28 @@
 export { computeSlaGrade } from '@/lib/sla';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 // Smart care-team assignment: whoever currently has the fewest open items
 // (care_leads + first_timers combined) gets the next one. Replaces plain
 // round-robin, which ignores backlog — round-robin alone means someone
 // sitting on 15 old open leads keeps getting new ones at the same rate as
 // someone with 2, which isn't actually "smart" load balancing.
+//
+// EXCLUDE_DEMO_IDS matters far more here than in a display list: the fixed
+// "DEMO — care team" preview account (see /api/admin/impersonate) is a
+// real, active, church_id-matching users row the instant anyone has ever
+// previewed that portal — and it always starts at zero assigned load, so
+// without this filter it wins "least loaded" almost every time, silently
+// routing a real first-timer or absentee lead to an account nobody
+// actually monitors. Worse un-excluded: a church with no real care_team
+// staff yet but one preview click would hit the careIds.length===1 short
+// circuit below and assign every single one of them to the demo account.
 export async function assignToLeastLoadedCareTeamMember(
   SUPABASE_URL: string,
   hdrs: Record<string, string>,
   churchId: string | null | undefined
 ): Promise<string | null> {
   if (!churchId) return null;
-  const teamRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.care_team&is_active=eq.true&church_id=eq.${churchId}&select=id`, { headers: hdrs });
+  const teamRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=eq.care_team&is_active=eq.true&church_id=eq.${churchId}${EXCLUDE_DEMO_IDS}&select=id`, { headers: hdrs });
   const team = await teamRes.json();
   const careIds: string[] = Array.isArray(team) ? team.map((u: { id: string }) => u.id) : [];
   if (careIds.length === 0) return null;

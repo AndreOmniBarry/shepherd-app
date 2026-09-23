@@ -3,6 +3,7 @@ import { getAuthUser } from '@/lib/auth';
 import { assignToLeastLoadedCareTeamMember } from '@/lib/care-assignment';
 import { resolveBranchScope } from '@/lib/branch-scope';
 import { notifyUsers } from '@/lib/notify';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -15,7 +16,7 @@ async function getUser(req: Request) {
 async function getOverseerIds(churchId: string | null | undefined): Promise<string[]> {
   if (!churchId) return [];
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&church_id=eq.${churchId}&select=id`,
+    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa)&church_id=eq.${churchId}${EXCLUDE_DEMO_IDS}&select=id`,
     { headers: hdrs() }
   );
   const data = await res.json();
@@ -130,7 +131,7 @@ export async function POST(req: Request) {
         const heads = await headsRes.json();
         if (Array.isArray(heads)) recipients.push(...heads.map((u: { id: string }) => u.id));
       }
-      const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: hdrs() });
+      const adminRes = await fetch(`${SUPABASE_URL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}${EXCLUDE_DEMO_IDS}&select=id`, { headers: hdrs() });
       const adminData = await adminRes.json();
       if (Array.isArray(adminData)) recipients.push(...adminData.map((u: { id: string }) => u.id));
 

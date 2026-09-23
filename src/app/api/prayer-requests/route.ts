@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { notifyUsers } from '@/lib/notify';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -15,7 +16,7 @@ const ADMIN_ROLES = ['overseer', 'general_overseer', 'branch_pastor', 'pa', 'lea
 async function getOverseerIds(churchId: string | null | undefined): Promise<string[]> {
   if (!churchId) return [];
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,general_overseer,pa,lead_tech)&church_id=eq.${churchId}&select=id`,
+    `${SUPABASE_URL}/rest/v1/users?role=in.(overseer,general_overseer,pa,lead_tech)&church_id=eq.${churchId}${EXCLUDE_DEMO_IDS}&select=id`,
     { headers: hdrs() }
   );
   const data = await res.json();

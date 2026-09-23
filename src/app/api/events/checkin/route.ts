@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { assignToLeastLoadedCareTeamMember } from '@/lib/care-assignment';
 import { notifyUsers } from '@/lib/notify';
+import { EXCLUDE_DEMO_IDS } from '@/lib/demo-accounts';
 
 const SURL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -107,7 +108,7 @@ export async function POST(req: Request) {
         // one church's event was sent to every church's overseer/pa/
         // lead_tech on the platform. Matches the equivalent, already-
         // correct prayer-point routing in care/first-timers.
-        const adminRes = await fetch(`${SURL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}&select=id`, { headers: H() });
+        const adminRes = await fetch(`${SURL}/rest/v1/users?role=in.(overseer,pa,lead_tech)&church_id=eq.${user.church_id}${EXCLUDE_DEMO_IDS}&select=id`, { headers: H() });
         const admins = await adminRes.json();
         const recipients = Array.isArray(admins) ? admins.map((u: { id: string }) => u.id) : [];
         await notifyUsers(recipients, {

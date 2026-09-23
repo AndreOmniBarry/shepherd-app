@@ -68,6 +68,11 @@ function exportCSV(data:Record<string,unknown>[], filename:string){
 }
 
 const PRAYER_FILTER_LABEL:{[k:string]:string}={open:'New request',prayed:'Prayed',all:'All'};
+// Separate from PRAYER_FILTER_LABEL (a tab button's own noun-phrase label,
+// "New request") — reusing that directly as an adjective in the empty-state
+// sentence below produced "No new request prayer requests" for the 'open'
+// filter specifically (the other two filters happened to read fine as-is).
+const PRAYER_FILTER_EMPTY_ADJ:{[k:string]:string}={open:'new',prayed:'prayed',all:''};
 
 function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean}){
   const [requests,setRequests]=React.useState<{id:string;request:string;requester_name:string;category:string;status:string;submitted_by_role:string;created_at:string}[]>([]);
@@ -128,7 +133,7 @@ function PrayerRequestDashboard({t,dark}:{t:Record<string,string>;dark:boolean})
       {requests.length===0?(
         <div style={{background:t.card,borderRadius:12,border:`0.5px solid ${t.border}`,padding:40,textAlign:'center'}}>
           <div style={{marginBottom:8,color:t.muted,display:'flex',justifyContent:'center'}}><Icon name="ti-heart" size={26}/></div>
-          <div style={{fontSize:13,color:t.sub}}>No {filter==='all'?'':(PRAYER_FILTER_LABEL[filter]||filter).toLowerCase()+' '}prayer requests</div>
+          <div style={{fontSize:13,color:t.sub}}>No {PRAYER_FILTER_EMPTY_ADJ[filter]?PRAYER_FILTER_EMPTY_ADJ[filter]+' ':''}prayer requests</div>
         </div>
       ):(
         <div style={{background:t.card,borderRadius:12,border:`0.5px solid ${t.border}`,overflow:'hidden'}}>
