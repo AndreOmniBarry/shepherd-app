@@ -99,7 +99,7 @@ export default function PartnershipPage() {
     chartGrid: dark ? 'rgba(168,159,255,0.06)' : '#F0EEF9', chartAxis: dark ? 'rgba(168,159,255,0.35)' : '#9990CC', chartTip: dark ? '#13102A' : '#FFFFFF', chartTipText: dark ? '#E8E5FF' : '#1A1040',
   };
 
-  const card = (e?: React.CSSProperties): React.CSSProperties => ({ background: t.card, border: `0.5px solid ${t.border}`, borderRadius: 12, padding: '16px 18px', ...e });
+  const card = (e?: React.CSSProperties): React.CSSProperties => ({ background: t.card, borderTop: `0.5px solid ${t.border}`, borderRight: `0.5px solid ${t.border}`, borderBottom: `0.5px solid ${t.border}`, borderLeft: `0.5px solid ${t.border}`, borderRadius: 12, padding: '16px 18px', ...e });
   const fmtNGN = (n: number) => formatMoney(n, currency);
 
   useEffect(() => {
