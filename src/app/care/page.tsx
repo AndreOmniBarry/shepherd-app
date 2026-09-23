@@ -145,7 +145,7 @@ export default function CareTeamPage() {
   };
 
   const card = (e?: React.CSSProperties): React.CSSProperties => ({
-    background: t.card, border: `0.5px solid ${t.border}`,
+    background: t.card, borderTop: `0.5px solid ${t.border}`, borderRight: `0.5px solid ${t.border}`, borderBottom: `0.5px solid ${t.border}`, borderLeft: `0.5px solid ${t.border}`,
     borderRadius: 12, padding: '16px 18px', ...e,
   });
 
