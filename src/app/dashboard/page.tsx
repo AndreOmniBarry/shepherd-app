@@ -259,7 +259,7 @@ function ActionBoardPanel({t, branchId, isMobile=false}: {t: Record<string,strin
           {label:'All clear',value:flags.length===0?'✓':flags.length,accent:'#1D9E75',key:'all' as const},
         ].map(s=>(
           <div key={s.label} onClick={()=>setFilter(s.key)}
-            style={{background:t.card,border:`0.5px solid ${filter===s.key?s.accent:t.border}`,borderRadius:12,padding:isMobile?'10px 8px':'14px 16px',cursor:'pointer',borderTop:`2.5px solid ${s.accent}`}}>
+            style={{background:t.card,borderLeft:`0.5px solid ${filter===s.key?s.accent:t.border}`,borderRight:`0.5px solid ${filter===s.key?s.accent:t.border}`,borderBottom:`0.5px solid ${filter===s.key?s.accent:t.border}`,borderRadius:12,padding:isMobile?'10px 8px':'14px 16px',cursor:'pointer',borderTop:`2.5px solid ${s.accent}`}}>
             <div style={{fontSize:isMobile?18:22,fontWeight:700,color:t.text}}>{s.value}</div>
             <div style={{fontSize:isMobile?9.5:11,color:t.muted,marginTop:2}}>{s.label}</div>
           </div>
@@ -277,7 +277,7 @@ function ActionBoardPanel({t, branchId, isMobile=false}: {t: Record<string,strin
             if (g.items.length < 3) {
               return g.items.map((f,i)=>(
                 <div key={`${g.key}-${i}`} onClick={()=>goTo(f.link)}
-                  style={{background:t.card,border:`0.5px solid ${t.border}`,borderLeft:`3px solid ${f.severity==='high'?'#D85A30':'#BA7517'}`,borderRadius:10,padding:'12px 16px',cursor:'pointer',display:'flex',gap:12,alignItems:'flex-start'}}>
+                  style={{background:t.card,borderTop:`0.5px solid ${t.border}`,borderRight:`0.5px solid ${t.border}`,borderBottom:`0.5px solid ${t.border}`,borderLeft:`3px solid ${f.severity==='high'?'#D85A30':'#BA7517'}`,borderRadius:10,padding:'12px 16px',cursor:'pointer',display:'flex',gap:12,alignItems:'flex-start'}}>
                   <div style={{color:f.severity==='high'?'#D85A30':'#BA7517',flexShrink:0,marginTop:1}}><Icon name={ACTION_CATEGORY_ICON[f.category]||'ti-alert-triangle'} size={16}/></div>
                   <div style={{flex:1}}>
                     <div style={{fontSize:13,color:t.text}}>{f.message}</div>
@@ -290,7 +290,7 @@ function ActionBoardPanel({t, branchId, isMobile=false}: {t: Record<string,strin
             return (
               <div key={g.key}>
                 <div onClick={()=>setOpenGroups(p=>({...p,[g.key]:!p[g.key]}))}
-                  style={{background:t.card,border:`0.5px solid ${t.border}`,borderLeft:`3px solid ${g.severity==='high'?'#D85A30':'#BA7517'}`,borderRadius:10,padding:'12px 16px',cursor:'pointer',display:'flex',gap:12,alignItems:'flex-start'}}>
+                  style={{background:t.card,borderTop:`0.5px solid ${t.border}`,borderRight:`0.5px solid ${t.border}`,borderBottom:`0.5px solid ${t.border}`,borderLeft:`3px solid ${g.severity==='high'?'#D85A30':'#BA7517'}`,borderRadius:10,padding:'12px 16px',cursor:'pointer',display:'flex',gap:12,alignItems:'flex-start'}}>
                   <div style={{color:g.severity==='high'?'#D85A30':'#BA7517',flexShrink:0,marginTop:1}}><Icon name={ACTION_CATEGORY_ICON[g.category]||'ti-alert-triangle'} size={16}/></div>
                   <div style={{flex:1}}>
                     <div style={{fontSize:13,color:t.text,fontWeight:600}}>{g.items.length} items{g.rest}</div>
@@ -1315,7 +1315,7 @@ function ChurchSettingsPanel({t, dark, userRole, onConfigSaved}: {t: Record<stri
       <div style={{display:'flex',gap:0,borderBottom:`0.5px solid ${t.border}`}}>
         {(['structure','church','services'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            style={{padding:'9px 18px',border:'none',borderBottom:`2px solid ${activeTab===tab?t.purple:'transparent'}`,background:activeTab===tab?t.purpleBg:'transparent',fontSize:12,fontWeight:activeTab===tab?600:400,color:activeTab===tab?t.purple:t.muted,cursor:'pointer',textTransform:'capitalize' as const}}>
+            style={{padding:'9px 18px',borderTop:'none',borderLeft:'none',borderRight:'none',borderBottom:`2px solid ${activeTab===tab?t.purple:'transparent'}`,background:activeTab===tab?t.purpleBg:'transparent',fontSize:12,fontWeight:activeTab===tab?600:400,color:activeTab===tab?t.purple:t.muted,cursor:'pointer',textTransform:'capitalize' as const}}>
             {tab === 'structure' ? 'Church Structure' : tab === 'church' ? 'Church Details' : 'Services'}
           </button>
         ))}
@@ -3020,7 +3020,7 @@ export default function DashboardPage(){
                         {editGoals?(
                           <input type="number" value={goals[g.key]}
                             onChange={e=>{const updated={...goals,[g.key]:parseInt(e.target.value)||0};setGoals(updated);if(typeof window!=='undefined'){try{localStorage.setItem('shepherd_goals',JSON.stringify(updated));}catch{}}}}
-                            style={{fontSize:20,fontWeight:600,color:g.color,background:'transparent',border:'none',borderBottom:`1px solid ${g.color}`,outline:'none',width:'100%',marginBottom:8}}/>
+                            style={{fontSize:20,fontWeight:600,color:g.color,background:'transparent',borderTop:'none',borderLeft:'none',borderRight:'none',borderBottom:`1px solid ${g.color}`,outline:'none',width:'100%',marginBottom:8}}/>
                         ):(
                           <div style={{fontSize:24,fontWeight:600,color:g.color,marginBottom:6}}>{goals[g.key].toLocaleString()}</div>
                         )}

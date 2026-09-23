@@ -98,7 +98,7 @@ export default function PastorRequisitions({ t, dark, branchId, currency }: Past
         filtered.map(r => {
           const cfg = STATUS_CFG[r.status] || STATUS_CFG.pending;
           return (
-            <div key={r.id} style={{ background: t.card, borderRadius: 12, border: `0.5px solid ${t.border}`, padding: '14px 16px', borderLeft: `3px solid ${r.status === 'approved' ? '#BA7517' : r.status === 'paid' ? '#534AB7' : r.status === 'rejected' ? '#D85A30' : '#1D9E75'}` }}>
+            <div key={r.id} style={{ background: t.card, borderRadius: 12, borderTop: `0.5px solid ${t.border}`, borderRight: `0.5px solid ${t.border}`, borderBottom: `0.5px solid ${t.border}`, padding: '14px 16px', borderLeft: `3px solid ${r.status === 'approved' ? '#BA7517' : r.status === 'paid' ? '#534AB7' : r.status === 'rejected' ? '#D85A30' : '#1D9E75'}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 2 }}>{r.title}</div>

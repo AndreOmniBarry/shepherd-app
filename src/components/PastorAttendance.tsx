@@ -131,7 +131,7 @@ export default function PastorAttendance({ dark, t, branchId, isMobile = false, 
           { label: 'Avg attendance rate', value: latestTrend && latestTrend.present > 0 ? `${latestTrend.rate}%` : '—', sub: 'Latest service', accent: '#BA7517' },
           { label: `${pluralizeLabel(tier2Label)} pending`, value: data.total_cells - cellsSubmitted, sub: 'Not yet submitted', accent: data.total_cells - cellsSubmitted > 0 ? '#D85A30' : '#1D9E75' },
         ].map(k => (
-          <div key={k.label} style={{ background: t.card, borderRadius: 11, border: `0.5px solid ${t.border}`, padding: '12px 14px', borderTop: `2.5px solid ${k.accent}` }}>
+          <div key={k.label} style={{ background: t.card, borderRadius: 11, borderLeft: `0.5px solid ${t.border}`, borderRight: `0.5px solid ${t.border}`, borderBottom: `0.5px solid ${t.border}`, padding: '12px 14px', borderTop: `2.5px solid ${k.accent}` }}>
             <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>{k.label}</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: t.text, lineHeight: 1 }}>{k.value}</div>
             <div style={{ fontSize: 10, color: t.muted, marginTop: 4 }}>{k.sub}</div>

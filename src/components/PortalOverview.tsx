@@ -99,7 +99,7 @@ export default function PortalOverview({ role, name, dark = false, t, stats, rol
       {/* KPI cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
         {kpis.map(k => (
-          <div key={k.label} style={{ background: t.card, borderRadius: 11, border: `0.5px solid ${t.border}`, padding: '12px 14px', borderTop: `2.5px solid ${k.valueColor}` }}>
+          <div key={k.label} style={{ background: t.card, borderRadius: 11, borderLeft: `0.5px solid ${t.border}`, borderRight: `0.5px solid ${t.border}`, borderBottom: `0.5px solid ${t.border}`, padding: '12px 14px', borderTop: `2.5px solid ${k.valueColor}` }}>
             <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>{k.label}</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: k.valueColor, lineHeight: 1 }}>{k.value}</div>
             <div style={{ fontSize: 10, color: t.muted, marginTop: 4, lineHeight: 1.4 }}>{k.sub}</div>

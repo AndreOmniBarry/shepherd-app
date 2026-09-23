@@ -195,7 +195,7 @@ export default function StructureOverview({ dark = false, t, isMobile = false, f
           { label: 'Current SLA', value: stats.currentSLA || '—', sub: 'This week', accent: slaColor.text, valueBg: slaColor.bg, valueText: slaColor.text },
           { label: 'Members at risk', value: atRisk, sub: atRiskSub, accent: atRisk > 0 ? '#D85A30' : '#1D9E75' },
         ].map(k => (
-          <div key={k.label} style={{ background: t.card, borderRadius: 11, border: `0.5px solid ${t.border}`, padding: '12px 14px', borderTop: `2.5px solid ${k.accent}` }}>
+          <div key={k.label} style={{ background: t.card, borderRadius: 11, borderLeft: `0.5px solid ${t.border}`, borderRight: `0.5px solid ${t.border}`, borderBottom: `0.5px solid ${t.border}`, padding: '12px 14px', borderTop: `2.5px solid ${k.accent}` }}>
             <div style={{ fontSize: 10, color: t.muted, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>{k.label}</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: k.valueText || t.text, lineHeight: 1 }}>{k.value}</div>
             <div style={{ fontSize: 10, color: t.muted, marginTop: 4, lineHeight: 1.4 }}>{k.sub}</div>

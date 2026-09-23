@@ -803,7 +803,7 @@ export default function AdminPortal() {
                 <div style={{ display: 'flex', borderBottom: `0.5px solid ${C.border}` }}>
                   {(['overview', 'profile', 'goals', 'notes'] as const).map(t => (
                     <button key={t} onClick={() => setTab(t)}
-                      style={{ flex: 1, padding: '10px 4px', border: 'none', borderBottom: `2px solid ${tab === t ? C.purple : 'transparent'}`, background: tab === t ? C.purpleBg : 'transparent', fontSize: 11, fontWeight: tab === t ? 600 : 400, color: tab === t ? C.purple : C.muted, cursor: 'pointer', textTransform: 'capitalize' }}>
+                      style={{ flex: 1, padding: '10px 4px', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: `2px solid ${tab === t ? C.purple : 'transparent'}`, background: tab === t ? C.purpleBg : 'transparent', fontSize: 11, fontWeight: tab === t ? 600 : 400, color: tab === t ? C.purple : C.muted, cursor: 'pointer', textTransform: 'capitalize' }}>
                       {t}
                     </button>
                   ))}
