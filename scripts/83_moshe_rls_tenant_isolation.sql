@@ -47,6 +47,16 @@ END $$;
 -- what that role is called.
 GRANT moshe_query_role TO CURRENT_USER;
 
+-- Postgres separately requires the NEW owner role itself (not just the
+-- user running this script) to hold CREATE on the object's schema before
+-- an OWNER TO transfer is allowed -- this is what actually blocks
+-- `ALTER FUNCTION ... OWNER TO moshe_query_role` below with
+-- "42501: permission denied for schema public" on a fresh run:
+-- moshe_query_role was created with no schema privileges of its own.
+-- Confirmed live against Supabase (current_user=postgres already had
+-- CREATE on public, but the role being handed ownership did not).
+GRANT USAGE, CREATE ON SCHEMA public TO moshe_query_role;
+
 -- 2) Helpers reading the scope for the current query from session-local
 --    settings set inside execute_safe_query below -- never from anything
 --    embedded in the AI-generated query text itself.
