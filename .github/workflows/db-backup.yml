@@ -9,7 +9,11 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       # Ubuntu's default apt repo only ships postgresql-client 16, but
       # Supabase runs Postgres 17 — pg_dump refuses to dump from a server
       # newer than itself ("aborting because of server version mismatch").
@@ -43,3 +47,20 @@ jobs:
           name: shepherd-db-backup-${{ github.run_id }}
           path: shepherd_backup.dump
           retention-days: 30
+
+      # Artifacts alone never touch the repo's git history, so a
+      # successful nightly run was never visible as activity anywhere
+      # outside the Actions tab. This appends one line recording the
+      # backup (timestamp + dump size, no data), committed under the
+      # repo owner's real GitHub no-reply address so the commit counts
+      # toward their contribution graph like any other commit would.
+      - name: Record backup in log
+        run: |
+          mkdir -p scripts
+          SIZE=$(du -h shepherd_backup.dump | cut -f1)
+          echo "$(date -u +'%Y-%m-%d %H:%M:%S UTC') — backup OK, size ${SIZE}, run ${{ github.run_id }}" >> scripts/backup-log.md
+          git config user.name "Andre Courage OmniBarry"
+          git config user.email "135624085+AndreOmniBarry@users.noreply.github.com"
+          git add scripts/backup-log.md
+          git commit -m "Nightly backup log — $(date -u +'%Y-%m-%d')"
+          git push
