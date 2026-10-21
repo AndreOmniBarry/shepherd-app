@@ -63,6 +63,15 @@ function isPublicEventRegistration(pathname: string, method: string): boolean {
   return pathname === '/api/events/register' && method === 'POST';
 }
 
+// The TCH website's signed sign-up bridge (wire contract v1). Exact path,
+// POST only — auth is the HMAC signature verified inside the route itself
+// (src/lib/bridge.ts verifyRequest). Deliberately NOT a startsWith
+// PUBLIC_PATHS entry, so no sibling /api/bridge/* route is ever exposed
+// by accident.
+function isBridgeIngest(pathname: string, method: string): boolean {
+  return pathname === '/api/bridge/ingest' && method === 'POST';
+}
+
 // Portal prefixes each role is allowed to access
 function allowedPrefixes(role: string): string[] {
   switch (role) {
@@ -107,7 +116,7 @@ function allowedPrefixes(role: string): string[] {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (isPublic(pathname) || isPublicEventRegistration(pathname, req.method)) return NextResponse.next();
+  if (isPublic(pathname) || isPublicEventRegistration(pathname, req.method) || isBridgeIngest(pathname, req.method)) return NextResponse.next();
 
   const tokenFromCookie = req.cookies.get('shepherd_token')?.value;
   const tokenFromHeader = req.headers.get('Authorization')?.replace('Bearer ', '');
