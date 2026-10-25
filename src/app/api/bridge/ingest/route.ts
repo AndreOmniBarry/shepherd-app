@@ -120,11 +120,12 @@ async function notify(env: BridgeEnvelope, churchId: string, cfg: BridgeConfig, 
       return;
     }
     case 'prayer.request': {
-      const prayerDeptIds = mapTeamsToDepartmentIds(['Prayer Team'], cfg.teamMap, await churchDepartments(churchId));
-      const recipients = [
-        ...(await departmentHeads(churchId, prayerDeptIds)),
-        ...(await overseers(churchId, 'overseer,general_overseer,pa,lead_tech')),
-      ];
+      const [departments, admins] = await Promise.all([
+        churchDepartments(churchId),
+        overseers(churchId, 'overseer,general_overseer,pa,lead_tech'),
+      ]);
+      const prayerDeptIds = mapTeamsToDepartmentIds(['Prayer Team'], cfg.teamMap, departments);
+      const recipients = [...(await departmentHeads(churchId, prayerDeptIds)), ...admins];
       await notifyUsers(recipients, {
         type: 'pastoral', title: 'New prayer request (website)',
         body: 'An anonymous prayer request was submitted on the website.', link: '/dashboard?page=prayer',
@@ -137,8 +138,8 @@ async function notify(env: BridgeEnvelope, churchId: string, cfg: BridgeConfig, 
       const n = env.data.teams.length;
       await notifyUsers(recipients, {
         type: 'pipeline', title: 'New volunteer interest (website)',
-        body: `${notificationSafe(env.data.full_name, 60)} wants to serve${n ? ` (${n} team${n === 1 ? '' : 's'})` : ''}. Details are in the website volunteer list.`,
-        link: '/department',
+        body: `${notificationSafe(env.data.full_name, 60)} wants to serve${n ? ` (${n} team${n === 1 ? '' : 's'})` : ''}. See Volunteers in the department portal.`,
+        link: '/department?tab=volunteers',
       }, churchId);
       return;
     }
@@ -192,26 +193,33 @@ export async function POST(req: Request) {
   const log = (status: string, code?: string) => console.info('[bridge]', JSON.stringify({ id: env.id, type: env.type, status, ...(code ? { code } : {}) }));
 
   try {
-    if (!(await keyScopeIsValid(key))) {
+    // The website waits at most 3.5s for an answer, so every lookup that
+    // doesn't depend on another runs in parallel. (A timeout is still safe:
+    // the retry is answered 'duplicate' — just wasted work.)
+    const now = Date.now();
+    const needsAssignee = env.type === 'member.join' || env.type === 'care.salvation';
+    const [scopeOk, lastMinute, lastDay, careAssignee, departments] = await Promise.all([
+      keyScopeIsValid(key),
+      countInbox(key.church_id, new Date(now - 60_000).toISOString()),
+      countInbox(key.church_id, new Date(now - 86_400_000).toISOString()),
+      needsAssignee ? assignToLeastLoadedCareTeamMember(SUPABASE_URL, hdrs(), key.church_id) : Promise.resolve(null),
+      env.type === 'workforce.volunteer' ? churchDepartments(key.church_id) : Promise.resolve([]),
+    ]);
+    if (!scopeOk) {
       console.error('[bridge] key scope invalid (branch not in church) for key', key.id);
       log('failed', 'key_scope');
       return json(500, { error: 'processing_failed' });
     }
-
-    const now = Date.now();
-    if (await countInbox(key.church_id, new Date(now - 60_000).toISOString()) >= cfg.perMinute) {
+    if (lastMinute >= cfg.perMinute) {
       log('rate_limited');
       return json(429, { error: 'rate_limited' }, { 'Retry-After': '60' });
     }
-    const quarantine = (await countInbox(key.church_id, new Date(now - 86_400_000).toISOString())) >= cfg.dailyCap;
+    const quarantine = lastDay >= cfg.dailyCap;
 
-    let assignee: string | null = null;
+    const assignee: string | null = quarantine ? null : careAssignee;
     const data: Record<string, unknown> = { ...env.data };
-    if (!quarantine && (env.type === 'member.join' || env.type === 'care.salvation')) {
-      assignee = await assignToLeastLoadedCareTeamMember(SUPABASE_URL, hdrs(), key.church_id);
-    }
     if (!quarantine && env.type === 'workforce.volunteer') {
-      data.department_ids = mapTeamsToDepartmentIds(env.data.teams, cfg.teamMap, await churchDepartments(key.church_id));
+      data.department_ids = mapTeamsToDepartmentIds(env.data.teams, cfg.teamMap, departments);
     }
 
     const rpc = await fetch(`${SUPABASE_URL}/rest/v1/rpc/bridge_ingest`, {

@@ -7,7 +7,7 @@ The Comforters House website (repo `AndreOmniBarry/TCH-Global`) sends four kinds
 | Join the church | `member.join` | `first_timers` row (`how_they_came='website'`, `would_join='yes'`, `status='new'`), auto-assigned to the least-loaded care-team member | Overseers/PAs + the assignee |
 | Salvation decision | `care.salvation` | `first_timers` row with `salvation_decision=true`, city in `address`, auto-assigned | Overseers/PAs + the assignee |
 | Prayer request | `prayer.request` | `prayer_requests` row, always anonymous (`requester_name='Anonymous (website)'`, `status='open'`) | Prayer department head(s) + overseers/GO/PA/lead tech |
-| Volunteer / workforce | `workforce.volunteer` | `web_volunteer_interest` row (teams, team idea, mapped department ids) | Heads of the mapped departments (overseers/PAs if none map) |
+| Volunteer / workforce | `workforce.volunteer` | `web_volunteer_interest` row (teams, team idea, mapped department ids), shown under **Department portal → Volunteers** | Heads of the mapped departments (overseers/PAs if none map) |
 
 Never bridged in v1: teens/youth, private questions, giving, testimonies, newsletter.
 
@@ -61,6 +61,27 @@ Redeploy after changing env vars. Config is parsed once per server instance.
 
 ### 5. Give the website its side
 
+The website's own guide is `docs/shep-bridge/SETUP.md` in `AndreOmniBarry/TCH-Global`. These values must match exactly:
+
+| SHEP.HRD (this app) | TCH website | Must be |
+|---|---|---|
+| `BRIDGE_KEYS[].id` | `SHEP_BRIDGE_KEY_ID` | the same key id, e.g. `K1` |
+| `BRIDGE_KEYS[].secret` | `SHEP_BRIDGE_SECRET` | the same 64-character secret |
+| `BRIDGE_EXPECTED_HOST` | host part of `SHEP_BRIDGE_URL` | the same host, e.g. `justshephrd.com` |
+| `BRIDGE_FLUSH_KEY_ID` / `BRIDGE_FLUSH_SECRET` | `BRIDGE_FLUSH_KEYS` = `F1:<secret>` | the same flush id and secret (optional) |
+
+**Use the address that does not redirect.** The website does not follow
+redirects, so if `justshephrd.com` redirects to `www.justshephrd.com` (or the
+other way round), every delivery fails and is retried for 24h. Set
+`SHEP_BRIDGE_URL` and `BRIDGE_EXPECTED_HOST` to the host the app finally lands
+on. Check by opening `https://<host>/login` in a browser and looking at the
+address bar.
+
+The website waits 3.5s for an answer. SHEP.HRD runs its lookups in parallel
+to stay well inside that. A slow answer is still safe: the retry gets
+`duplicate`, and nothing is created twice.
+
+
 The website needs the same `K1` id and secret, plus the SHEP base URL. Its ingest URL is `https://<BRIDGE_EXPECTED_HOST>/api/bridge/ingest`.
 
 ## Rotating keys (K1 → K2)
@@ -93,7 +114,10 @@ The four statuses:
 - `failed`: the domain write failed. The SQLSTATE is in `error_code` (`22023` = data failed the in-database checks), and the payload is kept for diagnosis. The website's retry of the same message (same body hash) processes it again automatically.
 - `quarantined`: the message was over `BRIDGE_DAILY_CAP`. No row was created and the payload is kept. Review it. If it is genuine, delete the inbox row and the website's next retry or flush will re-send it. Otherwise delete the row to discard it.
 
-Volunteers are in `web_volunteer_interest` (`status`: `new` → `contacted`/`placed`/`declined`/`archived`).
+Volunteers appear in the app under **Department portal → Volunteers**.
+Department heads see sign-ups mapped to their department; overseers, PAs, GO,
+branch pastors and lead tech see all of them. Each can be marked Contacted,
+Placed, Declined or Archived. The raw rows are in `web_volunteer_interest`.
 
 ## Flush (optional): telling the website to retry its outbox
 

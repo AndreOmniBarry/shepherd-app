@@ -9,6 +9,7 @@ import BirthdayBanner from '@/components/BirthdayBanner';
 import WorkforceServingTab from '@/components/WorkforceServingTab';
 import CareEventsTab from '@/components/CareEventsTab';
 import AttendanceHistoryPanel from '@/components/AttendanceHistoryPanel';
+import WebVolunteersPanel from '@/components/WebVolunteersPanel';
 import Icon from '@/components/Icon';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -74,7 +75,11 @@ export default function DepartmentHeadPage() {
   const router = useRouter();
   const { alertUser, promptUser } = useAppDialog();
   const { config: churchConfig } = useChurchConfigStandalone();
-  const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'roster' | 'serving' | 'birthdays' | 'events'>('overview');
+  const [tab, setTab] = useState<'overview' | 'submit' | 'history' | 'roster' | 'serving' | 'birthdays' | 'events' | 'volunteers'>('overview');
+  // Website volunteer notifications link to /department?tab=volunteers.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('tab') === 'volunteers') setTab('volunteers');
+  }, []);
   const {dark, setDark} = useTheme();
   const [tourOpen, setTourOpen] = useFirstVisitGuide('department');
   const [helpOpen, setHelpOpen] = useState(false);
@@ -388,6 +393,7 @@ export default function DepartmentHeadPage() {
         {[{ id: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' }, { id: 'submit', label: 'Attendance', icon: 'ti-calendar-check' }, { id: 'history', label: 'History', icon: 'ti-history' }, { id: 'roster', label: 'Members', icon: 'ti-list' },
         { id: 'serving', label: 'Serving Schedule', icon: 'ti-user-check' },
         { id: 'birthdays', label: 'Birthdays', icon: 'ti-cake' },
+        { id: 'volunteers', label: 'Volunteers', icon: 'ti-heart-handshake' },
         ...(/protocol|ushering/i.test(deptName) ? [{ id: 'events' as const, label: 'Events', icon: 'ti-calendar-event' }] : [])].map(n => (
           <button key={n.id} onClick={() => setTab(n.id as typeof tab)}
             onMouseEnter={e => { if (tab !== n.id) e.currentTarget.style.background = t.purpleBg; }}
@@ -586,6 +592,10 @@ export default function DepartmentHeadPage() {
 
         {tab === 'serving' && (
           <WorkforceServingTab t={t} />
+        )}
+
+        {tab === 'volunteers' && (
+          <WebVolunteersPanel t={t} />
         )}
 
         {/* ROSTER */}
