@@ -93,6 +93,8 @@ const HOW_THEY_CAME = [
   { value: 'online', label: 'Online / Social media' },
   { value: 'crusade', label: 'Crusade / Outreach' },
   { value: 'referral', label: 'Referral' },
+  // Sign-ups bridged from the TCH website (src/app/api/bridge/ingest).
+  { value: 'website', label: 'Church website' },
 ];
 
 export default function CareTeamPage() {

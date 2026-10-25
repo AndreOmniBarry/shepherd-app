@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:bridge": "node scripts/test-bridge.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.24.3",
